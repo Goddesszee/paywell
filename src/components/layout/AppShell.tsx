@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
-import { Home, Wallet, ShoppingBag, Activity, Menu, X, ArrowLeftRight, ArrowUpDown, Zap, Settings, ChevronRight, CreditCard } from 'lucide-react'
+import { Home, Wallet, ShoppingBag, Activity, Menu, X, ArrowLeftRight, ArrowUpDown, Zap, Settings, ChevronRight, CreditCard, BarChart3 } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
-import { NanLogo } from '../ui/Logo'
+import { PaywellLogo } from '../ui/Logo'
 
 const FONT = "'Inter', -apple-system, sans-serif"
 const BLACK = '#0D0D0D'
@@ -23,6 +23,7 @@ const DRAWER_ITEMS = [
   { id: 'bridge',   label: 'Bridge',    Icon: ArrowLeftRight, desc: 'Move USDC across chains' },
   { id: 'agent',    label: 'AI Agent',  Icon: Zap,            desc: 'Shop with your AI agent' },
   { id: 'settings', label: 'Settings',  Icon: Settings,       desc: 'Wallet & preferences' },
+  { id: 'admin',    label: 'Admin',     Icon: BarChart3,      desc: 'Dashboard & Circle infra status' },
 ]
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -52,7 +53,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         WebkitBackdropFilter: 'blur(20px)',
         borderBottom: `1px solid ${BORDER}`,
       }}>
-        <NanLogo size="sm" />
+        <PaywellLogo size="sm" />
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <div className="net-pill">Arc Testnet</div>
           <button

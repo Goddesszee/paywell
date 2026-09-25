@@ -12,6 +12,7 @@ import { SettingsPage } from './components/pages/SettingsPage'
 import { BridgePage } from './components/pages/BridgePage'
 import { SwapPage } from './components/pages/SwapPage'
 import { OnrampPage } from './components/pages/OnrampPage'
+import { AdminDashboard } from './components/pages/AdminDashboard'
 
 export default function App() {
   const { activeView } = useAppStore()
@@ -20,6 +21,7 @@ export default function App() {
   if (activeView === 'landing') return <LandingPage />
   if (activeView === 'login') return <LoginPage />
   if (activeView === 'onboarding') return <OnboardingPage />
+  if (activeView === 'admin') return <AdminDashboard />
 
   // App pages — inside the shell
   return (
