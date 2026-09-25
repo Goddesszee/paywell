@@ -2,28 +2,24 @@ import { useEffect, useRef } from 'react'
 import { useAppStore } from '../../store/appStore'
 
 const STYLES = `
+@keyframes pw-card-in {
+  from { opacity: 0; transform: rotate(-8deg) translateY(40px) scale(0.92); }
+  to   { opacity: 1; transform: rotate(-8deg) translateY(0)    scale(1); }
+}
 @keyframes pw-fade-up {
-  from { opacity: 0; transform: translateY(24px); }
+  from { opacity: 0; transform: translateY(16px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 @keyframes pw-fade-in {
   from { opacity: 0; }
   to   { opacity: 1; }
 }
-@keyframes pw-card-in {
-  from { opacity: 0; transform: translateY(40px) rotate(-8deg); }
-  to   { opacity: 1; transform: translateY(0) rotate(-8deg); }
-}
-@keyframes pw-shimmer {
-  0%   { background-position: -200% center; }
-  100% { background-position: 200% center; }
-}
 `
 
 export function LandingPage() {
   const setActiveView = useAppStore(s => s.setActiveView)
-
   const injected = useRef(false)
+
   useEffect(() => {
     if (injected.current) return
     injected.current = true
@@ -37,129 +33,93 @@ export function LandingPage() {
       position: 'fixed', inset: 0,
       fontFamily: "'Inter', -apple-system, sans-serif",
       overflow: 'hidden',
-      background: '#111',
+      background: 'linear-gradient(160deg, #d8d8d8 0%, #b0b0b0 40%, #888 100%)',
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',
-      justifyContent: 'space-between',
     }}>
 
-      {/* Top: logo */}
+      {/* Wordmark */}
       <div style={{
-        paddingTop: 56,
-        animation: 'pw-fade-up 0.7s cubic-bezier(0.22,1,0.36,1) 0.1s both',
-        textAlign: 'center',
+        marginTop: 56,
+        fontSize: 42,
+        fontWeight: 800,
+        color: '#fff',
+        letterSpacing: '-1px',
+        textShadow: '0 2px 16px rgba(0,0,0,0.18)',
+        animation: 'pw-fade-in 0.7s ease 0.1s both',
+        zIndex: 2,
       }}>
-        <div style={{
-          fontSize: 36,
-          fontWeight: 800,
-          color: '#fff',
-          letterSpacing: '-1.5px',
-        }}>Paywell</div>
-        <div style={{
-          fontSize: 13,
-          color: 'rgba(255,255,255,0.45)',
-          marginTop: 4,
-          fontWeight: 400,
-          letterSpacing: '0.02em',
-        }}>The intelligent payment layer</div>
+        Paywell
       </div>
 
-      {/* Middle: card */}
+      {/* Card */}
       <div style={{
-        flex: 1,
+        marginTop: 32,
+        width: '78vw',
+        maxWidth: 340,
+        aspectRatio: '1.586',
+        background: 'linear-gradient(145deg, #1a1a1a 0%, #2d2d2d 60%, #111 100%)',
+        borderRadius: 24,
+        boxShadow: '0 32px 80px rgba(0,0,0,0.45), 0 8px 24px rgba(0,0,0,0.3)',
         display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        width: '100%',
+        flexDirection: 'column',
+        justifyContent: 'space-between',
+        padding: '20px 24px',
+        animation: 'pw-card-in 0.9s cubic-bezier(0.22,1,0.36,1) 0.2s both',
+        zIndex: 2,
         position: 'relative',
       }}>
-        {/* Glow behind card */}
+        {/* Card label */}
         <div style={{
-          position: 'absolute',
-          width: 280,
-          height: 280,
-          borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(255,255,255,0.07) 0%, transparent 70%)',
-          animation: 'pw-fade-in 1s ease 0.3s both',
-        }} />
-
-        {/* Card */}
-        <div style={{
-          width: 300,
-          height: 185,
-          borderRadius: 20,
-          background: 'linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 50%, #1a1a1a 100%)',
-          boxShadow: '0 32px 64px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.08)',
-          transform: 'rotate(-8deg)',
-          animation: 'pw-card-in 0.9s cubic-bezier(0.22,1,0.36,1) 0.2s both',
-          position: 'relative',
-          overflow: 'hidden',
-          padding: '24px 24px 20px',
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'space-between',
+          color: 'rgba(255,255,255,0.55)',
+          fontSize: 15,
+          fontWeight: 500,
+          letterSpacing: '0.01em',
         }}>
-          {/* Shimmer overlay */}
-          <div style={{
-            position: 'absolute', inset: 0,
-            background: 'linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.04) 50%, transparent 60%)',
-            backgroundSize: '200% 100%',
-            animation: 'pw-shimmer 3s linear infinite',
-            pointerEvents: 'none',
-          }} />
-
-          {/* Card top row */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ color: '#fff', fontWeight: 700, fontSize: 15, letterSpacing: '-0.3px' }}>Paywell</span>
-            {/* NFC icon */}
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z" fill="rgba(255,255,255,0.08)"/>
-              <path d="M8 12c0-2.21 1.79-4 4-4" stroke="rgba(255,255,255,0.5)" strokeWidth="1.5" strokeLinecap="round"/>
-              <path d="M5 12c0-3.87 3.13-7 7-7" stroke="rgba(255,255,255,0.3)" strokeWidth="1.5" strokeLinecap="round"/>
-            </svg>
-          </div>
-
-          {/* Chip */}
-          <div style={{
-            width: 38, height: 28,
-            borderRadius: 5,
-            background: 'linear-gradient(135deg, rgba(255,255,255,0.15), rgba(255,255,255,0.06))',
-            border: '1px solid rgba(255,255,255,0.12)',
-          }} />
-
-          {/* Card number */}
-          <div style={{
-            color: 'rgba(255,255,255,0.6)',
-            fontSize: 13,
-            fontFamily: 'monospace',
-            letterSpacing: '0.15em',
-          }}>
-            •••• •••• •••• 8421
-          </div>
+          Paywell
         </div>
+
+        {/* Chip */}
+        <div style={{
+          alignSelf: 'flex-end',
+          width: 44,
+          height: 34,
+          background: 'linear-gradient(135deg, #888 0%, #aaa 50%, #777 100%)',
+          borderRadius: 6,
+          boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.2)',
+        }} />
       </div>
 
-      {/* Bottom: CTA */}
+      {/* Spacer pushes buttons to bottom */}
+      <div style={{ flex: 1 }} />
+
+      {/* Buttons */}
       <div style={{
         width: '100%',
+        maxWidth: 420,
         padding: '0 20px 48px',
-        animation: 'pw-fade-up 0.7s cubic-bezier(0.22,1,0.36,1) 0.5s both',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 10,
+        animation: 'pw-fade-up 0.6s ease 0.5s both',
+        zIndex: 2,
       }}>
         <button
           onClick={() => setActiveView('onboarding')}
           style={{
             width: '100%',
-            height: 56,
-            borderRadius: 28,
-            border: 'none',
+            height: 58,
             background: '#fff',
-            color: '#111',
+            color: '#0d0d0d',
+            border: 'none',
+            borderRadius: 30,
             fontSize: 17,
             fontWeight: 700,
             fontFamily: 'inherit',
             cursor: 'pointer',
             letterSpacing: '-0.2px',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
           }}
         >
           Get started
