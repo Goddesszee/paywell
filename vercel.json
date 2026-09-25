@@ -1,0 +1,13 @@
+{
+  "buildCommand": "bun run build",
+  "outputDirectory": "dist",
+  "framework": "vite",
+  "rewrites": [
+    { "source": "/api/otp",            "destination": "/api/otp" },
+    { "source": "/api/chat",           "destination": "/api/chat" },
+    { "source": "/api/activity-feed",  "destination": "/api/activity-feed" },
+    { "source": "/api/marketplace",    "destination": "/api/marketplace" },
+    { "source": "/api/onramp-session", "destination": "/api/onramp-session" },
+    { "source": "/(.*)",               "destination": "/index.html" }
+  ]
+}

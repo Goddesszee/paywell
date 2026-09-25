@@ -1,0 +1,178 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Paywell Design System — strict black & white ── */
+:root {
+  --bg:          #FFFFFF;
+  --surface:     #F7F7F8;
+  --surface-2:   #EFEFEF;
+
+  --border:        rgba(0,0,0,0.08);
+  --border-2:      rgba(0,0,0,0.14);
+  --border-subtle: rgba(0,0,0,0.05);
+
+  /* No colour accent — black is the accent */
+  --accent:      #0D0D0D;
+  --accent-2:    #1A1A1A;
+  --accent-soft: rgba(0,0,0,0.06);
+  --accent-soft-2: rgba(0,0,0,0.10);
+
+  --text:   #0D0D0D;
+  --text-2: #5C5C6B;
+  --text-3: #9898A6;
+
+  --success: #16A34A;
+  --danger:  #DC2626;
+  --warning: #D97706;
+
+  --radius:    12px;
+  --radius-sm: 8px;
+  --radius-lg: 16px;
+
+  --font:      'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Menlo', monospace;
+}
+
+/* ── Reset ── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0; padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: var(--font);
+  font-size: 15px;
+  line-height: 1.6;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100dvh;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: 'liga' 1, 'calt' 1, 'tnum' 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
+
+/* ── Typography ── */
+.font-mono  { font-family: var(--font-mono) !important; }
+.tabular    { font-variant-numeric: tabular-nums; }
+
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.eyebrow::before {
+  content: '';
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--text);
+  flex-shrink: 0;
+}
+
+/* ── Scrollbar — hidden ── */
+* { scrollbar-width: none; }
+*::-webkit-scrollbar { display: none; }
+
+/* ── Focus ── */
+:focus-visible {
+  outline: 2px solid #0D0D0D;
+  outline-offset: 2px;
+}
+
+/* ── Selection ── */
+::selection {
+  background: rgba(0,0,0,0.12);
+  color: #0D0D0D;
+}
+
+/* ── Animations ── */
+@keyframes pw-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes pw-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes pw-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.4; }
+}
+@keyframes nan-spin {
+  to { transform: rotate(360deg); }
+}
+
+.animate-up   { animation: pw-up   0.28s ease both; }
+.animate-fade { animation: pw-fade 0.2s  ease both; }
+.net-pulse    { animation: pw-pulse 2s ease infinite; }
+
+/* ── Network pill ── */
+.net-pill {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-2);
+  border: 1px solid var(--border-2);
+  padding: 4px 9px;
+  border-radius: 100px;
+  background: var(--surface);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.net-pill::before {
+  content: '';
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: #0D0D0D;
+  animation: pw-pulse 2s ease infinite;
+}
+
+/* ── Mobile helpers ── */
+.scroll-x {
+  display: flex;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  gap: 8px;
+  padding-bottom: 2px;
+}
+.scroll-x::-webkit-scrollbar { display: none; }
+.scroll-x > * { flex-shrink: 0; }
+
+.safe-bottom  { padding-bottom: env(safe-area-inset-bottom, 0px); }
+.tap-target   { min-height: 44px; min-width: 44px; }
+.truncate-mobile {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Sonner toast — Paywell B&W ── */
+[data-sonner-toaster] [data-sonner-toast] {
+  background: #FFFFFF !important;
+  border: 1px solid rgba(0,0,0,0.12) !important;
+  color: #0D0D0D !important;
+  font-family: var(--font) !important;
+  border-radius: var(--radius) !important;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.10) !important;
+}
+[data-sonner-toaster] [data-sonner-toast] [data-description] {
+  color: #5C5C6B !important;
+}

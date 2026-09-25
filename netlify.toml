@@ -1,0 +1,49 @@
+[build]
+  command   = "bun run build"
+  publish   = "dist"
+  functions = "netlify/functions"
+
+[functions]
+  node_bundler = "esbuild"
+
+# Map /api/* paths to the matching Netlify function
+[[redirects]]
+  from   = "/api/otp"
+  to     = "/.netlify/functions/otp"
+  status = 200
+
+[[redirects]]
+  from   = "/api/circle-wallets"
+  to     = "/.netlify/functions/circle-wallets"
+  status = 200
+
+[[redirects]]
+  from   = "/api/activity-feed"
+  to     = "/.netlify/functions/activity-feed"
+  status = 200
+
+[[redirects]]
+  from   = "/api/chat"
+  to     = "/.netlify/functions/chat"
+  status = 200
+
+[[redirects]]
+  from   = "/api/marketplace"
+  to     = "/.netlify/functions/marketplace"
+  status = 200
+
+[[redirects]]
+  from   = "/api/marketplace/order"
+  to     = "/.netlify/functions/marketplace"
+  status = 200
+
+[[redirects]]
+  from   = "/api/onramp-session"
+  to     = "/.netlify/functions/onramp-session"
+  status = 200
+
+# SPA fallback — must be last
+[[redirects]]
+  from   = "/*"
+  to     = "/index.html"
+  status = 200
