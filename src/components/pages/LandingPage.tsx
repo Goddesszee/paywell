@@ -3,16 +3,20 @@ import { useAppStore } from '../../store/appStore'
 
 const STYLES = `
 @keyframes pw-fade-up {
-  from { opacity: 0; transform: translateY(20px); }
+  from { opacity: 0; transform: translateY(24px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 @keyframes pw-fade-in {
   from { opacity: 0; }
   to   { opacity: 1; }
 }
-@keyframes pw-photo-in {
-  from { opacity: 0; transform: scale(1.03); }
-  to   { opacity: 1; transform: scale(1); }
+@keyframes pw-card-in {
+  from { opacity: 0; transform: translateY(40px) rotate(-8deg); }
+  to   { opacity: 1; transform: translateY(0) rotate(-8deg); }
+}
+@keyframes pw-shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position: 200% center; }
 }
 `
 
@@ -33,81 +37,134 @@ export function LandingPage() {
       position: 'fixed', inset: 0,
       fontFamily: "'Inter', -apple-system, sans-serif",
       overflow: 'hidden',
-      background: '#0d0d0d',
+      background: '#111',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'space-between',
     }}>
 
-      {/* Full-screen photo */}
+      {/* Top: logo */}
       <div style={{
-        position: 'absolute', inset: 0,
-        animation: 'pw-photo-in 1.1s cubic-bezier(0.22,1,0.36,1) 0.1s both',
+        paddingTop: 56,
+        animation: 'pw-fade-up 0.7s cubic-bezier(0.22,1,0.36,1) 0.1s both',
+        textAlign: 'center',
       }}>
-        <img
-          src="https://i.imgur.com/3If4jmf.jpg"
-          alt=""
-          style={{
-            width: '100%', height: '100%',
-            objectFit: 'cover',
-            objectPosition: 'center top',
-            display: 'block',
-          }}
-          onError={e => {
-            const el = e.currentTarget.parentElement as HTMLElement
-            el.style.background = 'linear-gradient(160deg, #2a2a2a 0%, #1a1a1a 50%, #0d0d0d 100%)'
-            e.currentTarget.style.display = 'none'
-          }}
-        />
-        {/* Gradient overlay — readable text top + bottom */}
         <div style={{
-          position: 'absolute', inset: 0,
-          background: `linear-gradient(to bottom,
-            rgba(0,0,0,0.52) 0%,
-            rgba(0,0,0,0.05) 30%,
-            rgba(0,0,0,0.05) 60%,
-            rgba(0,0,0,0.72) 100%)`,
-        }} />
-      </div>
-
-      {/* Logo */}
-      <div style={{
-        position: 'absolute', top: '7%', left: 0, right: 0,
-        display: 'flex', justifyContent: 'center',
-        animation: 'pw-fade-in 0.9s ease 0.25s both',
-        zIndex: 10,
-      }}>
-        <span style={{
-          fontSize: 36, fontWeight: 800,
+          fontSize: 36,
+          fontWeight: 800,
           color: '#fff',
-          letterSpacing: '-0.04em',
-          textShadow: '0 2px 16px rgba(0,0,0,0.3)',
-        }}>
-          Paywell
-        </span>
+          letterSpacing: '-1.5px',
+        }}>Paywell</div>
+        <div style={{
+          fontSize: 13,
+          color: 'rgba(255,255,255,0.45)',
+          marginTop: 4,
+          fontWeight: 400,
+          letterSpacing: '0.02em',
+        }}>The intelligent payment layer</div>
       </div>
 
-      {/* Bottom CTA */}
+      {/* Middle: card */}
       <div style={{
-        position: 'absolute', left: 0, right: 0, bottom: 0,
-        padding: '0 20px max(36px, env(safe-area-inset-bottom))',
-        animation: 'pw-fade-up 0.8s cubic-bezier(0.22,1,0.36,1) 0.55s both',
-        zIndex: 10,
+        flex: 1,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: '100%',
+        position: 'relative',
+      }}>
+        {/* Glow behind card */}
+        <div style={{
+          position: 'absolute',
+          width: 280,
+          height: 280,
+          borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(255,255,255,0.07) 0%, transparent 70%)',
+          animation: 'pw-fade-in 1s ease 0.3s both',
+        }} />
+
+        {/* Card */}
+        <div style={{
+          width: 300,
+          height: 185,
+          borderRadius: 20,
+          background: 'linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 50%, #1a1a1a 100%)',
+          boxShadow: '0 32px 64px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.08)',
+          transform: 'rotate(-8deg)',
+          animation: 'pw-card-in 0.9s cubic-bezier(0.22,1,0.36,1) 0.2s both',
+          position: 'relative',
+          overflow: 'hidden',
+          padding: '24px 24px 20px',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'space-between',
+        }}>
+          {/* Shimmer overlay */}
+          <div style={{
+            position: 'absolute', inset: 0,
+            background: 'linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.04) 50%, transparent 60%)',
+            backgroundSize: '200% 100%',
+            animation: 'pw-shimmer 3s linear infinite',
+            pointerEvents: 'none',
+          }} />
+
+          {/* Card top row */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ color: '#fff', fontWeight: 700, fontSize: 15, letterSpacing: '-0.3px' }}>Paywell</span>
+            {/* NFC icon */}
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z" fill="rgba(255,255,255,0.08)"/>
+              <path d="M8 12c0-2.21 1.79-4 4-4" stroke="rgba(255,255,255,0.5)" strokeWidth="1.5" strokeLinecap="round"/>
+              <path d="M5 12c0-3.87 3.13-7 7-7" stroke="rgba(255,255,255,0.3)" strokeWidth="1.5" strokeLinecap="round"/>
+            </svg>
+          </div>
+
+          {/* Chip */}
+          <div style={{
+            width: 38, height: 28,
+            borderRadius: 5,
+            background: 'linear-gradient(135deg, rgba(255,255,255,0.15), rgba(255,255,255,0.06))',
+            border: '1px solid rgba(255,255,255,0.12)',
+          }} />
+
+          {/* Card number */}
+          <div style={{
+            color: 'rgba(255,255,255,0.6)',
+            fontSize: 13,
+            fontFamily: 'monospace',
+            letterSpacing: '0.15em',
+          }}>
+            •••• •••• •••• 8421
+          </div>
+        </div>
+      </div>
+
+      {/* Bottom: CTA */}
+      <div style={{
+        width: '100%',
+        padding: '0 20px 48px',
+        animation: 'pw-fade-up 0.7s cubic-bezier(0.22,1,0.36,1) 0.5s both',
       }}>
         <button
           onClick={() => setActiveView('onboarding')}
           style={{
-            width: '100%', padding: '18px 0',
+            width: '100%',
+            height: 56,
+            borderRadius: 28,
+            border: 'none',
             background: '#fff',
-            border: 'none', borderRadius: 50,
-            fontSize: 17, fontWeight: 700, color: '#0D0D0D',
+            color: '#111',
+            fontSize: 17,
+            fontWeight: 700,
+            fontFamily: 'inherit',
             cursor: 'pointer',
-            fontFamily: "'Inter', -apple-system, sans-serif",
-            letterSpacing: '-0.02em',
-            boxShadow: '0 4px 24px rgba(0,0,0,0.2)',
+            letterSpacing: '-0.2px',
           }}
         >
           Get started
         </button>
       </div>
-
     </div>
   )
 }
