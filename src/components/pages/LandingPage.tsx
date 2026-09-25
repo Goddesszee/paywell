@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { useAppStore } from '../../store/appStore'
+import { PaywellLogoVertical } from '../ui/Logo'
 
 const STYLES = `
 @keyframes pw-card-in {

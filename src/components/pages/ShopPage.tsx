@@ -487,7 +487,7 @@ function CheckoutPage({
     await checkout(cart)
   }
 
-  const isPending   = status === 'signing' || status === 'pending'
+  const isPending   = status === 'approving' || status === 'creating-order' || status === 'pending'
   const isConfirmed = status === 'confirmed'
 
   return (
@@ -567,7 +567,7 @@ function CheckoutPage({
         disabled={!isConnected || isPending}
       >
         {isPending
-          ? <><Loader2 size={16} style={{ animation: 'nan-spin 0.8s linear infinite', display: 'inline-block', marginRight: 8 }} />{status === 'signing' ? 'Waiting for signature…' : 'Confirming…'}</>
+          ? <><Loader2 size={16} style={{ animation: 'nan-spin 0.8s linear infinite', display: 'inline-block', marginRight: 8 }} />{status === 'approving' ? 'Approving USDC…' : status === 'creating-order' ? 'Creating order…' : 'Confirming…'}</>
           : isConfirmed
           ? '✓ Payment confirmed'
           : `Pay ${formatUSDC(total)} USDC`}
