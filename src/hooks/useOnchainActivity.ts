@@ -94,7 +94,10 @@ export function useOnchainActivity(address?: string) {
     }
   }, [address])
 
-  useEffect(() => { void fetch() }, [fetch])
+  useEffect(() => {
+    // oxlint-disable-next-line react/set-state-in-effect
+    void fetch()
+  }, [fetch])
 
   return { items, loading, error, refetch: fetch }
 }

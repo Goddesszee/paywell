@@ -39,18 +39,36 @@ export function LandingPage() {
       alignItems: 'center',
     }}>
 
-      {/* Wordmark */}
+      {/* Logo mark + wordmark */}
       <div style={{
         marginTop: 56,
-        fontSize: 42,
-        fontWeight: 800,
-        color: '#fff',
-        letterSpacing: '-1px',
-        textShadow: '0 2px 16px rgba(0,0,0,0.18)',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: 12,
         animation: 'pw-fade-in 0.7s ease 0.1s both',
         zIndex: 2,
       }}>
-        Paywell
+        {/* P mark */}
+        <div style={{
+          width: 64, height: 64,
+          borderRadius: 18,
+          background: '#fff',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          boxShadow: '0 4px 24px rgba(0,0,0,0.18)',
+        }}>
+          <span style={{ fontSize: 36, fontWeight: 900, color: '#0d0d0d', letterSpacing: '-2px', lineHeight: 1 }}>P</span>
+        </div>
+        {/* Wordmark */}
+        <div style={{
+          fontSize: 42,
+          fontWeight: 800,
+          color: '#fff',
+          letterSpacing: '-1px',
+          textShadow: '0 2px 16px rgba(0,0,0,0.18)',
+        }}>
+          Paywell
+        </div>
       </div>
 
       {/* Card */}

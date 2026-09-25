@@ -189,7 +189,7 @@ type SendStep = 'recipient' | 'amount' | 'note' | 'review' | 'submitting' | 'suc
 
 function SendFlow({
   balance,
-  address,
+  address: _address,
   chainId,
   onBack,
   onSuccess,

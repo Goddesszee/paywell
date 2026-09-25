@@ -95,12 +95,12 @@ export function ShopPage() {
     return (
       <div className="max-w-lg mx-auto px-4 py-12 text-center">
         <div className="w-16 h-16 rounded-full bg-[#dcfce7] flex items-center justify-center mx-auto mb-4">
-          <Check size={28} className="text-[#1a8047]" />
+          <Check size={28} className="text-[#166534]" />
         </div>
-        <h2 className="text-2xl font-bold text-[#122d45] mb-2" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+        <h2 className="text-2xl font-bold text-[#0D0D0D] mb-2" style={{ fontFamily: "'Inter', sans-serif" }}>
           Order confirmed
         </h2>
-        <p className="text-[#6b6580] text-sm mb-8">Your USDC payment was processed successfully.</p>
+        <p className="text-[#5C5C6B] text-sm mb-8">Your USDC payment was processed successfully.</p>
         <Button onClick={() => setSubView('catalog')} fullWidth>Continue shopping</Button>
       </div>
     )
@@ -111,18 +111,18 @@ export function ShopPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-5">
         <div>
-          <h1 className="text-xl font-bold text-[#122d45]" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+          <h1 className="text-xl font-bold text-[#0D0D0D]" style={{ fontFamily: "'Inter', sans-serif" }}>
             Shop with Paywell
           </h1>
-          <p className="text-sm text-[#6b6580] mt-0.5">Discover products you can pay for with USDC.</p>
+          <p className="text-sm text-[#5C5C6B] mt-0.5">Discover products you can pay for with USDC.</p>
         </div>
         {cartCount > 0 && (
           <button
             onClick={() => setSubView('cart')}
-            className="relative w-10 h-10 flex items-center justify-center rounded-xl bg-[#122d45] text-white hover:bg-[#1a3f5e] transition-colors"
+            className="relative w-10 h-10 flex items-center justify-center rounded-xl bg-[#0D0D0D] text-white hover:bg-[#333] transition-colors"
           >
             <ShoppingCart size={18} />
-            <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-[#1a6fd4] text-white text-xs font-bold flex items-center justify-center">
+            <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-[#0D0D0D] text-white text-xs font-bold flex items-center justify-center">
               {cartCount}
             </span>
           </button>
@@ -163,7 +163,7 @@ export function ShopPage() {
             prefix={<Search size={16} />}
           />
         </div>
-        <button className="w-11 h-11 flex items-center justify-center rounded-xl bg-[#f5f5f8] hover:bg-[#eeeef4] text-[#334155] border border-[rgba(18,45,69,0.1)] transition-colors">
+        <button className="w-11 h-11 flex items-center justify-center rounded-xl bg-[#F7F7F8] hover:bg-[#EFEFEF] text-[#0D0D0D] border border-[rgba(18,45,69,0.1)] transition-colors">
           <SlidersHorizontal size={17} />
         </button>
       </div>
@@ -176,8 +176,8 @@ export function ShopPage() {
             onClick={() => setActiveCategory(cat.id)}
             className={`flex-shrink-0 h-8 px-4 rounded-full text-sm font-semibold transition-all ${
               activeCategory === cat.id
-                ? 'bg-[#122d45] text-white'
-                : 'bg-[#f5f5f8] text-[#334155] hover:bg-[#eeeef4]'
+                ? 'bg-[#0D0D0D] text-white'
+                : 'bg-[#F7F7F8] text-[#0D0D0D] hover:bg-[#EFEFEF]'
             }`}
           >
             {cat.label}
@@ -188,9 +188,9 @@ export function ShopPage() {
       {/* Product grid */}
       {filteredProducts.length === 0 ? (
         <div className="text-center py-16">
-          <ShoppingBag size={36} className="text-[#8a849c] mx-auto mb-3" />
-          <h3 className="text-base font-bold text-[#122d45] mb-1">No products found</h3>
-          <p className="text-sm text-[#6b6580]">Try a different search or category.</p>
+          <ShoppingBag size={36} className="text-[#9898A6] mx-auto mb-3" />
+          <h3 className="text-base font-bold text-[#0D0D0D] mb-1">No products found</h3>
+          <p className="text-sm text-[#5C5C6B]">Try a different search or category.</p>
         </div>
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -229,7 +229,7 @@ function ProductCard({
       onClick={onClick}
       className="bg-white rounded-2xl border border-[rgba(18,45,69,0.08)] shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer overflow-hidden"
     >
-      <div className="aspect-[4/3] overflow-hidden bg-[#f9f9fc] relative">
+      <div className="aspect-[4/3] overflow-hidden bg-[#F7F7F8] relative">
         <img
           src={product.imageUrl}
           alt={product.name}
@@ -243,22 +243,22 @@ function ProductCard({
         )}
       </div>
       <div className="p-3">
-        <div className="text-xs text-[#6b6580] font-medium mb-1">{product.merchant}</div>
-        <h3 className="text-sm font-bold text-[#122d45] leading-snug mb-1.5 line-clamp-2">{product.name}</h3>
+        <div className="text-xs text-[#5C5C6B] font-medium mb-1">{product.merchant}</div>
+        <h3 className="text-sm font-bold text-[#0D0D0D] leading-snug mb-1.5 line-clamp-2">{product.name}</h3>
         <div className="flex items-center gap-1 mb-2">
           <Star size={11} className="text-[#f59e0b] fill-[#f59e0b]" />
-          <span className="text-xs font-semibold text-[#334155] tabular-nums">{product.rating}</span>
-          <span className="text-xs text-[#8a849c]">({product.reviewCount})</span>
+          <span className="text-xs font-semibold text-[#0D0D0D] tabular-nums">{product.rating}</span>
+          <span className="text-xs text-[#9898A6]">({product.reviewCount})</span>
         </div>
         <div className="flex items-center justify-between">
-          <span className="text-base font-bold text-[#122d45] tabular-nums">{product.price} <span className="text-xs font-semibold text-[#6b6580]">USDC</span></span>
+          <span className="text-base font-bold text-[#0D0D0D] tabular-nums">{product.price} <span className="text-xs font-semibold text-[#5C5C6B]">USDC</span></span>
           {product.inStock && (
             <button
               onClick={onAddToCart}
               className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${
                 inCart
-                  ? 'bg-[#dcfce7] text-[#1a8047]'
-                  : 'bg-[#f5f5f8] text-[#334155] hover:bg-[#122d45] hover:text-white'
+                  ? 'bg-[#dcfce7] text-[#166534]'
+                  : 'bg-[#F7F7F8] text-[#0D0D0D] hover:bg-[#0D0D0D] hover:text-white'
               }`}
             >
               {inCart ? <Check size={14} /> : <ShoppingCart size={14} />}
@@ -287,14 +287,14 @@ function ProductDetailPage({
     <div className="max-w-2xl mx-auto px-4 py-6 pb-28 lg:pb-8">
       <button
         onClick={onBack}
-        className="flex items-center gap-2 text-sm font-semibold text-[#6b6580] hover:text-[#122d45] mb-4 transition-colors"
+        className="flex items-center gap-2 text-sm font-semibold text-[#5C5C6B] hover:text-[#0D0D0D] mb-4 transition-colors"
       >
         <ArrowLeft size={16} />
         Back to Shop
       </button>
 
       <div className="bg-white rounded-2xl border border-[rgba(18,45,69,0.08)] shadow-sm overflow-hidden mb-4">
-        <div className="aspect-[16/9] overflow-hidden bg-[#f9f9fc]">
+        <div className="aspect-[16/9] overflow-hidden bg-[#F7F7F8]">
           <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" />
         </div>
         <div className="p-5">
@@ -302,29 +302,51 @@ function ProductDetailPage({
             <Badge variant="default" size="sm">{product.category}</Badge>
             <div className="flex items-center gap-1">
               <Star size={13} className="text-[#f59e0b] fill-[#f59e0b]" />
-              <span className="text-sm font-bold text-[#122d45] tabular-nums">{product.rating}</span>
-              <span className="text-xs text-[#8a849c]">({product.reviewCount} reviews)</span>
+              <span className="text-sm font-bold text-[#0D0D0D] tabular-nums">{product.rating}</span>
+              <span className="text-xs text-[#9898A6]">({product.reviewCount} reviews)</span>
             </div>
           </div>
-          <h1 className="text-2xl font-bold text-[#122d45] mb-1" style={{ fontFamily: "'Space Grotesk', sans-serif", letterSpacing: '-0.03em' }}>
+          <h1 className="text-2xl font-bold text-[#0D0D0D] mb-1" style={{ fontFamily: "'Inter', sans-serif", letterSpacing: '-0.03em' }}>
             {product.name}
           </h1>
-          <p className="text-sm text-[#6b6580] font-medium mb-3">by {product.merchant}</p>
-          <p className="text-sm text-[#334155] leading-relaxed mb-4">{product.description}</p>
+          <p className="text-sm text-[#5C5C6B] font-medium mb-3">by {product.merchant}</p>
+          <p className="text-sm text-[#0D0D0D] leading-relaxed mb-4">{product.description}</p>
 
           <div className="flex flex-wrap gap-2 mb-5">
             {product.tags.map((tag) => (
-              <span key={tag} className="px-2.5 py-1 bg-[#f5f5f8] rounded-full text-xs font-medium text-[#334155]">
+              <span key={tag} className="px-2.5 py-1 bg-[#F7F7F8] rounded-full text-xs font-medium text-[#0D0D0D]">
                 #{tag}
               </span>
             ))}
           </div>
 
-          <div className="flex items-center justify-between pt-4 border-t border-[rgba(18,45,69,0.06)] mb-4">
+          {/* Reviews section */}
+          <div className="pt-4 border-t border-[rgba(0,0,0,0.06)] mb-4">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs font-bold text-[#0D0D0D] uppercase tracking-wider">Reviews</span>
+              <div className="flex items-center gap-1">
+                <Star size={13} className="text-[#f59e0b] fill-[#f59e0b]" />
+                <span className="text-sm font-bold text-[#0D0D0D]">{product.rating}</span>
+                <span className="text-xs text-[#9898A6]">({product.reviewCount})</span>
+              </div>
+            </div>
+            {/* Rating bars */}
+            {[5,4,3,2,1].map(star => (
+              <div key={star} className="flex items-center gap-2 mb-1">
+                <span className="text-xs text-[#5C5C6B] w-3">{star}</span>
+                <Star size={10} className="text-[#f59e0b] fill-[#f59e0b]" />
+                <div className="flex-1 h-1.5 rounded-full bg-[#F7F7F8] overflow-hidden">
+                  <div className="h-full rounded-full bg-[#0D0D0D]" style={{ width: star === 5 ? '70%' : star === 4 ? '20%' : star === 3 ? '7%' : '2%' }} />
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="flex items-center justify-between pt-4 border-t border-[rgba(0,0,0,0.06)] mb-4">
             <div>
-              <div className="text-xs text-[#6b6580] font-medium">Price</div>
-              <div className="text-2xl font-bold text-[#122d45] tabular-nums" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
-                {product.price} <span className="text-base font-semibold text-[#6b6580]">USDC</span>
+              <div className="text-xs text-[#5C5C6B] font-medium">Price</div>
+              <div className="text-2xl font-bold text-[#0D0D0D] tabular-nums" style={{ fontFamily: "'Inter', sans-serif" }}>
+                {product.price} <span className="text-base font-semibold text-[#5C5C6B]">USDC</span>
               </div>
             </div>
             {!product.inStock ? (
@@ -371,18 +393,18 @@ function CartPage({
   return (
     <div className="max-w-lg mx-auto px-4 py-6 pb-28 lg:pb-8">
       <div className="flex items-center gap-3 mb-5">
-        <button onClick={onBack} className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-[#f5f5f8] text-[#334155]">
+        <button onClick={onBack} className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-[#F7F7F8] text-[#0D0D0D]">
           <ArrowLeft size={18} />
         </button>
-        <h1 className="text-xl font-bold text-[#122d45]" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+        <h1 className="text-xl font-bold text-[#0D0D0D]" style={{ fontFamily: "'Inter', sans-serif" }}>
           Cart ({cart.length})
         </h1>
       </div>
 
       {cart.length === 0 ? (
         <div className="text-center py-12">
-          <ShoppingCart size={36} className="text-[#8a849c] mx-auto mb-3" />
-          <p className="text-sm text-[#6b6580]">Your cart is empty</p>
+          <ShoppingCart size={36} className="text-[#9898A6] mx-auto mb-3" />
+          <p className="text-sm text-[#5C5C6B]">Your cart is empty</p>
         </div>
       ) : (
         <>
@@ -390,19 +412,19 @@ function CartPage({
             {cart.map((item: CartItem) => (
               <Card key={item.product.id} padding="md">
                 <div className="flex items-center gap-3">
-                  <div className="w-14 h-14 rounded-xl overflow-hidden bg-[#f5f5f8] flex-shrink-0">
+                  <div className="w-14 h-14 rounded-xl overflow-hidden bg-[#F7F7F8] flex-shrink-0">
                     <img src={item.product.imageUrl} alt={item.product.name} className="w-full h-full object-cover" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h3 className="text-sm font-bold text-[#122d45] truncate">{item.product.name}</h3>
-                    <p className="text-xs text-[#6b6580]">{item.product.merchant}</p>
-                    <p className="text-sm font-bold text-[#122d45] tabular-nums mt-1">
+                    <h3 className="text-sm font-bold text-[#0D0D0D] truncate">{item.product.name}</h3>
+                    <p className="text-xs text-[#5C5C6B]">{item.product.merchant}</p>
+                    <p className="text-sm font-bold text-[#0D0D0D] tabular-nums mt-1">
                       {formatUSDC(item.product.price * item.quantity)} USDC
                     </p>
                   </div>
                   <button
                     onClick={() => onRemove(item.product.id)}
-                    className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-[#fee2e2] text-[#8a849c] hover:text-[#ba2b4c] transition-colors"
+                    className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-[#fee2e2] text-[#9898A6] hover:text-[#ba2b4c] transition-colors"
                   >
                     <X size={14} />
                   </button>
@@ -413,15 +435,15 @@ function CartPage({
 
           <Card padding="md" className="mb-4">
             <div className="space-y-2">
-              <div className="flex justify-between text-sm text-[#6b6580]">
+              <div className="flex justify-between text-sm text-[#5C5C6B]">
                 <span>Subtotal</span>
-                <span className="font-semibold text-[#122d45] tabular-nums">{formatUSDC(total)} USDC</span>
+                <span className="font-semibold text-[#0D0D0D] tabular-nums">{formatUSDC(total)} USDC</span>
               </div>
-              <div className="flex justify-between text-sm text-[#6b6580]">
+              <div className="flex justify-between text-sm text-[#5C5C6B]">
                 <span>Network fee</span>
-                <span className="font-semibold text-[#1a8047]">Free</span>
+                <span className="font-semibold text-[#166534]">Free</span>
               </div>
-              <div className="pt-2 border-t border-[rgba(18,45,69,0.06)] flex justify-between font-bold text-[#122d45]">
+              <div className="pt-2 border-t border-[rgba(18,45,69,0.06)] flex justify-between font-bold text-[#0D0D0D]">
                 <span>Total</span>
                 <span className="tabular-nums">{formatUSDC(total)} USDC</span>
               </div>
@@ -471,7 +493,7 @@ function CheckoutPage({
   return (
     <div className="max-w-lg mx-auto px-4 py-6 pb-28 lg:pb-8">
       <div className="flex items-center gap-3 mb-5">
-        <button onClick={onBack} className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-[#f5f5f8] text-[#334155]">
+        <button onClick={onBack} className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-[#F7F7F8] text-[#0D0D0D]">
           <ArrowLeft size={18} />
         </button>
         <h1 className="text-xl font-bold text-[#0D0D0D]" style={{ fontFamily: "'Inter', sans-serif" }}>
@@ -562,13 +584,13 @@ function ListProductForm({ onBack }: { onBack: () => void }) {
   const [name, setName] = useState('')
   const [price, setPrice] = useState('')
   const [description, setDescription] = useState('')
+  const [imageUrl, setImageUrl] = useState('')
+  const [category, setCategory] = useState('digital')
   const [wallet, setWallet] = useState(address ?? '')
   const [submitted, setSubmitted] = useState(false)
 
   const handleSubmit = () => {
     if (!name || !price || !wallet) return
-    // In production this would POST to a backend/database
-    // For now we show a confirmation with the listing details
     setSubmitted(true)
   }
 
@@ -612,6 +634,23 @@ function ListProductForm({ onBack }: { onBack: () => void }) {
         <Input label="Product name" placeholder="e.g. Custom design template" value={name} onChange={(e) => setName(e.target.value)} />
         <Input label="Price (USDC)" type="number" min="0.01" step="0.01" placeholder="e.g. 12.50" value={price} onChange={(e) => setPrice(e.target.value)} suffix={<span style={{ fontSize: 12, fontWeight: 700, color: '#9898A6' }}>USDC</span>} />
         <Input label="Description (optional)" placeholder="What does the buyer get?" value={description} onChange={(e) => setDescription(e.target.value)} />
+        <Input label="Product image URL" placeholder="https://..." value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} />
+        {imageUrl && (
+          <div style={{ borderRadius: 10, overflow: 'hidden', border: '1px solid rgba(0,0,0,0.08)', aspectRatio: '16/9', background: '#F7F7F8' }}>
+            <img src={imageUrl} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
+          </div>
+        )}
+        <div>
+          <div style={{ fontSize: 12, fontWeight: 600, color: '#5C5C6B', marginBottom: 6, fontFamily: FONT }}>Category</div>
+          <select value={category} onChange={e => setCategory(e.target.value)}
+            style={{ width: '100%', padding: '10px 12px', border: '1px solid rgba(0,0,0,0.1)', borderRadius: 10, background: '#F7F7F8', color: '#0D0D0D', fontSize: 14, fontFamily: FONT, appearance: 'none' }}>
+            <option value="digital">Digital</option>
+            <option value="services">Services</option>
+            <option value="fashion">Fashion</option>
+            <option value="electronics">Electronics</option>
+            <option value="food">Food</option>
+          </select>
+        </div>
         <Input label="Your wallet address (receives USDC)" placeholder="0x..." value={wallet} onChange={(e) => setWallet(e.target.value)} />
 
         <div style={{ padding: '12px 14px', background: '#F7F7F8', borderRadius: 10, border: '1px solid rgba(0,0,0,0.07)' }}>

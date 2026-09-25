@@ -81,8 +81,10 @@ export function BridgePage() {
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const result = await appKit.bridge({
-        from: { adapter, chain: fromChain.kitName as any },
-        to:   { adapter, chain: toChain.kitName as any },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        from: { adapter, chain: fromChain.kitName as unknown as any },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        to:   { adapter, chain: toChain.kitName as unknown as any },
         amount,
       })
 
