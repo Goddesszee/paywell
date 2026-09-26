@@ -86,7 +86,7 @@ export function OnboardingPage() {
             </p>
 
             {/* Circle email login — primary */}
-            <CircleEmailLogin onSuccess={() => setStep('usecases')} />
+            <CircleEmailLogin onSuccess={(_addr, _token) => setStep('usecases')} />
 
             {/* Divider */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '20px 0' }}>
