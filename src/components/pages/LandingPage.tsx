@@ -1,19 +1,24 @@
 import { useEffect, useRef } from 'react'
 import { useAppStore } from '../../store/appStore'
-import { PaywellLogoVertical } from '../ui/Logo'
 
 const STYLES = `
-@keyframes pw-card-in {
-  from { opacity: 0; transform: rotate(-8deg) translateY(40px) scale(0.92); }
-  to   { opacity: 1; transform: rotate(-8deg) translateY(0)    scale(1); }
-}
-@keyframes pw-fade-up {
-  from { opacity: 0; transform: translateY(16px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
 @keyframes pw-fade-in {
   from { opacity: 0; }
   to   { opacity: 1; }
+}
+@keyframes pw-fade-up {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes pw-card-float {
+  0%   { transform: rotate(-6deg) translateY(0px)   scale(1);    }
+  30%  { transform: rotate(-4deg) translateY(-12px) scale(1.02); }
+  60%  { transform: rotate(-8deg) translateY(-6px)  scale(0.99); }
+  100% { transform: rotate(-6deg) translateY(0px)   scale(1);    }
+}
+@keyframes pw-card-in {
+  from { opacity: 0; transform: rotate(-6deg) translateY(60px) scale(0.88); }
+  to   { opacity: 1; transform: rotate(-6deg) translateY(0)    scale(1);    }
 }
 `
 
@@ -38,95 +43,97 @@ export function LandingPage() {
       backgroundImage: 'url(/girl.jpg)',
       backgroundSize: 'cover',
       backgroundPosition: 'center top',
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
     }}>
-
-      {/* Logo mark + wordmark */}
+      {/* Dark gradient at bottom so buttons are readable */}
       <div style={{
-        marginTop: 56,
+        position: 'absolute', inset: 0,
+        background: 'linear-gradient(to bottom, transparent 40%, rgba(0,0,0,0.55) 100%)',
+        zIndex: 1,
+      }} />
+
+      {/* Logo top-left */}
+      <div style={{
+        position: 'absolute',
+        top: 52,
+        left: 24,
         display: 'flex',
-        flexDirection: 'column',
         alignItems: 'center',
-        gap: 12,
-        animation: 'pw-fade-in 0.7s ease 0.1s both',
-        zIndex: 2,
+        gap: 10,
+        animation: 'pw-fade-in 0.6s ease 0.1s both',
+        zIndex: 3,
       }}>
-        {/* P mark */}
         <div style={{
-          width: 64, height: 64,
-          borderRadius: 18,
+          width: 44, height: 44,
+          borderRadius: 13,
           background: '#fff',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          boxShadow: '0 4px 24px rgba(0,0,0,0.18)',
+          boxShadow: '0 2px 12px rgba(0,0,0,0.18)',
         }}>
-          <span style={{ fontSize: 36, fontWeight: 900, color: '#0d0d0d', letterSpacing: '-2px', lineHeight: 1 }}>P</span>
+          <span style={{ fontSize: 24, fontWeight: 900, color: '#0d0d0d', letterSpacing: '-1px', lineHeight: 1 }}>P</span>
         </div>
-        {/* Wordmark */}
-        <div style={{
-          fontSize: 42,
+        <span style={{
+          fontSize: 26,
           fontWeight: 800,
           color: '#fff',
-          letterSpacing: '-1px',
-          textShadow: '0 2px 16px rgba(0,0,0,0.18)',
-        }}>
-          Paywell
-        </div>
+          letterSpacing: '-0.5px',
+          textShadow: '0 1px 8px rgba(0,0,0,0.25)',
+        }}>Paywell</span>
       </div>
 
-      {/* Card */}
+      {/* Floating card — bottom-right, out of the way of the face */}
       <div style={{
-        marginTop: 32,
-        width: '78vw',
-        maxWidth: 340,
+        position: 'absolute',
+        bottom: 160,
+        right: -20,
+        width: '62vw',
+        maxWidth: 260,
         aspectRatio: '1.586',
         background: 'linear-gradient(145deg, #1a1a1a 0%, #2d2d2d 60%, #111 100%)',
-        borderRadius: 24,
-        boxShadow: '0 32px 80px rgba(0,0,0,0.45), 0 8px 24px rgba(0,0,0,0.3)',
+        borderRadius: 20,
+        boxShadow: '0 24px 60px rgba(0,0,0,0.5), 0 6px 20px rgba(0,0,0,0.35)',
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'space-between',
-        padding: '20px 24px',
-        animation: 'pw-card-in 0.9s cubic-bezier(0.22,1,0.36,1) 0.2s both',
+        padding: '16px 20px',
+        animation: 'pw-card-in 0.9s cubic-bezier(0.22,1,0.36,1) 0.3s both, pw-card-float 5s ease-in-out 1.2s infinite',
         zIndex: 2,
-        position: 'relative',
       }}>
-        {/* Card label */}
         <div style={{
           color: 'rgba(255,255,255,0.55)',
-          fontSize: 15,
+          fontSize: 13,
           fontWeight: 500,
-          letterSpacing: '0.01em',
         }}>
           Paywell
         </div>
-
-        {/* Chip */}
         <div style={{
           alignSelf: 'flex-end',
-          width: 44,
-          height: 34,
+          width: 38,
+          height: 28,
           background: 'linear-gradient(135deg, #888 0%, #aaa 50%, #777 100%)',
-          borderRadius: 6,
+          borderRadius: 5,
           boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.2)',
         }} />
       </div>
 
-      {/* Spacer pushes buttons to bottom */}
-      <div style={{ flex: 1 }} />
-
-      {/* Buttons */}
+      {/* Bottom: tagline + button */}
       <div style={{
-        width: '100%',
-        maxWidth: 420,
-        padding: '0 20px 48px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 10,
+        position: 'absolute',
+        bottom: 0,
+        left: 0, right: 0,
+        padding: '0 20px 52px',
+        zIndex: 3,
         animation: 'pw-fade-up 0.6s ease 0.5s both',
-        zIndex: 2,
       }}>
+        <p style={{
+          color: 'rgba(255,255,255,0.82)',
+          fontSize: 15,
+          fontWeight: 400,
+          textAlign: 'center',
+          margin: '0 0 16px',
+          letterSpacing: '0.01em',
+        }}>
+          The intelligent payment layer
+        </p>
         <button
           onClick={() => setActiveView('onboarding')}
           style={{
@@ -141,7 +148,7 @@ export function LandingPage() {
             fontFamily: 'inherit',
             cursor: 'pointer',
             letterSpacing: '-0.2px',
-            boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.2)',
           }}
         >
           Get started
