@@ -10,15 +10,17 @@ const STYLES = `
   from { opacity: 0; transform: translateY(20px); }
   to   { opacity: 1; transform: translateY(0); }
 }
-@keyframes pw-card-float {
-  0%   { transform: rotate(-6deg) translateY(0px)   scale(1);    }
-  30%  { transform: rotate(-4deg) translateY(-12px) scale(1.02); }
-  60%  { transform: rotate(-8deg) translateY(-6px)  scale(0.99); }
-  100% { transform: rotate(-6deg) translateY(0px)   scale(1);    }
+@keyframes pw-card-slide {
+  0%   { transform: translateX(-100vw) rotate(-8deg); }
+  15%  { transform: translateX(10px)   rotate(-6deg); }
+  45%  { transform: translateX(10px)   rotate(-6deg); }
+  55%  { transform: translateX(calc(100vw - 220px)) rotate(6deg); }
+  85%  { transform: translateX(calc(100vw - 220px)) rotate(6deg); }
+  100% { transform: translateX(-100vw) rotate(-8deg); }
 }
 @keyframes pw-card-in {
-  from { opacity: 0; transform: rotate(-6deg) translateY(60px) scale(0.88); }
-  to   { opacity: 1; transform: rotate(-6deg) translateY(0)    scale(1);    }
+  from { opacity: 0; transform: translateX(-100vw) rotate(-8deg); }
+  to   { opacity: 1; transform: translateX(10px)   rotate(-6deg); }
 }
 `
 
@@ -80,13 +82,12 @@ export function LandingPage() {
         }}>Paywell</span>
       </div>
 
-      {/* Floating card — bottom-right, out of the way of the face */}
+      {/* Sliding card — left to right and back */}
       <div style={{
         position: 'absolute',
-        bottom: 160,
-        right: -20,
-        width: '62vw',
-        maxWidth: 260,
+        bottom: 180,
+        left: 0,
+        width: 200,
         aspectRatio: '1.586',
         background: 'linear-gradient(145deg, #1a1a1a 0%, #2d2d2d 60%, #111 100%)',
         borderRadius: 20,
@@ -95,7 +96,7 @@ export function LandingPage() {
         flexDirection: 'column',
         justifyContent: 'space-between',
         padding: '16px 20px',
-        animation: 'pw-card-in 0.9s cubic-bezier(0.22,1,0.36,1) 0.3s both, pw-card-float 5s ease-in-out 1.2s infinite',
+        animation: 'pw-card-slide 4s cubic-bezier(0.45,0,0.55,1) 0.5s infinite',
         zIndex: 2,
       }}>
         <div style={{
