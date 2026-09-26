@@ -3,7 +3,7 @@ import { ConnectKitButton } from 'connectkit'
 import { useAccount } from 'wagmi'
 import { Mail, Chrome, Wallet, ArrowLeft, Loader } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
-import { NanLogo } from '../ui/Logo'
+
 
 const F = "'Inter', -apple-system, sans-serif"
 const BLACK = '#0D0D0D'
@@ -126,7 +126,7 @@ export function LoginPage() {
 
         {/* Logo */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 40 }}>
-          <NanLogo size="lg" />
+          <span style={{fontWeight:800,fontSize:28,letterSpacing:"-0.03em",color:"#0D0D0D",fontFamily:"Inter,sans-serif"}}>Paywell</span>
           <p style={{ fontSize: 14, color: TEXT2, marginTop: 10, fontWeight: 400 }}>
             The intelligent payment layer
           </p>

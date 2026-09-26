@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { Home, Wallet, ShoppingBag, Activity, Menu, X, ArrowLeftRight, ArrowUpDown, Zap, Settings, ChevronRight, CreditCard, BarChart3 } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
-import { PaywellLogo } from '../ui/Logo'
+
 
 const FONT = "'Inter', -apple-system, sans-serif"
 const BLACK = '#0D0D0D'
@@ -53,7 +53,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         WebkitBackdropFilter: 'blur(20px)',
         borderBottom: `1px solid ${BORDER}`,
       }}>
-        <PaywellLogo size="sm" />
+        <span style={{fontWeight:700,fontSize:18,letterSpacing:"-0.02em",color:"#0D0D0D",fontFamily:"Inter,sans-serif"}}>Paywell</span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <div className="net-pill">Arc Testnet</div>
           <button

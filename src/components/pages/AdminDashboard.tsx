@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useAppStore } from '../../store/appStore'
-import { PaywellLogo } from '../ui/Logo'
+
 import { BarChart3, Users, ShoppingBag, Zap, ArrowUpRight, ArrowDownLeft, RefreshCw, Shield, Globe, Cpu, CheckCircle, XCircle, Activity } from 'lucide-react'
 
 const SANS = "'Inter', -apple-system, sans-serif"
@@ -89,7 +89,7 @@ export function AdminDashboard() {
       {/* Header */}
       <div style={{ background: '#fff', borderBottom: `1px solid ${B}`, padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 50 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <PaywellLogo size="sm" />
+          <span style={{fontWeight:700,fontSize:18,letterSpacing:"-0.02em",color:"#0D0D0D",fontFamily:"Inter,sans-serif"}}>Paywell</span>
           <div style={{ width: 1, height: 20, background: B }} />
           <span style={{ fontSize: 13, fontWeight: 600, color: '#6B6B6B' }}>Admin Dashboard</span>
         </div>

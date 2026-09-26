@@ -53,28 +53,18 @@ export function LandingPage() {
         zIndex: 1,
       }} />
 
-      {/* Logo top-left */}
+      {/* Wordmark top-left */}
       <div style={{
         position: 'absolute',
         top: 52,
         left: 24,
         display: 'flex',
         alignItems: 'center',
-        gap: 10,
         animation: 'pw-fade-in 0.6s ease 0.1s both',
         zIndex: 3,
       }}>
-        <div style={{
-          width: 44, height: 44,
-          borderRadius: 13,
-          background: '#fff',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          boxShadow: '0 2px 12px rgba(0,0,0,0.18)',
-        }}>
-          <span style={{ fontSize: 24, fontWeight: 900, color: '#0d0d0d', letterSpacing: '-1px', lineHeight: 1 }}>P</span>
-        </div>
         <span style={{
-          fontSize: 26,
+          fontSize: 28,
           fontWeight: 800,
           color: '#fff',
           letterSpacing: '-0.5px',

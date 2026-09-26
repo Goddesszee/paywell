@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { ConnectKitButton } from 'connectkit'
 import { useAccount } from 'wagmi'
 import { useAppStore } from '../../store/appStore'
-import { PaywellLogo } from '../ui/Logo'
+
 import { Button } from '../ui/Button'
 import { CircleEmailLogin } from '../CircleEmailLogin'
 
@@ -60,7 +60,7 @@ export function OnboardingPage() {
       }}>
         {/* Header */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 32 }}>
-          <PaywellLogo size="lg" />
+          <span style={{fontWeight:800,fontSize:28,letterSpacing:"-0.03em",color:"#0D0D0D",fontFamily:"Inter,sans-serif"}}>Paywell</span>
           <p style={{ color: '#6B6B6B', fontSize: 13, marginTop: 10, textAlign: 'center', lineHeight: 1.5 }}>
             The intelligent payment layer
           </p>
