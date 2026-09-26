@@ -5,7 +5,7 @@ import { createViemAdapterFromProvider } from '@circle-fin/adapter-viem-v2'
 import type { EIP1193Provider } from 'viem'
 import { ArrowLeftRight, ArrowRight, CheckCircle, ExternalLink, Loader } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
-import { formatUsdc } from '@/onchain-money'
+
 
 const appKit = new AppKit()
 

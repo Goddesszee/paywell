@@ -5,11 +5,14 @@ import { Product } from '../data/products'
 // ── Paywell session auth ───────────────────────────────────────────────────────
 export interface PaywellAuth {
   email: string
-  sessionToken: string
-  walletAddress: string
-  walletId: string
+  sessionToken?: string
+  walletAddress?: string
+  walletId?: string
   pendingOtpToken?: string
   pendingOtpExpiry?: number
+  // Circle user-controlled wallet fields
+  userToken?: string
+  circleWalletAddress?: string
 }
 
 export type ActivityType = 'received' | 'sent' | 'purchase' | 'agent_purchase' | 'request' | 'bridge' | 'swap'

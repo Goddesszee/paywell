@@ -4,6 +4,7 @@ import { useAccount } from 'wagmi'
 import { useAppStore } from '../../store/appStore'
 import { PaywellLogo } from '../ui/Logo'
 import { Button } from '../ui/Button'
+import { CircleEmailLogin } from '../CircleEmailLogin'
 
 const SANS = "'Inter', -apple-system, sans-serif"
 
@@ -80,21 +81,32 @@ export function OnboardingPage() {
           <div>
             <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#A0A0A0', marginBottom: 10, fontWeight: 600 }}>Step 01</div>
             <h2 style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em', marginBottom: 8 }}>Welcome to Paywell</h2>
-            <p style={{ color: '#6B6B6B', fontSize: 14, lineHeight: 1.6, marginBottom: 28 }}>
-              Connect your wallet to get started. Paywell uses Circle-powered wallets on Arc Testnet — no private keys exposed.
+            <p style={{ color: '#6B6B6B', fontSize: 14, lineHeight: 1.6, marginBottom: 24 }}>
+              Sign in with your email — a Circle wallet is created automatically on Arc Testnet.
             </p>
+
+            {/* Circle email login — primary */}
+            <CircleEmailLogin onSuccess={() => setStep('usecases')} />
+
+            {/* Divider */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '20px 0' }}>
+              <div style={{ flex: 1, height: 1, background: 'rgba(0,0,0,0.08)' }} />
+              <span style={{ fontSize: 12, color: '#A0A0A0' }}>or connect a wallet</span>
+              <div style={{ flex: 1, height: 1, background: 'rgba(0,0,0,0.08)' }} />
+            </div>
+
+            {/* MetaMask / wallet connect — secondary */}
             <ConnectKitButton.Custom>
               {({ isConnected: ckConnected, show, truncatedAddress }) => (
                 <button
                   onClick={show}
                   style={{
-                    width: '100%', padding: '14px 20px',
-                    background: '#0D0D0D', color: '#fff',
-                    border: 'none', borderRadius: 10,
-                    fontSize: 15, fontWeight: 700, cursor: 'pointer',
+                    width: '100%', padding: '13px 20px',
+                    background: 'transparent', color: '#0D0D0D',
+                    border: '1.5px solid rgba(0,0,0,0.12)', borderRadius: 10,
+                    fontSize: 14, fontWeight: 600, cursor: 'pointer',
                     fontFamily: SANS, letterSpacing: '-0.01em',
                     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
-                    transition: 'all 0.2s ease',
                   }}
                 >
                   {ckConnected ? (
@@ -102,13 +114,13 @@ export function OnboardingPage() {
                       <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#22C55E' }} />
                       {truncatedAddress}
                     </>
-                  ) : 'Connect Wallet'}
+                  ) : 'Connect MetaMask / WalletConnect'}
                 </button>
               )}
             </ConnectKitButton.Custom>
             {isConnected && (
-              <p style={{ color: '#22C55E', fontSize: 13, textAlign: 'center', marginTop: 14 }}>
-                ✓ Connected · {formatAddr(address)}
+              <p style={{ color: '#22C55E', fontSize: 13, textAlign: 'center', marginTop: 12 }}>
+                ✓ Wallet connected · {formatAddr(address)}
               </p>
             )}
           </div>

@@ -6,7 +6,7 @@ import {
 } from 'lucide-react'
 import { useWriteContract, useAccount } from 'wagmi'
 import { parseUnits } from 'viem'
-import { Input } from '../ui/Input'
+
 import { LoadingDots } from '../ui/Spinner'
 import { useAppStore } from '../../store/appStore'
 import type { AgentMessage, AgentPermissions } from '../../store/appStore'
