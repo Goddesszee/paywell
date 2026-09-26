@@ -22,7 +22,7 @@ const inputBase: React.CSSProperties = {
   borderRadius: 10,
   padding: '12px 14px',
   fontSize: 14,
-  fontFamily: 'Space Grotesk, sans-serif',
+  fontFamily: 'Inter, -apple-system, sans-serif',
   color: '#0D0D0D',
   outline: 'none',
   transition: 'border-color 0.2s, box-shadow 0.2s',
@@ -34,7 +34,7 @@ const labelStyle: React.CSSProperties = {
   fontSize: 12,
   fontWeight: 600,
   color: '#A0A0A0',
-  fontFamily: 'JetBrains Mono, monospace',
+  fontFamily: 'JetBrains Mono, Menlo, monospace',
   letterSpacing: '0.08em',
   textTransform: 'uppercase',
   marginBottom: 8,
@@ -57,7 +57,7 @@ export function Input({ label, error, helper, prefix, suffix, mono, className, s
             ...inputBase,
             paddingLeft: prefix ? 40 : 14,
             paddingRight: suffix ? 40 : 14,
-            fontFamily: mono ? 'JetBrains Mono, monospace' : 'Space Grotesk, sans-serif',
+            fontFamily: mono ? 'JetBrains Mono, Menlo, monospace' : 'Inter, -apple-system, sans-serif',
             borderColor: error ? 'rgba(239,68,68,0.5)' : undefined,
             ...style,
           }}
@@ -80,8 +80,8 @@ export function Input({ label, error, helper, prefix, suffix, mono, className, s
           }}>{suffix}</div>
         )}
       </div>
-      {error && <p style={{ fontSize: 12, color: '#ef4444', marginTop: 5, fontFamily: 'Space Grotesk, sans-serif' }}>{error}</p>}
-      {helper && !error && <p style={{ fontSize: 12, color: '#A0A0A0', marginTop: 5, fontFamily: 'Space Grotesk, sans-serif' }}>{helper}</p>}
+      {error && <p style={{ fontSize: 12, color: '#ef4444', marginTop: 5, fontFamily: 'Inter, -apple-system, sans-serif' }}>{error}</p>}
+      {helper && !error && <p style={{ fontSize: 12, color: '#A0A0A0', marginTop: 5, fontFamily: 'Inter, -apple-system, sans-serif' }}>{helper}</p>}
     </div>
   )
 }
@@ -112,8 +112,8 @@ export function Textarea({ label, error, helper, className, style, ...props }: T
         }}
         className={className}
       />
-      {error && <p style={{ fontSize: 12, color: '#ef4444', marginTop: 5, fontFamily: 'Space Grotesk, sans-serif' }}>{error}</p>}
-      {helper && !error && <p style={{ fontSize: 12, color: '#A0A0A0', marginTop: 5, fontFamily: 'Space Grotesk, sans-serif' }}>{helper}</p>}
+      {error && <p style={{ fontSize: 12, color: '#ef4444', marginTop: 5, fontFamily: 'Inter, -apple-system, sans-serif' }}>{error}</p>}
+      {helper && !error && <p style={{ fontSize: 12, color: '#A0A0A0', marginTop: 5, fontFamily: 'Inter, -apple-system, sans-serif' }}>{helper}</p>}
     </div>
   )
 }

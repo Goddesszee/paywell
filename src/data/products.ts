@@ -27,8 +27,8 @@ export interface Merchant {
 }
 
 export const MERCHANTS: Merchant[] = [
-  { id: 'techflow', name: 'TechFlow', description: 'Premium tech accessories', logoColor: '#1a6fd4', rating: 4.8, productCount: 6 },
-  { id: 'deskcraft', name: 'DeskCraft', description: 'Workspace essentials', logoColor: '#122d45', rating: 4.7, productCount: 4 },
+  { id: 'techflow', name: 'TechFlow', description: 'Premium tech accessories', logoColor: '#0D0D0D', rating: 4.8, productCount: 6 },
+  { id: 'deskcraft', name: 'DeskCraft', description: 'Workspace essentials', logoColor: '#0D0D0D', rating: 4.7, productCount: 4 },
   { id: 'pixelshop', name: 'PixelShop', description: 'Digital goods & templates', logoColor: '#7c3aed', rating: 4.9, productCount: 3 },
   { id: 'wanderco', name: 'WanderCo', description: 'Travel & lifestyle gear', logoColor: '#0d7a5f', rating: 4.6, productCount: 3 },
 ]

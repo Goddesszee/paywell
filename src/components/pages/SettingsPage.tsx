@@ -9,8 +9,8 @@ import { formatAddress } from '../../utils/format'
 import { requireChain } from '@/onchain-facts'
 
 const ARC_TESTNET_ID = 5042002
-const MONO = 'JetBrains Mono, monospace'
-const SANS = 'Space Grotesk, sans-serif'
+const MONO = 'JetBrains Mono, Menlo, monospace'
+const SANS = 'Inter, -apple-system, sans-serif'
 
 export function SettingsPage() {
   const { address, isConnected } = useAccount()
@@ -197,7 +197,7 @@ export function SettingsPage() {
             <div className="w-8 h-8 rounded-lg bg-[#F5F5F5] flex items-center justify-center flex-shrink-0">
               <LogOut size={17} className="text-[#6B6B6B]" />
             </div>
-            <span className="text-sm font-semibold text-[#334155]">Reset onboarding</span>
+            <span className="text-sm font-semibold text-[#0D0D0D]">Reset onboarding</span>
           </button>
         </Card>
       </div>

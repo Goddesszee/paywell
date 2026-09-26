@@ -189,7 +189,7 @@ export function OnrampPage() {
       {/* Destination */}
       <div style={{ padding: '12px 14px', background: G, borderRadius: 12, border: `1px solid ${B}`, marginBottom: 16 }}>
         <div style={{ fontFamily: F, fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: T3, marginBottom: 4 }}>Destination wallet</div>
-        <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 13, color: T, wordBreak: 'break-all' }}>
+        <div style={{ fontFamily: "'JetBrains Mono', 'Menlo', monospace", fontSize: 13, color: T, wordBreak: 'break-all' }}>
           {address?.slice(0, 10)}...{address?.slice(-6)}
         </div>
         <div style={{ fontFamily: F, fontSize: 11, color: T3, marginTop: 2 }}>Arc Testnet · USDC</div>

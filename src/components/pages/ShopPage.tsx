@@ -424,7 +424,7 @@ function CartPage({
                   </div>
                   <button
                     onClick={() => onRemove(item.product.id)}
-                    className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-[#fee2e2] text-[#9898A6] hover:text-[#ba2b4c] transition-colors"
+                    className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-[#fee2e2] text-[#9898A6] hover:text-[#DC2626] transition-colors"
                   >
                     <X size={14} />
                   </button>

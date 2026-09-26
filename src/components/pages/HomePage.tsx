@@ -13,8 +13,8 @@ const PW_TEXT_3 = '#A0A0A0'
 const PW_BLUE = '#0D0D0D'
 const PW_BLUE_LIGHT = '#0D0D0D'
 const PW_BORDER = 'rgba(0,0,0,0.06)'
-const MONO = 'JetBrains Mono, monospace'
-const SANS = 'Space Grotesk, sans-serif'
+const MONO = 'JetBrains Mono, Menlo, monospace'
+const SANS = 'Inter, -apple-system, sans-serif'
 const ARC_TESTNET_ID = 5042002
 
 function QuickAction({ Icon, label, onClick }: { Icon: React.ElementType, label: string, primary?: boolean, onClick: () => void }) {

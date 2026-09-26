@@ -50,7 +50,7 @@ export function PageLoader() {
         marginBottom: 4,
       }}>N</div>
       <Spinner size={24} />
-      <p style={{ fontSize: 13, color: '#A0A0A0', fontFamily: 'JetBrains Mono, monospace', letterSpacing: '0.08em' }}>
+      <p style={{ fontSize: 13, color: '#A0A0A0', fontFamily: 'JetBrains Mono, Menlo, monospace', letterSpacing: '0.08em' }}>
         loading
       </p>
     </div>

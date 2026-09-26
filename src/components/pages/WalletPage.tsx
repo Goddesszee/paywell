@@ -16,7 +16,7 @@ import { getUsdc, requireChain, buildTxExplorerUrl } from '@/onchain-facts'
 import { parseAmount, Amount, usdcDecimalsFor } from '@/onchain-money'
 
 const ARC_TESTNET_ID = 5042002
-const SANS = 'Space Grotesk, sans-serif'
+const SANS = 'Inter, -apple-system, sans-serif'
 
 function useWalletBalance(address: string) {
   const usdcFact = getUsdc(ARC_TESTNET_ID)
@@ -102,13 +102,13 @@ export function WalletPage({ initialSubView = 'main' }: { initialSubView?: Walle
         borderRadius: 16, padding: '20px 20px 16px',
         boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
       }}>
-        <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.45)', letterSpacing: '0.18em', textTransform: 'uppercase', marginBottom: 6, fontFamily: 'JetBrains Mono, monospace' }}>
+        <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.45)', letterSpacing: '0.18em', textTransform: 'uppercase', marginBottom: 6, fontFamily: 'JetBrains Mono, Menlo, monospace' }}>
           Total Balance
         </div>
         {isLoading ? (
           <div style={{ height: 48, width: 160, background: 'rgba(255,255,255,0.08)', borderRadius: 10, marginBottom: 16 }} />
         ) : (
-          <div style={{ fontSize: 40, fontWeight: 700, color: '#FFFFFF', letterSpacing: '-1.5px', fontFamily: 'JetBrains Mono, monospace', marginBottom: 16 }}>
+          <div style={{ fontSize: 40, fontWeight: 700, color: '#FFFFFF', letterSpacing: '-1.5px', fontFamily: 'JetBrains Mono, Menlo, monospace', marginBottom: 16 }}>
             {balance ?? '0.00'} <span style={{ fontSize: 18, color: 'rgba(255,255,255,0.5)' }}>USDC</span>
           </div>
         )}
@@ -119,7 +119,7 @@ export function WalletPage({ initialSubView = 'main' }: { initialSubView?: Walle
           ].map(({ label, val }) => (
             <div key={label} style={{ background: 'rgba(255,255,255,0.07)', borderRadius: 10, padding: '10px 12px' }}>
               <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', marginBottom: 4 }}>{label}</div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: '#fff', fontFamily: 'JetBrains Mono, monospace' }}>{val}</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#fff', fontFamily: 'JetBrains Mono, Menlo, monospace' }}>{val}</div>
             </div>
           ))}
         </div>

@@ -40,7 +40,7 @@ export function CardTitle({ children, className = '' }: { children: React.ReactN
     <div
       className={['flex items-center gap-2 mb-4', className].join(' ')}
       style={{
-        fontFamily: 'JetBrains Mono, monospace',
+        fontFamily: 'JetBrains Mono, Menlo, monospace',
         fontSize: 11,
         fontWeight: 500,
         letterSpacing: '0.1em',
@@ -59,10 +59,10 @@ export function CardRow({ label, value, mono = false, className = '' }: {
 }) {
   return (
     <div className={['flex items-center justify-between py-2.5 border-b border-[rgba(0,0,0,0.05)] last:border-0', className].join(' ')}>
-      <span style={{ fontSize: 13, color: '#A0A0A0', fontFamily: 'Space Grotesk, sans-serif' }}>{label}</span>
+      <span style={{ fontSize: 13, color: '#A0A0A0', fontFamily: 'Inter, -apple-system, sans-serif' }}>{label}</span>
       <span style={{
         fontSize: 14, fontWeight: 600, color: '#0D0D0D',
-        fontFamily: mono ? 'JetBrains Mono, monospace' : 'Space Grotesk, sans-serif',
+        fontFamily: mono ? 'JetBrains Mono, Menlo, monospace' : 'Inter, -apple-system, sans-serif',
         letterSpacing: mono ? '0.01em' : undefined,
       }}>{value}</span>
     </div>

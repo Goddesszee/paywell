@@ -15,7 +15,7 @@ const styles: Record<BadgeVariant, React.CSSProperties> = {
   danger:  { background: 'rgba(239,68,68,0.12)',   color: '#ef4444', border: '1px solid rgba(239,68,68,0.25)' },
   warning: { background: 'rgba(245,158,11,0.12)',  color: '#F59E0B', border: '1px solid rgba(245,158,11,0.25)' },
   blue:    { background: 'rgba(0,0,0,0.05)',   color: '#0D0D0D', border: '1px solid rgba(0,0,0,0.10)' },
-  mono:    { background: 'rgba(0,0,0,0.04)',   color: '#0D0D0D', border: '1px solid rgba(0,0,0,0.08)', fontFamily: 'JetBrains Mono, monospace', letterSpacing: '0.04em' },
+  mono:    { background: 'rgba(0,0,0,0.04)',   color: '#0D0D0D', border: '1px solid rgba(0,0,0,0.08)', fontFamily: 'JetBrains Mono, Menlo, monospace', letterSpacing: '0.04em' },
 }
 
 const dotColors: Record<BadgeVariant, string> = {
@@ -34,7 +34,7 @@ export function Badge({ variant = 'default', children, dot, size = 'md' }: Badge
         display: 'inline-flex', alignItems: 'center', gap: 5,
         padding: size === 'sm' ? '2px 7px' : '3px 9px', borderRadius: 100,
         fontSize: size === 'sm' ? 11 : 12, fontWeight: 600,
-        fontFamily: 'Space Grotesk, sans-serif',
+        fontFamily: 'Inter, -apple-system, sans-serif',
         whiteSpace: 'nowrap',
         ...styles[variant],
       }}
