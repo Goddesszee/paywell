@@ -10,7 +10,18 @@ import { parseUnits } from 'viem'
 import { getUsdc } from '../onchain-facts'
 import { CartItem } from '../store/appStore'
 import { useAppStore } from '../store/appStore'
-import escrowArtifact from '../../contracts/out/PaywellEscrow.sol/PaywellEscrow.json'
+const ESCROW_ABI = [
+  { type: 'function', name: 'createOrder', inputs: [{ name: 'merchant', type: 'address' }, { name: 'amount', type: 'uint256' }], outputs: [{ name: 'orderId', type: 'uint256' }], stateMutability: 'nonpayable' },
+  { type: 'function', name: 'confirmOrder', inputs: [{ name: 'orderId', type: 'uint256' }], outputs: [], stateMutability: 'nonpayable' },
+  { type: 'function', name: 'cancelOrder', inputs: [{ name: 'orderId', type: 'uint256' }], outputs: [], stateMutability: 'nonpayable' },
+  { type: 'function', name: 'disputeOrder', inputs: [{ name: 'orderId', type: 'uint256' }], outputs: [], stateMutability: 'nonpayable' },
+  { type: 'function', name: 'releaseAfterTimeout', inputs: [{ name: 'orderId', type: 'uint256' }], outputs: [], stateMutability: 'nonpayable' },
+  { type: 'function', name: 'resolveDisputeToMerchant', inputs: [{ name: 'orderId', type: 'uint256' }], outputs: [], stateMutability: 'nonpayable' },
+  { type: 'function', name: 'resolveDisputeToBuyer', inputs: [{ name: 'orderId', type: 'uint256' }], outputs: [], stateMutability: 'nonpayable' },
+  { type: 'event', name: 'OrderCreated', inputs: [{ name: 'orderId', type: 'uint256', indexed: true }, { name: 'buyer', type: 'address', indexed: true }, { name: 'merchant', type: 'address', indexed: true }, { name: 'amount', type: 'uint256', indexed: false }] },
+  { type: 'event', name: 'OrderConfirmed', inputs: [{ name: 'orderId', type: 'uint256', indexed: true }, { name: 'merchant', type: 'address', indexed: true }, { name: 'merchantAmount', type: 'uint256', indexed: false }] },
+  { type: 'event', name: 'OrderRefunded', inputs: [{ name: 'orderId', type: 'uint256', indexed: true }, { name: 'buyer', type: 'address', indexed: true }, { name: 'amount', type: 'uint256', indexed: false }] },
+] as const
 
 export type CheckoutStatus = 'idle' | 'approving' | 'creating-order' | 'pending' | 'confirmed' | 'error'
 
@@ -67,7 +78,7 @@ export function useShopCheckout() {
       setStatus('creating-order')
       const hash = await writeContractAsync({
         address: ESCROW_ADDRESS,
-        abi: escrowArtifact.abi,
+        abi: ESCROW_ABI,
         functionName: 'createOrder',
         args: [merchantWallet, amount],
       })
@@ -102,7 +113,7 @@ export function useShopCheckout() {
     try {
       const hash = await writeContractAsync({
         address: ESCROW_ADDRESS,
-        abi: escrowArtifact.abi,
+        abi: ESCROW_ABI,
         functionName: 'confirmOrder',
         args: [BigInt(id)],
       })
