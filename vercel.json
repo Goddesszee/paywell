@@ -1,7 +1,7 @@
 {
-  "buildCommand": "vite build",
+  "buildCommand": "bun run build",
   "outputDirectory": "dist",
-  "installCommand": "npm install --legacy-peer-deps",
+  "installCommand": "bun install",
   "framework": "vite",
   "ignoreCommand": "git diff --quiet HEAD^ HEAD -- . ':(exclude)nan-react'",
   "rewrites": [
