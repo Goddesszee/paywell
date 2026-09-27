@@ -1,6 +1,9 @@
 import React, { useState, useRef } from 'react'
-import { Home, Wallet, ShoppingBag, Activity, Menu, X, ArrowLeftRight, ArrowUpDown, Zap, Settings, ChevronRight, CreditCard } from 'lucide-react'
+import { Home, Wallet, ShoppingBag, Activity, Menu, X, ArrowLeftRight, ArrowUpDown, Zap, Settings, ChevronRight, CreditCard, BarChart3 } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
+import { useAccount } from 'wagmi'
+
+const ADMIN_ADDRESS = (import.meta.env.VITE_ADMIN_ADDRESS as string ?? '').toLowerCase()
 
 const FONT = "'Inter', -apple-system, sans-serif"
 const BLACK = '#0D0D0D'
@@ -22,11 +25,14 @@ const DRAWER_ITEMS = [
   { id: 'bridge',   label: 'Bridge',    Icon: ArrowLeftRight, desc: 'Move USDC across chains' },
   { id: 'agent',    label: 'AI Agent',  Icon: Zap,            desc: 'Shop with your AI agent' },
   { id: 'settings', label: 'Settings',  Icon: Settings,       desc: 'Wallet & preferences' },
+  { id: 'admin',    label: 'Admin',     Icon: BarChart3,      desc: 'Dashboard & listings approval', adminOnly: true },
 ]
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { activeView, setActiveView } = useAppStore()
+  const { address } = useAccount()
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const isAdmin = !!address && (ADMIN_ADDRESS === '' || address.toLowerCase() === ADMIN_ADDRESS)
   const [adminToast, setAdminToast] = useState(false)
 
   // 5-tap secret admin access
@@ -139,7 +145,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <p style={{ fontSize: 11, fontWeight: 600, color: TEXT_3, textTransform: 'uppercase', letterSpacing: '0.06em' }}>More features</p>
         </div>
         <div style={{ flex: 1, overflowY: 'auto', padding: '8px 8px' }}>
-          {DRAWER_ITEMS.map(({ id, label, Icon, desc }) => {
+          {DRAWER_ITEMS.filter(item => !('adminOnly' in item && item.adminOnly && !isAdmin)).map(({ id, label, Icon, desc }) => {
             const isActive = activeView === id
             return (
               <button

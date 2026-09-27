@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { ConnectKitButton } from 'connectkit'
 import { useAccount } from 'wagmi'
-import { Mail, Chrome, Wallet, ArrowLeft, Loader } from 'lucide-react'
+import { Mail, Wallet, ArrowLeft, Loader } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
 
 

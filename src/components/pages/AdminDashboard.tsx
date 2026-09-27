@@ -51,8 +51,8 @@ function InfraCard({ name, status, desc, icon }: InfraItem) {
 }
 
 export function AdminDashboard() {
-  const { activity } = useAppStore()
-  const [tab, setTab] = useState<'overview' | 'activity' | 'circle' | 'users'>('overview')
+  const { activity, pendingListings, approveListing, rejectListing } = useAppStore()
+  const [tab, setTab] = useState<'overview' | 'listings' | 'activity' | 'circle' | 'users'>('overview')
   const [now] = useState(new Date())
 
   // Computed stats from real activity store
@@ -79,6 +79,7 @@ export function AdminDashboard() {
 
   const tabs = [
     { id: 'overview', label: 'Overview' },
+    { id: 'listings', label: `Listings${pendingListings.filter(l=>l.status==='pending').length > 0 ? ` (${pendingListings.filter(l=>l.status==='pending').length})` : ''}` },
     { id: 'activity', label: 'Activity' },
     { id: 'circle', label: 'Circle Infra' },
     { id: 'users', label: 'Users' },
@@ -165,6 +166,64 @@ export function AdminDashboard() {
                       </div>
                       <div style={{ fontSize: 11, color: '#A0A0A0' }}>
                         {a.status === 'confirmed' ? '✓ Confirmed' : a.status}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── LISTINGS ── */}
+        {tab === 'listings' && (
+          <div>
+            <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: '-0.02em', marginBottom: 4 }}>Product Listings</div>
+            <div style={{ fontSize: 13, color: '#6B6B6B', marginBottom: 20 }}>Review and approve merchant product submissions</div>
+            {pendingListings.length === 0 ? (
+              <div style={{ background: '#fff', border: `1px solid ${B}`, borderRadius: 14, padding: '48px 20px', textAlign: 'center', color: '#A0A0A0', fontSize: 13 }}>
+                No listings submitted yet. Merchants can list products from the Shop page.
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {pendingListings.map(l => (
+                  <div key={l.id} style={{ background: '#fff', border: `1px solid ${B}`, borderRadius: 14, padding: '16px 18px' }}>
+                    <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+                      {(l.imageBase64 || l.imageUrl) && (
+                        <img src={l.imageBase64 || l.imageUrl} alt={l.name} style={{ width: 64, height: 64, borderRadius: 10, objectFit: 'cover', flexShrink: 0 }} onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
+                      )}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 4 }}>
+                          <div style={{ fontSize: 15, fontWeight: 700 }}>{l.name}</div>
+                          <span style={{ fontSize: 11, fontWeight: 700, flexShrink: 0, padding: '2px 8px', borderRadius: 20,
+                            color: l.status === 'pending' ? '#D97706' : l.status === 'approved' ? '#16A34A' : '#DC2626',
+                            background: l.status === 'pending' ? '#FFFBEB' : l.status === 'approved' ? '#F0FDF4' : '#FEF2F2',
+                          }}>{l.status}</span>
+                        </div>
+                        <div style={{ fontSize: 13, color: '#5C5C6B', marginBottom: 4 }}>{l.description || 'No description'}</div>
+                        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 8 }}>
+                          <span style={{ fontSize: 12, fontWeight: 700 }}>{l.price} USDC</span>
+                          <span style={{ fontSize: 12, color: '#9898A6' }}>{l.category}</span>
+                          <span style={{ fontSize: 11, fontFamily: 'monospace', color: '#9898A6' }}>{l.merchantWallet.slice(0,8)}...{l.merchantWallet.slice(-4)}</span>
+                        </div>
+                        {/* KYC info */}
+                        {l.kycFullName && (
+                          <div style={{ background: '#F7F7F8', borderRadius: 8, padding: '8px 10px', marginBottom: 8 }}>
+                            <div style={{ fontSize: 11, fontWeight: 700, color: '#9898A6', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>KYC Details</div>
+                            <div style={{ fontSize: 12, color: '#0D0D0D' }}>{l.kycFullName}</div>
+                            <div style={{ fontSize: 11, color: '#5C5C6B' }}>{l.kycIdType} · {l.kycIdNumber}</div>
+                          </div>
+                        )}
+                        {l.status === 'pending' && (
+                          <div style={{ display: 'flex', gap: 8 }}>
+                            <button onClick={() => approveListing(l.id)} style={{ height: 32, padding: '0 16px', borderRadius: 8, background: '#0D0D0D', color: '#FFF', fontSize: 12, fontWeight: 600, border: 'none', cursor: 'pointer', fontFamily: SANS }}>
+                              ✓ Approve
+                            </button>
+                            <button onClick={() => rejectListing(l.id)} style={{ height: 32, padding: '0 16px', borderRadius: 8, background: '#FEF2F2', color: '#DC2626', fontSize: 12, fontWeight: 600, border: '1px solid #FECACA', cursor: 'pointer', fontFamily: SANS }}>
+                              ✕ Reject
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>

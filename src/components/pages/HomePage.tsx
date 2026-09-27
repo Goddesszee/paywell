@@ -1,7 +1,7 @@
 import React from 'react'
 import { useAccount, useReadContract } from 'wagmi'
 import { erc20Abi } from 'viem'
-import { ArrowUpRight, ArrowDownLeft, ShoppingBag, Zap, CreditCard } from 'lucide-react'
+import { ArrowUpRight, ArrowDownLeft, ShoppingBag, CreditCard } from 'lucide-react'
 import { useAppStore, ActivityItem } from '../../store/appStore'
 import { Badge } from '../ui/Badge'
 import { getUsdc } from '@/onchain-facts'

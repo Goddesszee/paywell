@@ -37,7 +37,7 @@ export function OnboardingPage() {
     setActiveView('home')
   }
 
-  // oxlint-disable-next-line react/set-state-in-effect
+  // oxlint-disable-next-line react/set-state-in-effect, react(set-state-in-effect), react(immutability)
   React.useEffect(() => {
     if (isConnected && step === 'connect') setStep('usecases')
   }, [isConnected, step])

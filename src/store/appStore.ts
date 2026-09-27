@@ -110,6 +110,11 @@ interface AppState {
   removeFromCart: (productId: string) => void
   clearCart: () => void
 
+  pendingListings: PendingListing[]
+  submitListing: (listing: Omit<PendingListing, 'id' | 'submittedAt'>) => void
+  approveListing: (id: string) => void
+  rejectListing: (id: string) => void
+
   activeView: string
   setActiveView: (view: string) => void
   previousView: string | null
@@ -222,6 +227,27 @@ export const useAppStore = create<AppState>()(
         })),
       resetDailyUsage: () => set({ agentDailyUsed: 0 }),
 
+      pendingListings: [],
+      submitListing: (listing) =>
+        set((s) => ({
+          pendingListings: [
+            ...s.pendingListings,
+            { ...listing, id: `lst-${Date.now()}`, submittedAt: new Date() },
+          ],
+        })),
+      approveListing: (id) =>
+        set((s) => ({
+          pendingListings: s.pendingListings.map((l) =>
+            l.id === id ? { ...l, status: 'approved' as const } : l
+          ),
+        })),
+      rejectListing: (id) =>
+        set((s) => ({
+          pendingListings: s.pendingListings.map((l) =>
+            l.id === id ? { ...l, status: 'rejected' as const } : l
+          ),
+        })),
+
       cart: [],
       addToCart: (product) =>
         set((s) => {
@@ -254,6 +280,7 @@ export const useAppStore = create<AppState>()(
         agentMessages: s.agentMessages,
         activity: s.activity,
         cart: s.cart,
+        pendingListings: s.pendingListings,
       }),
       merge: (persisted, current) => {
         const p = persisted as Partial<AppState>
@@ -267,6 +294,10 @@ export const useAppStore = create<AppState>()(
           agentMessages: (p.agentMessages ?? current.agentMessages).map((m) => ({
             ...m,
             timestamp: new Date(m.timestamp),
+          })),
+          pendingListings: (p.pendingListings ?? current.pendingListings).map((l) => ({
+            ...l,
+            submittedAt: new Date(l.submittedAt),
           })),
         }
       },

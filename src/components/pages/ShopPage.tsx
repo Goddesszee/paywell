@@ -581,16 +581,40 @@ function CheckoutPage({
 
 function ListProductForm({ onBack }: { onBack: () => void }) {
   const { address } = useAccount()
+  const { submitListing } = useAppStore()
+  const [step, setStep] = useState<'product' | 'kyc'>('product')
   const [name, setName] = useState('')
   const [price, setPrice] = useState('')
   const [description, setDescription] = useState('')
   const [imageUrl, setImageUrl] = useState('')
+  const [imageBase64, setImageBase64] = useState('')
   const [category, setCategory] = useState('digital')
   const [wallet, setWallet] = useState(address ?? '')
+  const [kycFullName, setKycFullName] = useState('')
+  const [kycIdType, setKycIdType] = useState('passport')
+  const [kycIdNumber, setKycIdNumber] = useState('')
   const [submitted, setSubmitted] = useState(false)
 
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      const result = ev.target?.result as string
+      setImageBase64(result)
+      setImageUrl('')
+    }
+    reader.readAsDataURL(file)
+  }
+
   const handleSubmit = () => {
-    if (!name || !price || !wallet) return
+    if (!name || !price || !wallet || !kycFullName || !kycIdNumber) return
+    submitListing({
+      name, description, price: parseFloat(price),
+      category, imageUrl, imageBase64, merchantWallet: wallet,
+      kycStatus: 'submitted', kycFullName, kycIdType, kycIdNumber,
+      status: 'pending',
+    })
     setSubmitted(true)
   }
 
@@ -608,8 +632,8 @@ function ListProductForm({ onBack }: { onBack: () => void }) {
           <strong style={{ color: '#0D0D0D' }}>{name}</strong> · {price} USDC
         </p>
         <p style={{ color: '#9898A6', fontSize: 13, marginBottom: 24 }}>
-          Payments will go to {wallet.slice(0, 6)}...{wallet.slice(-4)} on Arc Testnet.
-          To go live, connect this app to a product database — see AGENTS.md for the backend endpoint.
+          Your listing is pending admin review. Once approved it will appear in the shop.
+          Payments go to {wallet.slice(0, 6)}...{wallet.slice(-4)} on Arc Testnet.
         </p>
         <button onClick={onBack} style={{ ...S, height: 48, padding: '0 24px', borderRadius: 12, background: '#0D0D0D', color: '#FFF', fontSize: 15, fontWeight: 600, border: 'none', cursor: 'pointer', width: '100%' }}>
           Back to shop
@@ -618,28 +642,52 @@ function ListProductForm({ onBack }: { onBack: () => void }) {
     )
   }
 
+  const previewSrc = imageBase64 || imageUrl
+
   return (
     <div style={{ maxWidth: 480, margin: '0 auto', padding: '16px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
-        <button onClick={onBack} style={{ width: 36, height: 36, borderRadius: 9, background: '#F7F7F8', border: '1px solid rgba(0,0,0,0.08)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <button onClick={step === 'kyc' ? () => setStep('product') : onBack} style={{ width: 36, height: 36, borderRadius: 9, background: '#F7F7F8', border: '1px solid rgba(0,0,0,0.08)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <ArrowLeft size={16} color="#0D0D0D" />
         </button>
         <div>
-          <div style={{ ...S, fontSize: 17, fontWeight: 700 }}>List a product</div>
-          <div style={{ color: '#5C5C6B', fontSize: 13 }}>Accept USDC directly to your wallet</div>
+          <div style={{ ...S, fontSize: 17, fontWeight: 700 }}>{step === 'kyc' ? 'Verify your identity' : 'List a product'}</div>
+          <div style={{ color: '#5C5C6B', fontSize: 13 }}>{step === 'kyc' ? 'Step 2 of 2 — required for all sellers' : 'Step 1 of 2 — product details'}</div>
         </div>
       </div>
 
+      {/* Step indicator */}
+      <div style={{ display: 'flex', gap: 4, marginBottom: 20 }}>
+        {['product', 'kyc'].map((s, i) => (
+          <div key={s} style={{ flex: 1, height: 3, borderRadius: 2, background: i === 0 || step === 'kyc' ? '#0D0D0D' : '#EFEFEF' }} />
+        ))}
+      </div>
+
+      {step === 'product' ? (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         <Input label="Product name" placeholder="e.g. Custom design template" value={name} onChange={(e) => setName(e.target.value)} />
         <Input label="Price (USDC)" type="number" min="0.01" step="0.01" placeholder="e.g. 12.50" value={price} onChange={(e) => setPrice(e.target.value)} suffix={<span style={{ fontSize: 12, fontWeight: 700, color: '#9898A6' }}>USDC</span>} />
         <Input label="Description (optional)" placeholder="What does the buyer get?" value={description} onChange={(e) => setDescription(e.target.value)} />
-        <Input label="Product image URL" placeholder="https://..." value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} />
-        {imageUrl && (
-          <div style={{ borderRadius: 10, overflow: 'hidden', border: '1px solid rgba(0,0,0,0.08)', aspectRatio: '16/9', background: '#F7F7F8' }}>
-            <img src={imageUrl} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
-          </div>
-        )}
+
+        {/* Image upload */}
+        <div>
+          <div style={{ fontSize: 12, fontWeight: 600, color: '#5C5C6B', marginBottom: 6, fontFamily: FONT }}>Product image</div>
+          <label style={{ display: 'block', border: '2px dashed rgba(0,0,0,0.12)', borderRadius: 12, padding: 16, textAlign: 'center', cursor: 'pointer', background: '#FAFAFA' }}>
+            <input type="file" accept="image/*" onChange={handleImageUpload} style={{ display: 'none' }} />
+            {previewSrc ? (
+              <img src={previewSrc} alt="Preview" style={{ width: '100%', maxHeight: 180, objectFit: 'cover', borderRadius: 8 }} />
+            ) : (
+              <div>
+                <div style={{ fontSize: 24, marginBottom: 6 }}>📷</div>
+                <div style={{ fontSize: 13, color: '#5C5C6B', fontFamily: FONT }}>Tap to upload a photo</div>
+                <div style={{ fontSize: 11, color: '#9898A6', fontFamily: FONT, marginTop: 2 }}>or paste URL below</div>
+              </div>
+            )}
+          </label>
+          <input type="text" placeholder="Or paste image URL: https://..." value={imageUrl} onChange={(e) => { setImageUrl(e.target.value); setImageBase64('') }}
+            style={{ width: '100%', marginTop: 8, padding: '9px 12px', border: '1px solid rgba(0,0,0,0.1)', borderRadius: 10, fontSize: 13, fontFamily: FONT, background: '#F7F7F8', color: '#0D0D0D', boxSizing: 'border-box' }} />
+        </div>
+
         <div>
           <div style={{ fontSize: 12, fontWeight: 600, color: '#5C5C6B', marginBottom: 6, fontFamily: FONT }}>Category</div>
           <select value={category} onChange={e => setCategory(e.target.value)}
@@ -655,18 +703,50 @@ function ListProductForm({ onBack }: { onBack: () => void }) {
 
         <div style={{ padding: '12px 14px', background: '#F7F7F8', borderRadius: 10, border: '1px solid rgba(0,0,0,0.07)' }}>
           <p style={{ margin: 0, fontSize: 12, color: '#5C5C6B', fontFamily: FONT }}>
-            When a buyer completes checkout, the USDC amount is transferred directly onchain to the wallet address you provide. No intermediary.
+            When a buyer completes checkout, USDC is transferred directly onchain to your wallet. No intermediary.
           </p>
         </div>
 
         <button
-          onClick={handleSubmit}
+          onClick={() => { if (name && price && wallet) setStep('kyc') }}
           disabled={!name || !price || !wallet}
-          style={{ height: 50, borderRadius: 13, background: '#0D0D0D', color: '#FFF', fontSize: 15, fontWeight: 600, border: 'none', cursor: name && price && wallet ? 'pointer' : 'not-allowed', opacity: name && price && wallet ? 1 : 0.4, fontFamily: FONT }}
+          style={{ height: 50, borderRadius: 13, background: '#0D0D0D', color: '#FFF', fontSize: 15, fontWeight: 600, border: 'none', cursor: name && price && wallet ? 'pointer' : 'not-allowed', opacity: name && price && wallet ? 1 : 0.4, fontFamily: FONT, width: '100%' }}
         >
-          Submit listing
+          Continue to verification →
         </button>
       </div>
+      ) : (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div style={{ padding: '12px 14px', background: '#FFF8E1', borderRadius: 10, border: '1px solid rgba(0,0,0,0.07)' }}>
+          <p style={{ margin: 0, fontSize: 12, color: '#5C5C6B', fontFamily: FONT }}>
+            We verify all sellers to protect buyers. Your information is stored securely and reviewed by our team.
+          </p>
+        </div>
+        <Input label="Full legal name" placeholder="e.g. Jane Smith" value={kycFullName} onChange={(e) => setKycFullName(e.target.value)} />
+        <div>
+          <div style={{ fontSize: 12, fontWeight: 600, color: '#5C5C6B', marginBottom: 6, fontFamily: FONT }}>ID type</div>
+          <select value={kycIdType} onChange={e => setKycIdType(e.target.value)}
+            style={{ width: '100%', padding: '10px 12px', border: '1px solid rgba(0,0,0,0.1)', borderRadius: 10, background: '#F7F7F8', color: '#0D0D0D', fontSize: 14, fontFamily: FONT, appearance: 'none' }}>
+            <option value="passport">Passport</option>
+            <option value="national_id">National ID</option>
+            <option value="drivers_license">Driver's License</option>
+          </select>
+        </div>
+        <Input label="ID number" placeholder="e.g. AB123456" value={kycIdNumber} onChange={(e) => setKycIdNumber(e.target.value)} />
+        <div style={{ padding: '12px 14px', background: '#F7F7F8', borderRadius: 10, border: '1px solid rgba(0,0,0,0.07)' }}>
+          <p style={{ margin: 0, fontSize: 12, color: '#5C5C6B', fontFamily: FONT }}>
+            By submitting, you agree that Paywell may verify your identity and that your listing will be reviewed before going live.
+          </p>
+        </div>
+        <button
+          onClick={handleSubmit}
+          disabled={!kycFullName || !kycIdNumber}
+          style={{ height: 50, borderRadius: 13, background: '#0D0D0D', color: '#FFF', fontSize: 15, fontWeight: 600, border: 'none', cursor: kycFullName && kycIdNumber ? 'pointer' : 'not-allowed', opacity: kycFullName && kycIdNumber ? 1 : 0.4, fontFamily: FONT, width: '100%' }}
+        >
+          Submit for review
+        </button>
+      </div>
+      )}
     </div>
   )
 }
