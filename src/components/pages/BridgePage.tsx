@@ -23,19 +23,21 @@ interface BridgeChainOption {
   kitName: string
   chainId: number
   explorer: string
+  gasToken: string   // what token pays gas on this chain
+  gasIsUsdc: boolean // true only on Arc
 }
 
 const CHAINS: BridgeChainOption[] = [
-  { label: 'Arc Testnet',        kitName: 'Arc_Testnet',        chainId: 5042002,  explorer: 'https://testnet.arcscan.app/tx/' },
-  { label: 'Base Sepolia',       kitName: 'Base_Sepolia',       chainId: 84532,    explorer: 'https://sepolia.basescan.org/tx/' },
-  { label: 'Arbitrum Sepolia',   kitName: 'Arbitrum_Sepolia',   chainId: 421614,   explorer: 'https://sepolia.arbiscan.io/tx/' },
-  { label: 'Ethereum Sepolia',   kitName: 'Ethereum_Sepolia',   chainId: 11155111, explorer: 'https://sepolia.etherscan.io/tx/' },
-  { label: 'Optimism Sepolia',   kitName: 'Optimism_Sepolia',   chainId: 11155420, explorer: 'https://sepolia-optimism.etherscan.io/tx/' },
-  { label: 'Polygon Amoy',       kitName: 'Polygon_Amoy',       chainId: 80002,    explorer: 'https://www.oklink.com/amoy/tx/' },
-  { label: 'Avalanche Fuji',     kitName: 'Avalanche_Fuji',     chainId: 43113,    explorer: 'https://testnet.snowtrace.io/tx/' },
-  { label: 'Solana Devnet',      kitName: 'Solana_Devnet',      chainId: 0,        explorer: 'https://explorer.solana.com/tx/' },
-  { label: 'Unichain Sepolia',   kitName: 'Unichain_Sepolia',   chainId: 1301,     explorer: 'https://sepolia.uniscan.xyz/tx/' },
-  { label: 'Linea Sepolia',      kitName: 'Linea_Sepolia',      chainId: 59141,    explorer: 'https://sepolia.lineascan.build/tx/' },
+  { label: 'Arc Testnet',        kitName: 'Arc_Testnet',        chainId: 5042002,  explorer: 'https://testnet.arcscan.app/tx/',            gasToken: 'USDC',  gasIsUsdc: true  },
+  { label: 'Base Sepolia',       kitName: 'Base_Sepolia',       chainId: 84532,    explorer: 'https://sepolia.basescan.org/tx/',           gasToken: 'ETH',   gasIsUsdc: false },
+  { label: 'Arbitrum Sepolia',   kitName: 'Arbitrum_Sepolia',   chainId: 421614,   explorer: 'https://sepolia.arbiscan.io/tx/',            gasToken: 'ETH',   gasIsUsdc: false },
+  { label: 'Ethereum Sepolia',   kitName: 'Ethereum_Sepolia',   chainId: 11155111, explorer: 'https://sepolia.etherscan.io/tx/',           gasToken: 'ETH',   gasIsUsdc: false },
+  { label: 'Optimism Sepolia',   kitName: 'Optimism_Sepolia',   chainId: 11155420, explorer: 'https://sepolia-optimism.etherscan.io/tx/',  gasToken: 'ETH',   gasIsUsdc: false },
+  { label: 'Polygon Amoy',       kitName: 'Polygon_Amoy',       chainId: 80002,    explorer: 'https://www.oklink.com/amoy/tx/',            gasToken: 'MATIC', gasIsUsdc: false },
+  { label: 'Avalanche Fuji',     kitName: 'Avalanche_Fuji',     chainId: 43113,    explorer: 'https://testnet.snowtrace.io/tx/',           gasToken: 'AVAX',  gasIsUsdc: false },
+  { label: 'Solana Devnet',      kitName: 'Solana_Devnet',      chainId: 0,        explorer: 'https://explorer.solana.com/tx/',            gasToken: 'SOL',   gasIsUsdc: false },
+  { label: 'Unichain Sepolia',   kitName: 'Unichain_Sepolia',   chainId: 1301,     explorer: 'https://sepolia.uniscan.xyz/tx/',            gasToken: 'ETH',   gasIsUsdc: false },
+  { label: 'Linea Sepolia',      kitName: 'Linea_Sepolia',      chainId: 59141,    explorer: 'https://sepolia.lineascan.build/tx/',        gasToken: 'ETH',   gasIsUsdc: false },
 ]
 
 type StepName = 'approve' | 'burn' | 'fetchAttestation' | 'mint'
@@ -231,6 +233,16 @@ export function BridgePage() {
           <div style={{ fontSize: 13, fontWeight: 600, color: PW_TEXT }}>{amount || '0.00'} USDC</div>
         </div>
       </div>
+
+      {/* Gas token warning */}
+      {!fromChain.gasIsUsdc && (
+        <div style={{ background: '#FFF8E7', border: '1px solid #F5D78A', borderRadius: 10, padding: '10px 14px', marginBottom: 16, display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+          <span style={{ fontSize: 16 }}>⚠️</span>
+          <div style={{ fontSize: 13, color: '#7A5C00', lineHeight: 1.5 }}>
+            <strong>Gas required:</strong> Bridging from <strong>{fromChain.label}</strong> requires <strong>{fromChain.gasToken}</strong> in your wallet to pay network fees — not USDC. Only Arc uses USDC as gas.
+          </div>
+        </div>
+      )}
 
       {/* Steps (during/after bridge) */}
       {status !== 'idle' && (

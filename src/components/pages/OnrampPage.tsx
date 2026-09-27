@@ -85,17 +85,18 @@ export function OnrampPage() {
         throw new Error((err as { message?: string }).message ?? `Session endpoint returned HTTP ${sessionRes.status}`)
       }
 
-      const session = await sessionRes.json() as { id?: string; token?: string }
-      if (!session.id && !session.token) throw new Error('Invalid session response from server')
+      const session = await sessionRes.json() as Record<string, unknown>
+      // Circle returns sessionId + sessionToken + widgetUrl
+      if (!session.sessionId && !session.sessionToken && !session.widgetUrl) {
+        throw new Error('Invalid session response from server')
+      }
 
       // Mount the Circle hosted onramp iframe
       containerRef.current.innerHTML = ''
       setWidgetMounted(true)
 
-      kit.onramp.mountIframe({
-        session: session as Parameters<typeof kit.onramp.mountIframe>[0]['session'],
-        container: containerRef.current,
-      })
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      kit.onramp.mountIframe({ session: session as any, container: containerRef.current })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to launch onramp')
       setWidgetMounted(false)
