@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { useAccount } from 'wagmi'
 
-import { ArrowLeft, Droplet, AlertCircle, CheckCircle2 } from 'lucide-react'
+import { ArrowLeft, Droplet, AlertCircle, CheckCircle2, ExternalLink } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
 
 const PW_BG      = '#FFFFFF'
@@ -127,6 +127,14 @@ export function FaucetPage() {
               {cooldownLabel && (
                 <p style={{ color: '#DC2626', fontSize: 12, margin: '4px 0 0', opacity: 0.8 }}>{cooldownLabel}</p>
               )}
+              <a
+                href="https://faucet.circle.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 8, fontSize: 13, fontWeight: 600, color: '#DC2626', textDecoration: 'underline' }}
+              >
+                Open Circle's faucet directly <ExternalLink size={12} />
+              </a>
             </div>
           </div>
         )}
@@ -172,6 +180,16 @@ export function FaucetPage() {
         <p style={{ textAlign: 'center', fontSize: 12, color: PW_TEXT_2, marginTop: 16, lineHeight: 1.5 }}>
           Powered by Circle's testnet faucet · One claim per wallet every 24 hours
         </p>
+        <div style={{ textAlign: 'center', marginTop: 8 }}>
+          <a
+            href="https://faucet.circle.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, fontWeight: 600, color: PW_TEXT_2, textDecoration: 'underline' }}
+          >
+            Or open Circle's faucet directly <ExternalLink size={11} />
+          </a>
+        </div>
       </div>
     </div>
   )
