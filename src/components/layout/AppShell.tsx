@@ -1,7 +1,6 @@
-import React, { useState } from 'react'
-import { Home, Wallet, ShoppingBag, Activity, Menu, X, ArrowLeftRight, ArrowUpDown, Zap, Settings, ChevronRight, CreditCard, BarChart3 } from 'lucide-react'
+import React, { useState, useRef } from 'react'
+import { Home, Wallet, ShoppingBag, Activity, Menu, X, ArrowLeftRight, ArrowUpDown, Zap, Settings, ChevronRight, CreditCard } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
-
 
 const FONT = "'Inter', -apple-system, sans-serif"
 const BLACK = '#0D0D0D'
@@ -23,12 +22,30 @@ const DRAWER_ITEMS = [
   { id: 'bridge',   label: 'Bridge',    Icon: ArrowLeftRight, desc: 'Move USDC across chains' },
   { id: 'agent',    label: 'AI Agent',  Icon: Zap,            desc: 'Shop with your AI agent' },
   { id: 'settings', label: 'Settings',  Icon: Settings,       desc: 'Wallet & preferences' },
-  { id: 'admin',    label: 'Admin',     Icon: BarChart3,      desc: 'Dashboard & Circle infra status' },
 ]
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { activeView, setActiveView } = useAppStore()
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const [adminToast, setAdminToast] = useState(false)
+
+  // 5-tap secret admin access
+  const tapCount = useRef(0)
+  const tapTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const handleLogoTap = () => {
+    tapCount.current += 1
+    if (tapTimer.current) clearTimeout(tapTimer.current)
+    if (tapCount.current >= 5) {
+      tapCount.current = 0
+      setActiveView('admin')
+      setDrawerOpen(false)
+      setAdminToast(true)
+      setTimeout(() => setAdminToast(false), 2000)
+      return
+    }
+    tapTimer.current = setTimeout(() => { tapCount.current = 0 }, 1500)
+  }
 
   const navActive = (id: string) =>
     activeView === id ||
@@ -42,6 +59,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div style={{ position: 'fixed', inset: 0, display: 'flex', flexDirection: 'column', background: '#FFF', fontFamily: FONT }}>
 
+      {/* ── Admin unlock toast ── */}
+      {adminToast && (
+        <div style={{
+          position: 'fixed', top: 60, left: '50%', transform: 'translateX(-50%)',
+          background: BLACK, color: '#FFF', padding: '8px 20px',
+          borderRadius: 20, fontSize: 13, fontWeight: 600,
+          zIndex: 200, pointerEvents: 'none',
+          animation: 'pw-up 0.2s ease both',
+        }}>
+          Admin unlocked
+        </div>
+      )}
+
       {/* ── Top bar ── */}
       <header style={{
         height: 52, flexShrink: 0, zIndex: 60,
@@ -53,7 +83,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         WebkitBackdropFilter: 'blur(20px)',
         borderBottom: `1px solid ${BORDER}`,
       }}>
-        <span style={{fontWeight:700,fontSize:18,letterSpacing:"-0.02em",color:"#0D0D0D",fontFamily:"Inter,sans-serif"}}>Paywell</span>
+        {/* 5-tap secret admin trigger */}
+        <span
+          onClick={handleLogoTap}
+          style={{ fontWeight: 700, fontSize: 18, letterSpacing: '-0.02em', color: '#0D0D0D', fontFamily: 'Inter,sans-serif', userSelect: 'none', WebkitUserSelect: 'none', cursor: 'default' }}
+        >
+          Paywell
+        </span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <div className="net-pill">Arc Testnet</div>
           <button

@@ -57,6 +57,26 @@ export interface CartItem {
   quantity: number
 }
 
+export type KycStatus = 'none' | 'submitted' | 'approved' | 'rejected'
+
+export interface PendingListing {
+  id: string
+  name: string
+  description: string
+  price: number
+  category: string
+  imageBase64?: string
+  imageUrl?: string
+  merchantWallet: string
+  merchantEmail?: string
+  kycStatus: KycStatus
+  kycFullName?: string
+  kycIdType?: string
+  kycIdNumber?: string
+  status: 'pending' | 'approved' | 'rejected'
+  submittedAt: Date
+}
+
 export interface OnboardingState {
   completed: boolean
   step: number
