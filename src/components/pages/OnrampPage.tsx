@@ -85,16 +85,9 @@ export function OnrampPage() {
       const widgetUrl = session.widgetUrl as string | undefined
       if (!widgetUrl) throw new Error('No widget URL returned from Circle')
 
-      // Mount the Circle onramp iframe directly
-      if (containerRef.current) {
-        containerRef.current.innerHTML = ''
-        const iframe = document.createElement('iframe')
-        iframe.src = widgetUrl
-        iframe.style.cssText = 'width:100%;height:600px;border:none;'
-        iframe.allow = 'payment; camera; microphone'
-        iframe.setAttribute('allowfullscreen', 'true')
-        containerRef.current.appendChild(iframe)
-      }
+      // Open Circle's hosted onramp in a new tab
+      // (iframe is blocked by Circle's CSP — new tab is the correct approach)
+      window.open(widgetUrl, '_blank', 'noopener,noreferrer')
       setWidgetMounted(true)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to launch onramp')
@@ -203,17 +196,22 @@ export function OnrampPage() {
           </div>
         )}
 
-        {/* Widget container — always mounted, Circle injects iframe here */}
-        <div
-          ref={containerRef}
-          style={{
-            borderRadius: 16, overflow: 'hidden',
-            border: widgetMounted ? `1px solid ${PW_BORDER}` : 'none',
-            marginBottom: widgetMounted ? 20 : 0,
-            minHeight: widgetMounted ? 600 : 0,
-            display: 'block',
-          }}
-        />
+        {/* Hidden ref div — kept for compatibility */}
+        <div ref={containerRef} style={{ display: 'none' }} />
+
+        {/* Post-launch state */}
+        {widgetMounted && (
+          <div style={{ textAlign: 'center', padding: '32px 16px', background: PW_SURFACE, borderRadius: 16, marginBottom: 20 }}>
+            <div style={{ fontSize: 40, marginBottom: 12 }}>✓</div>
+            <p style={{ fontWeight: 700, fontSize: 17, color: PW_TEXT, marginBottom: 6 }}>Circle Onramp Opened</p>
+            <p style={{ fontSize: 14, color: PW_TEXT_2, marginBottom: 20 }}>Complete your purchase in the new tab. USDC will arrive in your wallet on Arc Testnet.</p>
+            <button onClick={() => setWidgetMounted(false)} style={{
+              padding: '12px 24px', borderRadius: 12, background: PW_BLACK,
+              color: PW_WHITE, border: 'none', cursor: 'pointer',
+              fontSize: 15, fontWeight: 600, fontFamily: SANS,
+            }}>Buy more USDC</button>
+          </div>
+        )}
 
         {/* CTA */}
         {!widgetMounted && (
