@@ -2,9 +2,8 @@ import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { createAppServerKit, createSessionRouteHandler } from '@circle-fin/app-kit/server'
 
 const apiKey = process.env.CIRCLE_API_KEY
-const domain = process.env.VERCEL_URL ?? 'paywell-puce.vercel.app'
+const domain = 'paywell-puce.vercel.app'
 
-// Lazily initialise so the module still loads when the key is absent
 let routeHandler: ((req: Request) => Promise<Response>) | null = null
 
 function getRouteHandler() {
@@ -37,22 +36,42 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const fn = getRouteHandler()
   if (!fn) return res.status(503).json({ error: 'Failed to initialise onramp handler' })
 
+  const { destinationAddress, amount, appUserId } = req.body as {
+    destinationAddress?: string
+    amount?: string
+    appUserId?: string
+  }
+
+  if (!destinationAddress) {
+    return res.status(400).json({ error: 'destinationAddress is required — connect a wallet first' })
+  }
+
+  // Build the exact request body the Circle SDK expects
+  const body = {
+    appUserId: appUserId ?? destinationAddress, // use wallet address as user ID if not provided
+    destinationAddress,
+    destinationChain: 'ARC-TESTNET',
+    amount: amount ?? '100',
+    currency: 'USD',
+    assets: {
+      tokens: ['USDC'],
+      chains: ['ARC-TESTNET'],
+    },
+  }
+
   try {
-    // The kit handler expects a Fetch API Request object
-    const url = `https://${domain}/api/onramp-session`
-    const fetchReq = new Request(url, {
+    const fetchReq = new Request(`https://${domain}/api/onramp-session`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(req.body),
+      body: JSON.stringify(body),
     })
 
     const fetchRes = await fn(fetchReq)
     const text = await fetchRes.text()
-
     res.setHeader('content-type', 'application/json')
     return res.status(fetchRes.status).send(text)
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Onramp error'
+    const message = err instanceof Error ? err.message : 'Onramp session error'
     return res.status(500).json({ error: message })
   }
 }

@@ -69,11 +69,9 @@ export function OnrampPage() {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
-          amount: String(amount),
-          currency: 'USD',
-          blockchain: 'ARC-TESTNET',
+          appUserId: address,
           destinationAddress: address,
-          paymentMethod,
+          amount: String(amount),
         }),
       })
 
