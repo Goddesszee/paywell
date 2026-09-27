@@ -221,7 +221,7 @@ export function AdminDashboard() {
               {[
                 { key: 'GROQ_API_KEY', desc: 'Real AI agent chat', set: hasGroq },
                 { key: 'VITE_X402_SELLER_ADDRESS', desc: 'x402 micropayment receiver', set: hasX402 },
-                { key: 'CIRCLE_STABLECOIN_KIT_API_KEY', desc: 'Buy USDC onramp widget', set: hasOnramp },
+                { key: 'CIRCLE_API_KEY', desc: 'Buy USDC onramp widget', set: hasOnramp },
                 { key: 'SMTP_HOST + SMTP_USER + SMTP_PASS', desc: 'Real email OTP delivery', set: false },
               ].map(({ key, desc, set }, i) => (
                 <div key={key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 16px', borderBottom: i < 3 ? `1px solid ${B}` : 'none' }}>
