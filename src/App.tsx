@@ -12,6 +12,7 @@ import { SettingsPage } from './components/pages/SettingsPage'
 import { BridgePage } from './components/pages/BridgePage'
 import { SwapPage } from './components/pages/SwapPage'
 import { OnrampPage } from './components/pages/OnrampPage'
+import { FaucetPage } from './components/pages/FaucetPage'
 import { AdminDashboard } from './components/pages/AdminDashboard'
 
 export default function App() {
@@ -35,6 +36,7 @@ export default function App() {
       {activeView === 'bridge' && <BridgePage />}
       {activeView === 'swap'   && <SwapPage />}
       {activeView === 'onramp' && <OnrampPage />}
+      {activeView === 'faucet' && <FaucetPage />}
       {activeView === 'activity' && <ActivityPage />}
       {activeView === 'settings' && <SettingsPage />}
       {activeView === 'help' && <SettingsPage />}

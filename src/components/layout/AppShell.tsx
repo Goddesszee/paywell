@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react'
-import { Home, Wallet, ShoppingBag, Activity, Menu, X, ArrowLeftRight, ArrowUpDown, Zap, Settings, ChevronRight, CreditCard, BarChart3 } from 'lucide-react'
+import { Home, Wallet, ShoppingBag, Activity, Menu, X, ArrowLeftRight, ArrowUpDown, Zap, Settings, ChevronRight, CreditCard, BarChart3, Droplet } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
 import { useAccount } from 'wagmi'
 
@@ -21,6 +21,7 @@ const NAV_ITEMS = [
 
 const DRAWER_ITEMS = [
   { id: 'onramp',   label: 'Buy USDC',  Icon: CreditCard,     desc: 'Card, Apple Pay, bank transfer' },
+  { id: 'faucet',   label: 'Faucet',    Icon: Droplet,        desc: 'Free testnet USDC on Arc' },
   { id: 'swap',     label: 'Swap',      Icon: ArrowUpDown,    desc: 'Exchange tokens via Circle' },
   { id: 'bridge',   label: 'Bridge',    Icon: ArrowLeftRight, desc: 'Move USDC across chains' },
   { id: 'agent',    label: 'AI Agent',  Icon: Zap,            desc: 'Shop with your AI agent' },
