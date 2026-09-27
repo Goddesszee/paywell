@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { W3SSdk } from '@circle-fin/w3s-pw-web-sdk'
 import { useAppStore } from '../store/appStore'
 
@@ -23,7 +23,42 @@ export function CircleEmailLogin({ onSuccess }: Props) {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
-  // Initialise SDK once
+  const loadWallets = useCallback(async (userToken: string) => {
+    const res = await fetch('/api/wallet/wallets', {
+      headers: { 'x-user-token': userToken },
+    })
+    const data = await res.json() as { wallets?: { address: string }[] }
+    const address = data.wallets?.[0]?.address ?? ''
+    setAuth({ email, userToken, circleWalletAddress: address })
+    setStep('done')
+    onSuccess(address, userToken)
+  }, [email, onSuccess, setAuth])
+
+  const initUser = useCallback(async (userToken: string, encryptionKey: string) => {
+    setLoading(true)
+    try {
+      const res = await fetch('/api/wallet/initialize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userToken }),
+      })
+      const data = await res.json() as { challengeId?: string; code?: number; error?: string }
+      if (data.code === 155106) { await loadWallets(userToken); return }
+      if (data.error) { setError(data.error); setStep('error'); return }
+      const sdk = sdkRef.current
+      if (!sdk || !data.challengeId) return
+      sdk.setAuthentication({ userToken, encryptionKey })
+      sdk.execute(data.challengeId, async (err) => {
+        if (err) { setError('Wallet creation failed'); setStep('error'); return }
+        await loadWallets(userToken)
+      })
+    } catch {
+      setError('Network error'); setStep('error')
+    } finally {
+      setLoading(false)
+    }
+  }, [loadWallets])
+
   useEffect(() => {
     const appId = CIRCLE_APP_ID || 'pending-configuration'
     const onLoginComplete = (err: unknown, result: unknown) => {
@@ -39,50 +74,7 @@ export function CircleEmailLogin({ onSuccess }: Props) {
       setDeviceId(id)
       localStorage.setItem('pw_deviceId', id)
     }).catch(() => setError('Failed to init Circle SDK'))
-  }, [])
-
-  const initUser = async (userToken: string, encryptionKey: string) => {
-    setLoading(true)
-    try {
-      const res = await fetch('/api/wallet/initialize', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userToken }),
-      })
-      const data = await res.json() as { challengeId?: string; code?: number; error?: string }
-
-      if (data.code === 155106) {
-        // already initialized — load wallets
-        await loadWallets(userToken)
-        return
-      }
-      if (data.error) { setError(data.error); setStep('error'); return }
-
-      // execute challenge to create wallet
-      const sdk = sdkRef.current
-      if (!sdk || !data.challengeId) return
-      sdk.setAuthentication({ userToken, encryptionKey })
-      sdk.execute(data.challengeId, async (err) => {
-        if (err) { setError('Wallet creation failed'); setStep('error'); return }
-        await loadWallets(userToken)
-      })
-    } catch {
-      setError('Network error'); setStep('error')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const loadWallets = async (userToken: string) => {
-    const res = await fetch('/api/wallet/wallets', {
-      headers: { 'x-user-token': userToken },
-    })
-    const data = await res.json() as { wallets?: { address: string }[] }
-    const address = data.wallets?.[0]?.address ?? ''
-    setAuth({ email, userToken, circleWalletAddress: address })
-    setStep('done')
-    onSuccess(address, userToken)
-  }
+  }, [initUser])
 
   // Step 1 — send OTP
   const handleSendOtp = async () => {

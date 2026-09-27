@@ -37,10 +37,14 @@ export function OnboardingPage() {
     setActiveView('home')
   }
 
-  // oxlint-disable-next-line react/set-state-in-effect, react(set-state-in-effect), react(immutability)
-  React.useEffect(() => {
-    if (isConnected && step === 'connect') setStep('usecases')
-  }, [isConnected, step])
+  const prevConnected = React.useRef(false)
+  React.useLayoutEffect(() => {
+    if (isConnected && !prevConnected.current && step === 'connect') {
+      prevConnected.current = true
+      setTimeout(() => setStep('usecases'), 0)
+    }
+    if (!isConnected) prevConnected.current = false
+  })
 
   const stepNum = step === 'connect' ? 1 : step === 'usecases' ? 2 : step === 'agent' ? 3 : 4
 
