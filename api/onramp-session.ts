@@ -36,11 +36,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const fn = getRouteHandler()
   if (!fn) return res.status(503).json({ error: 'Failed to initialise onramp handler' })
 
-  const { destinationAddress, amount, appUserId } = req.body as {
+  const { destinationAddress, amount: amountRaw, appUserId } = req.body as {
     destinationAddress?: string
-    amount?: string
+    amount?: string | number
     appUserId?: string
   }
+  const amount = amountRaw !== undefined ? String(amountRaw) : '100'
 
   if (!destinationAddress) {
     return res.status(400).json({ error: 'destinationAddress is required — connect a wallet first' })
@@ -51,7 +52,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     appUserId: appUserId ?? destinationAddress, // use wallet address as user ID if not provided
     destinationAddress,
     destinationChain: 'ARC-TESTNET',
-    amount: amount ?? '100',
+    amount,
     currency: 'USD',
     assets: {
       tokens: ['USDC'],
