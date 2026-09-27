@@ -25,7 +25,7 @@ export function CircleEmailLogin({ onSuccess }: Props) {
 
   // Initialise SDK once
   useEffect(() => {
-    if (!CIRCLE_APP_ID) return
+    const appId = CIRCLE_APP_ID || 'pending-configuration'
     const onLoginComplete = (err: unknown, result: unknown) => {
       if (err) { setError('OTP verification failed'); setStep('error'); return }
       const r = result as LoginResult
@@ -33,7 +33,7 @@ export function CircleEmailLogin({ onSuccess }: Props) {
       setStep('creating')
       void initUser(r.userToken, r.encryptionKey)
     }
-    const sdk = new W3SSdk({ appSettings: { appId: CIRCLE_APP_ID } }, onLoginComplete)
+    const sdk = new W3SSdk({ appSettings: { appId } }, onLoginComplete)
     sdkRef.current = sdk
     sdk.getDeviceId().then(id => {
       setDeviceId(id)
@@ -116,16 +116,7 @@ export function CircleEmailLogin({ onSuccess }: Props) {
     sdkRef.current.verifyOtp()
   }
 
-  if (!CIRCLE_APP_ID) {
-    return (
-      <div style={{ fontFamily: SANS, textAlign: 'center', padding: 16 }}>
-        <div style={{ fontSize: 13, color: '#6B6B6B', lineHeight: 1.6 }}>
-          <strong>Circle email login</strong> requires <code>VITE_CIRCLE_APP_ID</code> to be set.<br />
-          Add it in Vercel → Environment Variables, then redeploy.
-        </div>
-      </div>
-    )
-  }
+  // Show form always — API will return a clear error if env vars are missing
 
   if (step === 'done') return (
     <div style={{ fontFamily: SANS, textAlign: 'center', padding: 16 }}>
@@ -167,6 +158,11 @@ export function CircleEmailLogin({ onSuccess }: Props) {
             {loading ? 'Sending…' : 'Send code →'}
           </button>
           {error && <div style={{ color: '#C00', fontSize: 13 }}>{error}</div>}
+          {!CIRCLE_APP_ID && (
+            <div style={{ fontSize: 11, color: '#9898A6', textAlign: 'center', marginTop: 4 }}>
+              Add <code>VITE_CIRCLE_APP_ID</code> + <code>CIRCLE_USER_CONTROLLED_API_KEY</code> in Vercel to activate
+            </div>
+          )}
         </div>
       )}
 
