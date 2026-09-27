@@ -27,17 +27,21 @@ interface BridgeChainOption {
   gasIsUsdc: boolean // true only on Arc
 }
 
+// CCTP V2 supported testnets per official Circle docs.
+// Arc uses Circle Gateway (not CCTP directly) — USDC is its native gas token.
 const CHAINS: BridgeChainOption[] = [
-  { label: 'Arc Testnet',        kitName: 'Arc_Testnet',        chainId: 5042002,  explorer: 'https://testnet.arcscan.app/tx/',            gasToken: 'USDC',  gasIsUsdc: true  },
-  { label: 'Base Sepolia',       kitName: 'Base_Sepolia',       chainId: 84532,    explorer: 'https://sepolia.basescan.org/tx/',           gasToken: 'ETH',   gasIsUsdc: false },
-  { label: 'Arbitrum Sepolia',   kitName: 'Arbitrum_Sepolia',   chainId: 421614,   explorer: 'https://sepolia.arbiscan.io/tx/',            gasToken: 'ETH',   gasIsUsdc: false },
-  { label: 'Ethereum Sepolia',   kitName: 'Ethereum_Sepolia',   chainId: 11155111, explorer: 'https://sepolia.etherscan.io/tx/',           gasToken: 'ETH',   gasIsUsdc: false },
-  { label: 'Optimism Sepolia',   kitName: 'Optimism_Sepolia',   chainId: 11155420, explorer: 'https://sepolia-optimism.etherscan.io/tx/',  gasToken: 'ETH',   gasIsUsdc: false },
-  { label: 'Polygon Amoy',       kitName: 'Polygon_Amoy',       chainId: 80002,    explorer: 'https://www.oklink.com/amoy/tx/',            gasToken: 'MATIC', gasIsUsdc: false },
-  { label: 'Avalanche Fuji',     kitName: 'Avalanche_Fuji',     chainId: 43113,    explorer: 'https://testnet.snowtrace.io/tx/',           gasToken: 'AVAX',  gasIsUsdc: false },
-  { label: 'Solana Devnet',      kitName: 'Solana_Devnet',      chainId: 0,        explorer: 'https://explorer.solana.com/tx/',            gasToken: 'SOL',   gasIsUsdc: false },
-  { label: 'Unichain Sepolia',   kitName: 'Unichain_Sepolia',   chainId: 1301,     explorer: 'https://sepolia.uniscan.xyz/tx/',            gasToken: 'ETH',   gasIsUsdc: false },
-  { label: 'Linea Sepolia',      kitName: 'Linea_Sepolia',      chainId: 59141,    explorer: 'https://sepolia.lineascan.build/tx/',        gasToken: 'ETH',   gasIsUsdc: false },
+  { label: 'Arc Testnet',         kitName: 'Arc_Testnet',         chainId: 5042002,  explorer: 'https://testnet.arcscan.app/tx/',                          gasToken: 'USDC', gasIsUsdc: true  },
+  { label: 'Ethereum Sepolia',    kitName: 'Ethereum_Sepolia',    chainId: 11155111, explorer: 'https://sepolia.etherscan.io/tx/',                          gasToken: 'ETH',  gasIsUsdc: false },
+  { label: 'Base Sepolia',        kitName: 'Base_Sepolia',        chainId: 84532,    explorer: 'https://sepolia.basescan.org/tx/',                          gasToken: 'ETH',  gasIsUsdc: false },
+  { label: 'Arbitrum Sepolia',    kitName: 'Arbitrum_Sepolia',    chainId: 421614,   explorer: 'https://sepolia.arbiscan.io/tx/',                           gasToken: 'ETH',  gasIsUsdc: false },
+  { label: 'OP Sepolia',          kitName: 'Optimism_Sepolia',    chainId: 11155420, explorer: 'https://sepolia-optimism.etherscan.io/tx/',                 gasToken: 'ETH',  gasIsUsdc: false },
+  { label: 'Polygon Amoy',        kitName: 'Polygon_Amoy',        chainId: 80002,    explorer: 'https://www.oklink.com/amoy/tx/',                           gasToken: 'MATIC',gasIsUsdc: false },
+  { label: 'Avalanche Fuji',      kitName: 'Avalanche_Fuji',      chainId: 43113,    explorer: 'https://testnet.snowtrace.io/tx/',                          gasToken: 'AVAX', gasIsUsdc: false },
+  { label: 'Unichain Sepolia',    kitName: 'Unichain_Sepolia',    chainId: 1301,     explorer: 'https://sepolia.uniscan.xyz/tx/',                           gasToken: 'ETH',  gasIsUsdc: false },
+  { label: 'Linea Sepolia',       kitName: 'Linea_Sepolia',       chainId: 59141,    explorer: 'https://sepolia.lineascan.build/tx/',                       gasToken: 'ETH',  gasIsUsdc: false },
+  { label: 'Solana Devnet',       kitName: 'Solana_Devnet',       chainId: 0,        explorer: 'https://explorer.solana.com/tx/',                           gasToken: 'SOL',  gasIsUsdc: false },
+  { label: 'Sei Testnet',         kitName: 'Sei_Testnet',         chainId: 1328,     explorer: 'https://seistream.app/tx/',                                 gasToken: 'SEI',  gasIsUsdc: false },
+  { label: 'World Chain Sepolia', kitName: 'World_Chain_Sepolia', chainId: 4801,     explorer: 'https://worldchain-sepolia.explorer.alchemy.com/tx/',       gasToken: 'ETH',  gasIsUsdc: false },
 ]
 
 type StepName = 'approve' | 'burn' | 'fetchAttestation' | 'mint'

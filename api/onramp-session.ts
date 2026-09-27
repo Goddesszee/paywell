@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { createAppServerKit, createSessionRouteHandler } from '@circle-fin/app-kit/server'
 
-const apiKey = process.env.CIRCLE_API_KEY
+const apiKey = process.env.CIRCLE_STABLECOIN_KIT_API_KEY ?? process.env.CIRCLE_API_KEY
 const domain = 'paywell-puce.vercel.app'
 
 let routeHandler: ((req: Request) => Promise<Response>) | null = null

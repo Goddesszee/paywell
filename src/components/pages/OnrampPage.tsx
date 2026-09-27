@@ -91,12 +91,22 @@ export function OnrampPage() {
         throw new Error('Invalid session response from server')
       }
 
-      // Mount the Circle hosted onramp iframe
-      containerRef.current.innerHTML = ''
       setWidgetMounted(true)
-
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      kit.onramp.mountIframe({ session: session as any, container: containerRef.current })
+      // If Circle returns a widgetUrl, open it directly in the container as an iframe
+      const widgetUrl = session.widgetUrl as string | undefined
+      if (widgetUrl && containerRef.current) {
+        containerRef.current.innerHTML = ''
+        const iframe = document.createElement('iframe')
+        iframe.src = widgetUrl
+        iframe.style.cssText = 'width:100%;height:600px;border:none;border-radius:12px;'
+        iframe.allow = 'payment; camera'
+        containerRef.current.appendChild(iframe)
+      } else if (containerRef.current) {
+        // Fallback: mountIframe with full session object
+        containerRef.current.innerHTML = ''
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        kit.onramp.mountIframe({ session: session as any, container: containerRef.current })
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to launch onramp')
       setWidgetMounted(false)
