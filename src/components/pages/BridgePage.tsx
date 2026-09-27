@@ -26,11 +26,16 @@ interface BridgeChainOption {
 }
 
 const CHAINS: BridgeChainOption[] = [
-  { label: 'Arc Testnet',        kitName: 'Arc_Testnet',        chainId: 5042002, explorer: 'https://testnet.arcscan.app/tx/' },
-  { label: 'Base Sepolia',       kitName: 'Base_Sepolia',       chainId: 84532,   explorer: 'https://sepolia.basescan.org/tx/' },
-  { label: 'Arbitrum Sepolia',   kitName: 'Arbitrum_Sepolia',   chainId: 421614,  explorer: 'https://sepolia.arbiscan.io/tx/' },
+  { label: 'Arc Testnet',        kitName: 'Arc_Testnet',        chainId: 5042002,  explorer: 'https://testnet.arcscan.app/tx/' },
+  { label: 'Base Sepolia',       kitName: 'Base_Sepolia',       chainId: 84532,    explorer: 'https://sepolia.basescan.org/tx/' },
+  { label: 'Arbitrum Sepolia',   kitName: 'Arbitrum_Sepolia',   chainId: 421614,   explorer: 'https://sepolia.arbiscan.io/tx/' },
   { label: 'Ethereum Sepolia',   kitName: 'Ethereum_Sepolia',   chainId: 11155111, explorer: 'https://sepolia.etherscan.io/tx/' },
   { label: 'Optimism Sepolia',   kitName: 'Optimism_Sepolia',   chainId: 11155420, explorer: 'https://sepolia-optimism.etherscan.io/tx/' },
+  { label: 'Polygon Amoy',       kitName: 'Polygon_Amoy',       chainId: 80002,    explorer: 'https://www.oklink.com/amoy/tx/' },
+  { label: 'Avalanche Fuji',     kitName: 'Avalanche_Fuji',     chainId: 43113,    explorer: 'https://testnet.snowtrace.io/tx/' },
+  { label: 'Solana Devnet',      kitName: 'Solana_Devnet',      chainId: 0,        explorer: 'https://explorer.solana.com/tx/' },
+  { label: 'Unichain Sepolia',   kitName: 'Unichain_Sepolia',   chainId: 1301,     explorer: 'https://sepolia.uniscan.xyz/tx/' },
+  { label: 'Linea Sepolia',      kitName: 'Linea_Sepolia',      chainId: 59141,    explorer: 'https://sepolia.lineascan.build/tx/' },
 ]
 
 type StepName = 'approve' | 'burn' | 'fetchAttestation' | 'mint'

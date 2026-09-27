@@ -1,231 +1,239 @@
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { useAccount } from 'wagmi'
-import { CreditCard, ArrowRight, CheckCircle, AlertCircle, Loader, X } from 'lucide-react'
 import { AppKit } from '@circle-fin/app-kit'
 
-const T  = '#0D0D0D'
-const T2 = '#6B6B6B'
-const T3 = '#A0A0A0'
-const W  = '#FFFFFF'
-const G  = '#F7F7F8'
-const B  = 'rgba(0,0,0,0.08)'
-const F  = "'Inter', -apple-system, sans-serif"
+import { ArrowLeft, ShoppingCart, CreditCard, Building2, Smartphone, AlertCircle } from 'lucide-react'
+import { useAppStore } from '../../store/appStore'
 
-type Step = 'idle' | 'loading' | 'widget' | 'success' | 'error'
+const PW_BG      = '#FFFFFF'
+const PW_SURFACE = '#F7F7F8'
+const PW_BORDER  = '#E4E4E7'
+const PW_TEXT    = '#0D0D0D'
+const PW_TEXT_2  = '#5C5C6B'
+const PW_BLACK   = '#0D0D0D'
+const PW_WHITE   = '#FFFFFF'
+const SANS       = 'Inter, sans-serif'
+
+const PRESET_AMOUNTS = [20, 50, 100, 200]
+const PAYMENT_METHODS = [
+  { id: 'Debit',        label: 'Debit Card',    icon: CreditCard },
+  { id: 'ApplePay',     label: 'Apple Pay',     icon: Smartphone },
+  { id: 'GooglePay',    label: 'Google Pay',    icon: Smartphone },
+  { id: 'BankTransfer', label: 'Bank Transfer', icon: Building2 },
+]
 
 export function OnrampPage() {
   const { address, isConnected } = useAccount()
-  const [step, setStep] = useState<Step>('idle')
-  const [amount, setAmount] = useState('50')
-  const [error, setError] = useState('')
-  const containerRef = useRef<HTMLDivElement>(null)
-  const widgetRef = useRef<{ close: () => void } | null>(null)
-  const kitRef = useRef<AppKit | null>(null)
+  const setActiveView = useAppStore(s => s.setActiveView)
 
+  const [amount, setAmount] = useState(100)
+  const [customAmount, setCustomAmount] = useState('100')
+  const [paymentMethod, setPaymentMethod] = useState('Debit')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [widgetMounted, setWidgetMounted] = useState(false)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const appKitRef = useRef<AppKit | null>(null)
+
+  // Init AppKit once
   useEffect(() => {
-    kitRef.current = new AppKit()
-    return () => {
-      widgetRef.current?.close()
-    }
+    appKitRef.current = new AppKit()
   }, [])
 
-  const startOnramp = async () => {
-    if (!address || !containerRef.current || !kitRef.current) return
-    setStep('loading')
-    setError('')
+  const handleAmountChange = (val: number) => {
+    setAmount(val)
+    setCustomAmount(String(val))
+  }
+
+  const handleCustomAmountChange = (val: string) => {
+    setCustomAmount(val)
+    const num = parseFloat(val)
+    if (!isNaN(num) && num > 0) setAmount(num)
+  }
+
+  const handleBuy = async () => {
+    if (!isConnected || !address) {
+      setError('Connect your wallet first')
+      return
+    }
+    if (!containerRef.current) return
+
+    setLoading(true)
+    setError(null)
 
     try {
-      // Step 1: fetch session from our server route
-      const session = await kitRef.current.onramp.fetchSession({
-        url: '/api/onramp-session',
-        body: {
-          appUserId: address,
-          destinationAddress: address,
-          amount,
+      const kit = appKitRef.current!
+
+      // Fetch session from our backend
+      const sessionRes = await fetch('/api/onramp-session', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          amount: String(amount),
           currency: 'USD',
-        },
+          blockchain: 'ARC-TESTNET',
+          destinationAddress: address,
+          paymentMethod,
+        }),
       })
 
-      setStep('widget')
+      if (!sessionRes.ok) {
+        const err = await sessionRes.json().catch(() => ({ message: `HTTP ${sessionRes.status}` }))
+        // If 503 (not configured), show helpful message
+        if (sessionRes.status === 503) {
+          setError('Add CIRCLE_API_KEY to Vercel environment variables to activate onramp')
+          return
+        }
+        throw new Error((err as { message?: string }).message ?? `Session endpoint returned HTTP ${sessionRes.status}`)
+      }
 
-      // Step 2: mount the hosted iframe widget
-      widgetRef.current = kitRef.current.onramp.mountIframe({
-        session,
+      const session = await sessionRes.json() as { id?: string; token?: string }
+      if (!session.id && !session.token) throw new Error('Invalid session response from server')
+
+      // Mount the Circle hosted onramp iframe
+      containerRef.current.innerHTML = ''
+      setWidgetMounted(true)
+
+      kit.onramp.mountIframe({
+        session: session as Parameters<typeof kit.onramp.mountIframe>[0]['session'],
         container: containerRef.current,
-        onDepositSettled: () => {
-          widgetRef.current?.close()
-          setStep('success')
-        },
-        onDepositNotCompleted: ({ code }: { code: string }) => {
-          if (code === 'CANCELED_BY_CUSTOMER') {
-            widgetRef.current?.close()
-            setStep('idle')
-          } else {
-            setError(`Payment not completed: ${code}`)
-            setStep('error')
-          }
-        },
       })
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Failed to start onramp'
-      setError(msg)
-      setStep('error')
+      setError(err instanceof Error ? err.message : 'Failed to launch onramp')
+      setWidgetMounted(false)
+    } finally {
+      setLoading(false)
     }
-  }
-
-  const closeWidget = () => {
-    widgetRef.current?.close()
-    widgetRef.current = null
-    setStep('idle')
-  }
-
-  if (!isConnected) {
-    return (
-      <div style={{ maxWidth: 480, margin: '0 auto', padding: '40px 20px', textAlign: 'center' }}>
-        <div style={{ width: 56, height: 56, borderRadius: 16, background: G, border: `1px solid ${B}`, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
-          <CreditCard size={24} color={T} />
-        </div>
-        <h2 style={{ fontFamily: F, fontSize: 20, fontWeight: 700, color: T, marginBottom: 8 }}>Buy USDC</h2>
-        <p style={{ fontFamily: F, fontSize: 14, color: T2, lineHeight: 1.6, marginBottom: 24 }}>
-          Connect your wallet to buy USDC with card, Apple Pay, or bank transfer.
-        </p>
-        <div style={{ padding: '14px 16px', background: G, borderRadius: 12, border: `1px solid ${B}` }}>
-          <p style={{ fontFamily: F, fontSize: 13, color: T3, margin: 0 }}>Connect a wallet using the button in the top bar</p>
-        </div>
-      </div>
-    )
-  }
-
-  if (step === 'success') {
-    return (
-      <div style={{ maxWidth: 480, margin: '0 auto', padding: '40px 20px', textAlign: 'center' }}>
-        <div style={{ width: 56, height: 56, borderRadius: '50%', background: '#dcfce7', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
-          <CheckCircle size={28} color="#1a8047" />
-        </div>
-        <h2 style={{ fontFamily: F, fontSize: 20, fontWeight: 700, color: T, marginBottom: 8 }}>USDC is on its way</h2>
-        <p style={{ fontFamily: F, fontSize: 14, color: T2, lineHeight: 1.6, marginBottom: 6 }}>
-          Your USDC will arrive in your wallet after settlement.
-        </p>
-        <p style={{ fontFamily: F, fontSize: 12, color: T3, marginBottom: 28 }}>Settlement typically takes 1–3 minutes.</p>
-        <button onClick={() => setStep('idle')} style={{
-          fontFamily: F, fontWeight: 600, fontSize: 14, height: 46, padding: '0 22px',
-          borderRadius: 11, border: 'none', background: T, color: W, cursor: 'pointer',
-        }}>Buy more USDC</button>
-      </div>
-    )
   }
 
   return (
-    <div style={{ maxWidth: 480, margin: '0 auto', padding: '24px 20px' }}>
-      {step !== 'widget' && (
-        <>
-          <div style={{ marginBottom: 24 }}>
-            <h2 style={{ fontFamily: F, fontSize: 20, fontWeight: 700, color: T, marginBottom: 4 }}>Buy USDC</h2>
-            <p style={{ fontFamily: F, fontSize: 13.5, color: T2 }}>
-              Top up with card, Apple Pay, Google Pay or bank transfer.
-            </p>
-          </div>
+    <div style={{ minHeight: '100dvh', background: PW_BG, fontFamily: SANS }}>
+      {/* Header */}
+      <div style={{
+        position: 'sticky', top: 0, zIndex: 10,
+        background: PW_BG, borderBottom: `1px solid ${PW_BORDER}`,
+        display: 'flex', alignItems: 'center', gap: 12, padding: '0 16px', height: 56,
+      }}>
+        <button onClick={() => setActiveView('home')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 8 }}>
+          <ArrowLeft size={20} color={PW_TEXT} />
+        </button>
+        <span style={{ fontWeight: 700, fontSize: 17, color: PW_TEXT }}>Buy USDC</span>
+      </div>
 
-          {/* Destination */}
-          <div style={{ padding: '12px 14px', background: G, borderRadius: 12, border: `1px solid ${B}`, marginBottom: 16 }}>
-            <div style={{ fontFamily: F, fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: T3, marginBottom: 4 }}>Destination wallet</div>
-            <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 13, color: T, wordBreak: 'break-all' }}>
-              {address?.slice(0, 10)}...{address?.slice(-6)}
-            </div>
-            <div style={{ fontFamily: F, fontSize: 11, color: T3, marginTop: 2 }}>Arc Testnet · USDC</div>
-          </div>
-
-          {/* Amount */}
-          <div style={{ marginBottom: 20 }}>
-            <label style={{ fontFamily: F, fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: T3, display: 'block', marginBottom: 6 }}>Amount (USD)</label>
-            <div style={{ position: 'relative' }}>
-              <span style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', fontFamily: F, fontSize: 16, fontWeight: 600, color: T2 }}>$</span>
-              <input
-                type="number" min="10" max="10000" step="1"
-                value={amount} onChange={e => setAmount(e.target.value)}
-                style={{
-                  width: '100%', height: 50, borderRadius: 12, border: `1.5px solid ${B}`,
-                  background: W, paddingLeft: 30, paddingRight: 60,
-                  fontFamily: F, fontSize: 18, fontWeight: 700, color: T, outline: 'none', boxSizing: 'border-box',
-                }}
-              />
-              <span style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', fontFamily: F, fontSize: 12, fontWeight: 600, color: T3 }}>USD</span>
-            </div>
-            <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-              {['20', '50', '100', '200'].map(a => (
-                <button key={a} onClick={() => setAmount(a)} style={{
-                  flex: 1, height: 34, borderRadius: 8, fontFamily: F, fontSize: 13, fontWeight: 600,
-                  border: `1.5px solid ${amount === a ? T : B}`,
-                  background: amount === a ? T : W,
-                  color: amount === a ? W : T2, cursor: 'pointer',
-                }}>${a}</button>
-              ))}
-            </div>
-          </div>
-
-          {/* Payment methods */}
-          <div style={{ marginBottom: 20 }}>
-            <div style={{ fontFamily: F, fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: T3, marginBottom: 8 }}>Payment methods</div>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              {['Debit Card', 'Apple Pay', 'Google Pay', 'Bank Transfer'].map(m => (
-                <div key={m} style={{ padding: '6px 10px', borderRadius: 8, border: `1px solid ${B}`, fontFamily: F, fontSize: 11, fontWeight: 500, color: T2, background: G }}>{m}</div>
-              ))}
-            </div>
-          </div>
-
-          {step === 'error' && (
-            <div style={{ display: 'flex', gap: 8, padding: '10px 12px', borderRadius: 10, background: '#fef2f2', border: '1px solid rgba(239,68,68,0.2)', marginBottom: 16 }}>
-              <AlertCircle size={16} color="#dc2626" style={{ flexShrink: 0, marginTop: 1 }} />
-              <p style={{ fontFamily: F, fontSize: 13, color: '#dc2626', margin: 0 }}>{error}</p>
-            </div>
-          )}
-
-          <button
-            onClick={startOnramp}
-            disabled={step === 'loading' || !amount || Number(amount) < 10}
-            style={{
-              width: '100%', height: 50, borderRadius: 13, fontFamily: F, fontWeight: 600, fontSize: 15,
-              border: 'none', background: T, color: W, cursor: 'pointer',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-              opacity: step === 'loading' || !amount || Number(amount) < 10 ? 0.5 : 1,
-            }}
-          >
-            {step === 'loading' ? (
-              <><Loader size={16} style={{ animation: 'spin 1s linear infinite' }} /> Opening checkout...</>
-            ) : (
-              <>Buy ${amount} USDC <ArrowRight size={15} /></>
-            )}
-          </button>
-          <p style={{ fontFamily: F, fontSize: 11, color: T3, textAlign: 'center', marginTop: 12, lineHeight: 1.5 }}>
-            Powered by Circle · KYC handled securely · USDC on Arc Testnet
-          </p>
-        </>
-      )}
-
-      {/* Widget container — shown when step === 'widget' */}
-      {step === 'widget' && (
-        <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <h2 style={{ fontFamily: F, fontSize: 18, fontWeight: 700, color: T, margin: 0 }}>Complete purchase</h2>
-            <button onClick={closeWidget} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}>
-              <X size={20} color={T2} />
-            </button>
+      <div style={{ maxWidth: 480, margin: '0 auto', padding: '24px 16px 40px' }}>
+        {/* Icon */}
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 24 }}>
+          <div style={{
+            width: 56, height: 56, borderRadius: 16,
+            background: PW_BLACK, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <ShoppingCart size={28} color={PW_WHITE} />
           </div>
         </div>
-      )}
 
-      {/* The iframe mounts here */}
-      <div
-        ref={containerRef}
-        style={{
-          width: '100%',
-          minHeight: step === 'widget' ? 600 : 0,
-          height: step === 'widget' ? 600 : 0,
-          borderRadius: 14,
-          overflow: 'hidden',
-          border: step === 'widget' ? `1px solid ${B}` : 'none',
-        }}
-      />
+        {/* Destination */}
+        {isConnected && address && (
+          <div style={{ marginBottom: 20, padding: 14, background: PW_SURFACE, borderRadius: 12, border: `1px solid ${PW_BORDER}` }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: PW_TEXT_2, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 4 }}>Destination Wallet</div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: PW_TEXT, fontFamily: 'monospace' }}>
+              {address.slice(0, 10)}...{address.slice(-8)}
+            </div>
+            <div style={{ fontSize: 12, color: PW_TEXT_2, marginTop: 2 }}>Arc Testnet · USDC</div>
+          </div>
+        )}
+
+        {!isConnected && (
+          <div style={{ marginBottom: 20, padding: 16, background: '#FFF9EC', borderRadius: 12, border: '1px solid #F5D78E', textAlign: 'center' }}>
+            <p style={{ color: '#92600A', fontSize: 14, margin: 0 }}>Connect your wallet on the Home screen first</p>
+          </div>
+        )}
+
+        {/* Amount */}
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: PW_TEXT_2, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 8 }}>Amount (USD)</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0 16px', height: 56, borderRadius: 14, border: `1.5px solid ${PW_BORDER}`, background: PW_WHITE }}>
+            <span style={{ fontSize: 20, fontWeight: 700, color: PW_TEXT_2 }}>$</span>
+            <input
+              type="number"
+              value={customAmount}
+              onChange={e => handleCustomAmountChange(e.target.value)}
+              min={1}
+              style={{ flex: 1, border: 'none', outline: 'none', fontSize: 24, fontWeight: 700, color: PW_TEXT, background: 'transparent', fontFamily: SANS }}
+            />
+            <span style={{ fontSize: 14, fontWeight: 600, color: PW_TEXT_2 }}>USD</span>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginTop: 10 }}>
+            {PRESET_AMOUNTS.map(a => (
+              <button key={a} onClick={() => handleAmountChange(a)} style={{
+                height: 40, borderRadius: 10,
+                background: amount === a ? PW_BLACK : PW_SURFACE,
+                color: amount === a ? PW_WHITE : PW_TEXT,
+                border: `1.5px solid ${amount === a ? PW_BLACK : PW_BORDER}`,
+                fontWeight: 600, fontSize: 14, cursor: 'pointer', fontFamily: SANS,
+              }}>
+                ${a}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Payment Methods */}
+        <div style={{ marginBottom: 24 }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: PW_TEXT_2, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 8 }}>Payment Methods</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {PAYMENT_METHODS.map(({ id, label, icon: Icon }) => (
+              <button key={id} onClick={() => setPaymentMethod(id)} style={{
+                display: 'flex', alignItems: 'center', gap: 6,
+                padding: '8px 14px', borderRadius: 10,
+                background: paymentMethod === id ? PW_BLACK : PW_WHITE,
+                color: paymentMethod === id ? PW_WHITE : PW_TEXT,
+                border: `1.5px solid ${paymentMethod === id ? PW_BLACK : PW_BORDER}`,
+                fontWeight: 500, fontSize: 14, cursor: 'pointer', fontFamily: SANS,
+              }}>
+                <Icon size={15} />
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Error */}
+        {error && (
+          <div style={{ display: 'flex', gap: 10, padding: 14, background: '#FEF2F2', borderRadius: 12, border: '1px solid #FCA5A5', marginBottom: 16 }}>
+            <AlertCircle size={18} color="#DC2626" style={{ flexShrink: 0, marginTop: 1 }} />
+            <p style={{ color: '#DC2626', fontSize: 14, margin: 0, lineHeight: 1.4 }}>{error}</p>
+          </div>
+        )}
+
+        {/* Widget container — Circle mounts the iframe here */}
+        {widgetMounted && (
+          <div ref={containerRef} style={{ borderRadius: 16, overflow: 'hidden', border: `1px solid ${PW_BORDER}`, marginBottom: 20, minHeight: 200 }} />
+        )}
+        {!widgetMounted && <div ref={containerRef} style={{ display: 'none' }} />}
+
+        {/* CTA */}
+        {!widgetMounted && (
+          <button
+            onClick={handleBuy}
+            disabled={loading || !isConnected}
+            style={{
+              width: '100%', height: 56, borderRadius: 16,
+              background: loading || !isConnected ? '#E4E4E7' : PW_BLACK,
+              color: loading || !isConnected ? PW_TEXT_2 : PW_WHITE,
+              border: 'none', cursor: loading || !isConnected ? 'not-allowed' : 'pointer',
+              fontSize: 16, fontWeight: 700, fontFamily: SANS,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            }}
+          >
+            {loading ? 'Loading…' : `Buy $${amount} USDC →`}
+          </button>
+        )}
+
+        {/* Info note */}
+        <p style={{ textAlign: 'center', fontSize: 12, color: PW_TEXT_2, marginTop: 16, lineHeight: 1.5 }}>
+          Powered by Circle · KYC & compliance handled · USDC lands on Arc Testnet
+        </p>
+      </div>
     </div>
   )
 }
