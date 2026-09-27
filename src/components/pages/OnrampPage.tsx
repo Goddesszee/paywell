@@ -1,6 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useRef, useState } from 'react'
 import { useAccount } from 'wagmi'
-import { AppKit } from '@circle-fin/app-kit'
 
 import { ArrowLeft, ShoppingCart, CreditCard, Building2, Smartphone, AlertCircle } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
@@ -33,12 +32,6 @@ export function OnrampPage() {
   const [error, setError] = useState<string | null>(null)
   const [widgetMounted, setWidgetMounted] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
-  const appKitRef = useRef<AppKit | null>(null)
-
-  // Init AppKit once
-  useEffect(() => {
-    appKitRef.current = new AppKit()
-  }, [])
 
   const handleAmountChange = (val: number) => {
     setAmount(val)
@@ -62,8 +55,6 @@ export function OnrampPage() {
     setError(null)
 
     try {
-      const kit = appKitRef.current!
-
       // Fetch session from our backend
       const sessionRes = await fetch('/api/onramp-session', {
         method: 'POST',
@@ -91,22 +82,20 @@ export function OnrampPage() {
         throw new Error('Invalid session response from server')
       }
 
-      setWidgetMounted(true)
-      // If Circle returns a widgetUrl, open it directly in the container as an iframe
       const widgetUrl = session.widgetUrl as string | undefined
-      if (widgetUrl && containerRef.current) {
+      if (!widgetUrl) throw new Error('No widget URL returned from Circle')
+
+      // Mount the Circle onramp iframe directly
+      if (containerRef.current) {
         containerRef.current.innerHTML = ''
         const iframe = document.createElement('iframe')
         iframe.src = widgetUrl
-        iframe.style.cssText = 'width:100%;height:600px;border:none;border-radius:12px;'
-        iframe.allow = 'payment; camera'
+        iframe.style.cssText = 'width:100%;height:600px;border:none;'
+        iframe.allow = 'payment; camera; microphone'
+        iframe.setAttribute('allowfullscreen', 'true')
         containerRef.current.appendChild(iframe)
-      } else if (containerRef.current) {
-        // Fallback: mountIframe with full session object
-        containerRef.current.innerHTML = ''
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        kit.onramp.mountIframe({ session: session as any, container: containerRef.current })
       }
+      setWidgetMounted(true)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to launch onramp')
       setWidgetMounted(false)
@@ -214,11 +203,17 @@ export function OnrampPage() {
           </div>
         )}
 
-        {/* Widget container — Circle mounts the iframe here */}
-        {widgetMounted && (
-          <div ref={containerRef} style={{ borderRadius: 16, overflow: 'hidden', border: `1px solid ${PW_BORDER}`, marginBottom: 20, minHeight: 200 }} />
-        )}
-        {!widgetMounted && <div ref={containerRef} style={{ display: 'none' }} />}
+        {/* Widget container — always mounted, Circle injects iframe here */}
+        <div
+          ref={containerRef}
+          style={{
+            borderRadius: 16, overflow: 'hidden',
+            border: widgetMounted ? `1px solid ${PW_BORDER}` : 'none',
+            marginBottom: widgetMounted ? 20 : 0,
+            minHeight: widgetMounted ? 600 : 0,
+            display: 'block',
+          }}
+        />
 
         {/* CTA */}
         {!widgetMounted && (
