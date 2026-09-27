@@ -7,7 +7,8 @@ import { Button } from '../ui/Button'
 import { Badge } from '../ui/Badge'
 import { Input } from '../ui/Input'
 import { useAppStore, CartItem } from '../../store/appStore'
-import { PRODUCTS, CATEGORIES, Product } from '../../data/products'
+import { CATEGORIES, Product } from '../../data/products'
+import { getVerifiedProducts } from '../../utils/listings'
 import { formatUSDC } from '../../utils/format'
 import { useShopCheckout } from '../../hooks/useShopCheckout'
 import { buildTxExplorerUrl } from '../../onchain-facts'
@@ -20,16 +21,18 @@ export function ShopPage() {
   const [activeCategory, setActiveCategory] = useState('all')
   const [search, setSearch] = useState('')
 
-  const { cart, addToCart, removeFromCart, clearCart, addActivity } = useAppStore()
+  const { cart, addToCart, removeFromCart, clearCart, addActivity, pendingListings } = useAppStore()
   const { isConnected } = useAccount()
 
+  const verifiedProducts = useMemo(() => getVerifiedProducts(pendingListings), [pendingListings])
+
   const filteredProducts = useMemo(() => {
-    return PRODUCTS.filter((p) => {
+    return verifiedProducts.filter((p) => {
       const matchCat = activeCategory === 'all' || p.category === activeCategory
       const matchSearch = !search || p.name.toLowerCase().includes(search.toLowerCase()) || p.merchant.toLowerCase().includes(search.toLowerCase())
       return matchCat && matchSearch
     })
-  }, [activeCategory, search])
+  }, [verifiedProducts, activeCategory, search])
 
   const cartCount = cart.reduce((acc, c) => acc + c.quantity, 0)
   const cartTotal = cart.reduce((acc, c) => acc + c.product.price * c.quantity, 0)
@@ -190,7 +193,11 @@ export function ShopPage() {
         <div className="text-center py-16">
           <ShoppingBag size={36} className="text-[#9898A6] mx-auto mb-3" />
           <h3 className="text-base font-bold text-[#0D0D0D] mb-1">No products found</h3>
-          <p className="text-sm text-[#5C5C6B]">Try a different search or category.</p>
+          <p className="text-sm text-[#5C5C6B]">
+            {verifiedProducts.length === 0
+              ? 'No verified listings yet — check back soon, or list an item yourself.'
+              : 'Try a different search or category.'}
+          </p>
         </div>
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">

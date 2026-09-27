@@ -10,7 +10,8 @@ import { parseUnits } from 'viem'
 import { LoadingDots } from '../ui/Spinner'
 import { useAppStore } from '../../store/appStore'
 import type { AgentMessage, AgentPermissions } from '../../store/appStore'
-import { PRODUCTS, CATEGORIES, Product } from '../../data/products'
+import { CATEGORIES, Product } from '../../data/products'
+import { getVerifiedProducts } from '../../utils/listings'
 import { formatUSDC, formatRelativeTime } from '../../utils/format'
 import { nanChat, backendConfigured } from '../../lib/api'
 import { getUsdc } from '../../onchain-facts'
@@ -58,7 +59,8 @@ interface X402Service {
 function simulateAgentResponse(
   userMessage: string,
   permissions: AgentPermissions,
-  dailyUsed: number
+  dailyUsed: number,
+  catalog: Product[]
 ): Omit<AgentMessage, 'id' | 'timestamp'> {
   const msg = userMessage.toLowerCase()
   const dailyRemaining = permissions.dailyLimit - dailyUsed
@@ -68,7 +70,7 @@ function simulateAgentResponse(
   const matchedKeyword = keywords.find(k => msg.includes(k))
   const categoryKeywords: Record<string,string> = { tech:'tech', digital:'digital', home:'home', fashion:'fashion', clothes:'fashion', template:'digital', design:'digital' }
   const matchedCategory = Object.keys(categoryKeywords).find(k => msg.includes(k))
-  let candidates = PRODUCTS.filter(p => {
+  let candidates = catalog.filter(p => {
     if (!permissions.allowedCategories.includes(p.category)) return false
     if (maxPrice !== null && p.price > maxPrice) return false
     if (p.price > permissions.perTxLimit) return false
@@ -161,7 +163,8 @@ function AgentStatusLine() {
 }
 
 function AgentChat() {
-  const { agentMessages, addAgentMessage, agentPermissions, agentDailyUsed, approveAgentPurchase, rejectAgentPurchase, clearAgentMessages, auth } = useAppStore()
+  const { agentMessages, addAgentMessage, agentPermissions, agentDailyUsed, approveAgentPurchase, rejectAgentPurchase, clearAgentMessages, auth, pendingListings } = useAppStore()
+  const verifiedCatalog = React.useMemo(() => getVerifiedProducts(pendingListings), [pendingListings])
   const { address, chainId } = useAccount()
   const { writeContractAsync } = useWriteContract()
   const [input, setInput] = useState('')
@@ -211,7 +214,7 @@ function AgentChat() {
     } catch { /* fall through */ }
     await new Promise(r => setTimeout(r, 800 + Math.random()*500))
     setTyping(false)
-    addAgentMessage(simulateAgentResponse(text, agentPermissions, agentDailyUsed))
+    addAgentMessage(simulateAgentResponse(text, agentPermissions, agentDailyUsed, verifiedCatalog))
   }
 
   const QUICK = ['Find a wireless keyboard under 25 USDC', 'Show digital downloads under 15 USDC', 'Buy the cheapest laptop stand', 'What can you buy for me today?']
