@@ -34,6 +34,39 @@ export default defineConfig({
       'vite-plugin-node-polyfills/shims/process',
     ],
   },
+  build: {
+    chunkSizeWarningLimit: 1500,
+    rollupOptions: {
+      onwarn(warning, warn) {
+        // vite-plugin-node-polyfills emits circular dependency warnings for
+        // node-stdlib-browser internals — these are safe to ignore and must
+        // not be treated as errors on Vercel.
+        if (
+          warning.code === 'CIRCULAR_DEPENDENCY' ||
+          warning.code === 'THIS_IS_UNDEFINED' ||
+          (warning.message && warning.message.includes('node-stdlib-browser'))
+        ) return
+        warn(warning)
+      },
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'react/jsx-runtime'],
+          'vendor-wagmi': ['wagmi', 'viem', '@tanstack/react-query'],
+          'vendor-connectkit': ['connectkit'],
+          'vendor-circle': [
+            '@circle-fin/app-kit',
+            '@circle-fin/adapter-viem-v2',
+            '@circle-fin/modular-wallets-core',
+          ],
+          'vendor-circle-wallets': [
+            '@circle-fin/user-controlled-wallets',
+            '@circle-fin/w3s-pw-web-sdk',
+          ],
+          'vendor-ui': ['framer-motion', 'lucide-react', 'sonner', 'qrcode.react'],
+        },
+      },
+    },
+  },
   server: {
     allowedHosts: true,
     cors: true,
