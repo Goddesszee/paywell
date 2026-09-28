@@ -15,6 +15,84 @@ export interface PaywellAuth {
   circleWalletAddress?: string
 }
 
+// ── Paywell Protected Purchase ────────────────────────────────────────────────
+
+export type DeliveryStage =
+  | 'payment_secured'
+  | 'preparing'
+  | 'shipped'
+  | 'in_transit'
+  | 'out_for_delivery'
+  | 'delivered'
+  | 'buyer_confirmation'
+  | 'payment_released'
+
+export type OrderStatus =
+  | 'active'
+  | 'completed'
+  | 'disputed'
+  | 'refunded'
+  | 'cancelled'
+
+export type DisputeReason =
+  | 'item_not_received'
+  | 'item_differs'
+  | 'damaged'
+  | 'wrong_item'
+  | 'other'
+
+export type DisputeStatus = 'opened' | 'under_review' | 'resolved'
+
+export type RefundStatus =
+  | 'requested'
+  | 'approved'
+  | 'processing'
+  | 'completed'
+
+export type OfferStatus = 'pending' | 'accepted' | 'rejected' | 'countered' | 'expired'
+
+export interface OfferEntry {
+  by: 'buyer' | 'seller'
+  amount: number
+  at: string // ISO date
+}
+
+export interface ProtectedOrder {
+  id: string               // PW10291 style
+  productId: string
+  productName: string
+  productImageUrl?: string
+  seller: string           // merchant name
+  sellerWallet: string
+  buyerWallet: string
+  amount: number           // USDC
+  deliveryStage: DeliveryStage
+  status: OrderStatus
+  createdAt: string        // ISO
+  updatedAt: string        // ISO
+  txHash?: string          // escrow createOrder tx
+  confirmTxHash?: string   // confirmOrder tx
+  onchainOrderId?: number  // from PaywellEscrow
+  disputeStatus?: DisputeStatus
+  disputeReason?: DisputeReason
+  disputeNote?: string
+  refundStatus?: RefundStatus
+  quantity: number
+  location?: string
+}
+
+export interface OfferNegotiation {
+  id: string
+  productId: string
+  productName: string
+  seller: string
+  listedAmount: number
+  history: OfferEntry[]
+  status: OfferStatus
+  agreedAmount?: number
+  createdAt: string
+}
+
 export type ActivityType = 'received' | 'sent' | 'purchase' | 'agent_purchase' | 'request' | 'bridge' | 'swap'
 
 export interface ActivityItem {
@@ -114,6 +192,19 @@ interface AppState {
   submitListing: (listing: Omit<PendingListing, 'id' | 'submittedAt'>) => void
   approveListing: (id: string) => void
   rejectListing: (id: string) => void
+
+  // Protected Purchase orders
+  orders: ProtectedOrder[]
+  addOrder: (order: Omit<ProtectedOrder, 'id' | 'createdAt' | 'updatedAt'>) => string
+  updateOrderStage: (id: string, stage: DeliveryStage) => void
+  confirmOrderDelivery: (id: string, confirmTxHash?: string) => void
+  openDispute: (id: string, reason: DisputeReason, note?: string) => void
+  requestRefund: (id: string) => void
+
+  // Offer negotiations
+  offers: OfferNegotiation[]
+  createOffer: (offer: Omit<OfferNegotiation, 'id' | 'createdAt'>) => string
+  respondToOffer: (id: string, response: 'accept' | 'reject' | 'counter', counterAmount?: number) => void
 
   activeView: string
   setActiveView: (view: string) => void
@@ -265,6 +356,102 @@ export const useAppStore = create<AppState>()(
         set((s) => ({ cart: s.cart.filter((c) => c.product.id !== productId) })),
       clearCart: () => set({ cart: [] }),
 
+      // ── Protected Purchase orders ──────────────────────────────────────────
+      orders: [],
+      addOrder: (order) => {
+        const id = `PW${Date.now().toString().slice(-7)}`
+        const now = new Date().toISOString()
+        set((s) => ({
+          orders: [
+            { ...order, id, createdAt: now, updatedAt: now },
+            ...s.orders,
+          ],
+        }))
+        return id
+      },
+      updateOrderStage: (id, stage) =>
+        set((s) => ({
+          orders: s.orders.map((o) =>
+            o.id === id ? { ...o, deliveryStage: stage, updatedAt: new Date().toISOString() } : o
+          ),
+        })),
+      confirmOrderDelivery: (id, confirmTxHash) =>
+        set((s) => ({
+          orders: s.orders.map((o) =>
+            o.id === id
+              ? {
+                  ...o,
+                  deliveryStage: 'payment_released',
+                  status: 'completed',
+                  confirmTxHash,
+                  updatedAt: new Date().toISOString(),
+                }
+              : o
+          ),
+        })),
+      openDispute: (id, reason, note) =>
+        set((s) => ({
+          orders: s.orders.map((o) =>
+            o.id === id
+              ? {
+                  ...o,
+                  status: 'disputed',
+                  disputeStatus: 'opened',
+                  disputeReason: reason,
+                  disputeNote: note,
+                  updatedAt: new Date().toISOString(),
+                }
+              : o
+          ),
+        })),
+      requestRefund: (id) =>
+        set((s) => ({
+          orders: s.orders.map((o) =>
+            o.id === id
+              ? {
+                  ...o,
+                  refundStatus: 'requested',
+                  updatedAt: new Date().toISOString(),
+                }
+              : o
+          ),
+        })),
+
+      // ── Offer negotiations ─────────────────────────────────────────────────
+      offers: [],
+      createOffer: (offer) => {
+        const id = `OFF${Date.now().toString().slice(-7)}`
+        set((s) => ({
+          offers: [
+            { ...offer, id, createdAt: new Date().toISOString() },
+            ...s.offers,
+          ],
+        }))
+        return id
+      },
+      respondToOffer: (id, response, counterAmount) =>
+        set((s) => ({
+          offers: s.offers.map((o) => {
+            if (o.id !== id) return o
+            if (response === 'accept') {
+              const last = o.history[o.history.length - 1]
+              return { ...o, status: 'accepted', agreedAmount: last?.amount }
+            }
+            if (response === 'reject') return { ...o, status: 'rejected' }
+            if (response === 'counter' && counterAmount !== undefined) {
+              return {
+                ...o,
+                status: 'countered',
+                history: [
+                  ...o.history,
+                  { by: 'seller' as const, amount: counterAmount, at: new Date().toISOString() },
+                ],
+              }
+            }
+            return o
+          }),
+        })),
+
       activeView: 'landing',
       setActiveView: (view) =>
         set((s) => ({ previousView: s.activeView, activeView: view })),
@@ -281,6 +468,8 @@ export const useAppStore = create<AppState>()(
         activity: s.activity,
         cart: s.cart,
         pendingListings: s.pendingListings,
+        orders: s.orders,
+        offers: s.offers,
       }),
       merge: (persisted, current) => {
         const p = persisted as Partial<AppState>
@@ -299,6 +488,8 @@ export const useAppStore = create<AppState>()(
             ...l,
             submittedAt: new Date(l.submittedAt),
           })),
+          orders: p.orders ?? current.orders ?? [],
+          offers: p.offers ?? current.offers ?? [],
         }
       },
     }

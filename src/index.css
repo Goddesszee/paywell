@@ -118,6 +118,9 @@ body {
 @keyframes nan-spin {
   to { transform: rotate(360deg); }
 }
+@keyframes pw-spin {
+  to { transform: rotate(360deg); }
+}
 
 .animate-up   { animation: pw-up   0.28s ease both; }
 .animate-fade { animation: pw-fade 0.2s  ease both; }
