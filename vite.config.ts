@@ -4,10 +4,6 @@ import path from 'path'
 import { nodePolyfills } from 'vite-plugin-node-polyfills'
 
 export default defineConfig({
-  // Setting logLevel to 'error' means Vite only promotes actual errors to
-  // exit-code failures. Warnings from vite-plugin-node-polyfills / 
-  // node-stdlib-browser that Vercel's build treats as fatal are silenced.
-  logLevel: 'error',
   plugins: [
     react(),
     nodePolyfills({
@@ -18,6 +14,10 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+      // Replace node-stdlib-browser's warning helper with a no-op so
+      // vite-plugin-node-polyfills never emits the circular-dependency warning
+      // that Vercel's Vite/Rollup pipeline promotes to a fatal build error.
+      'node-stdlib-browser/helpers/rollup/plugin': path.resolve(__dirname, './scripts/noop-warn.js'),
     },
     dedupe: ['react', 'react-dom'],
   },
