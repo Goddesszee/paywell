@@ -174,9 +174,10 @@ export function LandingPage() {
           <div style={{
             width: '100%',
             aspectRatio: '1.586',
-            background: 'linear-gradient(135deg, #e94fb8 0%, #b347e8 22%, #6a3df0 45%, #2f3bcf 68%, #0a0f3d 100%)',
+            background: 'linear-gradient(135deg, #3a3a3d 0%, #1c1c1f 45%, #050505 100%)',
+            border: '1px solid rgba(255,255,255,0.08)',
             borderRadius: 24,
-            boxShadow: '0 32px 72px rgba(30,10,80,0.55), 0 8px 24px rgba(20,5,60,0.45)',
+            boxShadow: '0 32px 72px rgba(0,0,0,0.6), 0 8px 24px rgba(0,0,0,0.45)',
             padding: '22px 26px',
             display: 'flex',
             flexDirection: 'column',
@@ -187,19 +188,19 @@ export function LandingPage() {
             {/* Glossy diagonal sheen */}
             <div style={{
               position: 'absolute', inset: 0,
-              background: 'linear-gradient(115deg, rgba(255,255,255,0.28) 0%, rgba(255,255,255,0.08) 18%, transparent 38%, transparent 100%)',
+              background: 'linear-gradient(115deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.05) 20%, transparent 40%, transparent 100%)',
               pointerEvents: 'none',
             }} />
             <div style={{
               position: 'absolute', inset: 0,
-              background: 'radial-gradient(circle at 85% 90%, rgba(0,0,0,0.35) 0%, transparent 55%)',
+              background: 'radial-gradient(circle at 90% 100%, rgba(255,255,255,0.05) 0%, transparent 50%)',
               pointerEvents: 'none',
             }} />
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', position: 'relative', zIndex: 1 }}>
               <span style={{
                 fontSize: 19, fontWeight: 800, fontStyle: 'italic', color: '#fff',
                 letterSpacing: '-0.2px', transform: 'rotate(-5deg)', transformOrigin: 'left top',
-                textShadow: '0 1px 6px rgba(0,0,0,0.25)',
+                textShadow: '0 1px 6px rgba(0,0,0,0.4)',
               }}>
                 Paywell
               </span>
@@ -207,25 +208,25 @@ export function LandingPage() {
               <div style={{
                 width: 34, height: 26,
                 borderRadius: 5,
-                background: 'linear-gradient(155deg, #3a3a42 0%, #17171c 55%, #050507 100%)',
-                boxShadow: 'inset 0 1px 1px rgba(255,255,255,0.15), inset 0 -1px 2px rgba(0,0,0,0.6)',
+                background: 'linear-gradient(155deg, #f2f2f2 0%, #c9c9c9 50%, #9a9a9a 100%)',
+                boxShadow: 'inset 0 1px 1px rgba(255,255,255,0.6), inset 0 -1px 2px rgba(0,0,0,0.35)',
                 position: 'relative', overflow: 'hidden',
               }}>
-                <div style={{ position: 'absolute', top: '50%', left: 0, right: 0, height: 1, background: 'rgba(255,255,255,0.12)' }} />
-                <div style={{ position: 'absolute', left: '50%', top: 0, bottom: 0, width: 1, background: 'rgba(255,255,255,0.12)' }} />
+                <div style={{ position: 'absolute', top: '50%', left: 0, right: 0, height: 1, background: 'rgba(0,0,0,0.2)' }} />
+                <div style={{ position: 'absolute', left: '50%', top: 0, bottom: 0, width: 1, background: 'rgba(0,0,0,0.2)' }} />
               </div>
             </div>
             <div style={{ position: 'relative', zIndex: 1 }}>
-              <div style={{ fontSize: 13, letterSpacing: '0.18em', color: 'rgba(255,255,255,0.75)', fontVariantNumeric: 'tabular-nums', marginBottom: 8 }}>
+              <div style={{ fontSize: 13, letterSpacing: '0.18em', color: 'rgba(255,255,255,0.7)', fontVariantNumeric: 'tabular-nums', marginBottom: 8 }}>
                 ····  ····  ····  4291
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
                 <div>
-                  <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.6)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Card holder</div>
+                  <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Card holder</div>
                   <div style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.95)' }}>Paywell User</div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.6)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Balance</div>
+                  <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Balance</div>
                   <div style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>USDC · Arc</div>
                 </div>
               </div>
