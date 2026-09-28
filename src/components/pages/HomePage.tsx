@@ -1,7 +1,7 @@
 import React from 'react'
 import { useAccount, useReadContract } from 'wagmi'
 import { erc20Abi } from 'viem'
-import { ArrowUpRight, ArrowDownLeft, ShoppingBag, CreditCard } from 'lucide-react'
+import { ArrowUpRight, ArrowDownLeft, ArrowUpDown, CreditCard } from 'lucide-react'
 import { useAppStore, ActivityItem } from '../../store/appStore'
 import { Badge } from '../ui/Badge'
 import { getUsdc } from '@/onchain-facts'
@@ -172,12 +172,12 @@ export function HomePage() {
         </div>
       </div>
 
-      {/* Quick actions — 2x2 on very small screens, 4-col on wider */}
+      {/* Quick actions — Buy · Swap · Send · Receive */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 10 }}>
-        <QuickAction Icon={ArrowUpRight}   label="Send"     primary onClick={() => setActiveView('send')} />
-        <QuickAction Icon={ArrowDownLeft}  label="Receive"  onClick={() => setActiveView('receive')} />
-        <QuickAction Icon={ShoppingBag}    label="Shop"     onClick={() => setActiveView('shop')} />
-        <QuickAction Icon={CreditCard}     label="Buy USDC" onClick={() => setActiveView('onramp')} />
+        <QuickAction Icon={CreditCard}    label="Buy"     onClick={() => setActiveView('onramp')} />
+        <QuickAction Icon={ArrowUpDown}   label="Swap"    onClick={() => setActiveView('swap')} />
+        <QuickAction Icon={ArrowUpRight}  label="Send"    primary onClick={() => setActiveView('send')} />
+        <QuickAction Icon={ArrowDownLeft} label="Receive" onClick={() => setActiveView('receive')} />
       </div>
 
       {/* Agent spending */}
