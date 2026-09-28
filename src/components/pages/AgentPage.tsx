@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react'
 import {
   Bot, Send, X, Check, Zap, Shield, ShoppingBag,
   ToggleLeft, ToggleRight, Coins, Loader2, Plus,
-  Repeat, Trash2, Play, Pause, ExternalLink, Copy, RefreshCw
+  Trash2, Play, Pause, ExternalLink, Copy, RefreshCw
 } from 'lucide-react'
 import { useWriteContract, useAccount } from 'wagmi'
 import { parseUnits } from 'viem'
@@ -15,6 +15,7 @@ import { getVerifiedProducts } from '../../utils/listings'
 import { formatUSDC, formatRelativeTime } from '../../utils/format'
 import { nanChat, backendConfigured } from '../../lib/api'
 import { getUsdc } from '../../onchain-facts'
+
 
 const F = "'Inter', -apple-system, sans-serif"
 const BLACK = '#0D0D0D'
@@ -33,17 +34,9 @@ const USDC_TRANSFER_ABI = [{
   outputs: [{ name: '', type: 'bool' }],
 }] as const
 
-type AgentTab = 'chat' | 'recurring' | 'x402' | 'permissions' | 'history'
+type AgentTab = 'chat' | 'x402' | 'permissions' | 'history'
 
-interface RecurringTask {
-  id: string
-  description: string
-  instruction: string
-  schedule: string
-  active: boolean
-  lastRun?: string
-  nextRun?: string
-}
+
 
 interface X402Service {
   id: string
@@ -100,7 +93,6 @@ export function AgentPage() {
   const TABS: { id: AgentTab; label: string; highlight?: boolean }[] = [
     { id: 'chat',        label: 'Chat' },
     { id: 'x402',        label: 'x402 ●', highlight: true },
-    { id: 'recurring',   label: 'Recurring' },
     { id: 'permissions', label: 'Limits' },
     { id: 'history',     label: 'History' },
   ]
@@ -138,7 +130,6 @@ export function AgentPage() {
       </div>
 
       {tab === 'chat'        && <AgentChat />}
-      {tab === 'recurring'   && <RecurringTab />}
       {tab === 'x402'        && <X402Tab />}
       {tab === 'permissions' && <PermissionsTab />}
       {tab === 'history'     && <HistoryTab />}
@@ -319,93 +310,12 @@ function ProductPill({ product }: { product: Product }) {
   )
 }
 
-function RecurringTab() {
-  const [tasks, setTasks] = useState<RecurringTask[]>([
-    { id:'1', description:'Weekly DCA', instruction:'Buy 10 USDC of ETH every Monday at 9am', schedule:'Weekly · Mon 09:00', active:false, nextRun:'Mon 29 Sep 09:00' },
-    { id:'2', description:'Monthly savings', instruction:'Bridge 50 USDC to Base Sepolia on the 1st of every month', schedule:'Monthly · 1st', active:false, nextRun:'1 Oct 09:00' },
-  ])
-  const [showAdd, setShowAdd] = useState(false)
-  const [newDesc, setNewDesc] = useState('')
-  const [newInstr, setNewInstr] = useState('')
-  const [newSched, setNewSched] = useState('')
 
-  const toggle = (id: string) => setTasks(t => t.map(x => x.id===id ? {...x, active:!x.active} : x))
-  const remove = (id: string) => setTasks(t => t.filter(x => x.id!==id))
-  const add = () => {
-    if (!newDesc.trim() || !newInstr.trim()) return
-    setTasks(t => [...t, { id:Date.now().toString(), description:newDesc, instruction:newInstr, schedule:newSched||'Manual', active:false }])
-    setNewDesc(''); setNewInstr(''); setNewSched(''); setShowAdd(false)
-  }
 
-  return (
-    <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
-      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:4 }}>
-        <div>
-          <div style={{ fontSize:15, fontWeight:700, color:BLACK, letterSpacing:'-0.02em' }}>Recurring tasks</div>
-          <div style={{ fontSize:12, color:TEXT2, marginTop:2 }}>Your agent runs these automatically on schedule</div>
-        </div>
-        <button onClick={() => setShowAdd(v => !v)} style={{ width:32, height:32, borderRadius:9, background:BLACK, border:'none', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer' }}>
-          <Plus size={16} color={WHITE} />
-        </button>
-      </div>
-
-      {showAdd && (
-        <div style={{ background:SURFACE, border:`1px solid ${BORDER}`, borderRadius:14, padding:16, display:'flex', flexDirection:'column', gap:10 }}>
-          <div style={{ fontSize:13, fontWeight:600, color:BLACK }}>New recurring task</div>
-          <input placeholder="Task name (e.g. Weekly DCA)" value={newDesc} onChange={e => setNewDesc(e.target.value)}
-            style={{ padding:'10px 12px', border:`1px solid ${BORDER}`, borderRadius:10, fontFamily:F, fontSize:13, outline:'none', color:BLACK, background:WHITE }} />
-          <textarea placeholder="Instruction for the agent (e.g. Buy 10 USDC of ETH every Monday at 9am)" value={newInstr} onChange={e => setNewInstr(e.target.value)} rows={2}
-            style={{ padding:'10px 12px', border:`1px solid ${BORDER}`, borderRadius:10, fontFamily:F, fontSize:13, outline:'none', color:BLACK, background:WHITE, resize:'none' }} />
-          <input placeholder="Schedule (e.g. Weekly · Mon 09:00)" value={newSched} onChange={e => setNewSched(e.target.value)}
-            style={{ padding:'10px 12px', border:`1px solid ${BORDER}`, borderRadius:10, fontFamily:F, fontSize:13, outline:'none', color:BLACK, background:WHITE }} />
-          <div style={{ display:'flex', gap:8 }}>
-            <button onClick={add} style={{ flex:1, height:40, background:BLACK, color:WHITE, border:'none', borderRadius:10, fontSize:13, fontWeight:600, cursor:'pointer', fontFamily:F }}>Add task</button>
-            <button onClick={() => setShowAdd(false)} style={{ flex:1, height:40, background:SURFACE, color:BLACK, border:`1px solid ${BORDER}`, borderRadius:10, fontSize:13, fontWeight:600, cursor:'pointer', fontFamily:F }}>Cancel</button>
-          </div>
-        </div>
-      )}
-
-      {tasks.length === 0 && !showAdd && (
-        <div style={{ textAlign:'center', padding:'40px 0', color:TEXT3 }}>
-          <Repeat size={28} color={TEXT3} style={{ margin:'0 auto 10px' }} />
-          <div style={{ fontSize:13 }}>No recurring tasks yet</div>
-          <div style={{ fontSize:11, marginTop:4 }}>Tap + to add your first scheduled instruction</div>
-        </div>
-      )}
-
-      {tasks.map(task => (
-        <div key={task.id} style={{ background:WHITE, border:`1px solid ${BORDER}`, borderRadius:14, padding:14, display:'flex', flexDirection:'column', gap:8 }}>
-          <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:8 }}>
-            <div style={{ flex:1 }}>
-              <div style={{ fontSize:13, fontWeight:700, color:BLACK }}>{task.description}</div>
-              <div style={{ fontSize:11, color:TEXT2, marginTop:2, lineHeight:1.4 }}>{task.instruction}</div>
-            </div>
-            <div style={{ display:'flex', gap:6, flexShrink:0 }}>
-              <button onClick={() => toggle(task.id)} style={{ width:30, height:30, borderRadius:8, background:task.active?BLACK:SURFACE, border:`1px solid ${task.active?BLACK:BORDER}`, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer' }}>
-                {task.active ? <Pause size={13} color={WHITE} /> : <Play size={13} color={BLACK} />}
-              </button>
-              <button onClick={() => remove(task.id)} style={{ width:30, height:30, borderRadius:8, background:SURFACE, border:`1px solid ${BORDER}`, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer' }}>
-                <Trash2 size={13} color={DANGER} />
-              </button>
-            </div>
-          </div>
-          <div style={{ display:'flex', alignItems:'center', gap:8, paddingTop:6, borderTop:`1px solid ${BORDER}` }}>
-            <Repeat size={11} color={TEXT3} />
-            <span style={{ fontSize:11, color:TEXT3 }}>{task.schedule}</span>
-            {task.nextRun && <span style={{ fontSize:11, color:TEXT3, marginLeft:'auto' }}>Next: {task.nextRun}</span>}
-            <span style={{ fontSize:10, fontWeight:600, color:task.active?SUCCESS:TEXT3, background:task.active?'#DCFCE7':SURFACE, padding:'2px 8px', borderRadius:20 }}>
-              {task.active ? 'Active' : 'Paused'}
-            </span>
-          </div>
-        </div>
-      ))}
-    </div>
-  )
-}
-
-// Circle Agent Marketplace Discovery API — public, no key needed
-// https://developers.circle.com/agent-stack/agent-marketplace/discovery-api
-const MARKETPLACE_API = 'https://agents.circle.com/services'
+// Circle Agent Marketplace — https://agents.circle.com/services
+// Fetched via a CORS-safe proxy route on the Paywell backend
+const MARKETPLACE_API = '/api/marketplace'
+const MARKETPLACE_FALLBACK = 'https://agents.circle.com/services'
 
 interface MarketplaceService {
   id: string
@@ -417,9 +327,32 @@ interface MarketplaceService {
 }
 
 function X402Tab() {
-  const { address } = useAccount()
+  const { address, chainId } = useAccount()
+  const { writeContractAsync } = useWriteContract()
+  const [payingId, setPayingId] = useState<string|null>(null)
+  const [paidId, setPaidId] = useState<string|null>(null)
   const [services, setServices] = useState<X402Service[]>([])
   const [showAdd, setShowAdd] = useState(false)
+
+  const useService = async (svc: MarketplaceService) => {
+    if (!address || !chainId || !svc.price) return
+    const usdc = getUsdc(chainId)
+    if (!usdc) return
+    const priceNum = parseFloat(String(svc.price))
+    if (isNaN(priceNum) || priceNum <= 0) return
+    try {
+      setPayingId(svc.id)
+      await writeContractAsync({
+        address: usdc.address as `0x${string}`,
+        abi: USDC_TRANSFER_ABI,
+        functionName: 'transfer',
+        args: [address as `0x${string}`, parseUnits(String(priceNum.toFixed(6)), usdc.decimals)],
+      })
+      setPaidId(svc.id)
+      setTimeout(() => setPaidId(null), 3000)
+    } catch { /* user rejected */ }
+    finally { setPayingId(null) }
+  }
   const [newName, setNewName] = useState('')
   const [newDesc, setNewDesc] = useState('')
   const [newPrice, setNewPrice] = useState('0.001')
@@ -434,23 +367,24 @@ function X402Tab() {
     setMktLoading(true)
     setMktError('')
     try {
-      const res = await fetch(MARKETPLACE_API)
+      // Try backend proxy first (avoids CORS), then direct
+      let res = await fetch(MARKETPLACE_API).catch(() => null)
+      if (!res || !res.ok) res = await fetch(MARKETPLACE_FALLBACK)
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const data: any = await res.json()
-      // API returns array or { services: [...] }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const list: any[] = Array.isArray(data) ? data : (data.services ?? data.data ?? [])
-      setMktServices(list.slice(0, 20).map((s, i) => ({
+      setMktServices(list.slice(0, 30).map((s, i) => ({
         id: String(s.id ?? i),
         name: String(s.name ?? s.title ?? 'Unnamed service'),
         description: String(s.description ?? s.desc ?? ''),
-        price: s.price ?? s.pricePerCall ?? undefined,
-        url: s.url ?? s.endpoint ?? s.serviceUrl ?? undefined,
+        price: s.price ?? s.pricePerCall ?? s.pricing?.price ?? undefined,
+        url: s.url ?? s.endpoint ?? s.serviceUrl ?? s.paymentUrl ?? undefined,
         category: s.category ?? s.type ?? undefined,
       })))
     } catch {
-      setMktError('Could not load Circle Agent Marketplace. Try again.')
+      setMktError('Could not load Circle Agent Marketplace.')
     } finally {
       setMktLoading(false)
     }
@@ -653,13 +587,23 @@ function X402Tab() {
                   </a>
                 )}
               </div>
-              {svc.price && (
-                <div style={{ marginTop:10, paddingTop:10, borderTop:`1px solid ${BORDER}`, display:'flex', alignItems:'center', gap:6 }}>
-                  <Coins size={12} color={TEXT2} />
-                  <span style={{ fontSize:12, fontWeight:700, color:BLACK }}>{svc.price} USDC</span>
-                  <span style={{ fontSize:10, color:TEXT3 }}>per call</span>
-                </div>
-              )}
+              <div style={{ marginTop:10, paddingTop:10, borderTop:`1px solid ${BORDER}`, display:'flex', alignItems:'center', gap:8 }}>
+                <Coins size={12} color={TEXT2} />
+                {svc.price ? (
+                  <>
+                    <span style={{ fontSize:12, fontWeight:700, color:BLACK }}>{svc.price} USDC</span>
+                    <span style={{ fontSize:10, color:TEXT3 }}>per call</span>
+                    <button
+                      onClick={() => void useService(svc)}
+                      disabled={payingId === svc.id || !address}
+                      style={{ marginLeft:'auto', height:28, padding:'0 12px', background: paidId===svc.id ? SURFACE : BLACK, color: paidId===svc.id ? BLACK : WHITE, border:`1px solid ${paidId===svc.id ? BORDER : BLACK}`, borderRadius:8, fontSize:11, fontWeight:700, cursor:'pointer', display:'flex', alignItems:'center', gap:5, fontFamily:F, opacity: payingId===svc.id ? 0.6 : 1 }}>
+                      {payingId===svc.id ? <Loader2 size={11} style={{animation:'spin 1s linear infinite'}} /> : paidId===svc.id ? <><Check size={11} /> Paid</> : <>Use service</>}
+                    </button>
+                  </>
+                ) : (
+                  <span style={{ fontSize:11, color:TEXT3 }}>Free / see service</span>
+                )}
+              </div>
             </div>
           ))}
           {mktServices.length > 0 && (
