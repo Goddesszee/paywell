@@ -1,8 +1,10 @@
-import React, { useState } from 'react'
+import React, { useState, useRef } from 'react'
 import {
-  Copy, QrCode, ArrowUpRight, ArrowDownLeft, Check, ExternalLink,
-  AlertCircle, X, ChevronRight, Wallet
+  Copy, ArrowUpRight, ArrowDownLeft, Check, ExternalLink,
+  AlertCircle, X, ChevronRight, Wallet, Share2, Download,
+  Twitter, MessageCircle, Send as SendIcon, Link
 } from 'lucide-react'
+import { QRCodeSVG } from 'qrcode.react'
 import { useWriteContract, useWaitForTransactionReceipt, useSwitchChain, useAccount, useReadContract } from 'wagmi'
 import { erc20Abi, isAddress } from 'viem'
 import { toast } from 'sonner'
@@ -163,7 +165,7 @@ export function WalletPage({ initialSubView = 'main' }: { initialSubView?: Walle
             {copied ? <Check size={16} className="text-[#1a8047]" /> : <Copy size={16} />}
           </button>
           <button onClick={() => setSubView('receive')} className="w-10 h-10 flex items-center justify-center rounded-xl bg-[#F5F5F5] hover:bg-[#ECECEC] text-[#0D0D0D] transition-colors flex-shrink-0">
-            <QrCode size={16} />
+            <Share2 size={16} />
           </button>
         </div>
         <div className="mt-3 flex items-center gap-2 text-xs text-[#6B6B6B]">
@@ -469,24 +471,90 @@ function Row({ label, value, mono = false }: { label: string; value: string; mon
 }
 
 function ReceiveView({ address, onBack }: { address: string; onBack: () => void }) {
-  const [copied, setCopied] = useState(false)
-  const [showRequest, setShowRequest] = useState(false)
+  const [tab, setTab] = useState<'address' | 'request'>('address')
+  const [addrCopied, setAddrCopied] = useState(false)
+  const [linkCopied, setLinkCopied] = useState(false)
   const [requestAmount, setRequestAmount] = useState('')
   const [requestNote, setRequestNote] = useState('')
+  const [showShareMenu] = useState(false)
+  const qrRef = useRef<HTMLDivElement>(null)
 
-  const handleCopy = () => {
+  // ── Payment request URL (real web link, not deep link) ──
+  const APP_URL = typeof window !== 'undefined' ? window.location.origin : 'https://paywell-puce.vercel.app'
+  const requestLink = requestAmount
+    ? `${APP_URL}/?pay=${address}&amount=${requestAmount}${requestNote ? `&note=${encodeURIComponent(requestNote)}` : ''}`
+    : `${APP_URL}/?pay=${address}`
+
+  // QR value — for address tab: just the address; for request tab: the full link
+  const qrValue = tab === 'request' && requestAmount ? requestLink : address
+
+  const copyAddress = () => {
     void navigator.clipboard.writeText(address)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+    setAddrCopied(true)
+    setTimeout(() => setAddrCopied(false), 2000)
     toast.success('Address copied')
   }
 
-  const requestLink = requestAmount
-    ? `paywell://pay?to=${address}&amount=${requestAmount}${requestNote ? `&note=${encodeURIComponent(requestNote)}` : ''}`
-    : ''
+  const copyLink = () => {
+    void navigator.clipboard.writeText(requestLink)
+    setLinkCopied(true)
+    setTimeout(() => setLinkCopied(false), 2000)
+    toast.success('Payment link copied')
+  }
+
+  const nativeShare = () => {
+    const text = tab === 'request' && requestAmount
+      ? `Pay me ${formatUSDC(parseFloat(requestAmount))} USDC${requestNote ? ` for ${requestNote}` : ''} on Paywell`
+      : `Send me USDC on Paywell`
+    void navigator.share?.({ title: 'Paywell Payment Request', text, url: qrValue })
+  }
+
+  const shareToTwitter = () => {
+    const text = tab === 'request' && requestAmount
+      ? `Pay me ${formatUSDC(parseFloat(requestAmount))} USDC${requestNote ? ` for ${requestNote}` : ''} on Paywell 🔒`
+      : `Send me USDC via Paywell`
+    window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(qrValue)}`, '_blank')
+  }
+
+  const shareToWhatsApp = () => {
+    const text = tab === 'request' && requestAmount
+      ? `Pay me ${formatUSDC(parseFloat(requestAmount))} USDC${requestNote ? ` for ${requestNote}` : ''} on Paywell: ${qrValue}`
+      : `Send me USDC on Paywell: ${qrValue}`
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank')
+  }
+
+  const shareTelegram = () => {
+    const text = tab === 'request' && requestAmount
+      ? `Pay me ${formatUSDC(parseFloat(requestAmount))} USDC${requestNote ? ` for ${requestNote}` : ''} on Paywell`
+      : `Send me USDC on Paywell`
+    window.open(`https://t.me/share/url?url=${encodeURIComponent(qrValue)}&text=${encodeURIComponent(text)}`, '_blank')
+  }
+
+  const downloadQR = () => {
+    const svg = qrRef.current?.querySelector('svg')
+    if (!svg) return
+    const canvas = document.createElement('canvas')
+    const size = 400
+    canvas.width = size; canvas.height = size
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    const xml = new XMLSerializer().serializeToString(svg)
+    const img = new Image()
+    img.onload = () => {
+      ctx.fillStyle = '#FFFFFF'
+      ctx.fillRect(0, 0, size, size)
+      ctx.drawImage(img, 0, 0, size, size)
+      const a = document.createElement('a')
+      a.download = `paywell-${tab === 'request' ? 'request' : 'address'}-qr.png`
+      a.href = canvas.toDataURL('image/png')
+      a.click()
+    }
+    img.src = `data:image/svg+xml;base64,${btoa(xml)}`
+  }
 
   return (
     <div className="max-w-lg mx-auto px-4 py-6 space-y-4 pb-28 lg:pb-8">
+      {/* Header */}
       <div className="flex items-center gap-3">
         <button onClick={onBack} className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-[#F5F5F5] text-[#0D0D0D]">
           <X size={18} />
@@ -494,48 +562,145 @@ function ReceiveView({ address, onBack }: { address: string; onBack: () => void 
         <h1 className="text-xl font-bold text-[#0D0D0D]" style={{ fontFamily: SANS }}>Receive USDC</h1>
       </div>
 
+      {/* Tab switcher */}
+      <div style={{ display: 'flex', background: '#F7F7F8', borderRadius: 12, padding: 3, gap: 2 }}>
+        {(['address', 'request'] as const).map(t => (
+          <button key={t} onClick={() => setTab(t)} style={{
+            flex: 1, padding: '8px 0', borderRadius: 9, border: 'none', cursor: 'pointer',
+            fontFamily: SANS, fontSize: 13, fontWeight: tab === t ? 700 : 500,
+            background: tab === t ? '#fff' : 'transparent',
+            color: '#0D0D0D',
+            boxShadow: tab === t ? '0 1px 4px rgba(0,0,0,0.08)' : 'none',
+            transition: 'all 0.15s',
+            textTransform: 'capitalize',
+          }}>
+            {t === 'address' ? 'My Address' : 'Payment Request'}
+          </button>
+        ))}
+      </div>
+
+      {/* QR card */}
       <Card padding="lg" className="text-center">
-        <div className="w-44 h-44 mx-auto mb-4 bg-[#F7F7F8] rounded-2xl flex items-center justify-center border border-black/5">
-          <div className="text-center">
-            <QrCode size={56} className="text-[#0D0D0D] mx-auto mb-2" />
-            <p className="text-xs text-[#6B6B6B]">QR code</p>
-          </div>
+        {/* QR code */}
+        <div ref={qrRef} style={{ width: 200, height: 200, margin: '0 auto 16px', padding: 12, background: '#fff', borderRadius: 16, border: '1px solid rgba(0,0,0,0.07)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <QRCodeSVG
+            value={qrValue}
+            size={176}
+            bgColor="#FFFFFF"
+            fgColor="#0D0D0D"
+            level="M"
+            imageSettings={{
+              src: '/favicon.ico',
+              height: 28,
+              width: 28,
+              excavate: true,
+            }}
+          />
         </div>
-        <p className="text-xs text-[#A0A0A0] font-medium mb-2">Your wallet address</p>
-        <p className="text-sm font-mono text-[#0D0D0D] break-all px-2 mb-4">{address}</p>
-        <div className="flex gap-2">
-          <Button fullWidth variant="secondary" onClick={handleCopy} icon={copied ? <Check size={15} /> : <Copy size={15} />}>
-            {copied ? 'Copied' : 'Copy'}
+
+        {/* Address display */}
+        <p className="text-xs text-[#A0A0A0] font-medium mb-1">
+          {tab === 'address' ? 'Wallet address' : 'Scan to pay'}
+        </p>
+        <p className="text-xs font-mono text-[#0D0D0D] break-all px-2 mb-1 leading-relaxed">{address}</p>
+        {tab === 'request' && requestAmount && (
+          <p className="text-sm font-bold text-[#0D0D0D] mb-1">{formatUSDC(parseFloat(requestAmount))} USDC{requestNote ? ` · ${requestNote}` : ''}</p>
+        )}
+
+        {/* Action buttons */}
+        <div className="flex gap-2 mt-4">
+          <Button fullWidth variant="secondary" onClick={copyAddress} icon={addrCopied ? <Check size={15} /> : <Copy size={15} />}>
+            {addrCopied ? 'Copied' : 'Copy Address'}
           </Button>
-          <Button fullWidth variant="secondary" onClick={() => { void navigator.share?.({ title: 'My Paywell Address', text: address }) }}>
-            Share
+          <Button fullWidth variant="secondary" onClick={downloadQR} icon={<Download size={15} />}>
+            Save QR
           </Button>
         </div>
       </Card>
 
+      {/* Payment request form */}
+      {tab === 'request' && (
+        <Card padding="md">
+          <p className="text-sm font-bold text-[#0D0D0D] mb-3">Request details</p>
+          <div className="space-y-3">
+            <Input
+              label="Amount (USDC)"
+              placeholder="25.00"
+              type="number"
+              value={requestAmount}
+              onChange={(e) => setRequestAmount(e.target.value)}
+              suffix={<span className="text-xs font-bold text-[#6B6B6B]">USDC</span>}
+            />
+            <Input
+              label="Description (optional)"
+              placeholder="What's this for? e.g. Rent, Invoice #123"
+              value={requestNote}
+              onChange={(e) => setRequestNote(e.target.value)}
+            />
+          </div>
+        </Card>
+      )}
+
+      {/* Share panel — always shown, richer when request is filled */}
       <Card padding="md">
-        <button onClick={() => setShowRequest(!showRequest)} className="w-full flex items-center justify-between">
-          <span className="text-sm font-bold text-[#0D0D0D]">Create payment request</span>
-          <ChevronRight size={16} className={`text-[#A0A0A0] transition-transform ${showRequest ? 'rotate-90' : ''}`} />
+        <p className="text-sm font-bold text-[#0D0D0D] mb-3">
+          {tab === 'request' && requestAmount ? `Share payment request · ${formatUSDC(parseFloat(requestAmount))} USDC` : 'Share your address'}
+        </p>
+
+        {/* Link preview */}
+        <div style={{ background: '#F7F7F8', borderRadius: 10, padding: '10px 12px', marginBottom: 12 }}>
+          <p className="text-xs text-[#6B6B6B] mb-1 font-medium">Payment link</p>
+          <p style={{ fontSize: 11, fontFamily: 'monospace', color: '#0D0D0D', wordBreak: 'break-all', lineHeight: 1.4 }}>
+            {tab === 'request' && requestAmount ? requestLink : `${APP_URL}/?pay=${address}`}
+          </p>
+        </div>
+
+        {/* Copy link button */}
+        <button
+          onClick={copyLink}
+          style={{
+            width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            height: 42, borderRadius: 10, border: '1px solid rgba(0,0,0,0.1)',
+            background: '#fff', cursor: 'pointer', fontFamily: SANS, fontSize: 13, fontWeight: 600, color: '#0D0D0D',
+            marginBottom: 10, transition: 'background 0.15s',
+          }}
+        >
+          {linkCopied ? <Check size={15} /> : <Link size={15} />}
+          {linkCopied ? 'Link copied!' : 'Copy link'}
         </button>
-        {showRequest && (
-          <div className="mt-4 space-y-3">
-            <Input label="Amount (USDC)" placeholder="25.00" type="number" value={requestAmount} onChange={(e) => setRequestAmount(e.target.value)} suffix={<span className="text-xs font-bold text-[#6B6B6B]">USDC</span>} />
-            <Input label="Description (optional)" placeholder="What's this for?" value={requestNote} onChange={(e) => setRequestNote(e.target.value)} />
-            {requestAmount && (
-              <div className="bg-[#F7F7F8] rounded-xl p-3">
-                <p className="text-xs text-[#6B6B6B] mb-1 font-medium">Payment request link</p>
-                <p className="text-sm font-bold text-[#0D0D0D]">Request {formatUSDC(parseFloat(requestAmount))} USDC</p>
-                <button
-                  onClick={() => { void navigator.clipboard.writeText(requestLink); toast.success('Request link copied') }}
-                  className="mt-2 flex items-center gap-1.5 text-xs text-[#0D0D0D] font-semibold hover:opacity-70 transition-opacity"
-                >
-                  <Copy size={12} /> Copy request link
-                </button>
-              </div>
-            )}
+
+        {/* Social share buttons */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+          {[
+            { label: 'Twitter', icon: <Twitter size={16} />, action: shareToTwitter },
+            { label: 'WhatsApp', icon: <MessageCircle size={16} />, action: shareToWhatsApp },
+            { label: 'Telegram', icon: <SendIcon size={16} />, action: shareTelegram },
+            { label: 'More', icon: <Share2 size={16} />, action: nativeShare },
+          ].map(({ label, icon, action }) => (
+            <button
+              key={label}
+              onClick={action}
+              style={{
+                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                gap: 5, padding: '10px 4px', borderRadius: 10, border: '1px solid rgba(0,0,0,0.08)',
+                background: '#F7F7F8', cursor: 'pointer', fontFamily: SANS, fontSize: 10, fontWeight: 600, color: '#0D0D0D',
+              }}
+            >
+              {icon}
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {/* Toggle share menu for copy shortcut */}
+        {showShareMenu && (
+          <div style={{ marginTop: 10, padding: '10px 12px', background: '#F7F7F8', borderRadius: 10, fontSize: 12, color: '#6B6B6B' }}>
+            Link copied to clipboard. Paste it anywhere to share.
           </div>
         )}
+        <p style={{ fontSize: 11, color: '#A0A0A0', textAlign: 'center', marginTop: 10 }}>
+          Anyone with this link can send you USDC on Arc Testnet
+        </p>
       </Card>
     </div>
   )
