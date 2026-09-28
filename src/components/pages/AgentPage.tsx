@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react'
 import {
   Bot, Send, X, Check, Zap, Shield, ShoppingBag,
   ToggleLeft, ToggleRight, Coins, Loader2, Plus,
-  Repeat, Trash2, Play, Pause, ExternalLink, Copy
+  Repeat, Trash2, Play, Pause, ExternalLink, Copy, RefreshCw
 } from 'lucide-react'
 import { useWriteContract, useAccount } from 'wagmi'
 import { parseUnits } from 'viem'
@@ -529,78 +529,145 @@ function X402Tab() {
       </div>
       )}
 
-      {showAdd && (
-        <div style={{ background:SURFACE, border:`1px solid ${BORDER}`, borderRadius:14, padding:16, display:'flex', flexDirection:'column', gap:10 }}>
-          <div style={{ fontSize:13, fontWeight:600, color:BLACK }}>Add x402 service</div>
-          <input placeholder="Service name" value={newName} onChange={e => setNewName(e.target.value)}
-            style={{ padding:'10px 12px', border:`1px solid ${BORDER}`, borderRadius:10, fontFamily:F, fontSize:13, outline:'none', color:BLACK, background:WHITE }} />
-          <input placeholder="Description" value={newDesc} onChange={e => setNewDesc(e.target.value)}
-            style={{ padding:'10px 12px', border:`1px solid ${BORDER}`, borderRadius:10, fontFamily:F, fontSize:13, outline:'none', color:BLACK, background:WHITE }} />
-          <div style={{ display:'flex', gap:8 }}>
-            <input placeholder="Price (USDC)" value={newPrice} onChange={e => setNewPrice(e.target.value)} type="number" min="0" step="0.001"
-              style={{ flex:1, padding:'10px 12px', border:`1px solid ${BORDER}`, borderRadius:10, fontFamily:F, fontSize:13, outline:'none', color:BLACK, background:WHITE }} />
-            <input placeholder="Endpoint (/api/...)" value={newEndpoint} onChange={e => setNewEndpoint(e.target.value)}
-              style={{ flex:2, padding:'10px 12px', border:`1px solid ${BORDER}`, borderRadius:10, fontFamily:F, fontSize:13, outline:'none', color:BLACK, background:WHITE }} />
-          </div>
-          <div style={{ display:'flex', gap:8 }}>
-            <button onClick={addService} style={{ flex:1, height:40, background:BLACK, color:WHITE, border:'none', borderRadius:10, fontSize:13, fontWeight:600, cursor:'pointer', fontFamily:F }}>Add service</button>
-            <button onClick={() => setShowAdd(false)} style={{ flex:1, height:40, background:SURFACE, color:BLACK, border:`1px solid ${BORDER}`, borderRadius:10, fontSize:13, fontWeight:600, cursor:'pointer', fontFamily:F }}>Cancel</button>
-          </div>
-        </div>
+      {mktTab === 'yours' && (
+        <>
+          {showAdd && (
+            <div style={{ background:SURFACE, border:`1px solid ${BORDER}`, borderRadius:14, padding:16, display:'flex', flexDirection:'column', gap:10 }}>
+              <div style={{ fontSize:13, fontWeight:600, color:BLACK }}>Add x402 service</div>
+              <input placeholder="Service name" value={newName} onChange={e => setNewName(e.target.value)}
+                style={{ padding:'10px 12px', border:`1px solid ${BORDER}`, borderRadius:10, fontFamily:F, fontSize:13, outline:'none', color:BLACK, background:WHITE }} />
+              <input placeholder="Description" value={newDesc} onChange={e => setNewDesc(e.target.value)}
+                style={{ padding:'10px 12px', border:`1px solid ${BORDER}`, borderRadius:10, fontFamily:F, fontSize:13, outline:'none', color:BLACK, background:WHITE }} />
+              <div style={{ display:'flex', gap:8 }}>
+                <input placeholder="Price (USDC)" value={newPrice} onChange={e => setNewPrice(e.target.value)} type="number" min="0" step="0.001"
+                  style={{ flex:1, padding:'10px 12px', border:`1px solid ${BORDER}`, borderRadius:10, fontFamily:F, fontSize:13, outline:'none', color:BLACK, background:WHITE }} />
+                <input placeholder="Endpoint (/api/...)" value={newEndpoint} onChange={e => setNewEndpoint(e.target.value)}
+                  style={{ flex:2, padding:'10px 12px', border:`1px solid ${BORDER}`, borderRadius:10, fontFamily:F, fontSize:13, outline:'none', color:BLACK, background:WHITE }} />
+              </div>
+              <div style={{ display:'flex', gap:8 }}>
+                <button onClick={addService} style={{ flex:1, height:40, background:BLACK, color:WHITE, border:'none', borderRadius:10, fontSize:13, fontWeight:600, cursor:'pointer', fontFamily:F }}>Add service</button>
+                <button onClick={() => setShowAdd(false)} style={{ flex:1, height:40, background:SURFACE, color:BLACK, border:`1px solid ${BORDER}`, borderRadius:10, fontSize:13, fontWeight:600, cursor:'pointer', fontFamily:F }}>Cancel</button>
+              </div>
+            </div>
+          )}
+
+          {services.map(svc => (
+            <div key={svc.id} style={{ background:WHITE, border:`1px solid ${BORDER}`, borderRadius:14, padding:14 }}>
+              <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:8, marginBottom:10 }}>
+                <div style={{ flex:1 }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+                    <span style={{ fontSize:13, fontWeight:700, color:BLACK }}>{svc.name}</span>
+                    <span style={{ fontSize:10, fontWeight:600, color:svc.active?WHITE:TEXT3, background:svc.active?BLACK:SURFACE, padding:'2px 7px', borderRadius:20 }}>
+                      {svc.active?'Live':'Paused'}
+                    </span>
+                  </div>
+                  <div style={{ fontSize:11, color:TEXT2, marginTop:2 }}>{svc.description}</div>
+                </div>
+                <div style={{ display:'flex', gap:6, flexShrink:0 }}>
+                  <button onClick={() => toggle(svc.id)} style={{ width:30, height:30, borderRadius:8, background:svc.active?BLACK:SURFACE, border:`1px solid ${svc.active?BLACK:BORDER}`, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer' }}>
+                    {svc.active ? <Pause size={13} color={WHITE} /> : <Play size={13} color={BLACK} />}
+                  </button>
+                  <button onClick={() => remove(svc.id)} style={{ width:30, height:30, borderRadius:8, background:SURFACE, border:`1px solid ${BORDER}`, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer' }}>
+                    <Trash2 size={13} color={BLACK} />
+                  </button>
+                </div>
+              </div>
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:8, paddingTop:10, borderTop:`1px solid ${BORDER}` }}>
+                <div>
+                  <div style={{ fontSize:13, fontWeight:700, color:BLACK }}>{svc.price} USDC</div>
+                  <div style={{ fontSize:10, color:TEXT3 }}>per call</div>
+                </div>
+                <div>
+                  <div style={{ fontSize:13, fontWeight:700, color:BLACK }}>{svc.calls}</div>
+                  <div style={{ fontSize:10, color:TEXT3 }}>total calls</div>
+                </div>
+                <div>
+                  <div style={{ fontSize:13, fontWeight:700, color:BLACK }}>{svc.earned} USDC</div>
+                  <div style={{ fontSize:10, color:TEXT3 }}>earned</div>
+                </div>
+              </div>
+              <div style={{ display:'flex', alignItems:'center', gap:6, marginTop:10 }}>
+                <code style={{ flex:1, fontSize:10, color:TEXT2, background:SURFACE, padding:'4px 8px', borderRadius:6, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                  {svc.endpoint}
+                </code>
+                <a href={`https://paywell-puce.vercel.app${svc.endpoint}`} target="_blank" rel="noreferrer"
+                  style={{ width:26, height:26, borderRadius:7, background:SURFACE, border:`1px solid ${BORDER}`, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, textDecoration:'none' }}>
+                  <ExternalLink size={11} color={TEXT2} />
+                </a>
+              </div>
+            </div>
+          ))}
+
+          {services.length === 0 && !showAdd && (
+            <div style={{ textAlign:'center', padding:'32px 0', color:TEXT3 }}>
+              <Coins size={28} color={TEXT3} style={{ margin:'0 auto 10px' }} />
+              <div style={{ fontSize:13 }}>No services yet</div>
+              <div style={{ fontSize:11, marginTop:4 }}>Add a service to start earning USDC from other agents</div>
+            </div>
+          )}
+        </>
       )}
 
-      {services.map(svc => (
-        <div key={svc.id} style={{ background:WHITE, border:`1px solid ${BORDER}`, borderRadius:14, padding:14 }}>
-          <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:8, marginBottom:10 }}>
-            <div style={{ flex:1 }}>
-              <div style={{ display:'flex', alignItems:'center', gap:6 }}>
-                <span style={{ fontSize:13, fontWeight:700, color:BLACK }}>{svc.name}</span>
-                <span style={{ fontSize:10, fontWeight:600, color:svc.active?SUCCESS:TEXT3, background:svc.active?'#DCFCE7':SURFACE, padding:'2px 7px', borderRadius:20 }}>
-                  {svc.active?'Live':'Paused'}
-                </span>
+      {mktTab === 'marketplace' && (
+        <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:2 }}>
+            <div style={{ fontSize:14, fontWeight:700, color:BLACK }}>Circle Agent Marketplace</div>
+            <button onClick={() => void fetchMarketplace()} disabled={mktLoading}
+              style={{ width:30, height:30, borderRadius:8, background:SURFACE, border:`1px solid ${BORDER}`, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', opacity:mktLoading?0.5:1 }}>
+              <RefreshCw size={13} color={TEXT2} style={mktLoading?{animation:'spin 1s linear infinite'}:{}} />
+            </button>
+          </div>
+          {mktLoading && (
+            <div style={{ textAlign:'center', padding:'32px 0', color:TEXT3 }}>
+              <Loader2 size={24} color={TEXT3} style={{ margin:'0 auto 10px', animation:'spin 1s linear infinite' }} />
+              <div style={{ fontSize:13 }}>Loading marketplace…</div>
+            </div>
+          )}
+          {mktError && (
+            <div style={{ background:WHITE, border:`1px solid ${BORDER}`, borderRadius:10, padding:'10px 14px', fontSize:12, color:TEXT2 }}>
+              {mktError}
+              <button onClick={() => void fetchMarketplace()} style={{ marginLeft:8, fontSize:11, fontWeight:700, color:BLACK, background:'none', border:'none', cursor:'pointer', padding:0, textDecoration:'underline' }}>Retry</button>
+            </div>
+          )}
+          {!mktLoading && !mktError && mktServices.length === 0 && (
+            <div style={{ textAlign:'center', padding:'32px 0', color:TEXT3 }}>
+              <Coins size={28} color={TEXT3} style={{ margin:'0 auto 10px' }} />
+              <div style={{ fontSize:13 }}>No marketplace services loaded</div>
+              <div style={{ fontSize:11, marginTop:4 }}>
+                <a href="https://agents.circle.com" target="_blank" rel="noreferrer" style={{ color:BLACK, fontWeight:600, textDecoration:'underline' }}>Browse on Circle Agents →</a>
               </div>
-              <div style={{ fontSize:11, color:TEXT2, marginTop:2 }}>{svc.description}</div>
             </div>
-            <div style={{ display:'flex', gap:6, flexShrink:0 }}>
-              <button onClick={() => toggle(svc.id)} style={{ width:30, height:30, borderRadius:8, background:svc.active?BLACK:SURFACE, border:`1px solid ${svc.active?BLACK:BORDER}`, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer' }}>
-                {svc.active ? <Pause size={13} color={WHITE} /> : <Play size={13} color={BLACK} />}
-              </button>
-              <button onClick={() => remove(svc.id)} style={{ width:30, height:30, borderRadius:8, background:SURFACE, border:`1px solid ${BORDER}`, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer' }}>
-                <Trash2 size={13} color={DANGER} />
-              </button>
+          )}
+          {mktServices.map(svc => (
+            <div key={svc.id} style={{ background:WHITE, border:`1px solid ${BORDER}`, borderRadius:14, padding:14 }}>
+              <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:8 }}>
+                <div style={{ flex:1 }}>
+                  <div style={{ fontSize:13, fontWeight:700, color:BLACK }}>{svc.name}</div>
+                  {svc.category && <div style={{ fontSize:10, fontWeight:600, color:TEXT3, textTransform:'uppercase', letterSpacing:'0.05em', marginTop:2 }}>{svc.category}</div>}
+                  {svc.description && <div style={{ fontSize:11, color:TEXT2, marginTop:4, lineHeight:1.4 }}>{svc.description.slice(0, 120)}{svc.description.length > 120 ? '…' : ''}</div>}
+                </div>
+                {svc.url && (
+                  <a href={svc.url} target="_blank" rel="noreferrer"
+                    style={{ width:28, height:28, borderRadius:8, background:BLACK, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, textDecoration:'none' }}>
+                    <ExternalLink size={12} color={WHITE} />
+                  </a>
+                )}
+              </div>
+              {svc.price && (
+                <div style={{ marginTop:10, paddingTop:10, borderTop:`1px solid ${BORDER}`, display:'flex', alignItems:'center', gap:6 }}>
+                  <Coins size={12} color={TEXT2} />
+                  <span style={{ fontSize:12, fontWeight:700, color:BLACK }}>{svc.price} USDC</span>
+                  <span style={{ fontSize:10, color:TEXT3 }}>per call</span>
+                </div>
+              )}
             </div>
-          </div>
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:8, paddingTop:10, borderTop:`1px solid ${BORDER}` }}>
-            <div>
-              <div style={{ fontSize:13, fontWeight:700, color:BLACK }}>{svc.price} USDC</div>
-              <div style={{ fontSize:10, color:TEXT3 }}>per call</div>
-            </div>
-            <div>
-              <div style={{ fontSize:13, fontWeight:700, color:BLACK }}>{svc.calls}</div>
-              <div style={{ fontSize:10, color:TEXT3 }}>total calls</div>
-            </div>
-            <div>
-              <div style={{ fontSize:13, fontWeight:700, color:BLACK }}>{svc.earned} USDC</div>
-              <div style={{ fontSize:10, color:TEXT3 }}>earned</div>
-            </div>
-          </div>
-          <div style={{ display:'flex', alignItems:'center', gap:6, marginTop:10 }}>
-            <code style={{ flex:1, fontSize:10, color:TEXT2, background:SURFACE, padding:'4px 8px', borderRadius:6, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-              {svc.endpoint}
-            </code>
-            <a href={`https://willowy-biscochitos-076df8.netlify.app${svc.endpoint}`} target="_blank" rel="noreferrer"
-              style={{ width:26, height:26, borderRadius:7, background:SURFACE, border:`1px solid ${BORDER}`, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, textDecoration:'none' }}>
-              <ExternalLink size={11} color={TEXT2} />
+          ))}
+          {mktServices.length > 0 && (
+            <a href="https://agents.circle.com" target="_blank" rel="noreferrer"
+              style={{ display:'block', textAlign:'center', padding:'10px 0', fontSize:12, color:TEXT2, textDecoration:'none', fontWeight:500 }}>
+              View all on Circle Agents →
             </a>
-          </div>
-        </div>
-      ))}
-
-      {services.length === 0 && !showAdd && (
-        <div style={{ textAlign:'center', padding:'32px 0', color:TEXT3 }}>
-          <Coins size={28} color={TEXT3} style={{ margin:'0 auto 10px' }} />
-          <div style={{ fontSize:13 }}>No services yet</div>
-          <div style={{ fontSize:11, marginTop:4 }}>Add a service to start earning USDC from other agents</div>
+          )}
         </div>
       )}
     </div>

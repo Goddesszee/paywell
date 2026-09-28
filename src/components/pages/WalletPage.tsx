@@ -162,14 +162,14 @@ export function WalletPage({ initialSubView = 'main' }: { initialSubView?: Walle
             </div>
           </div>
           <button onClick={handleCopy} className="w-10 h-10 flex items-center justify-center rounded-xl bg-[#F5F5F5] hover:bg-[#ECECEC] text-[#0D0D0D] transition-colors flex-shrink-0">
-            {copied ? <Check size={16} className="text-[#1a8047]" /> : <Copy size={16} />}
+            {copied ? <Check size={16} className="text-[#0D0D0D]" /> : <Copy size={16} />}
           </button>
           <button onClick={() => setSubView('receive')} className="w-10 h-10 flex items-center justify-center rounded-xl bg-[#F5F5F5] hover:bg-[#ECECEC] text-[#0D0D0D] transition-colors flex-shrink-0">
             <Share2 size={16} />
           </button>
         </div>
         <div className="mt-3 flex items-center gap-2 text-xs text-[#6B6B6B]">
-          <span className="w-1.5 h-1.5 rounded-full bg-[#1a8047]" />
+          <span className="w-1.5 h-1.5 rounded-full bg-[#0D0D0D]" />
           Connected to {chain.name}
           <a
             href={`${chain.explorerBase}/address/${address}`}
@@ -289,8 +289,8 @@ function SendFlow({
     return (
       <div className="max-w-lg mx-auto px-4 py-8 space-y-5">
         <div className="text-center py-8">
-          <div className="w-16 h-16 rounded-full bg-[#DCFCE7] flex items-center justify-center mx-auto mb-4">
-            <Check size={28} className="text-[#1a8047]" />
+          <div className="w-16 h-16 rounded-full bg-[#F5F5F5] flex items-center justify-center mx-auto mb-4">
+            <Check size={28} className="text-[#0D0D0D]" />
           </div>
           <h2 className="text-2xl font-bold text-[#0D0D0D] mb-1" style={{ fontFamily: SANS }}>Payment sent</h2>
           <p className="text-[#6B6B6B] text-sm mb-4">Your USDC has been sent successfully.</p>
@@ -357,9 +357,9 @@ function SendFlow({
       </div>
 
       {isWrongChain && (
-        <div className="flex items-center gap-2 bg-[#FEF9C3] border border-[#FDE68A] rounded-xl px-3 py-2.5">
-          <AlertCircle size={15} className="text-[#854d0e] flex-shrink-0" />
-          <p className="text-sm text-[#854d0e] font-medium flex-1">Switch to Arc Testnet to send USDC.</p>
+        <div className="flex items-center gap-2 bg-[#F5F5F5] border border-black/10 rounded-xl px-3 py-2.5">
+          <AlertCircle size={15} className="text-[#0D0D0D] flex-shrink-0" />
+          <p className="text-sm text-[#0D0D0D] font-medium flex-1">Switch to Arc Testnet to send USDC.</p>
           <Button size="sm" variant="secondary" onClick={() => switchChain({ chainId: ARC_TESTNET_ID })}>Switch</Button>
         </div>
       )}
@@ -446,11 +446,11 @@ function SendFlow({
       {displayStep === 'error' && (
         <div className="space-y-3">
           <Card padding="md">
-            <div className="flex items-start gap-2 text-[#DC2626]">
+            <div className="flex items-start gap-2 text-[#0D0D0D]">
               <AlertCircle size={16} className="flex-shrink-0 mt-0.5" />
               <div>
                 <p className="text-sm font-semibold">Transaction failed</p>
-                <p className="text-xs mt-1">{parseOnchainError(writeError)}</p>
+                <p className="text-xs mt-1 text-[#6B6B6B]">{parseOnchainError(writeError)}</p>
               </div>
             </div>
           </Card>
@@ -476,7 +476,6 @@ function ReceiveView({ address, onBack }: { address: string; onBack: () => void 
   const [linkCopied, setLinkCopied] = useState(false)
   const [requestAmount, setRequestAmount] = useState('')
   const [requestNote, setRequestNote] = useState('')
-  const [showShareMenu] = useState(false)
   const qrRef = useRef<HTMLDivElement>(null)
 
   // ── Payment request URL (real web link, not deep link) ──
@@ -692,12 +691,6 @@ function ReceiveView({ address, onBack }: { address: string; onBack: () => void 
           ))}
         </div>
 
-        {/* Toggle share menu for copy shortcut */}
-        {showShareMenu && (
-          <div style={{ marginTop: 10, padding: '10px 12px', background: '#F7F7F8', borderRadius: 10, fontSize: 12, color: '#6B6B6B' }}>
-            Link copied to clipboard. Paste it anywhere to share.
-          </div>
-        )}
         <p style={{ fontSize: 11, color: '#A0A0A0', textAlign: 'center', marginTop: 10 }}>
           Anyone with this link can send you USDC on Arc Testnet
         </p>

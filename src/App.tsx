@@ -14,6 +14,8 @@ import { SwapPage } from './components/pages/SwapPage'
 import { OnrampPage } from './components/pages/OnrampPage'
 import { FaucetPage } from './components/pages/FaucetPage'
 import { AdminDashboard } from './components/pages/AdminDashboard'
+import { GatewayPage } from './components/pages/GatewayPage'
+import { RecurringPage } from './components/pages/RecurringPage'
 
 export default function App() {
   const { activeView } = useAppStore()
@@ -40,6 +42,8 @@ export default function App() {
       {activeView === 'activity' && <ActivityPage />}
       {activeView === 'settings' && <SettingsPage />}
       {activeView === 'help' && <SettingsPage />}
+      {activeView === 'gateway' && <GatewayPage />}
+      {activeView === 'recurring' && <RecurringPage />}
     </AppShell>
   )
 }
