@@ -167,7 +167,7 @@ export function LandingPage() {
           transform: 'translate(-50%, -54%)',
           animation: slideAnim,
           zIndex: 2,
-          width: 300,
+          width: 'min(300px, calc(100vw - 48px))',
         }}>
           {/* Card */}
           <div style={{
