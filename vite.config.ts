@@ -14,10 +14,6 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
-      // Replace node-stdlib-browser's warning helper with a no-op so
-      // vite-plugin-node-polyfills never emits the circular-dependency warning
-      // that Vercel's Vite/Rollup pipeline promotes to a fatal build error.
-      'node-stdlib-browser/helpers/rollup/plugin': path.resolve(__dirname, './scripts/noop-warn.js'),
     },
     dedupe: ['react', 'react-dom'],
   },
@@ -39,9 +35,6 @@ export default defineConfig({
       'sonner',
       'clsx',
       'tailwind-merge',
-      'vite-plugin-node-polyfills/shims/buffer',
-      'vite-plugin-node-polyfills/shims/global',
-      'vite-plugin-node-polyfills/shims/process',
     ],
   },
   build: {
