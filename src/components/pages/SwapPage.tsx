@@ -259,14 +259,14 @@ export function SwapPage() {
 
       {/* Success */}
       {phase === 'done' && (
-        <div style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 12, padding: '16px', marginBottom: 16 }}>
+        <div style={{ background: PW_SURFACE, border: `1px solid ${PW_BORDER}`, borderRadius: 12, padding: '16px', marginBottom: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-            <CheckCircle size={18} color='#16A34A' />
-            <span style={{ fontSize: 14, fontWeight: 600, color: '#15803D' }}>Swap completed</span>
+            <CheckCircle size={18} color={PW_BLACK} />
+            <span style={{ fontSize: 14, fontWeight: 600, color: PW_BLACK }}>Swap completed</span>
           </div>
           {txHash && (
             <a href={explorerUrl || `https://testnet.arcscan.app/tx/${txHash}`} target="_blank" rel="noreferrer"
-              style={{ fontSize: 12, color: '#16A34A', display: 'flex', alignItems: 'center', gap: 4 }}>
+              style={{ fontSize: 12, color: PW_TEXT_2, display: 'flex', alignItems: 'center', gap: 4 }}>
               {txHash.slice(0, 12)}…{txHash.slice(-6)} <ExternalLink size={11} />
             </a>
           )}
@@ -275,14 +275,14 @@ export function SwapPage() {
 
       {/* Error */}
       {phase === 'error' && errMsg && (
-        <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 10, padding: '10px 14px', marginBottom: 16, fontSize: 13, color: '#991B1B' }}>
+        <div style={{ background: PW_SURFACE, border: `1px solid ${PW_BORDER}`, borderRadius: 10, padding: '10px 14px', marginBottom: 16, fontSize: 13, color: PW_TEXT }}>
           {errMsg}
         </div>
       )}
 
       {/* Warning */}
       {sameToken && (
-        <div style={{ background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: 10, padding: '10px 14px', marginBottom: 16, fontSize: 13, color: '#92400E' }}>
+        <div style={{ background: PW_SURFACE, border: `1px solid ${PW_BORDER}`, borderRadius: 10, padding: '10px 14px', marginBottom: 16, fontSize: 13, color: PW_TEXT }}>
           Same token selected — please choose different tokens to swap.
         </div>
       )}

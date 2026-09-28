@@ -147,7 +147,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <div style={{ padding: '20px 16px 12px', borderBottom: `1px solid ${BORDER}` }}>
           <p style={{ fontSize: 11, fontWeight: 600, color: TEXT_3, textTransform: 'uppercase', letterSpacing: '0.06em' }}>More features</p>
         </div>
-        <div style={{ flex: 1, overflowY: 'auto', padding: '8px 8px' }}>
+        <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '8px 8px', WebkitOverflowScrolling: 'touch' }}>
           {DRAWER_ITEMS.map(({ id, label, Icon, desc }) => {
             const isActive = activeView === id
             return (
