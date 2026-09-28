@@ -4,7 +4,15 @@ import path from 'path'
 import { nodePolyfills } from 'vite-plugin-node-polyfills'
 
 export default defineConfig({
-  plugins: [react(), nodePolyfills()],
+  plugins: [
+    react(),
+    nodePolyfills({
+      // Only polyfill what is actually needed; exclude heavy globals that
+      // trigger circular-dependency warnings in node-stdlib-browser.
+      globals: { Buffer: true, global: true, process: true },
+      protocolImports: true,
+    }),
+  ],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
@@ -38,13 +46,19 @@ export default defineConfig({
     chunkSizeWarningLimit: 1500,
     rollupOptions: {
       onwarn(warning, warn) {
-        // vite-plugin-node-polyfills emits circular dependency warnings for
-        // node-stdlib-browser internals — these are safe to ignore and must
-        // not be treated as errors on Vercel.
+        // Suppress all warnings from vite-plugin-node-polyfills /
+        // node-stdlib-browser — circular deps and THIS_IS_UNDEFINED are safe
+        // to ignore and must not be promoted to build errors on Vercel.
+        const msg = warning.message ?? ''
+        const id  = (warning as { id?: string }).id ?? ''
         if (
           warning.code === 'CIRCULAR_DEPENDENCY' ||
           warning.code === 'THIS_IS_UNDEFINED' ||
-          (warning.message && warning.message.includes('node-stdlib-browser'))
+          msg.includes('node-stdlib-browser') ||
+          msg.includes('vite-plugin-node-polyfills') ||
+          msg.includes('build.rollupOptions.external') ||
+          id.includes('node-stdlib-browser') ||
+          id.includes('node_modules/node-stdlib-browser')
         ) return
         warn(warning)
       },

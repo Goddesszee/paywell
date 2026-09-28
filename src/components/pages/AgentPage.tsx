@@ -23,8 +23,8 @@ const SURFACE = '#F7F7F8'
 const BORDER = 'rgba(0,0,0,0.08)'
 const TEXT2 = '#5C5C6B'
 const TEXT3 = '#9898A6'
-const SUCCESS = '#16A34A'
-const DANGER = '#DC2626'
+const SUCCESS = '#0D0D0D'
+const DANGER = '#0D0D0D'
 
 const X402_PRICE = '0.001'
 const USDC_TRANSFER_ABI = [{
@@ -298,7 +298,7 @@ function MsgBubble({ msg, onApprove, onReject }: { msg:AgentMessage; onApprove:(
             </button>
           </div>
         )}
-        {msg.action==='purchase_request' && msg.approved===true && <div style={{ fontSize:11, color:SUCCESS, fontWeight:600, display:'flex', alignItems:'center', gap:4 }}><Check size={11} /> Approved</div>}
+        {msg.action==='purchase_request' && msg.approved===true && <div style={{ fontSize:11, color:BLACK, fontWeight:600, display:'flex', alignItems:'center', gap:4 }}><Check size={11} /> Approved</div>}
         {msg.action==='purchase_request' && msg.approved===false && <div style={{ fontSize:11, color:TEXT3, fontWeight:500, display:'flex', alignItems:'center', gap:4 }}><X size={11} /> Declined</div>}
         <div style={{ fontSize:10, color:TEXT3 }}>{formatRelativeTime(msg.timestamp)}</div>
       </div>
@@ -403,18 +403,58 @@ function RecurringTab() {
   )
 }
 
+// Circle Agent Marketplace Discovery API — public, no key needed
+// https://developers.circle.com/agent-stack/agent-marketplace/discovery-api
+const MARKETPLACE_API = 'https://agents.circle.com/services'
+
+interface MarketplaceService {
+  id: string
+  name: string
+  description: string
+  price?: string
+  url?: string
+  category?: string
+}
+
 function X402Tab() {
   const { address } = useAccount()
-  const [services, setServices] = useState<X402Service[]>([
-    { id:'1', name:'Agent Chat API', description:'AI-powered chat endpoint for other agents', price:'0.001', endpoint:'/api/chat', calls:142, earned:'0.142', active:true },
-    { id:'2', name:'Market Data Feed', description:'Real-time USDC price and volume data', price:'0.005', endpoint:'/api/market', calls:37, earned:'0.185', active:false },
-  ])
+  const [services, setServices] = useState<X402Service[]>([])
   const [showAdd, setShowAdd] = useState(false)
   const [newName, setNewName] = useState('')
   const [newDesc, setNewDesc] = useState('')
   const [newPrice, setNewPrice] = useState('0.001')
   const [newEndpoint, setNewEndpoint] = useState('')
   const [copied, setCopied] = useState(false)
+  const [mktServices, setMktServices] = useState<MarketplaceService[]>([])
+  const [mktLoading, setMktLoading] = useState(false)
+  const [mktError, setMktError] = useState('')
+  const [mktTab, setMktTab] = useState<'yours'|'marketplace'>('yours')
+
+  const fetchMarketplace = async () => {
+    setMktLoading(true)
+    setMktError('')
+    try {
+      const res = await fetch(MARKETPLACE_API)
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const data: any = await res.json()
+      // API returns array or { services: [...] }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const list: any[] = Array.isArray(data) ? data : (data.services ?? data.data ?? [])
+      setMktServices(list.slice(0, 20).map((s, i) => ({
+        id: String(s.id ?? i),
+        name: String(s.name ?? s.title ?? 'Unnamed service'),
+        description: String(s.description ?? s.desc ?? ''),
+        price: s.price ?? s.pricePerCall ?? undefined,
+        url: s.url ?? s.endpoint ?? s.serviceUrl ?? undefined,
+        category: s.category ?? s.type ?? undefined,
+      })))
+    } catch {
+      setMktError('Could not load Circle Agent Marketplace. Try again.')
+    } finally {
+      setMktLoading(false)
+    }
+  }
 
   const toggle = (id: string) => setServices(s => s.map(x => x.id===id ? {...x, active:!x.active} : x))
   const remove = (id: string) => setServices(s => s.filter(x => x.id!==id))
@@ -469,13 +509,25 @@ function X402Tab() {
         </div>
       )}
 
-      {/* Services list */}
+      {/* Sub-tab switcher */}
+      <div style={{ display:'flex', background:SURFACE, borderRadius:10, padding:3, gap:2 }}>
+        {(['yours','marketplace'] as const).map(id => (
+          <button key={id} onClick={() => { setMktTab(id); if(id==='marketplace'&&mktServices.length===0&&!mktLoading) void fetchMarketplace() }}
+            style={{ flex:1, padding:'7px 0', border:'none', borderRadius:8, cursor:'pointer', fontFamily:F, fontSize:12, fontWeight:mktTab===id?700:500, background:mktTab===id?WHITE:'transparent', color:mktTab===id?BLACK:TEXT2, boxShadow:mktTab===id?'0 1px 4px rgba(0,0,0,0.08)':'none', transition:'all 0.15s' }}>
+            {id === 'yours' ? 'Your services' : 'Marketplace'}
+          </button>
+        ))}
+      </div>
+
+      {/* Your services list */}
+      {mktTab === 'yours' && (
       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-        <div style={{ fontSize:14, fontWeight:700, color:BLACK }}>Your services</div>
+        <div style={{ fontSize:14, fontWeight:700, color:BLACK }}>Your x402 services</div>
         <button onClick={() => setShowAdd(v=>!v)} style={{ width:30, height:30, borderRadius:8, background:BLACK, border:'none', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer' }}>
           <Plus size={15} color={WHITE} />
         </button>
       </div>
+      )}
 
       {showAdd && (
         <div style={{ background:SURFACE, border:`1px solid ${BORDER}`, borderRadius:14, padding:16, display:'flex', flexDirection:'column', gap:10 }}>
@@ -675,7 +727,7 @@ function HistoryTab() {
           </div>
           <div style={{ flexShrink:0, textAlign:'right' }}>
             <div style={{ fontSize:13, fontWeight:700, color:BLACK }}>−{formatUSDC(item.amount)} USDC</div>
-            <div style={{ fontSize:10, fontWeight:600, color:item.status==='confirmed'?SUCCESS:item.status==='pending'?'#D97706':DANGER, marginTop:2 }}>{item.status}</div>
+            <div style={{ fontSize:10, fontWeight:600, color:TEXT3, marginTop:2 }}>{item.status}</div>
           </div>
         </div>
       ))}
