@@ -5,6 +5,7 @@ import { createViemAdapterFromProvider } from '@circle-fin/adapter-viem-v2'
 import type { EIP1193Provider } from 'viem'
 import { ArrowUpDown, Loader, CheckCircle, ExternalLink, RefreshCw } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
+import { swapFee, SWAP_FEE_BPS, bpsToPercent, FEE_WALLET } from '../../lib/fees'
 
 const appKit = new AppKit()
 
@@ -37,6 +38,7 @@ export function SwapPage() {
   const chainId = useChainId()
   const { switchChainAsync } = useSwitchChain()
   const addActivity = useAppStore(s => s.addActivity)
+  const recordFee = useAppStore(s => s.recordFee)
 
   const [tokenIn,  setTokenIn]  = useState<Token>('USDT')
   const [tokenOut, setTokenOut] = useState<Token>('USDC')
@@ -97,18 +99,31 @@ export function SwapPage() {
         amountIn,
         config: { slippageBps: 100 },
       })
-      setTxHash((result as { txHash?: string }).txHash ?? '')
+      const resultHash = (result as { txHash?: string }).txHash
+      setTxHash(resultHash ?? '')
       setExplorerUrl((result as { explorerUrl?: string }).explorerUrl ?? '')
       setPhase('done')
+      const gross = parseFloat(amountIn)
+      const fee = swapFee(gross)
       addActivity({
         type: 'swap',
         description: `Swap ${tokenIn} → ${tokenOut}`,
-        amount: parseFloat(amountIn),
+        amount: gross,
         sign: '-',
         status: 'confirmed',
         counterparty: tokenOut,
-        txHash: (result as { txHash?: string }).txHash,
+        txHash: resultHash,
       })
+      if (fee > 0) {
+        recordFee({
+          source: 'swap',
+          grossAmount: gross,
+          feeAmount: fee,
+          feeWallet: FEE_WALLET,
+          txHash: resultHash,
+          description: `Swap ${tokenIn} → ${tokenOut}`,
+        })
+      }
     } catch (e: unknown) {
       setPhase('error')
       setErrMsg(e instanceof Error ? e.message : 'Swap failed.')
@@ -225,6 +240,10 @@ export function SwapPage() {
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
             <span style={{ fontSize: 12, color: PW_TEXT_2 }}>Slippage tolerance</span>
             <span style={{ fontSize: 12, fontWeight: 600, color: PW_TEXT }}>1%</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+            <span style={{ fontSize: 12, color: PW_TEXT_2 }}>Paywell fee ({bpsToPercent(SWAP_FEE_BPS)})</span>
+            <span style={{ fontSize: 12, fontWeight: 600, color: PW_TEXT }}>{swapFee(parseFloat(amountIn) || 0).toFixed(4)} {tokenIn}</span>
           </div>
           {estimate.fees.map((f, i) => (
             <div key={i} style={{ display: 'flex', justifyContent: 'space-between' }}>

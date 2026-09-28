@@ -5,6 +5,7 @@ import { createViemAdapterFromProvider } from '@circle-fin/adapter-viem-v2'
 import type { EIP1193Provider } from 'viem'
 import { ArrowLeftRight, ArrowRight, CheckCircle, ExternalLink, Loader } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
+import { bridgeFee, BRIDGE_FEE_BPS, bpsToPercent, BRIDGE_FEE_MIN_USDC, FEE_WALLET } from '../../lib/fees'
 
 
 const appKit = new AppKit()
@@ -59,6 +60,7 @@ export function BridgePage() {
   const chainId = useChainId()
   const { switchChainAsync } = useSwitchChain()
   const addActivity = useAppStore(s => s.addActivity)
+  const recordFee = useAppStore(s => s.recordFee)
 
   const [fromIdx, setFromIdx] = useState(0)
   const [toIdx, setToIdx]     = useState(1)
@@ -111,14 +113,25 @@ export function BridgePage() {
 
       if (result.state === 'success') {
         setStatus('done')
+        const gross = parseFloat(amount)
+        const fee = bridgeFee(gross)
+        const mintHash = result.steps?.find(s => s.name === 'mint')?.txHash
         addActivity({
           type: 'bridge',
           description: `Bridge to ${toChain.label}`,
-          amount: parseFloat(amount),
+          amount: gross,
           sign: '-',
           status: 'confirmed',
           counterparty: toChain.label,
-          txHash: result.steps?.find(s => s.name === 'mint')?.txHash,
+          txHash: mintHash,
+        })
+        recordFee({
+          source: 'bridge',
+          grossAmount: gross,
+          feeAmount: fee,
+          feeWallet: FEE_WALLET,
+          txHash: mintHash,
+          description: `Bridge ${fromChain.label} → ${toChain.label}`,
         })
       } else {
         setStatus('error')
@@ -219,24 +232,35 @@ export function BridgePage() {
       </div>
 
       {/* Info card */}
-      <div style={{ background: PW_SURFACE, border: `1px solid ${PW_BORDER}`, borderRadius: 12, padding: '12px 16px', marginBottom: 20, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-        <div>
-          <div style={{ fontSize: 11, color: PW_TEXT_2 }}>Protocol</div>
-          <div style={{ fontSize: 13, fontWeight: 600, color: PW_TEXT }}>CCTP V2 Fast</div>
-        </div>
-        <div>
-          <div style={{ fontSize: 11, color: PW_TEXT_2 }}>Est. time</div>
-          <div style={{ fontSize: 13, fontWeight: 600, color: PW_TEXT }}>8–20 seconds</div>
-        </div>
-        <div>
-          <div style={{ fontSize: 11, color: PW_TEXT_2 }}>You send</div>
-          <div style={{ fontSize: 13, fontWeight: 600, color: PW_TEXT }}>{amount || '0.00'} USDC</div>
-        </div>
-        <div>
-          <div style={{ fontSize: 11, color: PW_TEXT_2 }}>You receive</div>
-          <div style={{ fontSize: 13, fontWeight: 600, color: PW_TEXT }}>{amount || '0.00'} USDC</div>
-        </div>
-      </div>
+      {(() => {
+        const gross = parseFloat(amount) || 0
+        const fee = gross > 0 ? bridgeFee(gross) : 0
+        const net = gross - fee
+        return (
+          <div style={{ background: PW_SURFACE, border: `1px solid ${PW_BORDER}`, borderRadius: 12, padding: '12px 16px', marginBottom: 20, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div>
+              <div style={{ fontSize: 11, color: PW_TEXT_2 }}>Protocol</div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: PW_TEXT }}>CCTP V2 Fast</div>
+            </div>
+            <div>
+              <div style={{ fontSize: 11, color: PW_TEXT_2 }}>Est. time</div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: PW_TEXT }}>8–20 seconds</div>
+            </div>
+            <div>
+              <div style={{ fontSize: 11, color: PW_TEXT_2 }}>You send</div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: PW_TEXT }}>{amount || '0.00'} USDC</div>
+            </div>
+            <div>
+              <div style={{ fontSize: 11, color: PW_TEXT_2 }}>Platform fee ({bpsToPercent(BRIDGE_FEE_BPS)}, min ${BRIDGE_FEE_MIN_USDC})</div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: PW_TEXT }}>{fee > 0 ? fee.toFixed(4) : '—'} USDC</div>
+            </div>
+            <div>
+              <div style={{ fontSize: 11, color: PW_TEXT_2 }}>You receive</div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: PW_TEXT }}>{net > 0 ? net.toFixed(4) : '0.00'} USDC</div>
+            </div>
+          </div>
+        )
+      })()}
 
       {/* Gas token warning */}
       {!fromChain.gasIsUsdc && (

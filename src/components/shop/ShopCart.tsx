@@ -7,6 +7,7 @@ import { CartItem } from '../../store/appStore'
 import { formatUSDC } from '../../utils/format'
 import { useShopCheckout } from '../../hooks/useShopCheckout'
 import { buildTxExplorerUrl } from '../../onchain-facts'
+import { marketplaceFee, MARKETPLACE_FEE_BPS, bpsToPercent } from '../../lib/fees'
 
 const FONT = "'Inter', -apple-system, sans-serif"
 
@@ -57,17 +58,23 @@ export function CartPage({
           </div>
 
           {/* Summary */}
-          <div style={{ background: '#FFF', border: '1px solid rgba(0,0,0,0.08)', borderRadius: 14, padding: '14px 16px', marginBottom: 12 }}>
-            <SummaryRow label="Subtotal" value={`${formatUSDC(total)} USDC`} />
-            <SummaryRow label="Network fee" value="Free" />
-            <SummaryRow label="Platform fee" value="1% (paid from amount)" />
-            <div style={{ borderTop: '1px solid rgba(0,0,0,0.07)', paddingTop: 10, marginTop: 6, display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: 15, fontWeight: 800, color: '#0D0D0D', fontFamily: FONT }}>Total</span>
-              <span style={{ fontSize: 15, fontWeight: 800, color: '#0D0D0D', fontVariantNumeric: 'tabular-nums', fontFamily: FONT }}>
-                {formatUSDC(total)} USDC
-              </span>
-            </div>
-          </div>
+          {(() => {
+            const fee = marketplaceFee(total)
+            const gross = total + fee
+            return (
+              <div style={{ background: '#FFF', border: '1px solid rgba(0,0,0,0.08)', borderRadius: 14, padding: '14px 16px', marginBottom: 12 }}>
+                <SummaryRow label="Subtotal" value={`${formatUSDC(total)} USDC`} />
+                <SummaryRow label="Network fee" value="Free" />
+                <SummaryRow label={`Platform fee (${bpsToPercent(MARKETPLACE_FEE_BPS)})`} value={`${formatUSDC(fee)} USDC`} />
+                <div style={{ borderTop: '1px solid rgba(0,0,0,0.07)', paddingTop: 10, marginTop: 6, display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: 15, fontWeight: 800, color: '#0D0D0D', fontFamily: FONT }}>Total</span>
+                  <span style={{ fontSize: 15, fontWeight: 800, color: '#0D0D0D', fontVariantNumeric: 'tabular-nums', fontFamily: FONT }}>
+                    {formatUSDC(gross)} USDC
+                  </span>
+                </div>
+              </div>
+            )
+          })()}
 
           {/* Protected purchase note */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', background: '#F7F7F8', borderRadius: 10, border: '1px solid rgba(0,0,0,0.07)', marginBottom: 14 }}>

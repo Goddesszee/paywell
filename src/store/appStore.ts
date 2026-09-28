@@ -95,6 +95,21 @@ export interface OfferNegotiation {
 
 export type ActivityType = 'received' | 'sent' | 'purchase' | 'agent_purchase' | 'request' | 'bridge' | 'swap'
 
+// ── Platform fee revenue tracking ─────────────────────────────────────────────
+
+export type FeeSource = 'marketplace' | 'swap' | 'bridge'
+
+export interface FeeEvent {
+  id: string
+  source: FeeSource
+  grossAmount: number      // USDC — the amount the user paid / swapped / bridged
+  feeAmount: number        // USDC — platform fee collected
+  feeWallet: string        // where it went
+  txHash?: string
+  timestamp: Date
+  description: string
+}
+
 export interface ActivityItem {
   id: string
   type: ActivityType
@@ -205,6 +220,10 @@ interface AppState {
   offers: OfferNegotiation[]
   createOffer: (offer: Omit<OfferNegotiation, 'id' | 'createdAt'>) => string
   respondToOffer: (id: string, response: 'accept' | 'reject' | 'counter', counterAmount?: number) => void
+
+  // Platform fee revenue
+  feeRevenue: FeeEvent[]
+  recordFee: (event: Omit<FeeEvent, 'id' | 'timestamp'>) => void
 
   activeView: string
   setActiveView: (view: string) => void
@@ -452,6 +471,19 @@ export const useAppStore = create<AppState>()(
           }),
         })),
 
+      feeRevenue: [],
+      recordFee: (event) =>
+        set((s) => ({
+          feeRevenue: [
+            {
+              ...event,
+              id: `fee-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+              timestamp: new Date(),
+            },
+            ...s.feeRevenue,
+          ],
+        })),
+
       activeView: 'landing',
       setActiveView: (view) =>
         set((s) => ({ previousView: s.activeView, activeView: view })),
@@ -470,6 +502,7 @@ export const useAppStore = create<AppState>()(
         pendingListings: s.pendingListings,
         orders: s.orders,
         offers: s.offers,
+        feeRevenue: s.feeRevenue,
       }),
       merge: (persisted, current) => {
         const p = persisted as Partial<AppState>
@@ -490,6 +523,10 @@ export const useAppStore = create<AppState>()(
           })),
           orders: p.orders ?? current.orders ?? [],
           offers: p.offers ?? current.offers ?? [],
+          feeRevenue: (p.feeRevenue ?? current.feeRevenue ?? []).map((f) => ({
+            ...f,
+            timestamp: new Date(f.timestamp),
+          })),
         }
       },
     }

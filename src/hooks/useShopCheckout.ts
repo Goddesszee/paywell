@@ -10,6 +10,7 @@ import { parseUnits } from 'viem'
 import { getUsdc } from '../onchain-facts'
 import { CartItem } from '../store/appStore'
 import { useAppStore } from '../store/appStore'
+import { marketplaceFee, FEE_WALLET } from '../lib/fees'
 const ESCROW_ABI = [
   { type: 'function', name: 'createOrder', inputs: [{ name: 'merchant', type: 'address' }, { name: 'amount', type: 'uint256' }], outputs: [{ name: 'orderId', type: 'uint256' }], stateMutability: 'nonpayable' },
   { type: 'function', name: 'confirmOrder', inputs: [{ name: 'orderId', type: 'uint256' }], outputs: [], stateMutability: 'nonpayable' },
@@ -43,7 +44,7 @@ const USDC_ABI = [
 export function useShopCheckout() {
   const { chainId } = useAccount()
   const { writeContractAsync } = useWriteContract()
-  const { addActivity } = useAppStore()
+  const { addActivity, recordFee } = useAppStore()
   const [status, setStatus] = useState<CheckoutStatus>('idle')
   const [txHash, setTxHash] = useState<`0x${string}` | undefined>()
   const [orderId, setOrderId] = useState<number | undefined>()
@@ -58,33 +59,59 @@ export function useShopCheckout() {
     if (!usdc) { setError('USDC not found on this chain'); return false }
 
     const total = cart.reduce((acc, c) => acc + c.product.price * c.quantity, 0)
+    const fee = marketplaceFee(total)
     const merchantWallet = cart[0]?.product.merchantWallet as `0x${string}`
     if (!merchantWallet) { setError('No merchant wallet'); return false }
 
     try {
       setStatus('approving')
       setError(undefined)
-      const amount = parseUnits(total.toFixed(6), usdc.decimals)
+      // Approve escrow for the full amount + fee
+      const grossAmount = parseUnits((total + fee).toFixed(6), usdc.decimals)
+      const escrowAmount = parseUnits(total.toFixed(6), usdc.decimals)
+      const feeAmount = parseUnits(fee.toFixed(6), usdc.decimals)
 
-      // Step 1 — approve escrow to spend USDC
+      // Step 1 — approve escrow to spend full amount (including fee)
       await writeContractAsync({
         address: usdc.address as `0x${string}`,
         abi: USDC_ABI,
         functionName: 'approve',
-        args: [ESCROW_ADDRESS, amount],
+        args: [ESCROW_ADDRESS, grossAmount],
       })
 
-      // Step 2 — create escrow order
+      // Step 2 — create escrow order (merchant gets net amount)
       setStatus('creating-order')
       const hash = await writeContractAsync({
         address: ESCROW_ADDRESS,
         abi: ESCROW_ABI,
         functionName: 'createOrder',
-        args: [merchantWallet, amount],
+        args: [merchantWallet, escrowAmount],
       })
 
       setTxHash(hash)
       setStatus('pending')
+
+      // Step 3 — send platform fee to fee wallet (separate transfer)
+      if (feeAmount > 0n) {
+        try {
+          await writeContractAsync({
+            address: usdc.address as `0x${string}`,
+            abi: [{ name: 'transfer', type: 'function', stateMutability: 'nonpayable', inputs: [{ name: 'to', type: 'address' }, { name: 'value', type: 'uint256' }], outputs: [{ name: '', type: 'bool' }] }] as const,
+            functionName: 'transfer',
+            args: [FEE_WALLET, feeAmount],
+          })
+          recordFee({
+            source: 'marketplace',
+            grossAmount: total,
+            feeAmount: fee,
+            feeWallet: FEE_WALLET,
+            txHash: hash,
+            description: cart.map(i => i.product.name).join(', '),
+          })
+        } catch {
+          // Fee transfer failure is non-fatal — order still completes
+        }
+      }
 
       cart.forEach((item) => {
         addActivity({

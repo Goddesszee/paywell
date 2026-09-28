@@ -2,8 +2,9 @@ import { useState } from 'react'
 import { useAppStore } from '../../store/appStore'
 import { useShopStore } from '../../store/shopStore'
 import type { DeliveryMethod } from '../../store/shopStore'
+import { FEE_WALLET, MARKETPLACE_FEE_BPS, SWAP_FEE_BPS, BRIDGE_FEE_BPS, bpsToPercent } from '../../lib/fees'
 
-import { BarChart3, Users, ShoppingBag, Zap, ArrowUpRight, ArrowDownLeft, RefreshCw, Shield, Globe, Cpu, CheckCircle, XCircle, Activity, ArrowLeft } from 'lucide-react'
+import { BarChart3, Users, ShoppingBag, Zap, ArrowUpRight, ArrowDownLeft, RefreshCw, Shield, Globe, Cpu, CheckCircle, XCircle, Activity, ArrowLeft, TrendingUp } from 'lucide-react'
 
 const SANS = "'Inter', -apple-system, sans-serif"
 const S = '#F7F7F8'
@@ -54,9 +55,9 @@ function InfraCard({ name, status, desc, icon }: InfraItem) {
 }
 
 export function AdminDashboard() {
-  const { activity, pendingListings, approveListing, rejectListing, setActiveView } = useAppStore()
+  const { activity, pendingListings, approveListing, rejectListing, setActiveView, feeRevenue } = useAppStore()
   const { addShopProduct } = useShopStore()
-  const [tab, setTab] = useState<'overview' | 'listings' | 'activity' | 'circle' | 'users'>('overview')
+  const [tab, setTab] = useState<'overview' | 'listings' | 'activity' | 'revenue' | 'circle' | 'users'>('overview')
   const [now] = useState(new Date())
 
   // Computed stats from real activity store
@@ -119,10 +120,17 @@ export function AdminDashboard() {
     { name: 'Permit2', status: 'live', desc: '0x0000...D473 · gasless USDC approvals', icon: <Shield size={16} /> },
   ]
 
+  // Revenue computed stats
+  const totalFeeRevenue = feeRevenue.reduce((s, f) => s + f.feeAmount, 0)
+  const marketplaceFeeTotal = feeRevenue.filter(f => f.source === 'marketplace').reduce((s, f) => s + f.feeAmount, 0)
+  const swapFeeTotal = feeRevenue.filter(f => f.source === 'swap').reduce((s, f) => s + f.feeAmount, 0)
+  const bridgeFeeTotal = feeRevenue.filter(f => f.source === 'bridge').reduce((s, f) => s + f.feeAmount, 0)
+
   const tabs = [
     { id: 'overview', label: 'Overview' },
     { id: 'listings', label: `Listings${pendingListings.filter(l=>l.status==='pending').length > 0 ? ` (${pendingListings.filter(l=>l.status==='pending').length})` : ''}` },
     { id: 'activity', label: 'Activity' },
+    { id: 'revenue', label: `Revenue${feeRevenue.length > 0 ? ` (${feeRevenue.length})` : ''}` },
     { id: 'circle', label: 'Circle Infra' },
     { id: 'users', label: 'Users' },
   ] as const
@@ -344,6 +352,83 @@ export function AdminDashboard() {
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* ── REVENUE ── */}
+        {tab === 'revenue' && (
+          <div>
+            <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: '-0.02em', marginBottom: 4 }}>Revenue</div>
+            <div style={{ fontSize: 13, color: '#6B6B6B', marginBottom: 20 }}>Platform fees collected across all services</div>
+
+            {/* Fee wallet */}
+            <div style={{ background: '#fff', border: `1px solid ${B}`, borderRadius: 14, padding: '14px 16px', marginBottom: 20 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#9898A6', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Fee wallet</div>
+              <div style={{ fontSize: 12, fontFamily: 'monospace', color: '#0D0D0D', wordBreak: 'break-all' }}>{FEE_WALLET}</div>
+              <div style={{ fontSize: 11, color: '#9898A6', marginTop: 4 }}>All platform fees are sent to this address on Arc Testnet</div>
+            </div>
+
+            {/* Fee schedule */}
+            <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 10 }}>Fee schedule</div>
+            <div style={{ background: '#fff', border: `1px solid ${B}`, borderRadius: 14, overflow: 'hidden', marginBottom: 20 }}>
+              {[
+                { label: 'Marketplace sale', rate: bpsToPercent(MARKETPLACE_FEE_BPS), total: marketplaceFeeTotal, icon: <ShoppingBag size={14} /> },
+                { label: 'Swap', rate: bpsToPercent(SWAP_FEE_BPS), total: swapFeeTotal, icon: <RefreshCw size={14} /> },
+                { label: 'Bridge', rate: bpsToPercent(BRIDGE_FEE_BPS) + ' (min $0.10)', total: bridgeFeeTotal, icon: <ArrowUpRight size={14} /> },
+                { label: 'Send / Receive', rate: 'Free', total: null, icon: <ArrowDownLeft size={14} /> },
+              ].map(({ label, rate, total, icon }, i) => (
+                <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', borderBottom: i < 3 ? `1px solid ${B}` : 'none' }}>
+                  <div style={{ width: 30, height: 30, borderRadius: 8, background: S, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{icon}</div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600 }}>{label}</div>
+                    <div style={{ fontSize: 11, color: '#9898A6' }}>{rate}</div>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: 13, fontWeight: 700 }}>{total !== null ? `${total.toFixed(4)} USDC` : '—'}</div>
+                    <div style={{ fontSize: 11, color: '#9898A6' }}>collected</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Total banner */}
+            <div style={{ background: '#0D0D0D', borderRadius: 14, padding: '16px 20px', marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <TrendingUp size={18} color="#FFF" />
+                <span style={{ fontSize: 14, fontWeight: 700, color: '#FFF' }}>Total revenue</span>
+              </div>
+              <span style={{ fontSize: 22, fontWeight: 800, color: '#FFF', fontVariantNumeric: 'tabular-nums' }}>
+                {totalFeeRevenue.toFixed(4)} USDC
+              </span>
+            </div>
+
+            {/* Fee event log */}
+            <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 10 }}>Fee log</div>
+            {feeRevenue.length === 0 ? (
+              <div style={{ background: '#fff', border: `1px solid ${B}`, borderRadius: 14, padding: '48px 20px', textAlign: 'center', color: '#A0A0A0', fontSize: 13 }}>
+                No fees collected yet. They appear here after marketplace sales, swaps, and bridges.
+              </div>
+            ) : (
+              <div style={{ background: '#fff', border: `1px solid ${B}`, borderRadius: 14, overflow: 'hidden' }}>
+                {feeRevenue.slice(0, 50).map((f, i) => (
+                  <div key={f.id} style={{ display: 'grid', gridTemplateColumns: '80px 1fr 90px', gap: 8, padding: '11px 16px', borderBottom: i < feeRevenue.length - 1 ? `1px solid ${B}` : 'none', alignItems: 'center' }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, background: '#EFEFEF', color: '#0D0D0D', padding: '2px 7px', borderRadius: 20, textAlign: 'center', textTransform: 'capitalize' }}>
+                      {f.source}
+                    </span>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: '#0D0D0D', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.description}</div>
+                      <div style={{ fontSize: 11, color: '#9898A6' }}>
+                        {new Date(f.timestamp).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                      </div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontSize: 13, fontWeight: 700 }}>+{f.feeAmount.toFixed(4)}</div>
+                      <div style={{ fontSize: 11, color: '#9898A6' }}>USDC</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
