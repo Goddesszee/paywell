@@ -1,5 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useAppStore } from '../../store/appStore'
+import { useShopStore } from '../../store/shopStore'
+import type { DeliveryMethod } from '../../store/shopStore'
 
 import { BarChart3, Users, ShoppingBag, Zap, ArrowUpRight, ArrowDownLeft, RefreshCw, Shield, Globe, Cpu, CheckCircle, XCircle, Activity, ArrowLeft } from 'lucide-react'
 
@@ -17,7 +19,7 @@ function MetricCard({ label, value, sub, icon, trend }: Metric) {
           {icon}
         </div>
         {trend && (
-          <span style={{ fontSize: 11, fontWeight: 600, color: trend.startsWith('+') ? '#16A34A' : '#DC2626', background: trend.startsWith('+') ? '#F0FDF4' : '#FEF2F2', padding: '2px 7px', borderRadius: 20 }}>
+          <span style={{ fontSize: 11, fontWeight: 600, color: '#5C5C6B', background: '#EFEFEF', padding: '2px 7px', borderRadius: 20 }}>
             {trend}
           </span>
         )}
@@ -32,8 +34,9 @@ function MetricCard({ label, value, sub, icon, trend }: Metric) {
 type InfraItem = { name: string; status: 'live' | 'ready' | 'pending'; desc: string; icon: React.ReactNode }
 
 function InfraCard({ name, status, desc, icon }: InfraItem) {
-  const color = status === 'live' ? '#16A34A' : status === 'ready' ? '#2563EB' : '#D97706'
   const label = status === 'live' ? 'Live' : status === 'ready' ? 'Ready' : 'Needs key'
+  const badgeColor = status === 'live' ? '#0D0D0D' : '#9898A6'
+  const badgeBg = status === 'live' ? '#EFEFEF' : '#F7F7F8'
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px', background: '#fff', border: `1px solid ${B}`, borderRadius: 12, marginBottom: 8 }}>
       <div style={{ width: 36, height: 36, borderRadius: 9, background: S, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -43,7 +46,7 @@ function InfraCard({ name, status, desc, icon }: InfraItem) {
         <div style={{ fontSize: 14, fontWeight: 600 }}>{name}</div>
         <div style={{ fontSize: 12, color: '#6B6B6B' }}>{desc}</div>
       </div>
-      <span style={{ fontSize: 11, fontWeight: 700, color, background: `${color}18`, padding: '3px 9px', borderRadius: 20, flexShrink: 0 }}>
+      <span style={{ fontSize: 11, fontWeight: 700, color: badgeColor, background: badgeBg, padding: '3px 9px', borderRadius: 20, flexShrink: 0 }}>
         {label}
       </span>
     </div>
@@ -52,14 +55,53 @@ function InfraCard({ name, status, desc, icon }: InfraItem) {
 
 export function AdminDashboard() {
   const { activity, pendingListings, approveListing, rejectListing, setActiveView } = useAppStore()
+  const { addShopProduct } = useShopStore()
   const [tab, setTab] = useState<'overview' | 'listings' | 'activity' | 'circle' | 'users'>('overview')
   const [now] = useState(new Date())
 
   // Computed stats from real activity store
   const totalVol = activity.reduce((s, a) => s + (a.amount || 0), 0)
   const sends = activity.filter(a => a.type === 'sent').length
-  const receives = activity.filter(a => a.type === 'received').length
   const shops = activity.filter(a => a.type === 'purchase').length
+
+  // Approve a listing: update status in appStore AND publish to shopStore catalog
+  const handleApprove = (id: string) => {
+    const listing = pendingListings.find(l => l.id === id)
+    if (!listing) return
+    approveListing(id)
+    addShopProduct({
+      name: listing.name,
+      description: listing.description || '',
+      price: listing.price,
+      merchant: listing.kycFullName || 'Seller',
+      merchantId: listing.merchantWallet,
+      merchantWallet: listing.merchantWallet,
+      merchantVerified: true,
+      merchantRating: 0,
+      merchantCompletedTx: 0,
+      merchantLocation: undefined,
+      merchantResponseRate: undefined,
+      merchantJoined: new Date().toISOString(),
+      category: listing.category,
+      condition: 'good',
+      images: listing.imageBase64
+        ? [listing.imageBase64]
+        : listing.imageUrl
+        ? [listing.imageUrl]
+        : [],
+      rating: 0,
+      reviewCount: 0,
+      inStock: true,
+      quantity: 1,
+      tags: [listing.category],
+      location: undefined,
+      deliveryOptions: ['standard'] as DeliveryMethod[],
+      deliveryDays: undefined,
+      isVerifiedListing: true,
+      agentSearchable: true,
+      agentKeywords: [listing.name, listing.category],
+    })
+  }
 
   // Env var check (Vite exposes VITE_ vars)
   const hasGroq = Boolean(import.meta.env.VITE_GROQ_API_KEY)
@@ -68,7 +110,7 @@ export function AdminDashboard() {
 
   const CIRCLE_INFRA: InfraItem[] = [
     { name: 'Arc Testnet RPC', status: 'live', desc: 'USDC as native gas · sub-second finality', icon: <Globe size={16} /> },
-    { name: 'USDC ERC-20 Contract', status: 'live', desc: '0x3600...0000 · balances + transfers', icon: <CheckCircle size={16} color="#16A34A" /> },
+    { name: 'USDC ERC-20 Contract', status: 'live', desc: '0x3600...0000 · balances + transfers', icon: <CheckCircle size={16} color="#0D0D0D" /> },
     { name: 'CCTP V2 Bridge', status: 'live', desc: 'Arc ↔ Base ↔ Arbitrum ↔ Ethereum', icon: <ArrowUpRight size={16} /> },
     { name: 'Circle AppKit Swap', status: 'live', desc: 'USDC ↔ tokens via Circle swap routes', icon: <RefreshCw size={16} /> },
     { name: 'x402 Micropayments', status: hasX402 ? 'live' : 'ready', desc: 'Per-call USDC payments for AI agent API', icon: <Zap size={16} /> },
@@ -103,7 +145,7 @@ export function AdminDashboard() {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ fontSize: 11, color: '#A0A0A0' }}>{now.toLocaleTimeString()}</span>
-          <span style={{ fontSize: 11, fontWeight: 600, color: '#16A34A', background: '#F0FDF4', padding: '2px 8px', borderRadius: 20 }}>● Live</span>
+          <span style={{ fontSize: 11, fontWeight: 600, color: '#0D0D0D', background: '#EFEFEF', padding: '2px 8px', borderRadius: 20 }}>● Live</span>
         </div>
       </div>
 
@@ -146,8 +188,8 @@ export function AdminDashboard() {
                 <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: `1px solid ${B}` }}>
                   <span style={{ fontSize: 13 }}>{label}</span>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                    {live ? <CheckCircle size={14} color="#16A34A" /> : <XCircle size={14} color="#D97706" />}
-                    <span style={{ fontSize: 12, fontWeight: 600, color: live ? '#16A34A' : '#D97706' }}>{live ? 'Live' : 'Needs key'}</span>
+                    {live ? <CheckCircle size={14} color="#0D0D0D" /> : <XCircle size={14} color="#9898A6" />}
+                    <span style={{ fontSize: 12, fontWeight: 600, color: live ? '#0D0D0D' : '#9898A6' }}>{live ? 'Live' : 'Needs key'}</span>
                   </div>
                 </div>
               ))}
@@ -168,7 +210,7 @@ export function AdminDashboard() {
                       <div style={{ fontSize: 11, color: '#A0A0A0' }}>{a.description || a.counterparty || '—'}</div>
                     </div>
                     <div style={{ textAlign: 'right' }}>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: a.type === 'received' ? '#16A34A' : '#0D0D0D' }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: '#0D0D0D' }}>
                         {a.type === 'received' ? '+' : '-'}{a.amount?.toFixed(2) ?? '—'} USDC
                       </div>
                       <div style={{ fontSize: 11, color: '#A0A0A0' }}>
@@ -203,8 +245,8 @@ export function AdminDashboard() {
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 4 }}>
                           <div style={{ fontSize: 15, fontWeight: 700 }}>{l.name}</div>
                           <span style={{ fontSize: 11, fontWeight: 700, flexShrink: 0, padding: '2px 8px', borderRadius: 20,
-                            color: l.status === 'pending' ? '#D97706' : l.status === 'approved' ? '#16A34A' : '#DC2626',
-                            background: l.status === 'pending' ? '#FFFBEB' : l.status === 'approved' ? '#F0FDF4' : '#FEF2F2',
+                            color: '#0D0D0D',
+                            background: '#EFEFEF',
                           }}>{l.status}</span>
                         </div>
                         <div style={{ fontSize: 13, color: '#5C5C6B', marginBottom: 4 }}>{l.description || 'No description'}</div>
@@ -223,10 +265,10 @@ export function AdminDashboard() {
                         )}
                         {l.status === 'pending' && (
                           <div style={{ display: 'flex', gap: 8 }}>
-                            <button onClick={() => approveListing(l.id)} style={{ height: 32, padding: '0 16px', borderRadius: 8, background: '#0D0D0D', color: '#FFF', fontSize: 12, fontWeight: 600, border: 'none', cursor: 'pointer', fontFamily: SANS }}>
+                            <button onClick={() => handleApprove(l.id)} style={{ height: 32, padding: '0 16px', borderRadius: 8, background: '#0D0D0D', color: '#FFF', fontSize: 12, fontWeight: 600, border: 'none', cursor: 'pointer', fontFamily: SANS }}>
                               ✓ Approve
                             </button>
-                            <button onClick={() => rejectListing(l.id)} style={{ height: 32, padding: '0 16px', borderRadius: 8, background: '#FEF2F2', color: '#DC2626', fontSize: 12, fontWeight: 600, border: '1px solid #FECACA', cursor: 'pointer', fontFamily: SANS }}>
+                            <button onClick={() => rejectListing(l.id)} style={{ height: 32, padding: '0 16px', borderRadius: 8, background: '#F7F7F8', color: '#0D0D0D', fontSize: 12, fontWeight: 600, border: '1px solid rgba(0,0,0,0.12)', cursor: 'pointer', fontFamily: SANS }}>
                               ✕ Reject
                             </button>
                           </div>
@@ -260,7 +302,7 @@ export function AdminDashboard() {
                     <div style={{ fontSize: 13, fontWeight: 600, textTransform: 'capitalize' }}>{a.type}</div>
                     <div style={{ fontSize: 13, fontWeight: 700 }}>{a.amount?.toFixed(2) ?? '—'} USDC</div>
                     <div>
-                      <span style={{ fontSize: 11, fontWeight: 600, color: a.status === 'confirmed' ? '#16A34A' : '#D97706', background: a.status === 'confirmed' ? '#F0FDF4' : '#FFFBEB', padding: '2px 7px', borderRadius: 20 }}>
+                      <span style={{ fontSize: 11, fontWeight: 600, color: '#5C5C6B', background: '#EFEFEF', padding: '2px 7px', borderRadius: 20 }}>
                         {a.status}
                       </span>
                     </div>
@@ -296,8 +338,8 @@ export function AdminDashboard() {
                     <div style={{ fontSize: 11, color: '#A0A0A0', marginTop: 2 }}>{desc}</div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0, marginLeft: 12 }}>
-                    {set ? <CheckCircle size={14} color="#16A34A" /> : <XCircle size={14} color="#D97706" />}
-                    <span style={{ fontSize: 11, fontWeight: 600, color: set ? '#16A34A' : '#D97706' }}>{set ? 'Set' : 'Not set'}</span>
+                    {set ? <CheckCircle size={14} color="#0D0D0D" /> : <XCircle size={14} color="#9898A6" />}
+                    <span style={{ fontSize: 11, fontWeight: 600, color: set ? '#0D0D0D' : '#9898A6' }}>{set ? 'Set' : 'Not set'}</span>
                   </div>
                 </div>
               ))}

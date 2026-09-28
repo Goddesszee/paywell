@@ -12,8 +12,6 @@ import { useAppStore } from '../../store/appStore'
 import { useShopStore, ShopProduct } from '../../store/shopStore'
 
 // Data
-import { PRODUCTS } from '../../data/products'
-import { getVerifiedProducts } from '../../utils/listings'
 import { mapLegacyCategory } from '../../data/shopCategories'
 
 // Components
@@ -27,7 +25,7 @@ import { CartPage, CheckoutPage, ProtectedPurchaseSuccess } from '../shop/ShopCa
 import { OrdersPage } from '../shop/OrdersPage'
 import { SellerDashboard } from '../shop/SellerDashboard'
 import { SellForm } from '../shop/SellForm'
-import { SavedItemsPage, legacyToShopProduct } from '../shop/SavedItemsPage'
+import { SavedItemsPage } from '../shop/SavedItemsPage'
 import { AgentPicksSection } from '../shop/AgentRecommendation'
 import { Button } from '../ui/Button'
 
@@ -54,19 +52,14 @@ export function ShopPage() {
   const [lastTxHash, setLastTxHash] = useState<string | undefined>()
 
   // ── Stores ─────────────────────────────────────────────────────────────────
-  const { cart, addToCart, removeFromCart, clearCart, addActivity, pendingListings } = useAppStore()
+  const { cart, addToCart, removeFromCart, clearCart, addActivity } = useAppStore()
   const { filter, setFilter, favorites, orders, shopProducts } = useShopStore()
   useAccount()
 
   // ── Product universe ───────────────────────────────────────────────────────
-  // Merge: static products + admin-approved listings + shop-added products
-  const verifiedListings = useMemo(() => getVerifiedProducts(pendingListings), [pendingListings])
-
-  const allProducts: ShopProduct[] = useMemo(() => [
-    ...PRODUCTS.map(legacyToShopProduct),
-    ...verifiedListings.map(legacyToShopProduct),
-    ...shopProducts,
-  ], [verifiedListings, shopProducts])
+  // Only admin-approved products appear in the marketplace.
+  // shopProducts are written by AdminDashboard.approveListing → addShopProduct.
+  const allProducts: ShopProduct[] = useMemo(() => shopProducts, [shopProducts])
 
   // ── Filtered & sorted catalog ──────────────────────────────────────────────
   const filteredProducts = useMemo(() => {
@@ -155,6 +148,7 @@ export function ShopPage() {
   const popular = useMemo(() => [...allProducts].sort((a, b) => b.reviewCount - a.reviewCount).slice(0, 8), [allProducts])
   const recentlyListed = useMemo(() => [...allProducts].sort((a, b) => new Date(b.listedAt).getTime() - new Date(a.listedAt).getTime()).slice(0, 8), [allProducts])
   const agentPicks = useMemo(() => allProducts.filter((p) => p.agentSearchable).slice(0, 6), [allProducts])
+  const isEmpty = allProducts.length === 0
 
   const isSearching = search.trim().length > 0 || filter.category !== 'all'
 
@@ -167,49 +161,39 @@ export function ShopPage() {
           product={selectedProduct}
           onBack={goCatalog}
           onBuyNow={() => {
-            const legacyProduct = PRODUCTS.find((p) => p.id === selectedProduct.id)
-            if (legacyProduct) {
-              addToCart(legacyProduct)
-            } else {
-              addToCart({
-                id: selectedProduct.id,
-                name: selectedProduct.name,
-                description: selectedProduct.description,
-                price: selectedProduct.price,
-                merchant: selectedProduct.merchant,
-                merchantId: selectedProduct.merchantId,
-                merchantWallet: selectedProduct.merchantWallet,
-                category: selectedProduct.category as 'tech' | 'home' | 'fashion' | 'digital',
-                rating: selectedProduct.rating,
-                reviewCount: selectedProduct.reviewCount,
-                imageUrl: selectedProduct.images[0] ?? '',
-                inStock: selectedProduct.inStock,
-                tags: selectedProduct.tags,
-              })
-            }
+            addToCart({
+              id: selectedProduct.id,
+              name: selectedProduct.name,
+              description: selectedProduct.description,
+              price: selectedProduct.price,
+              merchant: selectedProduct.merchant,
+              merchantId: selectedProduct.merchantId,
+              merchantWallet: selectedProduct.merchantWallet,
+              category: selectedProduct.category as 'tech' | 'home' | 'fashion' | 'digital',
+              rating: selectedProduct.rating,
+              reviewCount: selectedProduct.reviewCount,
+              imageUrl: selectedProduct.images[0] ?? '',
+              inStock: selectedProduct.inStock,
+              tags: selectedProduct.tags,
+            })
             setView('cart')
           }}
           onAddToCart={() => {
-            const legacyProduct = PRODUCTS.find((p) => p.id === selectedProduct.id)
-            if (legacyProduct) {
-              addToCart(legacyProduct)
-            } else {
-              addToCart({
-                id: selectedProduct.id,
-                name: selectedProduct.name,
-                description: selectedProduct.description,
-                price: selectedProduct.price,
-                merchant: selectedProduct.merchant,
-                merchantId: selectedProduct.merchantId,
-                merchantWallet: selectedProduct.merchantWallet,
-                category: selectedProduct.category as 'tech' | 'home' | 'fashion' | 'digital',
-                rating: selectedProduct.rating,
-                reviewCount: selectedProduct.reviewCount,
-                imageUrl: selectedProduct.images[0] ?? '',
-                inStock: selectedProduct.inStock,
-                tags: selectedProduct.tags,
-              })
-            }
+            addToCart({
+              id: selectedProduct.id,
+              name: selectedProduct.name,
+              description: selectedProduct.description,
+              price: selectedProduct.price,
+              merchant: selectedProduct.merchant,
+              merchantId: selectedProduct.merchantId,
+              merchantWallet: selectedProduct.merchantWallet,
+              category: selectedProduct.category as 'tech' | 'home' | 'fashion' | 'digital',
+              rating: selectedProduct.rating,
+              reviewCount: selectedProduct.reviewCount,
+              imageUrl: selectedProduct.images[0] ?? '',
+              inStock: selectedProduct.inStock,
+              tags: selectedProduct.tags,
+            })
           }}
           onMakeOffer={() => setShowOffer(true)}
           inCart={cart.some((c) => c.product.id === selectedProduct.id)}
@@ -320,6 +304,24 @@ export function ShopPage() {
           cartProductIds={cart.map((c) => c.product.id)}
           query={search}
         />
+      ) : isEmpty ? (
+        /* Empty marketplace — no approved listings yet */
+        <div style={{ textAlign: 'center', padding: '60px 20px' }}>
+          <div style={{
+            width: 60, height: 60, borderRadius: 16, background: '#F7F7F8',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            margin: '0 auto 16px',
+          }}>
+            <ShoppingBag size={26} color="#9898A6" />
+          </div>
+          <h2 style={{ fontSize: 18, fontWeight: 800, color: '#0D0D0D', fontFamily: FONT, letterSpacing: '-0.02em', marginBottom: 8 }}>
+            No listings yet
+          </h2>
+          <p style={{ fontSize: 14, color: '#5C5C6B', lineHeight: 1.7, marginBottom: 24, maxWidth: 300, margin: '0 auto 24px' }}>
+            Be the first to list a product. All listings are reviewed before going live.
+          </p>
+          <Button onClick={() => setView('sell')}>Sell an Item</Button>
+        </div>
       ) : (
         /* Full catalog sections */
         <div>
