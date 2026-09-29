@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Wallet, Bot, Shield, HelpCircle, ExternalLink, ChevronRight, LogOut, Save } from 'lucide-react'
+import { Wallet, Bot, Shield, HelpCircle, ExternalLink, ChevronRight, LogOut, Save, Sun, Moon } from 'lucide-react'
 import { useAccount, useDisconnect } from 'wagmi'
 import { ConnectKitButton } from 'connectkit'
 import { useAppStore } from '../../store/appStore'
@@ -70,7 +70,8 @@ function RowItem({
 export function SettingsPage() {
   const { address, isConnected } = useAccount()
   const { disconnect } = useDisconnect()
-  const { agentPermissions, setAgentPermissions, setOnboarding, setActiveView } = useAppStore()
+  const { agentPermissions, setAgentPermissions, setOnboarding, setActiveView, theme, setTheme } = useAppStore()
+  const isDark = !theme || theme === 'dark'
   const chain = requireChain(ARC)
   const [editingLimits, setEditingLimits] = useState(false)
   const [daily, setDaily] = useState(String(agentPermissions.dailyLimit))
@@ -157,7 +158,39 @@ export function SettingsPage() {
             ✓ Limits saved
           </div>
         )}
-      </CardBlock><SectionLabel>Resources</SectionLabel>
+      </CardBlock>
+
+      <SectionLabel>Appearance</SectionLabel>
+      <CardBlock>
+        <div style={{ display:'flex', alignItems:'center', gap:12, padding:'13px 16px' }}>
+          <div style={{ width:32, height:32, borderRadius:8, background:SURF2, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+            {isDark ? <Moon size={16} color={T2} /> : <Sun size={16} color={T2} />}
+          </div>
+          <div style={{ flex:1 }}>
+            <div style={{ fontSize:14, fontWeight:600, color:TEXT }}>Theme</div>
+            <div style={{ fontSize:12, color:T3, marginTop:1 }}>{isDark ? 'Dark mode' : 'Light mode'}</div>
+          </div>
+          <button
+            onClick={() => setTheme(isDark ? 'light' : 'dark')}
+            style={{
+              width:48, height:26, borderRadius:13,
+              background: isDark ? SURF2 : BLUE,
+              border:`1px solid ${isDark ? BDR : BLUE}`,
+              position:'relative', cursor:'pointer', transition:'all 0.25s',
+              flexShrink:0, padding:0,
+            }}
+          >
+            <div style={{
+              position:'absolute', top:3, left: isDark ? 3 : 23,
+              width:18, height:18, borderRadius:9,
+              background:'#fff', transition:'left 0.25s',
+              boxShadow:'0 1px 4px rgba(0,0,0,0.3)',
+            }} />
+          </button>
+        </div>
+      </CardBlock>
+
+      <SectionLabel>Resources</SectionLabel>
       <CardBlock>
         <RowItem icon={<HelpCircle />} label="Arc documentation" sub="docs.arc.io" onClick={() => window.open('https://docs.arc.io','_blank')} />
         <RowItem icon={<ExternalLink />} label="Arc Testnet explorer" sub={chain.explorerBase} onClick={() => window.open(chain.explorerBase,'_blank')} noBorder />

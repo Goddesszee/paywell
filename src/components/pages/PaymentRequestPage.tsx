@@ -190,7 +190,7 @@ export function PaymentRequestPage({ params }: { params: PaymentParams }) {
       <div style={{ background: BLACK, borderRadius: 20, padding: '24px 20px', marginBottom: 20, textAlign: 'center' }}>
         {/* QR */}
         <div style={{ width: 140, height: 140, background: '#0066FF', borderRadius: 14, margin: '0 auto 16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <QRCodeSVG value={params.to} size={120} bgColor="#fff" fgColor="#ffffff" level="M" />
+          <QRCodeSVG value={params.to} size={120} bgColor="#08090B" fgColor="#ffffff" level="M" />
         </div>
 
         {/* Amount */}

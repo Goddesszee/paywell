@@ -175,7 +175,7 @@ export function WalletPage({ initialSubView = 'main' }: { initialSubView?: Walle
             href={`${chain.explorerBase}/address/${address}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="ml-auto flex items-center gap-1 text-white font-semibold hover:opacity-70 transition-opacity"
+            className="ml-auto flex items-center gap-1 font-semibold hover:opacity-70 transition-opacity"
           >
             Explorer <ExternalLink size={11} />
           </a>
@@ -398,7 +398,7 @@ function SendFlow({
           />
           <div className="mt-2 flex items-center justify-between text-xs text-[#a0a0a0]">
             <span>Available: <span className="font-semibold text-white tabular-nums">{formatUSDC(balance)} USDC</span></span>
-            <button onClick={() => setAmount(balance.toFixed(6))} className="font-semibold text-white underline underline-offset-2">Max</button>
+            <button onClick={() => setAmount(balance.toFixed(6))} className="font-semibold underline underline-offset-2">Max</button>
           </div>
           <div className="flex gap-2 mt-3">
             {[5, 10, 25, 50].map((v) => (

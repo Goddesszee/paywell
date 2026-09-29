@@ -13,6 +13,15 @@
 import './tracing'
 import './console-capture'
 
+// Apply persisted theme before first render — no flash
+;(function () {
+  try {
+    const s = localStorage.getItem('paywell-state-v2')
+    const t = s ? JSON.parse(s)?.state?.theme : null
+    document.documentElement.setAttribute('data-theme', t === 'light' ? 'light' : 'dark')
+  } catch { document.documentElement.setAttribute('data-theme', 'dark') }
+})()
+
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { WagmiProvider } from 'wagmi'
