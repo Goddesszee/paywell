@@ -122,8 +122,8 @@ export function LandingPage() {
       }}>
         <span style={{
           fontSize: 30, fontWeight: 800, color: '#fff',
-          letterSpacing: '-0.5px', textShadow: '0 1px 8px rgba(0,0,0,0.3)',
-        }}>Paywell</span>
+          letterSpacing: '-0.04em', textShadow: '0 1px 8px rgba(0,0,0,0.3)',
+        }}>NAN</span>
       </div>
 
       {/* Slide dot indicators */}
@@ -186,7 +186,7 @@ export function LandingPage() {
                 letterSpacing: '-0.2px', transform: 'rotate(-5deg)', transformOrigin: 'left top',
                 textShadow: '0 1px 6px rgba(0,0,0,0.4)',
               }}>
-                Paywell
+                NAN
               </span>
               {/* Chip */}
               <div style={{
@@ -207,7 +207,7 @@ export function LandingPage() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
                 <div>
                   <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Card holder</div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.95)' }}>Paywell User</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.95)' }}>NAN User</div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
                   <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Balance</div>

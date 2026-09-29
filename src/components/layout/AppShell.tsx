@@ -97,7 +97,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           onClick={handleLogoTap}
           style={{ fontWeight: 700, fontSize: 18, letterSpacing: '-0.02em', color: '#0D0D0D', fontFamily: 'Inter,sans-serif', userSelect: 'none', WebkitUserSelect: 'none', cursor: 'default' }}
         >
-          Paywell
+          NAN
         </span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <div className="net-pill">Arc Testnet</div>
