@@ -1,34 +1,44 @@
 import React, { useState, useRef } from 'react'
-import { Home, Wallet, ShoppingBag, Activity, Menu, X, ArrowLeftRight, ArrowUpDown, Zap, Settings, ChevronRight, CreditCard, Droplet, Layers, Repeat } from 'lucide-react'
+import {
+  Home, Wallet, Activity, Menu, X,
+  ArrowLeftRight, ArrowUpDown, Zap, Settings, ChevronRight,
+  CreditCard, Droplet, Layers, Repeat, Bot
+} from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
 import { useAccount } from 'wagmi'
 
 const ADMIN_ADDRESS = (import.meta.env.VITE_ADMIN_ADDRESS as string ?? '').toLowerCase()
 
-const FONT = "'Inter', -apple-system, sans-serif"
-const BLACK = '#0A0A0F'        // NAN dark background
-const BLUE  = '#2563EB'        // NAN accent blue
-const SURFACE = '#111118'      // NAN surface
-const BORDER = 'rgba(37,99,235,0.18)'  // NAN blue-tinted border
-const TEXT_2 = '#9AA0B0'
-const TEXT_3 = '#64748B'
-
 const NAV_ITEMS = [
-  { id: 'home',     label: 'Home',     Icon: Home },
-  { id: 'wallet',   label: 'Wallet',   Icon: Wallet },
-  { id: 'shop',     label: 'Shop',     Icon: ShoppingBag },
-  { id: 'activity', label: 'Activity', Icon: Activity },
+  { id: 'home',     label: 'Home',      Icon: Home },
+  { id: 'wallet',   label: 'Wallet',    Icon: Wallet },
+  { id: 'activity', label: 'Activity',  Icon: Activity },
 ]
 
-const DRAWER_ITEMS = [
-  { id: 'onramp',   label: 'Buy USDC',  Icon: CreditCard,     desc: 'Card, Apple Pay, bank transfer' },
-  { id: 'faucet',   label: 'Faucet',    Icon: Droplet,        desc: 'Free testnet USDC on Arc' },
-  { id: 'swap',     label: 'Swap',      Icon: ArrowUpDown,    desc: 'Exchange tokens via Circle' },
-  { id: 'bridge',   label: 'Bridge',    Icon: ArrowLeftRight, desc: 'Move USDC across chains' },
-  { id: 'gateway',   label: 'Gateway',   Icon: Layers,  desc: 'Unified USDC balance across chains' },
-  { id: 'recurring', label: 'Recurring', Icon: Repeat,  desc: 'Scheduled agent payments' },
-  { id: 'agent',     label: 'AI Agent',  Icon: Zap,     desc: 'Shop with your AI agent' },
-  { id: 'settings', label: 'Settings',  Icon: Settings,       desc: 'Wallet & preferences' },
+const DRAWER_SECTIONS = [
+  {
+    title: 'Finance',
+    items: [
+      { id: 'onramp',    label: 'Buy USDC',   Icon: CreditCard,     desc: 'Card, Apple Pay, bank' },
+      { id: 'faucet',    label: 'Faucet',     Icon: Droplet,        desc: 'Free testnet USDC' },
+      { id: 'swap',      label: 'Swap',       Icon: ArrowUpDown,    desc: 'Exchange tokens' },
+      { id: 'bridge',    label: 'Bridge',     Icon: ArrowLeftRight, desc: 'Move USDC across chains' },
+      { id: 'gateway',   label: 'Gateway',    Icon: Layers,         desc: 'Unified cross-chain balance' },
+    ],
+  },
+  {
+    title: 'Automation',
+    items: [
+      { id: 'agent',     label: 'AI Agent',   Icon: Bot,            desc: 'Autonomous payments' },
+      { id: 'recurring', label: 'Recurring',  Icon: Repeat,         desc: 'Scheduled payments' },
+    ],
+  },
+  {
+    title: 'Account',
+    items: [
+      { id: 'settings',  label: 'Settings',   Icon: Settings,       desc: 'Wallet & preferences' },
+    ],
+  },
 ]
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -38,10 +48,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const isAdmin = !!address && (ADMIN_ADDRESS === '' || address.toLowerCase() === ADMIN_ADDRESS)
   const [adminToast, setAdminToast] = useState(false)
 
-  // 5-tap secret admin access
   const tapCount = useRef(0)
   const tapTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-
   const handleLogoTap = () => {
     if (!isAdmin) return
     tapCount.current += 1
@@ -61,157 +69,171 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     activeView === id ||
     (id === 'wallet' && ['send', 'receive', 'send_confirm', 'send_success'].includes(activeView))
 
-  const go = (id: string) => {
-    setActiveView(id)
-    setDrawerOpen(false)
-  }
+  const go = (id: string) => { setActiveView(id); setDrawerOpen(false) }
 
   return (
-    <div style={{ position: 'fixed', inset: 0, display: 'flex', flexDirection: 'column', background: BLACK, fontFamily: FONT }}>
+    <div style={{
+      position: 'fixed', inset: 0, display: 'flex', flexDirection: 'column',
+      background: '#08090B', fontFamily: "'Inter', -apple-system, sans-serif",
+    }}>
 
-      {/* ── Admin unlock toast ── */}
+      {/* Admin toast */}
       {adminToast && (
         <div style={{
-          position: 'fixed', top: 60, left: '50%', transform: 'translateX(-50%)',
-          background: BLACK, color: '#ffffff', padding: '8px 20px',
-          borderRadius: 20, fontSize: 13, fontWeight: 600,
-          zIndex: 200, pointerEvents: 'none',
-          animation: 'pw-up 0.2s ease both',
-        }}>
-          Admin unlocked
-        </div>
+          position: 'fixed', top: 64, left: '50%', transform: 'translateX(-50%)',
+          background: '#0066FF', color: '#fff', padding: '7px 18px',
+          borderRadius: 20, fontSize: 12, fontWeight: 600, zIndex: 300, pointerEvents: 'none',
+        }}>Admin unlocked</div>
       )}
 
       {/* ── Top bar ── */}
       <header style={{
-        height: 52, flexShrink: 0, zIndex: 60,
+        height: 54, flexShrink: 0, zIndex: 60,
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         paddingLeft: 'max(16px, env(safe-area-inset-left))',
         paddingRight: 'max(16px, env(safe-area-inset-right))',
-        background: 'rgba(10,10,15,0.92)',
-        backdropFilter: 'blur(20px)',
-        WebkitBackdropFilter: 'blur(20px)',
-        borderBottom: `1px solid ${BORDER}`,
+        background: 'rgba(8,9,11,0.95)',
+        backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
+        borderBottom: '1px solid rgba(255,255,255,0.06)',
       }}>
-        {/* 5-tap secret admin trigger */}
-        <div onClick={handleLogoTap} style={{ display: 'flex', alignItems: 'center', gap: 8, userSelect: 'none', WebkitUserSelect: 'none' as const, cursor: 'default' }}>
-          <div style={{ width: 28, height: 28, borderRadius: '50%', background: BLUE, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: '0 0 12px rgba(37,99,235,0.5)' }}>
-            <svg viewBox="0 0 324 480" width="12" height="17" fill="none">
+        <div
+          onClick={handleLogoTap}
+          style={{ display: 'flex', alignItems: 'center', gap: 9, userSelect: 'none', cursor: 'default' }}
+        >
+          {/* NAN wordmark with blue dot */}
+          <div style={{
+            width: 30, height: 30, borderRadius: 8,
+            background: '#0066FF',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            flexShrink: 0,
+          }}>
+            <svg viewBox="0 0 324 480" width="13" height="18" fill="none">
               <path d="M255,0 L84,167 L71,163 L0,97 L0,378 L246,132 L255,110 Z" fill="#fff"/>
               <path d="M69,480 L240,313 L253,317 L324,383 L324,102 L78,348 L69,370 Z" fill="#fff"/>
             </svg>
           </div>
-          <span style={{ fontWeight: 800, fontSize: 18, letterSpacing: '-0.03em', color: '#F4F4F8', fontFamily: 'Inter,sans-serif' }}>NAN</span>
+          <span style={{ fontWeight: 800, fontSize: 17, letterSpacing: '-0.04em', color: '#FFFFFF' }}>nan</span>
         </div>
+
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div className="net-pill">Arc Testnet</div>
+          {/* Network pill */}
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 5,
+            padding: '4px 10px', borderRadius: 20,
+            background: 'rgba(0,102,255,0.10)', border: '1px solid rgba(0,102,255,0.20)',
+            fontSize: 11, fontWeight: 600, color: '#0066FF',
+          }}>
+            <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#0066FF', display: 'inline-block' }} />
+            Arc Testnet
+          </div>
+          {/* Menu button */}
           <button
             onClick={() => setDrawerOpen(v => !v)}
             aria-label="Menu"
             style={{
-              width: 36, height: 36, borderRadius: 9,
-              background: drawerOpen ? BLUE : SURFACE,
-              border: `1px solid ${drawerOpen ? BLUE : BORDER}`,
+              width: 34, height: 34, borderRadius: 8,
+              background: drawerOpen ? '#0066FF' : '#13151A',
+              border: `1px solid ${drawerOpen ? '#0066FF' : 'rgba(255,255,255,0.10)'}`,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               cursor: 'pointer', transition: 'all 0.15s',
             }}
           >
             {drawerOpen
-              ? <X size={16} color="#ffffff" />
-              : <Menu size={16} color={TEXT_2} />}
+              ? <X size={15} color="#fff" />
+              : <Menu size={15} color="#8A8F9E" />}
           </button>
         </div>
       </header>
 
-      {/* ── Side drawer overlay ── */}
+      {/* Drawer overlay */}
       {drawerOpen && (
         <div
           onClick={() => setDrawerOpen(false)}
-          style={{
-            position: 'fixed', inset: 0, zIndex: 55,
-            background: 'rgba(0,0,0,0.25)',
-            backdropFilter: 'blur(2px)',
-          }}
+          style={{ position: 'fixed', inset: 0, zIndex: 55, background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(3px)' }}
         />
       )}
 
-      {/* ── Side drawer panel ── */}
+      {/* ── Side drawer ── */}
       <div style={{
         position: 'fixed', top: 0, right: 0, bottom: 0,
-        width: 280, zIndex: 70,
-        background: '#111118',
-        borderLeft: `1px solid ${BORDER}`,
-        boxShadow: '-8px 0 32px rgba(0,0,0,0.4)',
+        width: 272, zIndex: 70,
+        background: '#0E1014',
+        borderLeft: '1px solid rgba(255,255,255,0.07)',
+        boxShadow: '-12px 0 40px rgba(0,0,0,0.5)',
         transform: drawerOpen ? 'translateX(0)' : 'translateX(100%)',
-        transition: 'transform 0.25s cubic-bezier(0.4,0,0.2,1)',
+        transition: 'transform 0.24s cubic-bezier(0.4,0,0.2,1)',
         display: 'flex', flexDirection: 'column',
-        paddingTop: 'max(52px, env(safe-area-inset-top))',
-        paddingBottom: 'max(16px, env(safe-area-inset-bottom))',
+        paddingTop: 'max(54px, env(safe-area-inset-top))',
+        paddingBottom: 'max(20px, env(safe-area-inset-bottom))',
       }}>
-        <div style={{ padding: '20px 16px 12px', borderBottom: `1px solid ${BORDER}` }}>
-          <p style={{ fontSize: 11, fontWeight: 600, color: TEXT_3, textTransform: 'uppercase', letterSpacing: '0.06em' }}>More features</p>
-        </div>
-        <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '8px 8px', WebkitOverflowScrolling: 'touch' }}>
-          {DRAWER_ITEMS.map(({ id, label, Icon, desc }) => {
-            const isActive = activeView === id
-            return (
-              <button
-                key={id}
-                onClick={() => go(id)}
-                style={{
-                  width: '100%', display: 'flex', alignItems: 'center', gap: 12,
-                  padding: '12px 12px', borderRadius: 12, border: 'none',
-                  background: isActive ? BLUE : 'transparent',
-                  cursor: 'pointer', transition: 'all 0.15s',
-                  fontFamily: FONT, marginBottom: 2,
-                  WebkitTapHighlightColor: 'transparent',
-                }}
-              >
-                <div style={{
-                  width: 36, height: 36, borderRadius: 10, flexShrink: 0,
-                  background: isActive ? 'rgba(255,255,255,0.15)' : SURFACE,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}>
-                  <Icon size={17} color={isActive ? '#ffffff' : TEXT_2} />
-                </div>
-                <div style={{ flex: 1, textAlign: 'left' }}>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: isActive ? '#ffffff' : '#F4F4F8', lineHeight: 1.2 }}>{label}</div>
-                  <div style={{ fontSize: 12, color: isActive ? 'rgba(255,255,255,0.6)' : TEXT_2, marginTop: 1 }}>{desc}</div>
-                </div>
-                <ChevronRight size={14} color={isActive ? 'rgba(255,255,255,0.5)' : TEXT_3} />
-              </button>
-            )
-          })}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '8px 10px' }}>
+          {DRAWER_SECTIONS.map(section => (
+            <div key={section.title} style={{ marginBottom: 4 }}>
+              <div style={{
+                fontSize: 10, fontWeight: 600, color: '#50556A',
+                textTransform: 'uppercase', letterSpacing: '0.07em',
+                padding: '12px 8px 6px',
+              }}>{section.title}</div>
+              {section.items.map(({ id, label, Icon, desc }) => {
+                const isActive = activeView === id
+                return (
+                  <button
+                    key={id}
+                    onClick={() => go(id)}
+                    style={{
+                      width: '100%', display: 'flex', alignItems: 'center', gap: 11,
+                      padding: '10px 10px', borderRadius: 10, border: 'none',
+                      background: isActive ? 'rgba(0,102,255,0.12)' : 'transparent',
+                      cursor: 'pointer', transition: 'all 0.12s',
+                      fontFamily: "'Inter', sans-serif", marginBottom: 1,
+                      WebkitTapHighlightColor: 'transparent',
+                    }}
+                  >
+                    <div style={{
+                      width: 32, height: 32, borderRadius: 8, flexShrink: 0,
+                      background: isActive ? 'rgba(0,102,255,0.20)' : '#13151A',
+                      border: `1px solid ${isActive ? 'rgba(0,102,255,0.30)' : 'rgba(255,255,255,0.06)'}`,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}>
+                      <Icon size={15} color={isActive ? '#0066FF' : '#8A8F9E'} />
+                    </div>
+                    <div style={{ flex: 1, textAlign: 'left' }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: isActive ? '#0066FF' : '#F2F3F5', lineHeight: 1.2 }}>{label}</div>
+                      <div style={{ fontSize: 11, color: '#50556A', marginTop: 1 }}>{desc}</div>
+                    </div>
+                    <ChevronRight size={13} color={isActive ? 'rgba(0,102,255,0.5)' : '#50556A'} />
+                  </button>
+                )
+              })}
+            </div>
+          ))}
         </div>
       </div>
 
       {/* ── Main content ── */}
       <main style={{
-        flex: 1,
-        overflowY: 'auto', overflowX: 'hidden',
-        padding: '12px 16px 88px',
+        flex: 1, overflowY: 'auto', overflowX: 'hidden',
+        padding: '16px 16px 96px',
         paddingLeft: 'max(16px, env(safe-area-inset-left))',
         paddingRight: 'max(16px, env(safe-area-inset-right))',
         scrollbarWidth: 'none',
         WebkitOverflowScrolling: 'touch',
-        animation: 'pw-up 0.22s ease both',
       }}>
         {children}
       </main>
 
-      {/* ── Bottom nav (4 items) ── */}
+      {/* ── Bottom nav ── */}
       <nav style={{
         flexShrink: 0, zIndex: 100,
-        background: 'rgba(10,10,15,0.97)',
-        backdropFilter: 'blur(24px)',
-        WebkitBackdropFilter: 'blur(24px)',
-        borderTop: `1px solid ${BORDER}`,
-        paddingTop: 4,
-        paddingBottom: 'max(8px, env(safe-area-inset-bottom))',
+        background: 'rgba(8,9,11,0.97)',
+        backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)',
+        borderTop: '1px solid rgba(255,255,255,0.06)',
+        paddingTop: 6,
+        paddingBottom: 'max(10px, env(safe-area-inset-bottom))',
         paddingLeft: 'max(4px, env(safe-area-inset-left))',
         paddingRight: 'max(4px, env(safe-area-inset-right))',
       }}>
-        <div style={{ display: 'flex', maxWidth: 480, margin: '0 auto', gap: 2 }}>
+        <div style={{ display: 'flex', maxWidth: 480, margin: '0 auto' }}>
           {NAV_ITEMS.map(({ id, label, Icon }) => {
             const isActive = navActive(id)
             return (
@@ -220,34 +242,35 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 onClick={() => go(id)}
                 aria-label={label}
                 style={{
-                  flex: 1, minHeight: 52,
+                  flex: 1, minHeight: 50,
                   display: 'flex', flexDirection: 'column',
                   alignItems: 'center', justifyContent: 'center', gap: 3,
-                  padding: '6px 4px', border: 'none',
+                  padding: '4px 4px 6px', border: 'none',
                   background: 'transparent', cursor: 'pointer',
-                  transition: 'all 0.15s', borderRadius: 10,
-                  fontFamily: FONT, fontSize: 10,
-                  fontWeight: isActive ? 600 : 500,
+                  transition: 'all 0.15s', borderRadius: 8,
+                  fontFamily: "'Inter', sans-serif",
                   WebkitTapHighlightColor: 'transparent',
-                  position: 'relative',
                 }}
               >
-                {isActive && (
-                  <span style={{
-                    position: 'absolute', top: 5,
-                    width: 4, height: 4, borderRadius: '50%', background: BLUE,
-                  }} />
-                )}
-                <Icon size={20} color={isActive ? BLUE : TEXT_3} />
-                <span style={{ color: isActive ? BLUE : TEXT_3, transition: 'color 0.15s', lineHeight: 1, letterSpacing: '0.02em' }}>
+                <Icon size={21} color={isActive ? '#0066FF' : '#50556A'} strokeWidth={isActive ? 2.2 : 1.8} />
+                <span style={{
+                  fontSize: 10, fontWeight: isActive ? 600 : 400,
+                  color: isActive ? '#0066FF' : '#50556A',
+                  letterSpacing: '0.01em', lineHeight: 1,
+                }}>
                   {label}
                 </span>
+                {isActive && (
+                  <span style={{
+                    position: 'absolute', bottom: 'max(10px,env(safe-area-inset-bottom))',
+                    width: 3, height: 3, borderRadius: '50%', background: '#0066FF',
+                  }} />
+                )}
               </button>
             )
           })}
         </div>
       </nav>
-
     </div>
   )
 }

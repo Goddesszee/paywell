@@ -1,18 +1,17 @@
 import React, { useState, useEffect } from 'react'
 import { ConnectKitButton } from 'connectkit'
 import { useAccount } from 'wagmi'
-import { Mail, Wallet, ArrowLeft, Loader } from 'lucide-react'
+import { Mail, Wallet, ArrowLeft, Loader, ArrowRight } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
 
-
 const F = "'Inter', -apple-system, sans-serif"
-const BLACK = '#111111'
-const BLUE  = '#2563EB'
-const NAN_TEXT = '#F4F4F8'
-const SURFACE = 'rgba(255,255,255,0.04)'
-const BORDER = 'rgba(255,255,255,0.1)'
-const TEXT2 = '#a0a0a0'
-const TEXT3 = '#555555'
+const BG       = '#08090B'
+const SURFACE  = '#13151A'
+const BORDER   = 'rgba(255,255,255,0.10)'
+const BLUE     = '#0066FF'
+const TEXT     = '#F2F3F5'
+const TEXT2    = '#8A8F9E'
+const TEXT3    = '#50556A'
 
 type LoginMode = 'choose' | 'email' | 'otp'
 
@@ -26,7 +25,6 @@ export function LoginPage() {
   const [error, setError] = useState('')
   const [otpSent, setOtpSent] = useState(false)
 
-  // Handle Google OAuth redirect
   useEffect(() => {
     const hash = window.location.hash
     if (hash.includes('google-auth=')) {
@@ -36,215 +34,151 @@ export function LoginPage() {
       if (token && emailParam) {
         window.location.hash = ''
         setAuth({ email: emailParam, sessionToken: token, walletAddress: '', walletId: '' })
-        if (!onboarding.completed) {
-          setActiveView('onboarding')
-        } else {
-          setActiveView('home')
-        }
+        setActiveView(onboarding.completed ? 'home' : 'onboarding')
       }
     }
   }, [onboarding.completed, setAuth, setActiveView])
 
-  // Wallet connect auto-advance
   useEffect(() => {
     if (isConnected && address) {
       setAuth({ email: '', sessionToken: 'wallet', walletAddress: address, walletId: address })
-      if (!onboarding.completed) {
-        setActiveView('onboarding')
-      } else {
-        setActiveView('home')
-      }
+      setActiveView(onboarding.completed ? 'home' : 'onboarding')
     }
   }, [isConnected, address, onboarding.completed, setAuth, setActiveView, setOnboarding])
 
   const sendOtp = async () => {
     if (!email.trim()) return
-    setLoading(true)
-    setError('')
+    setLoading(true); setError('')
     try {
       const res = await fetch('/api/otp', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, action: 'send' }),
       })
       if (!res.ok) throw new Error('Failed to send code')
-      setOtpSent(true)
-      setMode('otp')
+      setOtpSent(true); setMode('otp')
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to send code')
-    } finally {
-      setLoading(false)
-    }
+    } finally { setLoading(false) }
   }
 
   const verifyOtp = async () => {
     if (!otp.trim()) return
-    setLoading(true)
-    setError('')
+    setLoading(true); setError('')
     try {
       const res = await fetch('/api/otp', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, code: otp, action: 'verify' }),
       })
-      const data = await res.json() as { success?: boolean; sessionToken?: string; devCode?: string }
+      const data = await res.json() as { success?: boolean; sessionToken?: string }
       if (!res.ok || !data.success) throw new Error('Invalid code')
       setAuth({ email, sessionToken: data.sessionToken ?? 'email-auth', walletAddress: '', walletId: '' })
-      if (!onboarding.completed) {
-        setActiveView('onboarding')
-      } else {
-        setActiveView('home')
-      }
+      setActiveView(onboarding.completed ? 'home' : 'onboarding')
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Invalid code')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const googleLogin = () => {
-    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined
-    if (!clientId) {
-      setError('Google login not configured. Add VITE_GOOGLE_CLIENT_ID to environment variables.')
-      return
-    }
-    const params = new URLSearchParams({
-      client_id: clientId,
-      redirect_uri: `${window.location.origin}/api/auth/google/callback`,
-      response_type: 'code',
-      scope: 'openid email profile',
-      state: Math.random().toString(36).slice(2),
-    })
-    window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?${params}`
+    } finally { setLoading(false) }
   }
 
   return (
     <div style={{
-      minHeight: '100vh', background: '#0A0A0F', fontFamily: F,
+      minHeight: '100dvh', background: BG, fontFamily: F,
       display: 'flex', flexDirection: 'column', alignItems: 'center',
       justifyContent: 'center', padding: '24px 20px',
     }}>
-      <div style={{ width: '100%', maxWidth: 400 }}>
+      <div style={{ width: '100%', maxWidth: 380 }}>
 
         {/* Logo */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 40 }}>
-          <span style={{fontWeight:800,fontSize:28,letterSpacing:"-0.03em",color:"#F4F4F8",fontFamily:"Inter,sans-serif"}}>NAN</span>
-          <p style={{ fontSize: 14, color: TEXT2, marginTop: 10, fontWeight: 400 }}>
-            The intelligent payment layer
-          </p>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 44 }}>
+          <div style={{ width: 44, height: 44, borderRadius: 12, background: BLUE, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+            <svg viewBox="0 0 324 480" width="18" height="25" fill="none">
+              <path d="M255,0 L84,167 L71,163 L0,97 L0,378 L246,132 L255,110 Z" fill="#fff"/>
+              <path d="M69,480 L240,313 L253,317 L324,383 L324,102 L78,348 L69,370 Z" fill="#fff"/>
+            </svg>
+          </div>
+          <span style={{ fontWeight: 800, fontSize: 26, letterSpacing: '-0.04em', color: TEXT }}>nan</span>
+          <p style={{ fontSize: 14, color: TEXT2, marginTop: 6 }}>The intelligent payment layer</p>
         </div>
 
-        {/* ── Choose method ── */}
+        {/* Choose method */}
         {mode === 'choose' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {/* Wallet */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <ConnectKitButton.Custom>
               {({ show }) => (
-                <button onClick={show} style={btnStyle('#2563EB', '#fff')}>
-                  <Wallet size={18} />
-                  <span>Continue with Wallet</span>
+                <button onClick={show} style={btnS(BLUE, '#fff')}>
+                  <Wallet size={17} /><span>Continue with Wallet</span>
                 </button>
               )}
             </ConnectKitButton.Custom>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '4px 0' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '6px 0' }}>
               <div style={{ flex: 1, height: 1, background: BORDER }} />
               <span style={{ fontSize: 12, color: TEXT3, fontWeight: 500 }}>or</span>
               <div style={{ flex: 1, height: 1, background: BORDER }} />
             </div>
 
-            {/* Google */}
-            <button onClick={googleLogin} style={btnStyle('rgba(255,255,255,0.06)', '#111111', 'rgba(255,255,255,0.12)')}>
-              <GoogleIcon />
-              <span>Continue with Google</span>
+            <button onClick={() => setMode('email')} style={btnS(SURFACE, TEXT, BORDER)}>
+              <Mail size={17} /><span>Continue with Email</span>
             </button>
 
-            {/* Email */}
-            <button onClick={() => setMode('email')} style={btnStyle('rgba(255,255,255,0.04)', '#111111', 'rgba(255,255,255,0.1)')}>
-              <Mail size={18} />
-              <span>Continue with Email</span>
-            </button>
-
-            <p style={{ fontSize: 12, color: TEXT3, textAlign: 'center', marginTop: 16, lineHeight: 1.6 }}>
+            <p style={{ fontSize: 12, color: TEXT3, textAlign: 'center', marginTop: 14, lineHeight: 1.6 }}>
               By continuing you agree to NAN's Terms of Service and Privacy Policy.
             </p>
           </div>
         )}
 
-        {/* ── Email entry ── */}
+        {/* Email entry */}
         {mode === 'email' && (
           <div>
             <button onClick={() => { setMode('choose'); setError('') }}
               style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', cursor: 'pointer', color: TEXT2, fontSize: 14, marginBottom: 28, padding: 0, fontFamily: F }}>
-              <ArrowLeft size={15} /> Back
+              <ArrowLeft size={14} /> Back
             </button>
-            <h2 style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.03em', marginBottom: 6, color: '#111111' }}>Enter your email</h2>
-            <p style={{ fontSize: 14, color: TEXT2, marginBottom: 24 }}>We'll send you a one-time code to sign in.</p>
-            <input
-              type="email"
-              placeholder="you@example.com"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && void sendOtp()}
-              autoFocus
-              style={inputStyle}
-            />
-            {error && <p style={errStyle}>{error}</p>}
-            <button
-              onClick={() => void sendOtp()}
-              disabled={loading || !email.trim()}
-              style={{ ...btnStyle(loading || !email.trim() ? 'rgba(255,255,255,0.06)' : '#2563EB', loading || !email.trim() ? '#555555' : '#111111'), marginTop: 12, cursor: loading || !email.trim() ? 'not-allowed' : 'pointer' }}
-            >
-              {loading ? <Loader size={16} style={{ animation: 'spin 1s linear infinite' }} /> : null}
-              {loading ? 'Sending…' : 'Send code →'}
+            <h2 style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.025em', marginBottom: 6, color: TEXT }}>Enter your email</h2>
+            <p style={{ fontSize: 14, color: TEXT2, marginBottom: 22 }}>We'll send you a one-time code to sign in.</p>
+            <input type="email" placeholder="you@example.com" value={email}
+              onChange={e => setEmail(e.target.value)} onKeyDown={e => e.key === 'Enter' && void sendOtp()}
+              autoFocus style={inputS} />
+            {error && <p style={errS}>{error}</p>}
+            <button onClick={() => void sendOtp()} disabled={loading || !email.trim()}
+              style={{ ...btnS(loading || !email.trim() ? SURFACE : BLUE, loading || !email.trim() ? TEXT3 : '#fff', loading || !email.trim() ? BORDER : 'none'), marginTop: 12 }}>
+              {loading ? <Loader size={16} style={{ animation: 'nan-spin 1s linear infinite' }} /> : <ArrowRight size={16} />}
+              {loading ? 'Sending…' : 'Send code'}
             </button>
           </div>
         )}
 
-        {/* ── OTP entry ── */}
+        {/* OTP entry */}
         {mode === 'otp' && (
           <div>
             <button onClick={() => { setMode('email'); setError(''); setOtp('') }}
               style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', cursor: 'pointer', color: TEXT2, fontSize: 14, marginBottom: 28, padding: 0, fontFamily: F }}>
-              <ArrowLeft size={15} /> Back
+              <ArrowLeft size={14} /> Back
             </button>
-            <h2 style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.03em', marginBottom: 6, color: '#111111' }}>Check your email</h2>
-            <p style={{ fontSize: 14, color: TEXT2, marginBottom: 24 }}>
-              We sent a 6-digit code to <strong>{email}</strong>
+            <h2 style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.025em', marginBottom: 6, color: TEXT }}>Check your email</h2>
+            <p style={{ fontSize: 14, color: TEXT2, marginBottom: 22 }}>
+              We sent a 6-digit code to <strong style={{ color: TEXT }}>{email}</strong>
             </p>
             {otpSent && (
-              <div style={{ background: 'rgba(37,99,235,0.1)', border: '1px solid rgba(37,99,235,0.25)', borderRadius: 10, padding: '10px 14px', marginBottom: 16, fontSize: 13, color: '#3B82F6' }}>
-                Code sent. Check your inbox (or server console in dev mode).
+              <div style={{ background: 'rgba(0,102,255,0.10)', border: '1px solid rgba(0,102,255,0.20)', borderRadius: 10, padding: '10px 14px', marginBottom: 16, fontSize: 13, color: BLUE }}>
+                Code sent. Check your inbox.
               </div>
             )}
-            <input
-              type="text"
-              inputMode="numeric"
-              maxLength={6}
-              placeholder="000000"
-              value={otp}
-              onChange={e => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+            <input type="text" inputMode="numeric" maxLength={6} placeholder="000000"
+              value={otp} onChange={e => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
               onKeyDown={e => e.key === 'Enter' && otp.length === 6 && void verifyOtp()}
               autoFocus
-              style={{ ...inputStyle, textAlign: 'center', fontSize: 28, fontWeight: 700, letterSpacing: '0.3em' }}
-            />
-            {error && <p style={errStyle}>{error}</p>}
-            <button
-              onClick={() => void verifyOtp()}
-              disabled={loading || otp.length !== 6}
-              style={{ ...btnStyle(loading || otp.length !== 6 ? 'rgba(255,255,255,0.06)' : '#2563EB', loading || otp.length !== 6 ? '#555555' : '#111111'), marginTop: 12, cursor: loading || otp.length !== 6 ? 'not-allowed' : 'pointer' }}
-            >
-              {loading ? <Loader size={16} style={{ animation: 'spin 1s linear infinite' }} /> : null}
+              style={{ ...inputS, textAlign: 'center', fontSize: 28, fontWeight: 700, letterSpacing: '0.3em' }} />
+            {error && <p style={errS}>{error}</p>}
+            <button onClick={() => void verifyOtp()} disabled={loading || otp.length !== 6}
+              style={{ ...btnS(loading || otp.length !== 6 ? SURFACE : BLUE, loading || otp.length !== 6 ? TEXT3 : '#fff', loading || otp.length !== 6 ? BORDER : 'none'), marginTop: 12 }}>
+              {loading ? <Loader size={16} style={{ animation: 'nan-spin 1s linear infinite' }} /> : null}
               {loading ? 'Verifying…' : 'Verify →'}
             </button>
-            <button
-              onClick={() => void sendOtp()}
+            <button onClick={() => void sendOtp()}
               style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer', color: TEXT2, fontSize: 13, marginTop: 14, fontFamily: F, textDecoration: 'underline' }}>
               Resend code
             </button>
           </div>
         )}
-
       </div>
 
       <p style={{ position: 'fixed', bottom: 20, fontSize: 11, color: TEXT3 }}>
@@ -254,37 +188,24 @@ export function LoginPage() {
   )
 }
 
-function GoogleIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-      <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615Z" fill="#4285F4"/>
-      <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18Z" fill="#34A853"/>
-      <path d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332Z" fill="#FBBC05"/>
-      <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58Z" fill="#EA4335"/>
-    </svg>
-  )
-}
-
-function btnStyle(bg: string, color: string, borderColor?: string): React.CSSProperties {
+function btnS(bg: string, color: string, borderColor?: string): React.CSSProperties {
   return {
-    width: '100%', padding: '14px 20px',
+    width: '100%', padding: '13px 20px',
     background: bg, color,
     border: borderColor ? `1px solid ${borderColor}` : 'none',
-    borderRadius: 14, fontSize: 15, fontWeight: 600,
+    borderRadius: 12, fontSize: 15, fontWeight: 600,
     cursor: 'pointer', fontFamily: F,
-    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
-    transition: 'opacity 0.15s',
+    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 9,
+    transition: 'opacity 0.15s', letterSpacing: '-0.01em',
   }
 }
 
-const inputStyle: React.CSSProperties = {
+const inputS: React.CSSProperties = {
   width: '100%', padding: '13px 16px',
-  border: '1.5px solid rgba(255,255,255,0.12)',
+  border: '1px solid rgba(255,255,255,0.12)',
   borderRadius: 12, fontSize: 16, fontFamily: F,
-  color: '#F4F4F8', background: '#111118', outline: 'none',
+  color: '#F2F3F5', background: '#13151A', outline: 'none',
   boxSizing: 'border-box',
 }
 
-const errStyle: React.CSSProperties = {
-  fontSize: 13, color: '#DC2626', marginTop: 8,
-}
+const errS: React.CSSProperties = { fontSize: 13, color: '#FF3B3B', marginTop: 8 }

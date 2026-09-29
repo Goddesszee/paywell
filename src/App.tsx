@@ -5,7 +5,6 @@ import { LoginPage } from './components/pages/LoginPage'
 import { OnboardingPage } from './components/pages/OnboardingPage'
 import { HomePage } from './components/pages/HomePage'
 import { WalletPage } from './components/pages/WalletPage'
-import { ShopPage } from './components/pages/ShopPage'
 import { AgentPage } from './components/pages/AgentPage'
 import { ActivityPage } from './components/pages/ActivityPage'
 import { SettingsPage } from './components/pages/SettingsPage'
@@ -33,7 +32,6 @@ export default function App() {
       {activeView === 'wallet' && <WalletPage />}
       {activeView === 'send' && <WalletPage initialSubView="send" />}
       {activeView === 'receive' && <WalletPage initialSubView="receive" />}
-      {activeView === 'shop' && <ShopPage />}
       {activeView === 'agent' && <AgentPage />}
       {activeView === 'bridge' && <BridgePage />}
       {activeView === 'swap'   && <SwapPage />}
