@@ -3,7 +3,7 @@
  * Orchestrates all shop sub-views.
  * Architecture is AI-agent ready: same Product/Order entities used by both humans and agents.
  */
-import React, { useState, useMemo, useCallback } from 'react'
+import React, { useState, useMemo, useCallback, useEffect } from 'react'
 import { ShoppingBag } from 'lucide-react'
 import { useAccount } from 'wagmi'
 
@@ -53,8 +53,14 @@ export function ShopPage() {
 
   // ── Stores ─────────────────────────────────────────────────────────────────
   const { cart, addToCart, removeFromCart, clearCart, addActivity } = useAppStore()
-  const { filter, setFilter, favorites, orders, shopProducts } = useShopStore()
+  const { filter, setFilter, favorites, orders, shopProducts, fetchShopProducts } = useShopStore()
   useAccount()
+
+  // Load the shared, admin-approved catalog from the server so listings show
+  // up for every visitor — not just the browser that approved them.
+  useEffect(() => {
+    fetchShopProducts()
+  }, [fetchShopProducts])
 
   // ── Product universe ───────────────────────────────────────────────────────
   // Only admin-approved products appear in the marketplace.

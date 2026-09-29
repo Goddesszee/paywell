@@ -154,8 +154,9 @@ function AgentStatusLine() {
 }
 
 function AgentChat() {
-  const { agentMessages, addAgentMessage, agentPermissions, agentDailyUsed, approveAgentPurchase, rejectAgentPurchase, clearAgentMessages, auth, pendingListings } = useAppStore()
+  const { agentMessages, addAgentMessage, agentPermissions, agentDailyUsed, approveAgentPurchase, rejectAgentPurchase, clearAgentMessages, auth, pendingListings, fetchPendingListings } = useAppStore()
   const verifiedCatalog = React.useMemo(() => getVerifiedProducts(pendingListings), [pendingListings])
+  useEffect(() => { fetchPendingListings() }, [fetchPendingListings])
   const { address, chainId } = useAccount()
   const { writeContractAsync } = useWriteContract()
   const [input, setInput] = useState('')

@@ -179,6 +179,8 @@ interface ShopState {
   addShopProduct: (p: Omit<ShopProduct, 'id' | 'listedAt'>) => string
   updateShopProduct: (id: string, update: Partial<ShopProduct>) => void
   removeShopProduct: (id: string) => void
+  setShopProducts: (products: ShopProduct[]) => void
+  fetchShopProducts: () => Promise<void>
 
   // Orders
   orders: ShopOrder[]
@@ -246,6 +248,17 @@ export const useShopStore = create<ShopState>()(
         })),
       removeShopProduct: (id) =>
         set((s) => ({ shopProducts: s.shopProducts.filter((p) => p.id !== id) })),
+      setShopProducts: (products) => set({ shopProducts: products }),
+      fetchShopProducts: async () => {
+        try {
+          const res = await fetch('/api/listings')
+          if (!res.ok) throw new Error(`HTTP ${res.status}`)
+          const data = await res.json() as { approved: ShopProduct[] }
+          set({ shopProducts: data.approved })
+        } catch (err) {
+          console.error('fetchShopProducts: failed', err)
+        }
+      },
 
       orders: [],
       addOrder: (o) => {

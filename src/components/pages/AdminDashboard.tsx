@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAppStore } from '../../store/appStore'
 import { useShopStore } from '../../store/shopStore'
-import type { DeliveryMethod } from '../../store/shopStore'
+import type { DeliveryMethod, ConditionLabel } from '../../store/shopStore'
 import { FEE_WALLET, MARKETPLACE_FEE_BPS, SWAP_FEE_BPS, BRIDGE_FEE_BPS, bpsToPercent } from '../../lib/fees'
 
 import { BarChart3, Users, ShoppingBag, Zap, ArrowUpRight, ArrowDownLeft, RefreshCw, Shield, Globe, Cpu, CheckCircle, XCircle, Activity, ArrowLeft, TrendingUp } from 'lucide-react'
@@ -55,22 +55,30 @@ function InfraCard({ name, status, desc, icon }: InfraItem) {
 }
 
 export function AdminDashboard() {
-  const { activity, pendingListings, approveListing, rejectListing, setActiveView, feeRevenue } = useAppStore()
-  const { addShopProduct } = useShopStore()
+  const { activity, pendingListings, approveListing, rejectListing, setActiveView, feeRevenue, fetchPendingListings } = useAppStore()
+  const { addShopProduct, setShopProducts, fetchShopProducts } = useShopStore()
   const [tab, setTab] = useState<'overview' | 'listings' | 'activity' | 'revenue' | 'circle' | 'users'>('overview')
   const [now] = useState(new Date())
+
+  // Pull the shared, server-side listing queue and catalog — without this,
+  // Admin would only ever see submissions made from this same browser.
+  useEffect(() => {
+    fetchPendingListings()
+    fetchShopProducts()
+  }, [fetchPendingListings, fetchShopProducts])
 
   // Computed stats from real activity store
   const totalVol = activity.reduce((s, a) => s + (a.amount || 0), 0)
   const sends = activity.filter(a => a.type === 'sent').length
   const shops = activity.filter(a => a.type === 'purchase').length
 
-  // Approve a listing: update status in appStore AND publish to shopStore catalog
-  const handleApprove = (id: string) => {
+  // Approve a listing: publish it server-side (shared across every visitor),
+  // then resync both stores from the server response.
+  const handleApprove = async (id: string) => {
     const listing = pendingListings.find(l => l.id === id)
     if (!listing) return
-    approveListing(id)
-    addShopProduct({
+
+    const shopProduct = {
       name: listing.name,
       description: listing.description || '',
       price: listing.price,
@@ -84,7 +92,7 @@ export function AdminDashboard() {
       merchantResponseRate: undefined,
       merchantJoined: new Date().toISOString(),
       category: listing.category,
-      condition: 'good',
+      condition: 'good' as ConditionLabel,
       images: listing.imageBase64
         ? [listing.imageBase64]
         : listing.imageUrl
@@ -101,7 +109,23 @@ export function AdminDashboard() {
       isVerifiedListing: true,
       agentSearchable: true,
       agentKeywords: [listing.name, listing.category],
-    })
+    }
+
+    try {
+      const res = await fetch('/api/listings', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ action: 'approve', id, shopProduct }),
+      })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const data = await res.json() as { pending: any[]; approved: any[] }
+      setShopProducts(data.approved)
+      approveListing(id) // local optimistic marker; server is already the source of truth
+    } catch (err) {
+      console.error('Failed to approve listing on server, applying locally only', err)
+      approveListing(id)
+      addShopProduct(shopProduct)
+    }
   }
 
   // Env var check (Vite exposes VITE_ vars)

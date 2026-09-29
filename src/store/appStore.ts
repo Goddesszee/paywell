@@ -204,9 +204,11 @@ interface AppState {
   clearCart: () => void
 
   pendingListings: PendingListing[]
-  submitListing: (listing: Omit<PendingListing, 'id' | 'submittedAt'>) => void
+  submitListing: (listing: Omit<PendingListing, 'id' | 'submittedAt'>) => Promise<void>
   approveListing: (id: string) => void
-  rejectListing: (id: string) => void
+  rejectListing: (id: string) => Promise<void>
+  fetchPendingListings: () => Promise<void>
+  setPendingListings: (listings: PendingListing[]) => void
 
   // Protected Purchase orders
   orders: ProtectedOrder[]
@@ -338,25 +340,65 @@ export const useAppStore = create<AppState>()(
       resetDailyUsage: () => set({ agentDailyUsed: 0 }),
 
       pendingListings: [],
-      submitListing: (listing) =>
-        set((s) => ({
-          pendingListings: [
-            ...s.pendingListings,
-            { ...listing, id: `lst-${Date.now()}`, submittedAt: new Date() },
-          ],
-        })),
+      submitListing: async (listing) => {
+        // Optimistic local id so the UI has something immediately.
+        const optimistic: PendingListing = { ...listing, id: `lst-local-${Date.now()}`, submittedAt: new Date() }
+        set((s) => ({ pendingListings: [...s.pendingListings, optimistic] }))
+        try {
+          const res = await fetch('/api/listings', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ action: 'create', listing }),
+          })
+          if (!res.ok) throw new Error(`HTTP ${res.status}`)
+          const data = await res.json() as { listing: PendingListing }
+          // Swap the optimistic entry for the server-confirmed one so every
+          // visitor (not just this browser) will see it after a refetch.
+          set((s) => ({
+            pendingListings: s.pendingListings.map((l) =>
+              l.id === optimistic.id ? { ...data.listing, submittedAt: new Date(data.listing.submittedAt) } : l
+            ),
+          }))
+        } catch (err) {
+          console.error('submitListing: failed to sync to server', err)
+        }
+      },
       approveListing: (id) =>
         set((s) => ({
           pendingListings: s.pendingListings.map((l) =>
             l.id === id ? { ...l, status: 'approved' as const } : l
           ),
         })),
-      rejectListing: (id) =>
+      rejectListing: async (id) => {
         set((s) => ({
           pendingListings: s.pendingListings.map((l) =>
             l.id === id ? { ...l, status: 'rejected' as const } : l
           ),
-        })),
+        }))
+        try {
+          const res = await fetch('/api/listings', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ action: 'reject', id }),
+          })
+          if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        } catch (err) {
+          console.error('rejectListing: failed to sync to server', err)
+        }
+      },
+      fetchPendingListings: async () => {
+        try {
+          const res = await fetch('/api/listings')
+          if (!res.ok) throw new Error(`HTTP ${res.status}`)
+          const data = await res.json() as { pending: PendingListing[] }
+          set({
+            pendingListings: data.pending.map((l) => ({ ...l, submittedAt: new Date(l.submittedAt) })),
+          })
+        } catch (err) {
+          console.error('fetchPendingListings: failed', err)
+        }
+      },
+      setPendingListings: (listings) => set({ pendingListings: listings }),
 
       cart: [],
       addToCart: (product) =>

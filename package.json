@@ -33,6 +33,7 @@
     "@types/express": "^5.0.6",
     "@types/nodemailer": "^8.0.2",
     "@types/uuid": "^11.0.0",
+    "@upstash/redis": "^1.39.0",
     "@vercel/node": "^15.0.0",
     "@web3icons/react": "^4.0.0",
     "@x402/core": "^2.27.0",
