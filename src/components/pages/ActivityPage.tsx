@@ -1,17 +1,18 @@
+import { useNanTheme } from '../../hooks/useNanTheme'
 import React, { useState } from 'react'
 import { ArrowUpRight, ArrowDownLeft, Bot, Filter, Search, CheckCircle2, Clock, XCircle } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
 
 const F    = "'Inter', -apple-system, sans-serif"
 const MONO = "'JetBrains Mono', Menlo, monospace"
-const BG   = '#08090B'
-const SURF = '#13151A'
-const SURF2= '#1A1D24'
-const BDR  = 'rgba(255,255,255,0.07)'
+const BG   = 'var(--nan-bg)'
+const SURF = 'var(--nan-surface)'
+const SURF2= 'var(--nan-surface2)'
+const BDR  = 'var(--nan-bdr)'
 const BLUE = '#0066FF'
-const TEXT = '#F2F3F5'
-const T2   = '#8A8F9E'
-const T3   = '#50556A'
+const TEXT = 'var(--nan-text)'
+const T2   = 'var(--nan-text2)'
+const T3   = 'var(--nan-text3)'
 const GREEN= '#00C853'
 const RED  = '#FF3B3B'
 const GOLD = '#F0A500'
@@ -32,6 +33,7 @@ function StatusIcon({ status }: { status: string }) {
 }
 
 export function ActivityPage() {
+  const C = useNanTheme()
   const { activity } = useAppStore()
   const [activeFilter, setActiveFilter] = useState<Filter>('all')
   const [search, setSearch] = useState('')

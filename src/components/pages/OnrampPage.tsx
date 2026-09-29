@@ -1,3 +1,4 @@
+import { useNanTheme } from '../../hooks/useNanTheme'
 import React, { useRef, useState } from 'react'
 import { useAccount } from 'wagmi'
 
@@ -22,6 +23,7 @@ const PAYMENT_METHODS = [
 ]
 
 export function OnrampPage() {
+  const C = useNanTheme()
   const { address, isConnected } = useAccount()
   const setActiveView = useAppStore(s => s.setActiveView)
 

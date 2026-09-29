@@ -1,3 +1,4 @@
+import { useNanTheme } from '../../hooks/useNanTheme'
 import React, { useState } from 'react'
 import { useAccount } from 'wagmi'
 
@@ -14,6 +15,7 @@ const PW_WHITE   = '#111111'
 const SANS       = 'Inter, sans-serif'
 
 export function FaucetPage() {
+  const C = useNanTheme()
   const { address, isConnected } = useAccount()
   const setActiveView = useAppStore(s => s.setActiveView)
 

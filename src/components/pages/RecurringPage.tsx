@@ -1,3 +1,4 @@
+import { useNanTheme } from '../../hooks/useNanTheme'
 import { useState, useEffect, useRef } from 'react'
 import { Repeat, Plus, Play, Pause, Trash2, Clock, Check, AlertCircle, X } from 'lucide-react'
 import { useWriteContract, useWaitForTransactionReceipt, useAccount, useSwitchChain } from 'wagmi'
@@ -31,6 +32,7 @@ interface RecurringTask {
 type FormStep = 'closed' | 'open'
 
 export function RecurringPage() {
+  const C = useNanTheme()
   const { address, chainId } = useAccount()
   const { addActivity } = useAppStore()
   const { switchChain } = useSwitchChain()

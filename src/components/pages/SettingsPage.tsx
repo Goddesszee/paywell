@@ -1,3 +1,4 @@
+import { useNanTheme } from '../../hooks/useNanTheme'
 import React, { useState } from 'react'
 import { Wallet, Bot, Shield, HelpCircle, ExternalLink, ChevronRight, LogOut, Save, Sun, Moon } from 'lucide-react'
 import { useAccount, useDisconnect } from 'wagmi'
@@ -10,13 +11,13 @@ import { Badge } from '../ui/Badge'
 const ARC  = 5042002
 const MONO = "'JetBrains Mono', Menlo, monospace"
 const F    = "'Inter', -apple-system, sans-serif"
-const SURF = '#13151A'
-const SURF2= '#1A1D24'
-const BDR  = 'rgba(255,255,255,0.07)'
+const SURF = 'var(--nan-surface)'
+const SURF2= 'var(--nan-surface2)'
+const BDR  = 'var(--nan-bdr)'
+const TEXT = 'var(--nan-text)'
+const T2   = 'var(--nan-text2)'
+const T3   = 'var(--nan-text3)'
 const BLUE = '#0066FF'
-const TEXT = '#F2F3F5'
-const T2   = '#8A8F9E'
-const T3   = '#50556A'
 const RED  = '#FF3B3B'
 
 function SectionLabel({ children }: { children: React.ReactNode }) {

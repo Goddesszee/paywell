@@ -1,3 +1,4 @@
+import { useNanTheme } from '../../hooks/useNanTheme'
 import React, { useState, useRef, useEffect } from 'react'
 import {
   Bot, Send, X, Check, Zap, Shield, ShoppingBag,
@@ -88,6 +89,7 @@ function simulateAgentResponse(
 }
 
 export function AgentPage() {
+  const C = useNanTheme()
   const [tab, setTab] = useState<AgentTab>('chat')
 
   const TABS: { id: AgentTab; label: string; highlight?: boolean }[] = [

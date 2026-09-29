@@ -1,3 +1,4 @@
+import { useNanTheme } from '../../hooks/useNanTheme'
 import React, { useState, useEffect, useCallback } from 'react'
 import { useAccount, useChainId, useSwitchChain } from 'wagmi'
 import { AppKit } from '@circle-fin/app-kit'
@@ -12,8 +13,8 @@ const appKit = new AppKit()
 const S  = '#111318'
 const B  = 'rgba(255,255,255,0.08)'
 const T  = '#F2F3F5'
-const T2 = '#8A8F9E'
-const T3 = '#50556A'
+const T2   = 'var(--nan-text2)'
+const T3   = 'var(--nan-text3)'
 const BK = '#0066FF'
 const WH = '#ffffff'
 const SANS = 'Inter, sans-serif'
@@ -64,6 +65,7 @@ const INITIAL_STEPS: StepState[] = [
 interface LiveFee { bps: number; label: string; fetched: boolean }
 
 export function BridgePage() {
+  const C = useNanTheme()
   const { connector, isConnected } = useAccount()
   const chainId = useChainId()
   const { switchChainAsync } = useSwitchChain()

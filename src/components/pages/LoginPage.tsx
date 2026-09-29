@@ -1,3 +1,4 @@
+import { useNanTheme } from '../../hooks/useNanTheme'
 import React, { useState, useEffect } from 'react'
 import { ConnectKitButton } from 'connectkit'
 import { useAccount } from 'wagmi'
@@ -5,11 +6,11 @@ import { Mail, Wallet, ArrowLeft, Loader, ArrowRight } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
 
 const F = "'Inter', -apple-system, sans-serif"
-const BG       = '#08090B'
+const BG   = 'var(--nan-bg)'
 const SURFACE  = '#13151A'
 const BORDER   = 'rgba(255,255,255,0.10)'
 const BLUE     = '#0066FF'
-const TEXT     = '#F2F3F5'
+const TEXT = 'var(--nan-text)'
 const TEXT2    = '#8A8F9E'
 const TEXT3    = '#50556A'
 

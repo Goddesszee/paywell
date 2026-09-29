@@ -1,3 +1,4 @@
+import { useNanTheme } from '../../hooks/useNanTheme'
 import React, { useState, useEffect } from 'react'
 import { Layers, RefreshCw, ArrowDownToLine, ArrowUpFromLine, ExternalLink, Check, AlertCircle } from 'lucide-react'
 import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt, useSwitchChain, useChainId } from 'wagmi'
@@ -21,6 +22,7 @@ const GATEWAY_WALLET = '0x0077777d7EBA4688BDeF3E311b846F25870A19B9' as const
 type Tab = 'balance' | 'deposit' | 'withdraw'
 
 export function GatewayPage() {
+  const C = useNanTheme()
   const [tab, setTab] = useState<Tab>('balance')
   const { address } = useAccount()
   const usdcFact = getUsdc(ARC_TESTNET_ID)

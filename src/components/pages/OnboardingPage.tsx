@@ -1,3 +1,4 @@
+import { useNanTheme } from '../../hooks/useNanTheme'
 import React, { useState } from 'react'
 import { ConnectKitButton } from 'connectkit'
 import { useAccount } from 'wagmi'
@@ -7,14 +8,14 @@ import { CircleEmailLogin } from '../CircleEmailLogin'
 import { ArrowRight, Check } from 'lucide-react'
 
 const F    = "'Inter', -apple-system, sans-serif"
-const BG   = '#08090B'
-const SURF = '#13151A'
-const SURF2= '#1A1D24'
-const BDR  = 'rgba(255,255,255,0.08)'
+const BG   = 'var(--nan-bg)'
+const SURF = 'var(--nan-surface)'
+const SURF2= 'var(--nan-surface2)'
+const BDR  = 'var(--nan-bdr)'
 const BLUE = '#0066FF'
-const TEXT = '#F2F3F5'
-const T2   = '#8A8F9E'
-const T3   = '#50556A'
+const TEXT = 'var(--nan-text)'
+const T2   = 'var(--nan-text2)'
+const T3   = 'var(--nan-text3)'
 
 const USE_CASES = [
   { id: 'payments',  label: 'Send & Receive',   icon: '↕',  desc: 'Everyday USDC transfers' },
