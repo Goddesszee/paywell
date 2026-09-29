@@ -42,17 +42,142 @@
   --nan-r-xl:  20px;
 }
 
-/* Light mode overrides */
+/* ── Light mode token overrides ── */
 [data-theme="light"] {
-  --nan-bg:       #F4F5F7;
-  --nan-surface:  #FFFFFF;
-  --nan-surface2: #F0F1F4;
-  --nan-surface3: #E8EAEF;
-  --nan-text:     #0A0B0E;
-  --nan-text2:    #5C6070;
-  --nan-text3:    #9298A8;
-  --nan-bdr:      rgba(0,0,0,0.07);
-  --nan-bdr2:     rgba(0,0,0,0.12);
+  --nan-bg:        #F4F6FA;
+  --nan-surface:   #FFFFFF;
+  --nan-surface2:  #F0F2F7;
+  --nan-surface3:  #E8EBF2;
+  --nan-blue:      #0066FF;
+  --nan-blue-dim:  rgba(0,102,255,0.08);
+  --nan-blue-bd:   rgba(0,102,255,0.18);
+  --nan-text:      #0A0C14;
+  --nan-text2:     #4A5068;
+  --nan-text3:     #8A8FA8;
+  --nan-bdr:       rgba(0,0,0,0.07);
+  --nan-bdr2:      rgba(0,0,0,0.13);
+  --nan-green:     #00A844;
+  --nan-red:       #E53535;
+  --nan-gold:      #C87800;
+  --nan-green-dim: rgba(0,168,68,0.09);
+  --nan-red-dim:   rgba(229,53,53,0.09);
+  --nan-gold-dim:  rgba(200,120,0,0.09);
+}
+
+/* Light mode — force app shell chrome to use CSS vars */
+[data-theme="light"] #root > div,
+[data-theme="light"] header,
+[data-theme="light"] nav {
+  background-color: var(--nan-bg) !important;
+  color: var(--nan-text) !important;
+  border-color: var(--nan-bdr) !important;
+}
+
+/* Light mode — page content cards & surfaces */
+[data-theme="light"] main > div {
+  color: var(--nan-text);
+}
+
+/* Inline-style overrides for light mode — target common dark hardcoded backgrounds */
+[data-theme="light"] [style*="background: rgb(8, 9, 11)"],
+[data-theme="light"] [style*="background: #08090B"],
+[data-theme="light"] [style*="background: #08090b"],
+[data-theme="light"] [style*="background:#08090B"],
+[data-theme="light"] [style*="background:#08090b"] {
+  background: var(--nan-bg) !important;
+}
+[data-theme="light"] [style*="background: rgb(17, 19, 24)"],
+[data-theme="light"] [style*="background: #111318"],
+[data-theme="light"] [style*="background:#111318"] {
+  background: var(--nan-surface) !important;
+}
+[data-theme="light"] [style*="background: rgb(24, 27, 34)"],
+[data-theme="light"] [style*="background: #181B22"],
+[data-theme="light"] [style*="background:#181B22"],
+[data-theme="light"] [style*="background: #181C24"],
+[data-theme="light"] [style*="background:#181C24"] {
+  background: var(--nan-surface2) !important;
+}
+[data-theme="light"] [style*="background: #1a1d22"],
+[data-theme="light"] [style*="background:#1a1d22"],
+[data-theme="light"] [style*="background: #1A1D24"],
+[data-theme="light"] [style*="background:#1A1D24"] {
+  background: var(--nan-surface2) !important;
+}
+[data-theme="light"] [style*="background: #13151A"],
+[data-theme="light"] [style*="background:#13151A"],
+[data-theme="light"] [style*="background: #13151a"],
+[data-theme="light"] [style*="background:#13151a"] {
+  background: var(--nan-surface) !important;
+}
+[data-theme="light"] [style*="background: #111111"],
+[data-theme="light"] [style*="background:#111111"] {
+  background: var(--nan-surface) !important;
+}
+[data-theme="light"] [style*="background: #1a1a1a"],
+[data-theme="light"] [style*="background:#1a1a1a"] {
+  background: var(--nan-surface2) !important;
+}
+[data-theme="light"] [style*="background: #222222"],
+[data-theme="light"] [style*="background:#222222"] {
+  background: var(--nan-surface3) !important;
+}
+[data-theme="light"] [style*="background: #0D1017"],
+[data-theme="light"] [style*="background:#0D1017"] {
+  background: var(--nan-bg) !important;
+}
+[data-theme="light"] [style*="background: #0E1014"],
+[data-theme="light"] [style*="background:#0E1014"],
+[data-theme="light"] [style*="background: #0d0f13"],
+[data-theme="light"] [style*="background:#0d0f13"] {
+  background: var(--nan-surface) !important;
+}
+
+/* Text color overrides */
+[data-theme="light"] [style*="color: rgb(242, 243, 245)"],
+[data-theme="light"] [style*="color: #F2F3F5"],
+[data-theme="light"] [style*="color:#F2F3F5"],
+[data-theme="light"] [style*="color: #FFFFFF"],
+[data-theme="light"] [style*="color:#FFFFFF"],
+[data-theme="light"] [style*="color: #ffffff"],
+[data-theme="light"] [style*="color:#ffffff"],
+[data-theme="light"] [style*="color: white"] {
+  color: var(--nan-text) !important;
+}
+[data-theme="light"] [style*="color: rgb(138, 143, 158)"],
+[data-theme="light"] [style*="color: #8A8F9E"],
+[data-theme="light"] [style*="color:#8A8F9E"],
+[data-theme="light"] [style*="color: #a0a0a0"],
+[data-theme="light"] [style*="color:#a0a0a0"] {
+  color: var(--nan-text2) !important;
+}
+[data-theme="light"] [style*="color: rgb(80, 85, 106)"],
+[data-theme="light"] [style*="color: #50556A"],
+[data-theme="light"] [style*="color:#50556A"],
+[data-theme="light"] [style*="color: #555555"],
+[data-theme="light"] [style*="color:#555555"] {
+  color: var(--nan-text3) !important;
+}
+
+/* Border overrides */
+[data-theme="light"] [style*="border: 1px solid rgba(255,255,255,0.07)"],
+[data-theme="light"] [style*="border: 1px solid rgba(255, 255, 255, 0.07)"],
+[data-theme="light"] [style*="borderTop: 1px solid rgba(255,255,255,0.07)"],
+[data-theme="light"] [style*="border-top: 1px solid rgba(255,255,255,0.07)"] {
+  border-color: var(--nan-bdr) !important;
+}
+
+/* Input fields in light mode */
+[data-theme="light"] input,
+[data-theme="light"] select,
+[data-theme="light"] textarea {
+  background: var(--nan-surface2) !important;
+  color: var(--nan-text) !important;
+  border-color: var(--nan-bdr2) !important;
+}
+[data-theme="light"] input::placeholder,
+[data-theme="light"] textarea::placeholder {
+  color: var(--nan-text3) !important;
 }
 
 /* ── Reset ── */
@@ -60,9 +185,9 @@
 
 html, body, #root {
   height: 100%;
-  background: var(--nan-bg);
+  background: var(--nan-bg) !important;
+  color: var(--nan-text) !important;
   font-family: var(--nan-font);
-  color: var(--nan-text);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;

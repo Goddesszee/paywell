@@ -30,7 +30,7 @@ try {
     const parsed = JSON.parse(raw) as { state?: { theme?: string } }
     const t = parsed?.state?.theme
     if (t === 'light' || t === 'dark') {
-      document.documentElement.setAttribute('data-theme', t)
+      
     }
   }
 } catch { /* ignore */ }

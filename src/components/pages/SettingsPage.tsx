@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Wallet, Bot, Shield, HelpCircle, ExternalLink, ChevronRight, LogOut, Save, Sun, Moon } from 'lucide-react'
+import { Wallet, Bot, Shield, HelpCircle, ExternalLink, ChevronRight, LogOut, Save } from 'lucide-react'
 import { useAccount, useDisconnect } from 'wagmi'
 import { ConnectKitButton } from 'connectkit'
 import { useAppStore } from '../../store/appStore'
@@ -70,7 +70,7 @@ function RowItem({
 export function SettingsPage() {
   const { address, isConnected } = useAccount()
   const { disconnect } = useDisconnect()
-  const { agentPermissions, setAgentPermissions, setOnboarding, setActiveView, theme, setTheme } = useAppStore()
+  const { agentPermissions, setAgentPermissions, setOnboarding, setActiveView } = useAppStore()
   const chain = requireChain(ARC)
   const [editingLimits, setEditingLimits] = useState(false)
   const [daily, setDaily] = useState(String(agentPermissions.dailyLimit))
@@ -157,43 +157,7 @@ export function SettingsPage() {
             ✓ Limits saved
           </div>
         )}
-      </CardBlock>
-
-      <SectionLabel>Appearance</SectionLabel>
-      <CardBlock>
-        <div style={{ display:'flex', alignItems:'center', gap:12, padding:'12px 16px' }}>
-          <div style={{ width:32, height:32, borderRadius:9, background:'rgba(255,255,255,0.06)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-            {theme === 'dark' ? <Moon size={16} color="#a0a0a0" /> : <Sun size={16} color="#F59E0B" />}
-          </div>
-          <div style={{ flex:1 }}>
-            <div style={{ fontSize:14, fontWeight:600, color:'var(--text)' }}>Theme</div>
-            <div style={{ fontSize:12, color:'var(--text2)', marginTop:1 }}>{theme === 'dark' ? 'Dark mode' : 'Light mode'}</div>
-          </div>
-          <button
-            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-            style={{
-              width:48, height:28, borderRadius:14, border:'none', cursor:'pointer',
-              background: theme === 'light' ? '#0066FF' : 'rgba(255,255,255,0.12)',
-              position:'relative', flexShrink:0, transition:'background 0.25s',
-              padding:0,
-            }}
-          >
-            <span style={{
-              position:'absolute', top:3,
-              left: theme === 'light' ? 23 : 3,
-              width:22, height:22, borderRadius:'50%',
-              background:'#fff',
-              transition:'left 0.25s',
-              boxShadow:'0 1px 4px rgba(0,0,0,0.25)',
-              display:'flex', alignItems:'center', justifyContent:'center',
-            }}>
-              {theme === 'light' ? <Sun size={11} color="#F59E0B" /> : <Moon size={11} color="#555" />}
-            </span>
-          </button>
-        </div>
-      </CardBlock>
-
-      <SectionLabel>Resources</SectionLabel>
+      </CardBlock><SectionLabel>Resources</SectionLabel>
       <CardBlock>
         <RowItem icon={<HelpCircle />} label="Arc documentation" sub="docs.arc.io" onClick={() => window.open('https://docs.arc.io','_blank')} />
         <RowItem icon={<ExternalLink />} label="Arc Testnet explorer" sub={chain.explorerBase} onClick={() => window.open(chain.explorerBase,'_blank')} noBorder />

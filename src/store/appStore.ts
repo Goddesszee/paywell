@@ -230,9 +230,6 @@ interface AppState {
   activeView: string
   setActiveView: (view: string) => void
   previousView: string | null
-
-  theme: 'dark' | 'light'
-  setTheme: (theme: 'dark' | 'light') => void
 }
 
 export const useAppStore = create<AppState>()(
@@ -533,19 +530,11 @@ export const useAppStore = create<AppState>()(
       setActiveView: (view) =>
         set((s) => ({ previousView: s.activeView, activeView: view })),
       previousView: null,
-
-      theme: 'dark',
-      setTheme: (theme) => {
-        set({ theme })
-        document.documentElement.setAttribute('data-theme', theme)
-      },
     }),
     {
       name: 'paywell-state-v2',
       partialize: (s) => ({
-        auth: s.auth,
-        theme: s.theme,
-        onboarding: s.onboarding,
+        auth: s.auth,        onboarding: s.onboarding,
         agentPermissions: s.agentPermissions,
         agentDailyUsed: s.agentDailyUsed,
         agentMessages: s.agentMessages,
