@@ -6,13 +6,13 @@ import { useAppStore } from '../../store/appStore'
 
 
 const F = "'Inter', -apple-system, sans-serif"
-const BLACK = '#0A0A0F'
+const BLACK = '#111111'
 const BLUE  = '#2563EB'
 const NAN_TEXT = '#F4F4F8'
-const SURFACE = '#111118'
-const BORDER = 'rgba(0,0,0,0.1)'
-const TEXT2 = '#6B6B6B'
-const TEXT3 = '#A0A0A0'
+const SURFACE = 'rgba(255,255,255,0.04)'
+const BORDER = 'rgba(255,255,255,0.1)'
+const TEXT2 = '#a0a0a0'
+const TEXT3 = '#555555'
 
 type LoginMode = 'choose' | 'email' | 'otp'
 
@@ -140,7 +140,7 @@ export function LoginPage() {
             {/* Wallet */}
             <ConnectKitButton.Custom>
               {({ show }) => (
-                <button onClick={show} style={btnStyle('#0D0D0D', '#FFF')}>
+                <button onClick={show} style={btnStyle('#2563EB', '#fff')}>
                   <Wallet size={18} />
                   <span>Continue with Wallet</span>
                 </button>
@@ -154,13 +154,13 @@ export function LoginPage() {
             </div>
 
             {/* Google */}
-            <button onClick={googleLogin} style={btnStyle('#FFF', BLACK, BORDER)}>
+            <button onClick={googleLogin} style={btnStyle('rgba(255,255,255,0.06)', '#ffffff', 'rgba(255,255,255,0.12)')}>
               <GoogleIcon />
               <span>Continue with Google</span>
             </button>
 
             {/* Email */}
-            <button onClick={() => setMode('email')} style={btnStyle(SURFACE, BLACK, BORDER)}>
+            <button onClick={() => setMode('email')} style={btnStyle('rgba(255,255,255,0.04)', '#ffffff', 'rgba(255,255,255,0.1)')}>
               <Mail size={18} />
               <span>Continue with Email</span>
             </button>
@@ -178,7 +178,7 @@ export function LoginPage() {
               style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', cursor: 'pointer', color: TEXT2, fontSize: 14, marginBottom: 28, padding: 0, fontFamily: F }}>
               <ArrowLeft size={15} /> Back
             </button>
-            <h2 style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.03em', marginBottom: 6, color: BLACK }}>Enter your email</h2>
+            <h2 style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.03em', marginBottom: 6, color: '#ffffff' }}>Enter your email</h2>
             <p style={{ fontSize: 14, color: TEXT2, marginBottom: 24 }}>We'll send you a one-time code to sign in.</p>
             <input
               type="email"
@@ -193,7 +193,7 @@ export function LoginPage() {
             <button
               onClick={() => void sendOtp()}
               disabled={loading || !email.trim()}
-              style={{ ...btnStyle(loading || !email.trim() ? SURFACE : BLACK, loading || !email.trim() ? TEXT3 : '#FFF'), marginTop: 12, cursor: loading || !email.trim() ? 'not-allowed' : 'pointer' }}
+              style={{ ...btnStyle(loading || !email.trim() ? 'rgba(255,255,255,0.06)' : '#2563EB', loading || !email.trim() ? '#555555' : '#ffffff'), marginTop: 12, cursor: loading || !email.trim() ? 'not-allowed' : 'pointer' }}
             >
               {loading ? <Loader size={16} style={{ animation: 'spin 1s linear infinite' }} /> : null}
               {loading ? 'Sending…' : 'Send code →'}
@@ -208,12 +208,12 @@ export function LoginPage() {
               style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', cursor: 'pointer', color: TEXT2, fontSize: 14, marginBottom: 28, padding: 0, fontFamily: F }}>
               <ArrowLeft size={15} /> Back
             </button>
-            <h2 style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.03em', marginBottom: 6, color: BLACK }}>Check your email</h2>
+            <h2 style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.03em', marginBottom: 6, color: '#ffffff' }}>Check your email</h2>
             <p style={{ fontSize: 14, color: TEXT2, marginBottom: 24 }}>
               We sent a 6-digit code to <strong>{email}</strong>
             </p>
             {otpSent && (
-              <div style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 10, padding: '10px 14px', marginBottom: 16, fontSize: 13, color: '#166534' }}>
+              <div style={{ background: 'rgba(37,99,235,0.1)', border: '1px solid rgba(37,99,235,0.25)', borderRadius: 10, padding: '10px 14px', marginBottom: 16, fontSize: 13, color: '#3B82F6' }}>
                 Code sent. Check your inbox (or server console in dev mode).
               </div>
             )}
@@ -232,7 +232,7 @@ export function LoginPage() {
             <button
               onClick={() => void verifyOtp()}
               disabled={loading || otp.length !== 6}
-              style={{ ...btnStyle(loading || otp.length !== 6 ? SURFACE : BLACK, loading || otp.length !== 6 ? TEXT3 : '#FFF'), marginTop: 12, cursor: loading || otp.length !== 6 ? 'not-allowed' : 'pointer' }}
+              style={{ ...btnStyle(loading || otp.length !== 6 ? 'rgba(255,255,255,0.06)' : '#2563EB', loading || otp.length !== 6 ? '#555555' : '#ffffff'), marginTop: 12, cursor: loading || otp.length !== 6 ? 'not-allowed' : 'pointer' }}
             >
               {loading ? <Loader size={16} style={{ animation: 'spin 1s linear infinite' }} /> : null}
               {loading ? 'Verifying…' : 'Verify →'}
@@ -279,7 +279,7 @@ function btnStyle(bg: string, color: string, borderColor?: string): React.CSSPro
 
 const inputStyle: React.CSSProperties = {
   width: '100%', padding: '13px 16px',
-  border: '1.5px solid rgba(0,0,0,0.12)',
+  border: '1.5px solid rgba(255,255,255,0.12)',
   borderRadius: 12, fontSize: 16, fontFamily: F,
   color: '#F4F4F8', background: '#111118', outline: 'none',
   boxSizing: 'border-box',

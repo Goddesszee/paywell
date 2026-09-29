@@ -2172,3 +2172,15 @@ a:hover{color:var(--text);}
 .brand{display:flex;align-items:center;gap:0;}
 
 .brand-logo{display:flex!important;align-items:center;flex-shrink:0;background:none!important;box-shadow:none!important;}
+
+/* ── Paywell scroll override ── */
+/* nan.css locks html/body overflow for its fixed shell; paywell uses React Router pages that need scroll */
+html, body, #root {
+  overflow: auto !important;
+  height: auto !important;
+}
+/* Keep the NAN dark background */
+html, body {
+  background: #111111 !important;
+  color: #ffffff !important;
+}
