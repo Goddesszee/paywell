@@ -61,13 +61,13 @@ export function WalletPage({ initialSubView = 'main' }: { initialSubView?: Walle
   if (!address) {
     return (
       <div className="max-w-lg mx-auto px-4 py-12 text-center">
-        <div className="w-16 h-16 rounded-full bg-[#1a1a1a] flex items-center justify-center mx-auto mb-4">
-          <Wallet size={28} className="text-[#555555]" />
+        <div className="w-16 h-16 rounded-full nan-surface-fix flex items-center justify-center mx-auto mb-4">
+          <Wallet size={28} className="text-nan3" />
         </div>
-        <h2 className="text-xl font-bold text-white mb-2" style={{ fontFamily: SANS }}>
+        <h2 className="text-xl font-bold text-nan mb-2" style={{ fontFamily: SANS }}>
           Connect a wallet
         </h2>
-        <p className="text-sm text-[#a0a0a0]">Connect your wallet to view your balance and send USDC.</p>
+        <p className="text-sm text-nan2">Connect your wallet to view your balance and send USDC.</p>
       </div>
     )
   }
@@ -95,13 +95,13 @@ export function WalletPage({ initialSubView = 'main' }: { initialSubView?: Walle
   return (
     <div className="max-w-lg mx-auto px-4 py-6 space-y-4 pb-28 lg:pb-8">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-white" style={{ fontFamily: SANS }}>Wallet</h1>
+        <h1 className="text-xl font-bold text-nan" style={{ fontFamily: SANS }}>Wallet</h1>
         <Badge variant="default" size="sm">{chain.name}</Badge>
       </div>
 
       {/* Balance card */}
       <div style={{
-        background: 'linear-gradient(145deg,#1a1a1a 0%,#111 50%,#1a1a1a 100%)',
+        background: 'linear-gradient(145deg,var(--nan-surface) 0%,var(--nan-surface2) 50%,var(--nan-surface) 100%)',
         borderRadius: 16, padding: '20px 20px 16px',
         boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
       }}>
@@ -141,7 +141,7 @@ export function WalletPage({ initialSubView = 'main' }: { initialSubView?: Walle
           <button
             onClick={() => setSubView('receive')}
             style={{
-              flex: 1, padding: '12px', borderRadius: 10, background: 'rgba(255,255,255,0.10)',
+              flex: 1, padding: '12px', borderRadius: 10, background: 'var(--nan-surface2)',
               color: '#fff', fontWeight: 700, fontSize: 14,
               border: '1px solid rgba(255,255,255,0.15)', cursor: 'pointer',
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
@@ -155,21 +155,21 @@ export function WalletPage({ initialSubView = 'main' }: { initialSubView?: Walle
 
       {/* Wallet address */}
       <Card padding="md">
-        <div className="text-xs font-bold text-[#555555] uppercase tracking-wider mb-3">Wallet address</div>
+        <div className="text-xs font-bold text-nan3 uppercase tracking-wider mb-3">Wallet address</div>
         <div className="flex items-center gap-2">
-          <div className="flex-1 bg-[#1a1a1a] rounded-xl px-3 py-2.5 min-w-0">
-            <div className="text-sm font-mono text-white truncate">
+          <div className="flex-1 nan-surface-fix rounded-xl px-3 py-2.5 min-w-0">
+            <div className="text-sm font-mono text-nan truncate">
               {address.slice(0,10)}...{address.slice(-8)}
             </div>
           </div>
-          <button onClick={handleCopy} className="w-10 h-10 flex items-center justify-center rounded-xl bg-[#1a1a1a] hover:bg-[#1e2028] text-white transition-colors flex-shrink-0">
-            {copied ? <Check size={16} className="text-white" /> : <Copy size={16} />}
+          <button onClick={handleCopy} className="w-10 h-10 flex items-center justify-center rounded-xl nan-surface-fix hover:nan-surface2-fix text-nan transition-colors flex-shrink-0">
+            {copied ? <Check size={16} className="text-nan" /> : <Copy size={16} />}
           </button>
-          <button onClick={() => setSubView('receive')} className="w-10 h-10 flex items-center justify-center rounded-xl bg-[#1a1a1a] hover:bg-[#1e2028] text-white transition-colors flex-shrink-0">
+          <button onClick={() => setSubView('receive')} className="w-10 h-10 flex items-center justify-center rounded-xl nan-surface-fix hover:nan-surface2-fix text-nan transition-colors flex-shrink-0">
             <Share2 size={16} />
           </button>
         </div>
-        <div className="mt-3 flex items-center gap-2 text-xs text-[#a0a0a0]">
+        <div className="mt-3 flex items-center gap-2 text-xs text-nan2">
           <span className="w-1.5 h-1.5 rounded-full bg-[#2563EB]" />
           Connected to {chain.name}
           <a
@@ -290,12 +290,12 @@ function SendFlow({
     return (
       <div className="max-w-lg mx-auto px-4 py-8 space-y-5">
         <div className="text-center py-8">
-          <div className="w-16 h-16 rounded-full bg-[#1a1a1a] flex items-center justify-center mx-auto mb-4">
-            <Check size={28} className="text-white" />
+          <div className="w-16 h-16 rounded-full nan-surface-fix flex items-center justify-center mx-auto mb-4">
+            <Check size={28} className="text-nan" />
           </div>
-          <h2 className="text-2xl font-bold text-white mb-1" style={{ fontFamily: SANS }}>Payment sent</h2>
-          <p className="text-[#a0a0a0] text-sm mb-4">Your USDC has been sent successfully.</p>
-          <div className="bg-[#1a1a1a] rounded-2xl p-4 text-left space-y-2.5 mb-6 max-w-xs mx-auto">
+          <h2 className="text-2xl font-bold text-nan mb-1" style={{ fontFamily: SANS }}>Payment sent</h2>
+          <p className="text-nan2 text-sm mb-4">Your USDC has been sent successfully.</p>
+          <div className="nan-surface-fix rounded-2xl p-4 text-left space-y-2.5 mb-6 max-w-xs mx-auto">
             <Row label="Amount" value={`${formatUSDC(parseFloat(amount))} USDC`} mono />
             <Row label="Recipient" value={formatAddress(recipient)} mono />
             <Row label="Network" value="Arc Testnet" />
@@ -305,7 +305,7 @@ function SendFlow({
                   href={buildTxExplorerUrl(ARC_TESTNET_ID, txHash)}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 text-xs text-white font-semibold hover:opacity-70 transition-opacity"
+                  className="flex items-center gap-1.5 text-xs text-nan font-semibold hover:opacity-70 transition-opacity"
                 >
                   <ExternalLink size={12} /> View on explorer
                 </a>
@@ -321,13 +321,13 @@ function SendFlow({
   if (displayStep === 'submitting') {
     return (
       <div className="max-w-lg mx-auto px-4 py-8 text-center space-y-4">
-        <div className="w-16 h-16 rounded-full bg-[#1a1a1a] flex items-center justify-center mx-auto">
+        <div className="w-16 h-16 rounded-full nan-surface-fix flex items-center justify-center mx-auto">
           <div className="w-7 h-7 border-2 border-white border-t-transparent rounded-full animate-spin" />
         </div>
-        <h2 className="text-xl font-bold text-white" style={{ fontFamily: SANS }}>
+        <h2 className="text-xl font-bold text-nan" style={{ fontFamily: SANS }}>
           {isPending ? 'Confirm in wallet' : 'Confirming…'}
         </h2>
-        <p className="text-sm text-[#a0a0a0]">
+        <p className="text-sm text-nan2">
           {isPending ? 'Approve the transaction in your wallet.' : 'Waiting for blockchain confirmation…'}
         </p>
       </div>
@@ -341,13 +341,13 @@ function SendFlow({
           onClick={displayStep === 'recipient' ? onBack : () => setStep(
             displayStep === 'review' ? 'note' : displayStep === 'note' ? 'amount' : 'recipient'
           )}
-          className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-[#1a1a1a] text-white transition-colors"
+          className="w-9 h-9 flex items-center justify-center rounded-xl hover:nan-surface-fix text-nan transition-colors"
         >
           <X size={18} />
         </button>
         <div>
-          <h1 className="text-xl font-bold text-white" style={{ fontFamily: SANS }}>Send USDC</h1>
-          <p className="text-xs text-[#a0a0a0]">
+          <h1 className="text-xl font-bold text-nan" style={{ fontFamily: SANS }}>Send USDC</h1>
+          <p className="text-xs text-nan2">
             {displayStep === 'recipient' && 'Step 1 of 4 — Recipient'}
             {displayStep === 'amount' && 'Step 2 of 4 — Amount'}
             {displayStep === 'note' && 'Step 3 of 4 — Note (optional)'}
@@ -358,9 +358,9 @@ function SendFlow({
       </div>
 
       {isWrongChain && (
-        <div className="flex items-center gap-2 bg-[#1a1a1a] border border-white/10 rounded-xl px-3 py-2.5">
-          <AlertCircle size={15} className="text-white flex-shrink-0" />
-          <p className="text-sm text-white font-medium flex-1">Switch to Arc Testnet to send USDC.</p>
+        <div className="flex items-center gap-2 nan-surface-fix border border-white/10 rounded-xl px-3 py-2.5">
+          <AlertCircle size={15} className="text-nan flex-shrink-0" />
+          <p className="text-sm text-nan font-medium flex-1">Switch to Arc Testnet to send USDC.</p>
           <Button size="sm" variant="secondary" onClick={() => switchChain({ chainId: ARC_TESTNET_ID })}>Switch</Button>
         </div>
       )}
@@ -394,17 +394,17 @@ function SendFlow({
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
             error={amountError}
-            suffix={<span className="text-xs font-bold text-[#a0a0a0]">USDC</span>}
+            suffix={<span className="text-xs font-bold text-nan2">USDC</span>}
             autoFocus
           />
-          <div className="mt-2 flex items-center justify-between text-xs text-[#a0a0a0]">
-            <span>Available: <span className="font-semibold text-white tabular-nums">{formatUSDC(balance)} USDC</span></span>
+          <div className="mt-2 flex items-center justify-between text-xs text-nan2">
+            <span>Available: <span className="font-semibold text-nan tabular-nums">{formatUSDC(balance)} USDC</span></span>
             <button onClick={() => setAmount(balance.toFixed(6))} className="font-semibold underline underline-offset-2">Max</button>
           </div>
           <div className="flex gap-2 mt-3">
             {[5, 10, 25, 50].map((v) => (
               <button key={v} onClick={() => setAmount(v.toString())} disabled={v > balance}
-                className="flex-1 h-9 text-sm font-semibold rounded-xl bg-[#1a1a1a] hover:bg-[#1e2028] text-white disabled:opacity-40 transition-colors">
+                className="flex-1 h-9 text-sm font-semibold rounded-xl nan-surface-fix hover:nan-surface2-fix text-nan disabled:opacity-40 transition-colors">
                 {v}
               </button>
             ))}
@@ -428,7 +428,7 @@ function SendFlow({
 
       {displayStep === 'review' && (
         <Card padding="lg">
-          <h2 className="text-base font-bold text-white mb-4">Review transaction</h2>
+          <h2 className="text-base font-bold text-nan mb-4">Review transaction</h2>
           <div className="space-y-3 mb-6">
             <Row label="Recipient" value={formatAddress(recipient)} mono />
             <Row label="Amount" value={`${formatUSDC(parseFloat(amount || '0'))} USDC`} mono />
@@ -447,11 +447,11 @@ function SendFlow({
       {displayStep === 'error' && (
         <div className="space-y-3">
           <Card padding="md">
-            <div className="flex items-start gap-2 text-white">
+            <div className="flex items-start gap-2 text-nan">
               <AlertCircle size={16} className="flex-shrink-0 mt-0.5" />
               <div>
                 <p className="text-sm font-semibold">Transaction failed</p>
-                <p className="text-xs mt-1 text-[#a0a0a0]">{parseOnchainError(writeError)}</p>
+                <p className="text-xs mt-1 text-nan2">{parseOnchainError(writeError)}</p>
               </div>
             </div>
           </Card>
@@ -465,8 +465,8 @@ function SendFlow({
 function Row({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {
   return (
     <div className="flex items-center justify-between gap-2">
-      <span className="text-sm text-[#a0a0a0]">{label}</span>
-      <span className={`text-sm font-semibold text-white ${mono ? 'font-mono text-xs' : ''}`}>{value}</span>
+      <span className="text-sm text-nan2">{label}</span>
+      <span className={`text-sm font-semibold text-nan ${mono ? 'font-mono text-xs' : ''}`}>{value}</span>
     </div>
   )
 }
@@ -556,14 +556,14 @@ function ReceiveView({ address, onBack }: { address: string; onBack: () => void 
     <div className="max-w-lg mx-auto px-4 py-6 space-y-4 pb-28 lg:pb-8">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <button onClick={onBack} className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-[#1a1a1a] text-white">
+        <button onClick={onBack} className="w-9 h-9 flex items-center justify-center rounded-xl hover:nan-surface-fix text-nan">
           <X size={18} />
         </button>
-        <h1 className="text-xl font-bold text-white" style={{ fontFamily: SANS }}>Receive USDC</h1>
+        <h1 className="text-xl font-bold text-nan" style={{ fontFamily: SANS }}>Receive USDC</h1>
       </div>
 
       {/* Tab switcher */}
-      <div style={{ display: 'flex', background: '#1a1a1a', borderRadius: 12, padding: 3, gap: 2 }}>
+      <div style={{ display: 'flex', background: 'var(--nan-surface)', borderRadius: 12, padding: 3, gap: 2 }}>
         {(['address', 'request'] as const).map(t => (
           <button key={t} onClick={() => setTab(t)} style={{
             flex: 1, padding: '8px 0', borderRadius: 9, border: 'none', cursor: 'pointer',
@@ -582,11 +582,11 @@ function ReceiveView({ address, onBack }: { address: string; onBack: () => void 
       {/* QR card */}
       <Card padding="lg" className="text-center">
         {/* QR code */}
-        <div ref={qrRef} style={{ width: 200, height: 200, margin: '0 auto 16px', padding: 12, background: '#0066FF', borderRadius: 16, border: '1px solid rgba(255,255,255,0.07)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div ref={qrRef} style={{ width: 200, height: 200, margin: '0 auto 16px', padding: 16, background: 'var(--nan-surface2)', borderRadius: 16, border: '1px solid var(--nan-bdr)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <QRCodeSVG
             value={qrValue}
             size={176}
-            bgColor="#111111"
+            bgColor="var(--nan-surface2, #111111)"
             fgColor="#ffffff"
             level="M"
             imageSettings={{
@@ -599,12 +599,12 @@ function ReceiveView({ address, onBack }: { address: string; onBack: () => void 
         </div>
 
         {/* Address display */}
-        <p className="text-xs text-[#555555] font-medium mb-1">
+        <p className="text-xs text-nan3 font-medium mb-1">
           {tab === 'address' ? 'Wallet address' : 'Scan to pay'}
         </p>
-        <p className="text-xs font-mono text-white break-all px-2 mb-1 leading-relaxed">{address}</p>
+        <p className="text-xs font-mono text-nan break-all px-2 mb-1 leading-relaxed">{address}</p>
         {tab === 'request' && requestAmount && (
-          <p className="text-sm font-bold text-white mb-1">{formatUSDC(parseFloat(requestAmount))} USDC{requestNote ? ` · ${requestNote}` : ''}</p>
+          <p className="text-sm font-bold text-nan mb-1">{formatUSDC(parseFloat(requestAmount))} USDC{requestNote ? ` · ${requestNote}` : ''}</p>
         )}
 
         {/* Action buttons */}
@@ -621,7 +621,7 @@ function ReceiveView({ address, onBack }: { address: string; onBack: () => void 
       {/* Payment request form */}
       {tab === 'request' && (
         <Card padding="md">
-          <p className="text-sm font-bold text-white mb-3">Request details</p>
+          <p className="text-sm font-bold text-nan mb-3">Request details</p>
           <div className="space-y-3">
             <Input
               label="Amount (USDC)"
@@ -629,7 +629,7 @@ function ReceiveView({ address, onBack }: { address: string; onBack: () => void 
               type="number"
               value={requestAmount}
               onChange={(e) => setRequestAmount(e.target.value)}
-              suffix={<span className="text-xs font-bold text-[#a0a0a0]">USDC</span>}
+              suffix={<span className="text-xs font-bold text-nan2">USDC</span>}
             />
             <Input
               label="Description (optional)"
@@ -643,14 +643,14 @@ function ReceiveView({ address, onBack }: { address: string; onBack: () => void 
 
       {/* Share panel — always shown, richer when request is filled */}
       <Card padding="md">
-        <p className="text-sm font-bold text-white mb-3">
+        <p className="text-sm font-bold text-nan mb-3">
           {tab === 'request' && requestAmount ? `Share payment request · ${formatUSDC(parseFloat(requestAmount))} USDC` : 'Share your address'}
         </p>
 
         {/* Link preview */}
-        <div style={{ background: '#1a1a1a', borderRadius: 10, padding: '10px 12px', marginBottom: 12 }}>
-          <p className="text-xs text-[#a0a0a0] mb-1 font-medium">Payment link</p>
-          <p style={{ fontSize: 11, fontFamily: 'monospace', color: '#ffffff', wordBreak: 'break-all', lineHeight: 1.4 }}>
+        <div style={{ background: 'var(--nan-surface)', borderRadius: 10, padding: '10px 12px', marginBottom: 12 }}>
+          <p className="text-xs text-nan2 mb-1 font-medium">Payment link</p>
+          <p style={{ fontSize: 11, fontFamily: 'monospace', color: 'var(--nan-text)', wordBreak: 'break-all', lineHeight: 1.4 }}>
             {tab === 'request' && requestAmount ? requestLink : `${APP_URL}/?pay=${address}`}
           </p>
         </div>
@@ -683,7 +683,7 @@ function ReceiveView({ address, onBack }: { address: string; onBack: () => void 
               style={{
                 display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
                 gap: 5, padding: '10px 4px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.08)',
-                background: '#1a1a1a', cursor: 'pointer', fontFamily: SANS, fontSize: 10, fontWeight: 600, color: '#ffffff',
+                background: 'var(--nan-surface)', cursor: 'pointer', fontFamily: SANS, fontSize: 10, fontWeight: 600, color: 'var(--nan-text)',
               }}
             >
               {icon}
@@ -692,7 +692,7 @@ function ReceiveView({ address, onBack }: { address: string; onBack: () => void 
           ))}
         </div>
 
-        <p style={{ fontSize: 11, color: '#A0A0A0', textAlign: 'center', marginTop: 10 }}>
+        <p style={{ fontSize: 11, color: 'var(--nan-text2)', textAlign: 'center', marginTop: 10 }}>
           Anyone with this link can send you USDC on Arc Testnet
         </p>
       </Card>

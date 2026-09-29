@@ -52,7 +52,7 @@ function RowItem({
         cursor: onClick ? 'pointer' : 'default',
         transition: onClick ? 'background 0.12s' : 'none',
       }}
-      onMouseEnter={e => { if (onClick) (e.currentTarget as HTMLDivElement).style.background = '#1A1D24' }}
+      onMouseEnter={e => { if (onClick) (e.currentTarget as HTMLDivElement).style.background = 'var(--nan-surface2)' }}
       onMouseLeave={e => { if (onClick) (e.currentTarget as HTMLDivElement).style.background = 'transparent' }}
     >
       <div style={{ width:32, height:32, borderRadius:8, background:danger?'rgba(255,59,59,0.10)':SURF2, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>

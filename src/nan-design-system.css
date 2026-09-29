@@ -483,3 +483,11 @@ html, body, #root {
   background: var(--nan-green-dim); border: 1.5px solid rgba(0,200,83,0.25);
   display: flex; align-items: center; justify-content: center;
 }
+
+/* ── Tailwind utility bridges (used in WalletPage classNames) ── */
+.nan-surface-fix  { background: var(--nan-surface) !important; }
+.nan-bg-fix       { background: var(--nan-bg) !important; }
+.nan-surface2-fix { background: var(--nan-surface2) !important; }
+.text-nan         { color: var(--nan-text) !important; }
+.text-nan2        { color: var(--nan-text2) !important; }
+.text-nan3        { color: var(--nan-text3) !important; }

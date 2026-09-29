@@ -14,89 +14,48 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 
 const FONT = "'Inter', -apple-system, sans-serif"
 
-const base = [
-  'inline-flex items-center justify-center gap-2 font-semibold',
-  'border cursor-pointer select-none',
-  'transition-all duration-150 ease-out',
-  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:ring-offset-2',
-  'disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none',
-].join(' ')
-
-const variants: Record<Variant, string> = {
-  primary: [
-    'bg-[#2563EB] text-white border-transparent',
-    'hover:bg-[#222222]',
-    'active:bg-[#1038A0] active:scale-[0.99]',
-  ].join(' '),
-  ghost: [
-    'bg-transparent text-white border-[rgba(0,0,0,0.14)]',
-    'hover:border-[rgba(0,0,0,0.24)] hover:bg-[rgba(0,0,0,0.03)]',
-    'active:scale-[0.99]',
-  ].join(' '),
-  danger: [
-    'bg-[#DC2626] text-white border-transparent',
-    'hover:bg-[#B91C1C]',
-    'active:scale-[0.99]',
-  ].join(' '),
-  success: [
-    'bg-[#16A34A] text-white border-transparent',
-    'hover:bg-[#15803D]',
-    'active:scale-[0.99]',
-  ].join(' '),
-  soft: [
-    'bg-[rgba(0,0,0,0.05)] text-white border-[rgba(27,79,216,0.18)]',
-    'hover:bg-[rgba(0,0,0,0.08)]',
-    'active:scale-[0.99]',
-  ].join(' '),
-  secondary: [
-    'bg-[#1a1a1a] text-white border-[rgba(0,0,0,0.10)]',
-    'hover:bg-[#1a1a1a] hover:border-[rgba(0,0,0,0.18)]',
-    'active:scale-[0.99]',
-  ].join(' '),
+const sizeStyles: Record<Size, React.CSSProperties> = {
+  sm: { fontSize: 13, padding: '7px 12px', borderRadius: 8 },
+  md: { fontSize: 14, padding: '10px 16px', borderRadius: 10 },
+  lg: { fontSize: 15, padding: '13px 20px', borderRadius: 12 },
 }
 
-const sizes: Record<Size, string> = {
-  sm: 'text-[13px] px-3 py-[7px] rounded-[8px]',
-  md: 'text-[14px] px-4 py-[10px] rounded-[9px]',
-  lg: 'text-[15px] px-5 py-[13px] rounded-[10px]',
+function getVariantStyle(variant: Variant): React.CSSProperties {
+  switch (variant) {
+    case 'primary':   return { background: '#0066FF', color: '#fff', border: 'none' }
+    case 'secondary': return { background: 'var(--nan-surface)', color: 'var(--nan-text)', border: '1px solid var(--nan-bdr)' }
+    case 'ghost':     return { background: 'transparent', color: 'var(--nan-text)', border: '1px solid var(--nan-bdr)' }
+    case 'soft':      return { background: 'rgba(0,102,255,0.10)', color: '#0066FF', border: '1px solid rgba(0,102,255,0.20)' }
+    case 'danger':    return { background: '#DC2626', color: '#fff', border: 'none' }
+    case 'success':   return { background: '#16A34A', color: '#fff', border: 'none' }
+  }
 }
 
 export function Button({
   variant = 'primary', size = 'md', loading = false,
-  icon, iconRight, fullWidth = false, children, className = '', disabled, ...props
+  icon, iconRight, fullWidth = false, children, style, disabled, ...props
 }: ButtonProps) {
   return (
     <button
       {...props}
       disabled={disabled || loading}
-      className={[base, variants[variant], sizes[size], fullWidth ? 'w-full' : '', className].join(' ')}
-      style={{ fontFamily: FONT, letterSpacing: '-0.01em', ...props.style }}
+      style={{
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+        fontFamily: FONT, fontWeight: 600, letterSpacing: '-0.01em',
+        cursor: disabled || loading ? 'not-allowed' : 'pointer',
+        opacity: disabled || loading ? 0.45 : 1,
+        transition: 'opacity 0.15s, background 0.15s',
+        width: fullWidth ? '100%' : undefined,
+        ...sizeStyles[size],
+        ...getVariantStyle(variant),
+        ...style,
+      }}
     >
       {loading ? (
-        <span className="inline-block w-4 h-4 border-2 border-current border-t-transparent rounded-full"
-          style={{ animation: 'pw-spin 0.7s linear infinite' }} />
+        <span style={{ display: 'inline-block', width: 16, height: 16, border: '2px solid currentColor', borderTopColor: 'transparent', borderRadius: '50%', animation: 'pw-spin 0.7s linear infinite' }} />
       ) : icon}
       {children}
       {!loading && iconRight}
-    </button>
-  )
-}
-
-export function IconButton({ children, className = '', ...props }: React.ButtonHTMLAttributes<HTMLButtonElement>) {
-  return (
-    <button
-      {...props}
-      className={[
-        'inline-flex items-center justify-center w-9 h-9 rounded-[9px]',
-        'bg-[#1a1a1a] border border-[rgba(0,0,0,0.10)] text-[#5C5C6B]',
-        'hover:bg-[#1a1a1a] hover:text-white hover:border-[rgba(0,0,0,0.18)]',
-        'transition-all duration-150 cursor-pointer',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]',
-        'disabled:opacity-40 disabled:cursor-not-allowed',
-        className,
-      ].join(' ')}
-    >
-      {children}
     </button>
   )
 }
