@@ -11,8 +11,8 @@ const BLACK = '#ffffff'
 const WHITE = '#111111'
 const SURFACE = '#1a1a1a'
 const BORDER = 'rgba(0,0,0,0.08)'
-const TEXT2 = '#5C5C6B'
-const TEXT3 = '#9898A6'
+const TEXT2 = '#8A8F9E'
+const TEXT3 = '#50556A'
 const MONO = 'JetBrains Mono, Menlo, monospace'
 
 const ARC_TESTNET_ID = 5042002

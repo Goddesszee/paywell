@@ -6,9 +6,9 @@ import { useAppStore } from '../../store/appStore'
 
 const PW_BG      = '#111111'
 const PW_SURFACE = '#1a1a1a'
-const PW_BORDER  = '#E4E4E7'
+const PW_BORDER  = 'rgba(255,255,255,0.08)'
 const PW_TEXT    = '#ffffff'
-const PW_TEXT_2  = '#5C5C6B'
+const PW_TEXT_2  = '#8A8F9E'
 const PW_BLACK   = '#ffffff'
 const PW_WHITE   = '#111111'
 const SANS       = 'Inter, sans-serif'
@@ -220,7 +220,7 @@ export function OnrampPage() {
             disabled={loading || !isConnected}
             style={{
               width: '100%', height: 56, borderRadius: 16,
-              background: loading || !isConnected ? '#E4E4E7' : PW_BLACK,
+              background: loading || !isConnected ? 'rgba(255,255,255,0.08)' : PW_BLACK,
               color: loading || !isConnected ? PW_TEXT_2 : PW_WHITE,
               border: 'none', cursor: loading || !isConnected ? 'not-allowed' : 'pointer',
               fontSize: 16, fontWeight: 700, fontFamily: SANS,

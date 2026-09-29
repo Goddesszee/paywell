@@ -9,13 +9,13 @@ import { bridgeFee, BRIDGE_FEE_BPS, bpsToPercent, BRIDGE_FEE_MIN_USDC, FEE_WALLE
 
 const appKit = new AppKit()
 
-const S  = '#1a1a1a'
-const B  = '#E4E4E7'
-const T  = '#ffffff'
-const T2 = '#5C5C6B'
-const T3 = '#9898A6'
-const BK = '#ffffff'
-const WH = '#111111'
+const S  = '#111318'
+const B  = 'rgba(255,255,255,0.08)'
+const T  = '#F2F3F5'
+const T2 = '#8A8F9E'
+const T3 = '#50556A'
+const BK = '#0066FF'
+const WH = '#ffffff'
 const SANS = 'Inter, sans-serif'
 
 // ── CCTP V2 Sandbox fee endpoint ──────────────────────────────────────────────

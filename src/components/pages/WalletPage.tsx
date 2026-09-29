@@ -581,7 +581,7 @@ function ReceiveView({ address, onBack }: { address: string; onBack: () => void 
       {/* QR card */}
       <Card padding="lg" className="text-center">
         {/* QR code */}
-        <div ref={qrRef} style={{ width: 200, height: 200, margin: '0 auto 16px', padding: 12, background: '#0d0d0d', borderRadius: 16, border: '1px solid rgba(255,255,255,0.07)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div ref={qrRef} style={{ width: 200, height: 200, margin: '0 auto 16px', padding: 12, background: '#0066FF', borderRadius: 16, border: '1px solid rgba(255,255,255,0.07)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <QRCodeSVG
             value={qrValue}
             size={176}
@@ -660,7 +660,7 @@ function ReceiveView({ address, onBack }: { address: string; onBack: () => void 
           style={{
             width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
             height: 42, borderRadius: 10, border: '1px solid rgba(255,255,255,0.12)',
-            background: '#0d0d0d', cursor: 'pointer', fontFamily: SANS, fontSize: 13, fontWeight: 600, color: '#ffffff',
+            background: '#0066FF', cursor: 'pointer', fontFamily: SANS, fontSize: 13, fontWeight: 600, color: '#ffffff',
             marginBottom: 10, transition: 'background 0.15s',
           }}
         >

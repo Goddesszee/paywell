@@ -14,7 +14,7 @@ type Metric = { label: string; value: string; sub: string; icon: React.ReactNode
 
 function MetricCard({ label, value, sub, icon, trend }: Metric) {
   return (
-    <div style={{ background: '#0d0d0d', border: `1px solid ${B}`, borderRadius: 14, padding: '18px 20px' }}>
+    <div style={{ background: '#0066FF', border: `1px solid ${B}`, borderRadius: 14, padding: '18px 20px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
         <div style={{ width: 36, height: 36, borderRadius: 9, background: S, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           {icon}
@@ -39,7 +39,7 @@ function InfraCard({ name, status, desc, icon }: InfraItem) {
   const badgeColor = status === 'live' ? '#ffffff' : '#9898A6'
   const badgeBg = status === 'live' ? '#1a1a1a' : '#1a1a1a'
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px', background: '#0d0d0d', border: `1px solid ${B}`, borderRadius: 12, marginBottom: 8 }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px', background: '#0066FF', border: `1px solid ${B}`, borderRadius: 12, marginBottom: 8 }}>
       <div style={{ width: 36, height: 36, borderRadius: 9, background: S, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
         {icon}
       </div>
@@ -162,7 +162,7 @@ export function AdminDashboard() {
   return (
     <div style={{ minHeight: '100vh', background: S, fontFamily: SANS, color: '#ffffff' }}>
       {/* Header */}
-      <div style={{ background: '#0d0d0d', borderBottom: `1px solid ${B}`, padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 50 }}>
+      <div style={{ background: '#0066FF', borderBottom: `1px solid ${B}`, padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 50 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <button
             onClick={() => setActiveView('home')}
@@ -182,7 +182,7 @@ export function AdminDashboard() {
       </div>
 
       {/* Tab bar */}
-      <div style={{ background: '#0d0d0d', borderBottom: `1px solid ${B}`, display: 'flex', overflowX: 'auto', padding: '0 20px' }}>
+      <div style={{ background: '#0066FF', borderBottom: `1px solid ${B}`, display: 'flex', overflowX: 'auto', padding: '0 20px' }}>
         {tabs.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)} style={{
             padding: '12px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer', background: 'none',
@@ -208,7 +208,7 @@ export function AdminDashboard() {
 
             {/* Circle infra summary */}
             <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 12 }}>Circle Infrastructure</div>
-            <div style={{ background: '#0d0d0d', border: `1px solid ${B}`, borderRadius: 14, padding: '16px 20px', marginBottom: 24 }}>
+            <div style={{ background: '#0066FF', border: `1px solid ${B}`, borderRadius: 14, padding: '16px 20px', marginBottom: 24 }}>
               {[
                 { label: 'Arc Testnet', live: true },
                 { label: 'USDC Contract', live: true },
@@ -230,11 +230,11 @@ export function AdminDashboard() {
             {/* Recent activity */}
             <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 12 }}>Recent Activity</div>
             {activity.length === 0 ? (
-              <div style={{ background: '#0d0d0d', border: `1px solid ${B}`, borderRadius: 14, padding: '32px 20px', textAlign: 'center', color: '#A0A0A0', fontSize: 13 }}>
+              <div style={{ background: '#0066FF', border: `1px solid ${B}`, borderRadius: 14, padding: '32px 20px', textAlign: 'center', color: '#A0A0A0', fontSize: 13 }}>
                 No activity yet — transactions appear here in real time
               </div>
             ) : (
-              <div style={{ background: '#0d0d0d', border: `1px solid ${B}`, borderRadius: 14, overflow: 'hidden' }}>
+              <div style={{ background: '#0066FF', border: `1px solid ${B}`, borderRadius: 14, overflow: 'hidden' }}>
                 {activity.slice(0, 5).map((a, i) => (
                   <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', borderBottom: i < 4 ? `1px solid ${B}` : 'none' }}>
                     <div>
@@ -262,13 +262,13 @@ export function AdminDashboard() {
             <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: '-0.02em', marginBottom: 4 }}>Product Listings</div>
             <div style={{ fontSize: 13, color: '#a0a0a0', marginBottom: 20 }}>Review and approve merchant product submissions</div>
             {pendingListings.length === 0 ? (
-              <div style={{ background: '#0d0d0d', border: `1px solid ${B}`, borderRadius: 14, padding: '48px 20px', textAlign: 'center', color: '#A0A0A0', fontSize: 13 }}>
+              <div style={{ background: '#0066FF', border: `1px solid ${B}`, borderRadius: 14, padding: '48px 20px', textAlign: 'center', color: '#A0A0A0', fontSize: 13 }}>
                 No listings submitted yet. Merchants can list products from the Shop page.
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 {pendingListings.map(l => (
-                  <div key={l.id} style={{ background: '#0d0d0d', border: `1px solid ${B}`, borderRadius: 14, padding: '16px 18px' }}>
+                  <div key={l.id} style={{ background: '#0066FF', border: `1px solid ${B}`, borderRadius: 14, padding: '16px 18px' }}>
                     <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
                       {(l.imageBase64 || l.imageUrl) && (
                         <img src={l.imageBase64 || l.imageUrl} alt={l.name} style={{ width: 64, height: 64, borderRadius: 10, objectFit: 'cover', flexShrink: 0 }} onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
@@ -319,11 +319,11 @@ export function AdminDashboard() {
           <div>
             <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: '-0.02em', marginBottom: 16 }}>All Transactions</div>
             {activity.length === 0 ? (
-              <div style={{ background: '#0d0d0d', border: `1px solid ${B}`, borderRadius: 14, padding: '48px 20px', textAlign: 'center', color: '#A0A0A0', fontSize: 13 }}>
+              <div style={{ background: '#0066FF', border: `1px solid ${B}`, borderRadius: 14, padding: '48px 20px', textAlign: 'center', color: '#A0A0A0', fontSize: 13 }}>
                 No transactions yet. Connect a wallet and make a transfer to see activity here.
               </div>
             ) : (
-              <div style={{ background: '#0d0d0d', border: `1px solid ${B}`, borderRadius: 14, overflow: 'hidden' }}>
+              <div style={{ background: '#0066FF', border: `1px solid ${B}`, borderRadius: 14, overflow: 'hidden' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', padding: '10px 16px', borderBottom: `1px solid ${B}`, background: S }}>
                   {['Type', 'Amount', 'Status', 'Hash'].map(h => (
                     <div key={h} style={{ fontSize: 11, fontWeight: 700, color: '#A0A0A0', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{h}</div>
@@ -357,7 +357,7 @@ export function AdminDashboard() {
 
             {/* Env var checklist */}
             <div style={{ marginTop: 24, fontSize: 15, fontWeight: 700, marginBottom: 12 }}>Environment Variables</div>
-            <div style={{ background: '#0d0d0d', border: `1px solid ${B}`, borderRadius: 14, overflow: 'hidden' }}>
+            <div style={{ background: '#0066FF', border: `1px solid ${B}`, borderRadius: 14, overflow: 'hidden' }}>
               {[
                 { key: 'GROQ_API_KEY', desc: 'Real AI agent chat', set: hasGroq },
                 { key: 'VITE_X402_SELLER_ADDRESS', desc: 'x402 micropayment receiver', set: hasX402 },
@@ -386,7 +386,7 @@ export function AdminDashboard() {
             <div style={{ fontSize: 13, color: '#a0a0a0', marginBottom: 20 }}>Platform fees collected across all services</div>
 
             {/* Fee wallet */}
-            <div style={{ background: '#0d0d0d', border: `1px solid ${B}`, borderRadius: 14, padding: '14px 16px', marginBottom: 20 }}>
+            <div style={{ background: '#0066FF', border: `1px solid ${B}`, borderRadius: 14, padding: '14px 16px', marginBottom: 20 }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: '#9898A6', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Fee wallet</div>
               <div style={{ fontSize: 12, fontFamily: 'monospace', color: '#ffffff', wordBreak: 'break-all' }}>{FEE_WALLET}</div>
               <div style={{ fontSize: 11, color: '#9898A6', marginTop: 4 }}>All platform fees are sent to this address on Arc Testnet</div>
@@ -394,7 +394,7 @@ export function AdminDashboard() {
 
             {/* Fee schedule */}
             <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 10 }}>Fee schedule</div>
-            <div style={{ background: '#0d0d0d', border: `1px solid ${B}`, borderRadius: 14, overflow: 'hidden', marginBottom: 20 }}>
+            <div style={{ background: '#0066FF', border: `1px solid ${B}`, borderRadius: 14, overflow: 'hidden', marginBottom: 20 }}>
               {[
                 { label: 'Marketplace sale', rate: bpsToPercent(MARKETPLACE_FEE_BPS), total: marketplaceFeeTotal, icon: <ShoppingBag size={14} /> },
                 { label: 'Swap', rate: bpsToPercent(SWAP_FEE_BPS), total: swapFeeTotal, icon: <RefreshCw size={14} /> },
@@ -429,11 +429,11 @@ export function AdminDashboard() {
             {/* Fee event log */}
             <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 10 }}>Fee log</div>
             {feeRevenue.length === 0 ? (
-              <div style={{ background: '#0d0d0d', border: `1px solid ${B}`, borderRadius: 14, padding: '48px 20px', textAlign: 'center', color: '#A0A0A0', fontSize: 13 }}>
+              <div style={{ background: '#0066FF', border: `1px solid ${B}`, borderRadius: 14, padding: '48px 20px', textAlign: 'center', color: '#A0A0A0', fontSize: 13 }}>
                 No fees collected yet. They appear here after marketplace sales, swaps, and bridges.
               </div>
             ) : (
-              <div style={{ background: '#0d0d0d', border: `1px solid ${B}`, borderRadius: 14, overflow: 'hidden' }}>
+              <div style={{ background: '#0066FF', border: `1px solid ${B}`, borderRadius: 14, overflow: 'hidden' }}>
                 {feeRevenue.slice(0, 50).map((f, i) => (
                   <div key={f.id} style={{ display: 'grid', gridTemplateColumns: '80px 1fr 90px', gap: 8, padding: '11px 16px', borderBottom: i < feeRevenue.length - 1 ? `1px solid ${B}` : 'none', alignItems: 'center' }}>
                     <span style={{ fontSize: 11, fontWeight: 700, background: '#1a1a1a', color: '#ffffff', padding: '2px 7px', borderRadius: 20, textAlign: 'center', textTransform: 'capitalize' }}>
@@ -460,7 +460,7 @@ export function AdminDashboard() {
         {tab === 'users' && (
           <div>
             <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: '-0.02em', marginBottom: 16 }}>Users</div>
-            <div style={{ background: '#0d0d0d', border: `1px solid ${B}`, borderRadius: 14, padding: '48px 20px', textAlign: 'center' }}>
+            <div style={{ background: '#0066FF', border: `1px solid ${B}`, borderRadius: 14, padding: '48px 20px', textAlign: 'center' }}>
               <Users size={32} style={{ margin: '0 auto 16px', color: '#D0D0D0' }} />
               <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 6 }}>User tracking coming soon</div>
               <div style={{ fontSize: 13, color: '#A0A0A0', maxWidth: 280, margin: '0 auto', lineHeight: 1.6 }}>

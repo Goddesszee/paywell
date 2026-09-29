@@ -189,7 +189,7 @@ export function PaymentRequestPage({ params }: { params: PaymentParams }) {
       {/* Request card */}
       <div style={{ background: BLACK, borderRadius: 20, padding: '24px 20px', marginBottom: 20, textAlign: 'center' }}>
         {/* QR */}
-        <div style={{ width: 140, height: 140, background: '#0d0d0d', borderRadius: 14, margin: '0 auto 16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ width: 140, height: 140, background: '#0066FF', borderRadius: 14, margin: '0 auto 16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <QRCodeSVG value={params.to} size={120} bgColor="#fff" fgColor="#ffffff" level="M" />
         </div>
 
@@ -246,7 +246,7 @@ export function PaymentRequestPage({ params }: { params: PaymentParams }) {
 
       {/* Amount editor */}
       {address && (
-        <div style={{ background: '#0d0d0d', border: `1px solid ${BORDER}`, borderRadius: 14, padding: 16, marginBottom: 14 }}>
+        <div style={{ background: '#0066FF', border: `1px solid ${BORDER}`, borderRadius: 14, padding: 16, marginBottom: 14 }}>
           {step === 'edit_amount' ? (
             <div>
               <label style={{ fontSize: 12, fontWeight: 600, color: TEXT3, textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 8 }}>
@@ -345,7 +345,7 @@ export function PaymentRequestPage({ params }: { params: PaymentParams }) {
 function FullPage({ children }: { children: React.ReactNode }) {
   return (
     <div style={{
-      minHeight: '100vh', background: '#0d0d0d', fontFamily: FONT,
+      minHeight: '100vh', background: '#0066FF', fontFamily: FONT,
       display: 'flex', flexDirection: 'column', alignItems: 'center',
       padding: '24px 20px 40px',
     }}>

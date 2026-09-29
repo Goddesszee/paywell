@@ -1,0 +1,360 @@
+/* ═══════════════════════════════════════════════════════════
+   NAN DESIGN SYSTEM  ·  v3.0
+   Single source of truth for every color, type and component
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── Color tokens ── */
+:root {
+  /* Core brand */
+  --nan-bg:       #08090B;
+  --nan-surface:  #111318;
+  --nan-surface2: #181B22;
+  --nan-surface3: #1E2230;
+  --nan-blue:     #0066FF;
+  --nan-blue-dim: rgba(0,102,255,0.12);
+  --nan-blue-bd:  rgba(0,102,255,0.22);
+
+  /* Text */
+  --nan-text:   #FFFFFF;
+  --nan-text2:  #8A8F9E;
+  --nan-text3:  #50556A;
+
+  /* Borders */
+  --nan-bdr:    rgba(255,255,255,0.07);
+  --nan-bdr2:   rgba(255,255,255,0.12);
+
+  /* Semantic */
+  --nan-green:  #00C853;
+  --nan-red:    #FF4444;
+  --nan-gold:   #F0A500;
+  --nan-green-dim: rgba(0,200,83,0.10);
+  --nan-red-dim:   rgba(255,68,68,0.10);
+  --nan-gold-dim:  rgba(240,165,0,0.10);
+
+  /* Font */
+  --nan-font: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --nan-mono: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+
+  /* Radius */
+  --nan-r-sm:  8px;
+  --nan-r:     12px;
+  --nan-r-lg:  16px;
+  --nan-r-xl:  20px;
+}
+
+/* Light mode overrides */
+[data-theme="light"] {
+  --nan-bg:       #F4F5F7;
+  --nan-surface:  #FFFFFF;
+  --nan-surface2: #F0F1F4;
+  --nan-surface3: #E8EAEF;
+  --nan-text:     #0A0B0E;
+  --nan-text2:    #5C6070;
+  --nan-text3:    #9298A8;
+  --nan-bdr:      rgba(0,0,0,0.07);
+  --nan-bdr2:     rgba(0,0,0,0.12);
+}
+
+/* ── Reset ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body, #root {
+  height: 100%;
+  background: var(--nan-bg);
+  font-family: var(--nan-font);
+  color: var(--nan-text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* ── Typography scale ── */
+.nan-display  { font-size: clamp(32px, 8vw, 48px); font-weight: 800; letter-spacing: -0.03em; line-height: 1.05; }
+.nan-h1       { font-size: 24px; font-weight: 700; letter-spacing: -0.025em; line-height: 1.2; }
+.nan-h2       { font-size: 20px; font-weight: 700; letter-spacing: -0.02em; }
+.nan-h3       { font-size: 17px; font-weight: 700; letter-spacing: -0.015em; }
+.nan-body     { font-size: 15px; font-weight: 400; line-height: 1.6; }
+.nan-label    { font-size: 13px; font-weight: 600; }
+.nan-caption  { font-size: 11px; font-weight: 500; }
+.nan-mono     { font-family: var(--nan-mono); font-feature-settings: 'tnum'; }
+.nan-balance  { font-size: clamp(36px, 10vw, 52px); font-weight: 700; letter-spacing: -0.03em; line-height: 1; font-family: var(--nan-mono); }
+
+/* ── Surface / Card ── */
+.nan-card {
+  background: var(--nan-surface);
+  border: 1px solid var(--nan-bdr);
+  border-radius: var(--nan-r-lg);
+  overflow: hidden;
+}
+.nan-card-inner { padding: 16px 18px; }
+.nan-card + .nan-card { margin-top: 10px; }
+.nan-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 13px 18px;
+}
+.nan-row + .nan-row { border-top: 1px solid var(--nan-bdr); }
+.nan-row:hover { background: var(--nan-surface2); }
+
+/* ── Buttons ── */
+.nan-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  font-family: var(--nan-font); font-size: 15px; font-weight: 600;
+  border: none; border-radius: var(--nan-r); cursor: pointer;
+  transition: all 0.15s; -webkit-tap-highlight-color: transparent;
+  white-space: nowrap; padding: 0 20px; height: 50px;
+}
+.nan-btn:active { transform: scale(0.97); }
+.nan-btn:disabled { opacity: 0.38; cursor: not-allowed; pointer-events: none; }
+.nan-btn-primary  { background: var(--nan-blue); color: #fff; }
+.nan-btn-primary:hover  { background: #0052CC; }
+.nan-btn-secondary { background: var(--nan-surface2); color: var(--nan-text); border: 1px solid var(--nan-bdr2); }
+.nan-btn-secondary:hover { background: var(--nan-surface3); }
+.nan-btn-ghost { background: transparent; color: var(--nan-text2); border: 1px solid var(--nan-bdr); }
+.nan-btn-ghost:hover { border-color: var(--nan-bdr2); color: var(--nan-text); }
+.nan-btn-danger { background: rgba(255,68,68,0.10); color: var(--nan-red); border: 1px solid rgba(255,68,68,0.20); }
+.nan-btn-sm { height: 36px; font-size: 13px; padding: 0 14px; border-radius: var(--nan-r-sm); }
+.nan-btn-lg { height: 56px; font-size: 16px; border-radius: var(--nan-r-lg); }
+.nan-btn-full { width: 100%; }
+.nan-btn-icon { width: 40px; height: 40px; padding: 0; border-radius: var(--nan-r-sm); }
+
+/* ── Inputs ── */
+.nan-input-wrap { display: flex; flex-direction: column; gap: 6px; }
+.nan-input-label { font-size: 12px; font-weight: 600; color: var(--nan-text3); text-transform: uppercase; letter-spacing: 0.06em; }
+.nan-input {
+  width: 100%; padding: 12px 14px;
+  background: var(--nan-surface2); border: 1px solid var(--nan-bdr);
+  border-radius: var(--nan-r); color: var(--nan-text);
+  font-family: var(--nan-font); font-size: 15px;
+  outline: none; transition: border-color 0.15s, box-shadow 0.15s;
+  -webkit-appearance: none;
+}
+.nan-input:focus { border-color: var(--nan-blue); box-shadow: 0 0 0 3px rgba(0,102,255,0.15); }
+.nan-input::placeholder { color: var(--nan-text3); }
+.nan-input-big { font-size: 28px; font-weight: 700; letter-spacing: -0.02em; padding: 14px; font-family: var(--nan-mono); }
+.nan-input-error { border-color: var(--nan-red) !important; }
+.nan-error-msg { font-size: 12px; color: var(--nan-red); margin-top: 4px; }
+
+/* ── Token selector ── */
+.nan-token-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 12px; border-radius: 100px;
+  background: var(--nan-surface2); border: 1px solid var(--nan-bdr2);
+  font-size: 14px; font-weight: 700; color: var(--nan-text);
+  cursor: pointer; transition: all 0.15s; white-space: nowrap;
+}
+.nan-token-pill:hover { border-color: var(--nan-blue); background: var(--nan-surface3); }
+
+/* ── Filter tabs (pill row) ── */
+.nan-filters { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; }
+.nan-filters::-webkit-scrollbar { display: none; }
+.nan-filter-pill {
+  flex-shrink: 0; padding: 6px 14px; border-radius: 100px;
+  font-size: 13px; font-weight: 600; cursor: pointer;
+  background: var(--nan-surface); color: var(--nan-text2);
+  border: 1px solid var(--nan-bdr); transition: all 0.15s;
+  font-family: var(--nan-font);
+}
+.nan-filter-pill.active {
+  background: var(--nan-blue); color: #fff; border-color: var(--nan-blue);
+}
+
+/* ── Tabs (within page) ── */
+.nan-tabs { display: flex; background: var(--nan-surface); border-radius: var(--nan-r); padding: 3px; gap: 2px; }
+.nan-tab {
+  flex: 1; padding: 8px 6px; border: none; border-radius: 9px; cursor: pointer;
+  font-family: var(--nan-font); font-size: 13px; font-weight: 500;
+  background: transparent; color: var(--nan-text2); transition: all 0.15s;
+}
+.nan-tab.active {
+  background: var(--nan-blue); color: #fff; font-weight: 700;
+}
+
+/* ── Transaction row ── */
+.nan-tx-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 13px 16px;
+}
+.nan-tx-row + .nan-tx-row { border-top: 1px solid var(--nan-bdr); }
+.nan-tx-icon {
+  width: 40px; height: 40px; border-radius: var(--nan-r-sm); flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.nan-tx-icon.in  { background: var(--nan-green-dim); border: 1px solid rgba(0,200,83,0.15); }
+.nan-tx-icon.out { background: var(--nan-red-dim);   border: 1px solid rgba(255,68,68,0.15); }
+.nan-tx-icon.bot { background: var(--nan-blue-dim);  border: 1px solid var(--nan-blue-bd); }
+.nan-tx-icon.swap { background: rgba(240,165,0,0.10); border: 1px solid rgba(240,165,0,0.18); }
+.nan-tx-info { flex: 1; min-width: 0; }
+.nan-tx-title { font-size: 14px; font-weight: 600; color: var(--nan-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nan-tx-sub   { font-size: 11px; color: var(--nan-text3); margin-top: 2px; display: flex; align-items: center; gap: 4px; }
+.nan-tx-amount { font-size: 14px; font-weight: 700; font-family: var(--nan-mono); flex-shrink: 0; text-align: right; }
+.nan-tx-amount.in  { color: var(--nan-green); }
+.nan-tx-amount.out { color: var(--nan-red); }
+
+/* ── Status badges ── */
+.nan-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 9px; border-radius: 100px;
+  font-size: 11px; font-weight: 600; white-space: nowrap;
+}
+.nan-badge-blue    { background: var(--nan-blue-dim);    color: var(--nan-blue); border: 1px solid var(--nan-blue-bd); }
+.nan-badge-green   { background: var(--nan-green-dim);   color: var(--nan-green); border: 1px solid rgba(0,200,83,0.20); }
+.nan-badge-red     { background: var(--nan-red-dim);     color: var(--nan-red); border: 1px solid rgba(255,68,68,0.20); }
+.nan-badge-gold    { background: var(--nan-gold-dim);    color: var(--nan-gold); border: 1px solid rgba(240,165,0,0.20); }
+.nan-badge-neutral { background: var(--nan-surface2);    color: var(--nan-text2); border: 1px solid var(--nan-bdr); }
+
+/* ── Icon box ── */
+.nan-icon-box {
+  width: 36px; height: 36px; border-radius: var(--nan-r-sm); flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--nan-surface2); border: 1px solid var(--nan-bdr);
+}
+.nan-icon-box.blue { background: var(--nan-blue-dim); border-color: var(--nan-blue-bd); }
+
+/* ── Separator / divider row ── */
+.nan-section-label {
+  font-size: 11px; font-weight: 600; color: var(--nan-text3);
+  text-transform: uppercase; letter-spacing: 0.07em;
+  padding: 14px 0 6px;
+}
+
+/* ── Empty state ── */
+.nan-empty {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; padding: 56px 24px; text-align: center; gap: 10px;
+}
+.nan-empty-icon {
+  width: 52px; height: 52px; border-radius: 14px;
+  background: var(--nan-surface); border: 1px solid var(--nan-bdr);
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 4px;
+}
+.nan-empty-title { font-size: 15px; font-weight: 600; color: var(--nan-text); }
+.nan-empty-sub   { font-size: 13px; color: var(--nan-text3); }
+
+/* ── Loading skeleton ── */
+.nan-skel {
+  background: linear-gradient(90deg, var(--nan-surface2) 25%, var(--nan-surface3) 50%, var(--nan-surface2) 75%);
+  background-size: 200% 100%; animation: nan-shimmer 1.4s ease infinite;
+  border-radius: 6px;
+}
+@keyframes nan-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+/* ── Swap card specific ── */
+.nan-swap-box {
+  background: var(--nan-surface);
+  border: 1px solid var(--nan-bdr);
+  border-radius: var(--nan-r-lg);
+  overflow: hidden;
+}
+.nan-swap-half { padding: 16px 16px 14px; }
+.nan-swap-half + .nan-swap-half { border-top: 1px solid var(--nan-bdr); background: var(--nan-surface2); }
+.nan-swap-label { font-size: 11px; font-weight: 600; color: var(--nan-text3); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 10px; }
+
+/* ── Page wrapper ── */
+.nan-page { max-width: 480px; margin: 0 auto; padding: 0 0 100px; }
+.nan-page-header { padding: 18px 0 20px; display: flex; align-items: center; gap: 10px; }
+
+/* ── Quick actions grid ── */
+.nan-quick-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.nan-quick-btn {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  padding: 12px 6px; border-radius: var(--nan-r); border: none;
+  background: var(--nan-surface); border: 1px solid var(--nan-bdr);
+  cursor: pointer; transition: all 0.15s; font-family: var(--nan-font);
+  -webkit-tap-highlight-color: transparent;
+}
+.nan-quick-btn:active { transform: scale(0.95); }
+.nan-quick-btn .icon-wrap {
+  width: 38px; height: 38px; border-radius: var(--nan-r-sm);
+  background: var(--nan-surface2); border: 1px solid var(--nan-bdr);
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.15s;
+}
+.nan-quick-btn.primary .icon-wrap { background: var(--nan-blue); border-color: var(--nan-blue); }
+.nan-quick-btn span { font-size: 11px; font-weight: 600; color: var(--nan-text2); letter-spacing: 0.01em; }
+.nan-quick-btn.primary span { color: var(--nan-blue); }
+
+/* ── Balance card ── */
+.nan-balance-card {
+  background: var(--nan-surface);
+  border: 1px solid var(--nan-bdr);
+  border-radius: var(--nan-r-xl);
+  padding: 22px 22px 18px;
+  position: relative; overflow: hidden;
+}
+.nan-balance-card::before {
+  content: ''; position: absolute; top: -40px; right: -40px;
+  width: 180px; height: 180px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(0,102,255,0.12) 0%, transparent 65%);
+  pointer-events: none;
+}
+
+/* ── Scrollbar hide ── */
+.nan-scroll { overflow-y: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+.nan-scroll::-webkit-scrollbar { display: none; }
+
+/* ── Info box ── */
+.nan-info-box {
+  background: var(--nan-blue-dim); border: 1px solid var(--nan-blue-bd);
+  border-radius: var(--nan-r); padding: 12px 14px;
+  font-size: 13px; color: var(--nan-text2); line-height: 1.55;
+}
+.nan-warn-box {
+  background: var(--nan-gold-dim); border: 1px solid rgba(240,165,0,0.20);
+  border-radius: var(--nan-r); padding: 12px 14px;
+  font-size: 13px; color: var(--nan-gold); line-height: 1.55;
+}
+.nan-success-box {
+  background: var(--nan-green-dim); border: 1px solid rgba(0,200,83,0.20);
+  border-radius: var(--nan-r); padding: 16px 18px;
+}
+.nan-error-box {
+  background: var(--nan-red-dim); border: 1px solid rgba(255,68,68,0.20);
+  border-radius: var(--nan-r); padding: 12px 14px;
+  font-size: 13px; color: var(--nan-red);
+}
+
+/* ── Progress bar ── */
+.nan-progress-track { height: 3px; background: var(--nan-surface2); border-radius: 2px; overflow: hidden; }
+.nan-progress-fill  { height: 100%; background: var(--nan-blue); border-radius: 2px; transition: width 0.4s ease; }
+.nan-progress-fill.warn { background: var(--nan-red); }
+
+/* ── Step indicator ── */
+.nan-step-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; }
+.nan-step-dot {
+  width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700; transition: all 0.2s;
+}
+.nan-step-dot.done   { background: var(--nan-blue-dim); color: var(--nan-blue); border: 1.5px solid var(--nan-blue-bd); }
+.nan-step-dot.active { background: var(--nan-blue);     color: #fff; }
+.nan-step-dot.idle   { background: var(--nan-surface2); color: var(--nan-text3); border: 1.5px solid var(--nan-bdr); }
+.nan-step-label { font-size: 13px; font-weight: 600; color: var(--nan-text); }
+.nan-step-label.idle { color: var(--nan-text3); }
+
+/* ── Spinner ── */
+.nan-spin { animation: nan-rotate 0.8s linear infinite; }
+@keyframes nan-rotate { to { transform: rotate(360deg); } }
+
+/* ── Toggle switch ── */
+.nan-toggle { position: relative; width: 48px; height: 28px; flex-shrink: 0; }
+.nan-toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
+.nan-toggle-track {
+  position: absolute; inset: 0; border-radius: 14px; cursor: pointer;
+  background: var(--nan-surface2); border: 1px solid var(--nan-bdr);
+  transition: background 0.2s;
+}
+.nan-toggle input:checked ~ .nan-toggle-track { background: var(--nan-blue); border-color: var(--nan-blue); }
+.nan-toggle-thumb {
+  position: absolute; top: 3px; left: 3px; width: 20px; height: 20px;
+  border-radius: 50%; background: #fff; pointer-events: none;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.25); transition: left 0.2s;
+}
+.nan-toggle input:checked ~ .nan-toggle-track ~ .nan-toggle-thumb { left: 23px; }
+
+/* ── Animated check circle ── */
+.nan-check-circle {
+  width: 64px; height: 64px; border-radius: 50%; margin: 0 auto;
+  background: var(--nan-green-dim); border: 1.5px solid rgba(0,200,83,0.25);
+  display: flex; align-items: center; justify-content: center;
+}

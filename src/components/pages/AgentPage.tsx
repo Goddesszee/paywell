@@ -18,14 +18,14 @@ import { getUsdc } from '../../onchain-facts'
 
 
 const F = "'Inter', -apple-system, sans-serif"
-const BLACK = '#ffffff'
-const WHITE = '#111111'
-const SURFACE = '#1a1a1a'
-const BORDER = 'rgba(0,0,0,0.08)'
-const TEXT2 = '#5C5C6B'
-const TEXT3 = '#9898A6'
-const SUCCESS = '#ffffff'
-const DANGER = '#ffffff'
+const BLACK = '#F2F3F5'
+const WHITE = '#08090B'
+const SURFACE = '#111318'
+const BORDER = 'rgba(255,255,255,0.08)'
+const TEXT2 = '#8A8F9E'
+const TEXT3 = '#50556A'
+const SUCCESS = '#00C853'
+const DANGER = '#FF3B3B'
 
 const X402_PRICE = '0.001'
 const USDC_TRANSFER_ABI = [{
@@ -119,8 +119,8 @@ export function AgentPage() {
           <button key={t.id} onClick={() => setTab(t.id)} style={{
             flex:1, padding:'7px 4px', border:'none', borderRadius:9, cursor:'pointer',
             fontFamily:F, fontSize:12, fontWeight: isActive ? 700 : 500,
-            background: isActive ? (isX402 ? BLACK : WHITE) : 'transparent',
-            color: isActive ? (isX402 ? WHITE : BLACK) : (isX402 ? BLACK : TEXT2),
+            background: isActive ? '#0066FF' : 'transparent',
+            color: isActive ? '#fff' : TEXT2,
             boxShadow: isActive ? '0 1px 4px rgba(0,0,0,0.08)' : 'none',
             transition:'all 0.15s', whiteSpace:'nowrap',
           }}>
