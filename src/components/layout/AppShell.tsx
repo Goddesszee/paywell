@@ -6,11 +6,12 @@ import { useAccount } from 'wagmi'
 const ADMIN_ADDRESS = (import.meta.env.VITE_ADMIN_ADDRESS as string ?? '').toLowerCase()
 
 const FONT = "'Inter', -apple-system, sans-serif"
-const BLACK = '#0D0D0D'
-const SURFACE = '#F7F7F8'
-const BORDER = 'rgba(0,0,0,0.07)'
-const TEXT_2 = '#5C5C6B'
-const TEXT_3 = '#9898A6'
+const BLACK = '#0A0A0F'        // NAN dark background
+const BLUE  = '#2563EB'        // NAN accent blue
+const SURFACE = '#111118'      // NAN surface
+const BORDER = 'rgba(37,99,235,0.18)'  // NAN blue-tinted border
+const TEXT_2 = '#9AA0B0'
+const TEXT_3 = '#64748B'
 
 const NAV_ITEMS = [
   { id: 'home',     label: 'Home',     Icon: Home },
@@ -66,7 +67,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div style={{ position: 'fixed', inset: 0, display: 'flex', flexDirection: 'column', background: '#FFF', fontFamily: FONT }}>
+    <div style={{ position: 'fixed', inset: 0, display: 'flex', flexDirection: 'column', background: BLACK, fontFamily: FONT }}>
 
       {/* ── Admin unlock toast ── */}
       {adminToast && (
@@ -87,18 +88,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         paddingLeft: 'max(16px, env(safe-area-inset-left))',
         paddingRight: 'max(16px, env(safe-area-inset-right))',
-        background: 'rgba(255,255,255,0.95)',
+        background: 'rgba(10,10,15,0.92)',
         backdropFilter: 'blur(20px)',
         WebkitBackdropFilter: 'blur(20px)',
         borderBottom: `1px solid ${BORDER}`,
       }}>
         {/* 5-tap secret admin trigger */}
-        <span
-          onClick={handleLogoTap}
-          style={{ fontWeight: 700, fontSize: 18, letterSpacing: '-0.02em', color: '#0D0D0D', fontFamily: 'Inter,sans-serif', userSelect: 'none', WebkitUserSelect: 'none', cursor: 'default' }}
-        >
-          NAN
-        </span>
+        <div onClick={handleLogoTap} style={{ display: 'flex', alignItems: 'center', gap: 8, userSelect: 'none', WebkitUserSelect: 'none' as const, cursor: 'default' }}>
+          <div style={{ width: 28, height: 28, borderRadius: '50%', background: BLUE, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: '0 0 12px rgba(37,99,235,0.5)' }}>
+            <svg viewBox="0 0 324 480" width="12" height="17" fill="none">
+              <path d="M255,0 L84,167 L71,163 L0,97 L0,378 L246,132 L255,110 Z" fill="#fff"/>
+              <path d="M69,480 L240,313 L253,317 L324,383 L324,102 L78,348 L69,370 Z" fill="#fff"/>
+            </svg>
+          </div>
+          <span style={{ fontWeight: 800, fontSize: 18, letterSpacing: '-0.03em', color: '#F4F4F8', fontFamily: 'Inter,sans-serif' }}>NAN</span>
+        </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <div className="net-pill">Arc Testnet</div>
           <button
@@ -106,8 +110,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             aria-label="Menu"
             style={{
               width: 36, height: 36, borderRadius: 9,
-              background: drawerOpen ? BLACK : SURFACE,
-              border: `1px solid ${drawerOpen ? BLACK : 'rgba(0,0,0,0.09)'}`,
+              background: drawerOpen ? BLUE : SURFACE,
+              border: `1px solid ${drawerOpen ? BLUE : BORDER}`,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               cursor: 'pointer', transition: 'all 0.15s',
             }}
@@ -135,9 +139,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <div style={{
         position: 'fixed', top: 0, right: 0, bottom: 0,
         width: 280, zIndex: 70,
-        background: '#FFF',
+        background: '#111118',
         borderLeft: `1px solid ${BORDER}`,
-        boxShadow: '-8px 0 32px rgba(0,0,0,0.08)',
+        boxShadow: '-8px 0 32px rgba(0,0,0,0.4)',
         transform: drawerOpen ? 'translateX(0)' : 'translateX(100%)',
         transition: 'transform 0.25s cubic-bezier(0.4,0,0.2,1)',
         display: 'flex', flexDirection: 'column',
@@ -157,7 +161,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 style={{
                   width: '100%', display: 'flex', alignItems: 'center', gap: 12,
                   padding: '12px 12px', borderRadius: 12, border: 'none',
-                  background: isActive ? BLACK : 'transparent',
+                  background: isActive ? BLUE : 'transparent',
                   cursor: 'pointer', transition: 'all 0.15s',
                   fontFamily: FONT, marginBottom: 2,
                   WebkitTapHighlightColor: 'transparent',
@@ -168,10 +172,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   background: isActive ? 'rgba(255,255,255,0.15)' : SURFACE,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}>
-                  <Icon size={17} color={isActive ? '#FFF' : BLACK} />
+                  <Icon size={17} color={isActive ? '#FFF' : TEXT_2} />
                 </div>
                 <div style={{ flex: 1, textAlign: 'left' }}>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: isActive ? '#FFF' : BLACK, lineHeight: 1.2 }}>{label}</div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: isActive ? '#FFF' : '#F4F4F8', lineHeight: 1.2 }}>{label}</div>
                   <div style={{ fontSize: 12, color: isActive ? 'rgba(255,255,255,0.6)' : TEXT_2, marginTop: 1 }}>{desc}</div>
                 </div>
                 <ChevronRight size={14} color={isActive ? 'rgba(255,255,255,0.5)' : TEXT_3} />
@@ -198,7 +202,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       {/* ── Bottom nav (4 items) ── */}
       <nav style={{
         flexShrink: 0, zIndex: 100,
-        background: 'rgba(255,255,255,0.97)',
+        background: 'rgba(10,10,15,0.97)',
         backdropFilter: 'blur(24px)',
         WebkitBackdropFilter: 'blur(24px)',
         borderTop: `1px solid ${BORDER}`,
@@ -231,11 +235,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 {isActive && (
                   <span style={{
                     position: 'absolute', top: 5,
-                    width: 4, height: 4, borderRadius: '50%', background: BLACK,
+                    width: 4, height: 4, borderRadius: '50%', background: BLUE,
                   }} />
                 )}
-                <Icon size={20} color={isActive ? BLACK : TEXT_3} />
-                <span style={{ color: isActive ? BLACK : TEXT_3, transition: 'color 0.15s', lineHeight: 1, letterSpacing: '0.02em' }}>
+                <Icon size={20} color={isActive ? BLUE : TEXT_3} />
+                <span style={{ color: isActive ? BLUE : TEXT_3, transition: 'color 0.15s', lineHeight: 1, letterSpacing: '0.02em' }}>
                   {label}
                 </span>
               </button>
