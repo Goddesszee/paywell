@@ -92,11 +92,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* Drawer overlay */}
       {drawerOpen && (
-        <div onClick={() => setDrawerOpen(false)} style={{ position:'fixed', inset:0, zIndex:55, background:'rgba(0,0,0,0.6)', backdropFilter:'blur(4px)', WebkitBackdropFilter:'blur(4px)' }} />
+        <div onClick={() => setDrawerOpen(false)} style={{ position:'fixed', inset:0, zIndex:105, background:'rgba(0,0,0,0.6)', backdropFilter:'blur(4px)', WebkitBackdropFilter:'blur(4px)' }} />
       )}
 
       {/* ── Side drawer — fixed, scrollable inside ── */}
-      <div style={{ position:'fixed', top:0, right:0, bottom:0, width:272, zIndex:70, background:'#0D1017', borderLeft:`1px solid ${N.bdr}`, boxShadow:'-16px 0 48px rgba(0,0,0,0.6)', transform:drawerOpen?'translateX(0)':'translateX(100%)', transition:'transform 0.24s cubic-bezier(0.4,0,0.2,1)', display:'flex', flexDirection:'column' }}>
+      <div style={{ position:'fixed', top:0, right:0, bottom:0, width:272, zIndex:110, background:'#0D1017', borderLeft:`1px solid ${N.bdr}`, boxShadow:'-16px 0 48px rgba(0,0,0,0.6)', transform:drawerOpen?'translateX(0)':'translateX(100%)', transition:'transform 0.24s cubic-bezier(0.4,0,0.2,1)', display:'flex', flexDirection:'column' }}>
         {/* Drawer header */}
         <div style={{ height:54, flexShrink:0, display:'flex', alignItems:'center', paddingLeft:16, borderBottom:`1px solid ${N.bdr}` }}>
           <div style={{ display:'flex', alignItems:'center', gap:8 }}>
@@ -110,7 +110,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </div>
         {/* Scrollable list */}
-        <div style={{ flex:1, overflowY:'auto', overflowX:'hidden', WebkitOverflowScrolling:'touch', padding:'8px 10px', paddingBottom:'max(20px,env(safe-area-inset-bottom))', scrollbarWidth:'none' }}>
+        <div style={{ flex:1, overflowY:'auto', overflowX:'hidden', WebkitOverflowScrolling:'touch', padding:'8px 10px', paddingBottom:'max(100px,calc(env(safe-area-inset-bottom) + 80px))', scrollbarWidth:'none' }}>
           {DRAWER_SECTIONS.map(section => (
             <div key={section.title} style={{ marginBottom:8 }}>
               <div style={{ fontSize:10, fontWeight:700, color:N.t3, textTransform:'uppercase', letterSpacing:'0.09em', padding:'12px 8px 5px' }}>{section.title}</div>
