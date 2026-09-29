@@ -61,7 +61,7 @@ export function LandingPage() {
       {/* Gradient: dark top + dark bottom, photo shows through middle */}
       <div style={{
         position: 'absolute', inset: 0,
-        background: 'linear-gradient(180deg, rgba(8,9,11,0.80) 0%, rgba(8,9,11,0.05) 35%, rgba(8,9,11,0.05) 60%, rgba(8,9,11,0.94) 100%)',
+        background: 'linear-gradient(180deg, rgba(8,9,11,0.75) 0%, rgba(8,9,11,0.05) 30%, rgba(8,9,11,0.15) 50%, rgba(8,9,11,0.72) 70%, rgba(8,9,11,0.97) 100%)',
       }} />
 
       {/* Top bar — logo + dots */}
@@ -113,13 +113,15 @@ export function LandingPage() {
           color: '#FFFFFF',
           marginBottom: 10,
           whiteSpace: 'pre-line',
+          textShadow: '0 2px 12px rgba(0,0,0,0.6), 0 1px 3px rgba(0,0,0,0.8)',
         }}>{cur.headline}</h1>
 
         <p style={{
           fontSize: 15,
-          color: 'rgba(255,255,255,0.72)',
+          color: 'rgba(255,255,255,0.90)',
           marginBottom: 28,
           lineHeight: 1.55,
+          textShadow: '0 1px 8px rgba(0,0,0,0.7)',
         }}>{cur.sub}</p>
 
         {/* CTAs */}
