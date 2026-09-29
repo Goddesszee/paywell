@@ -100,7 +100,7 @@ export function SellForm({ onBack }: SellFormProps) {
         </h2>
         <p style={{ fontSize: 14, color: '#5C5C6B', lineHeight: 1.7, marginBottom: 20 }}>
           <strong style={{ color: '#0D0D0D' }}>{name}</strong> is pending admin review.
-          Once approved it will appear in the Paywell marketplace.
+          Once approved it will appear in the NAN marketplace.
           Payments will go to your wallet on Arc Testnet.
         </p>
         <Button fullWidth onClick={onBack}>Back to shop</Button>
@@ -334,7 +334,7 @@ export function SellForm({ onBack }: SellFormProps) {
           </div>
 
           <div style={{ padding: '10px 13px', background: '#F7F7F8', borderRadius: 10, fontSize: 12, color: '#5C5C6B', fontFamily: FONT }}>
-            Your listing will be reviewed by the Paywell team before going live. This typically takes a few hours.
+            Your listing will be reviewed by the NAN team before going live. This typically takes a few hours.
           </div>
 
           <Button fullWidth size="lg" onClick={handleSubmit}>

@@ -30,7 +30,7 @@ export function ShopHeader({
             letterSpacing: '-0.03em', lineHeight: 1.15,
             fontFamily: FONT, marginBottom: 2,
           }}>
-            Paywell Shop
+            NAN Shop
           </h1>
           <p style={{ fontSize: 12, color: '#9898A6', fontFamily: FONT }}>
             Programmable commerce on Arc · Powered by Circle

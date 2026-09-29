@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { Product } from '../data/products'
 
-// ── Paywell session auth ───────────────────────────────────────────────────────
+// ── NAN session auth ───────────────────────────────────────────────────────
 export interface PaywellAuth {
   email: string
   sessionToken?: string
@@ -15,7 +15,7 @@ export interface PaywellAuth {
   circleWalletAddress?: string
 }
 
-// ── Paywell Protected Purchase ────────────────────────────────────────────────
+// ── NAN Protected Purchase ────────────────────────────────────────────────
 
 export type DeliveryStage =
   | 'payment_secured'
@@ -279,7 +279,7 @@ export const useAppStore = create<AppState>()(
         {
           id: 'msg-welcome',
           role: 'agent',
-          content: 'Hi! I\'m your Paywell Shopping Agent. I can help you find products and make purchases within your spending limits. What are you looking for today?',
+          content: 'Hi! I\'m your NAN Shopping Agent. I can help you find products and make purchases within your spending limits. What are you looking for today?',
           timestamp: new Date(Date.now() - 1000 * 60 * 5),
         },
       ],
@@ -300,7 +300,7 @@ export const useAppStore = create<AppState>()(
             {
               id: 'msg-welcome-reset',
               role: 'agent',
-              content: 'Hi! I\'m your Paywell Shopping Agent. I can help you find products and make purchases within your spending limits. What are you looking for today?',
+              content: 'Hi! I\'m your NAN Shopping Agent. I can help you find products and make purchases within your spending limits. What are you looking for today?',
               timestamp: new Date(),
             },
           ],

@@ -479,7 +479,7 @@ function ReceiveView({ address, onBack }: { address: string; onBack: () => void 
   const qrRef = useRef<HTMLDivElement>(null)
 
   // ── Payment request URL (real web link, not deep link) ──
-  const APP_URL = typeof window !== 'undefined' ? window.location.origin : 'https://paywell-puce.vercel.app'
+  const APP_URL = typeof window !== 'undefined' ? window.location.origin : 'https://nan-puce.vercel.app'
   const requestLink = requestAmount
     ? `${APP_URL}/?pay=${address}&amount=${requestAmount}${requestNote ? `&note=${encodeURIComponent(requestNote)}` : ''}`
     : `${APP_URL}/?pay=${address}`
@@ -503,29 +503,29 @@ function ReceiveView({ address, onBack }: { address: string; onBack: () => void 
 
   const nativeShare = () => {
     const text = tab === 'request' && requestAmount
-      ? `Pay me ${formatUSDC(parseFloat(requestAmount))} USDC${requestNote ? ` for ${requestNote}` : ''} on Paywell`
-      : `Send me USDC on Paywell`
-    void navigator.share?.({ title: 'Paywell Payment Request', text, url: qrValue })
+      ? `Pay me ${formatUSDC(parseFloat(requestAmount))} USDC${requestNote ? ` for ${requestNote}` : ''} on NAN`
+      : `Send me USDC on NAN`
+    void navigator.share?.({ title: 'NAN Payment Request', text, url: qrValue })
   }
 
   const shareToTwitter = () => {
     const text = tab === 'request' && requestAmount
-      ? `Pay me ${formatUSDC(parseFloat(requestAmount))} USDC${requestNote ? ` for ${requestNote}` : ''} on Paywell 🔒`
-      : `Send me USDC via Paywell`
+      ? `Pay me ${formatUSDC(parseFloat(requestAmount))} USDC${requestNote ? ` for ${requestNote}` : ''} on NAN 🔒`
+      : `Send me USDC via NAN`
     window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(qrValue)}`, '_blank')
   }
 
   const shareToWhatsApp = () => {
     const text = tab === 'request' && requestAmount
-      ? `Pay me ${formatUSDC(parseFloat(requestAmount))} USDC${requestNote ? ` for ${requestNote}` : ''} on Paywell: ${qrValue}`
-      : `Send me USDC on Paywell: ${qrValue}`
+      ? `Pay me ${formatUSDC(parseFloat(requestAmount))} USDC${requestNote ? ` for ${requestNote}` : ''} on NAN: ${qrValue}`
+      : `Send me USDC on NAN: ${qrValue}`
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank')
   }
 
   const shareTelegram = () => {
     const text = tab === 'request' && requestAmount
-      ? `Pay me ${formatUSDC(parseFloat(requestAmount))} USDC${requestNote ? ` for ${requestNote}` : ''} on Paywell`
-      : `Send me USDC on Paywell`
+      ? `Pay me ${formatUSDC(parseFloat(requestAmount))} USDC${requestNote ? ` for ${requestNote}` : ''} on NAN`
+      : `Send me USDC on NAN`
     window.open(`https://t.me/share/url?url=${encodeURIComponent(qrValue)}&text=${encodeURIComponent(text)}`, '_blank')
   }
 
@@ -544,7 +544,7 @@ function ReceiveView({ address, onBack }: { address: string; onBack: () => void 
       ctx.fillRect(0, 0, size, size)
       ctx.drawImage(img, 0, 0, size, size)
       const a = document.createElement('a')
-      a.download = `paywell-${tab === 'request' ? 'request' : 'address'}-qr.png`
+      a.download = `nan-${tab === 'request' ? 'request' : 'address'}-qr.png`
       a.href = canvas.toDataURL('image/png')
       a.click()
     }

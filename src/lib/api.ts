@@ -1,5 +1,5 @@
 /**
- * api.ts — Paywell backend API client
+ * api.ts — NAN backend API client
  *
  * Set VITE_API_URL in .env to point at your backend.
  * Defaults to relative paths (same origin) when not set.

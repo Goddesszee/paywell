@@ -1,7 +1,7 @@
 /**
  * PaymentRequestPage
  * Full-page send flow shown when someone opens a payment link:
- *   https://paywell-puce.vercel.app/?pay=0x...&amount=25&note=Rent
+ *   https://nan-puce.vercel.app/?pay=0x...&amount=25&note=Rent
  * Works for both connected wallet users and new visitors.
  */
 import React, { useState, useEffect } from 'react'
@@ -152,7 +152,7 @@ export function PaymentRequestPage({ params }: { params: PaymentParams }) {
             onClick={() => setActiveView('home')}
             style={{ display: 'block', width: '100%', padding: '14px', background: BLACK, color: '#fff', borderRadius: 12, border: 'none', fontFamily: FONT, fontSize: 15, fontWeight: 700, cursor: 'pointer' }}
           >
-            Back to Paywell
+            Back to NAN
           </button>
         </div>
       </FullPage>
@@ -180,9 +180,9 @@ export function PaymentRequestPage({ params }: { params: PaymentParams }) {
 
   return (
     <FullPage>
-      {/* Paywell wordmark */}
+      {/* NAN wordmark */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 28 }}>
-        <span style={{ fontSize: 18, fontWeight: 800, color: BLACK, fontFamily: FONT, letterSpacing: '-0.02em' }}>Paywell</span>
+        <span style={{ fontSize: 18, fontWeight: 800, color: '#F4F4F8'}>NAN</span>
         <span style={{ fontSize: 11, color: TEXT3, background: SURFACE, padding: '3px 10px', borderRadius: 20, fontWeight: 600 }}>Arc Testnet</span>
       </div>
 
@@ -336,7 +336,7 @@ export function PaymentRequestPage({ params }: { params: PaymentParams }) {
       {/* Footer */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 20 }}>
         <div style={{ width: 6, height: 6, borderRadius: '50%', background: TEXT3 }} />
-        <span style={{ fontSize: 11, color: TEXT3, fontFamily: FONT }}>Secured by Paywell · Built on Arc · Powered by Circle</span>
+        <span style={{ fontSize: 11, color: TEXT3, fontFamily: FONT }}>Secured by NAN · Built on Arc · Powered by Circle</span>
       </div>
     </FullPage>
   )

@@ -1,5 +1,5 @@
 /**
- * Paywell Shop — marketplace store
+ * NAN Shop — marketplace store
  * Extends appStore with modular commerce entities:
  * Order, Offer, Favorite, Dispute, Review, Delivery
  *

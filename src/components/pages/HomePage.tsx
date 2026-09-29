@@ -128,7 +128,7 @@ export function HomePage() {
       <div style={{ marginBottom: 16 }}>
         <div style={{ fontSize: 13, color: PW_TEXT_3, fontWeight: 500, marginBottom: 2 }}>{greeting}</div>
         <div style={{ fontSize: 20, fontWeight: 700, color: PW_TEXT, letterSpacing: '-0.5px' }}>
-          {address ? address.slice(0, 6) + '...' + address.slice(-4) : 'Welcome to Paywell'}
+          {address ? address.slice(0, 6) + '...' + address.slice(-4) : 'Welcome to NAN'}
         </div>
       </div>
 

@@ -48,7 +48,7 @@ export function SettingsPage() {
 
       {!isConnected && (
         <Card padding="md">
-          <p className="text-sm text-[#6B6B6B] mb-3">Connect a wallet to use Paywell.</p>
+          <p className="text-sm text-[#6B6B6B] mb-3">Connect a wallet to use NAN.</p>
           <ConnectKitButton />
         </Card>
       )}
@@ -203,7 +203,7 @@ export function SettingsPage() {
       </div>
 
       <p className="text-center text-xs text-[#A0A0A0]" style={{ fontFamily: MONO }}>
-        Paywell · Arc Testnet · Powered by Circle USDC
+        NAN · Arc Testnet · Powered by Circle USDC
       </p>
     </div>
   )

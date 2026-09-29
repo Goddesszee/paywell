@@ -1,5 +1,5 @@
 /**
- * Paywell Orders — Protected Purchase history and detail view
+ * NAN Orders — Protected Purchase history and detail view
  * Tabs: All / Active / Completed / Disputed
  * Order detail: delivery timeline, confirm delivery, dispute, refund
  */
@@ -304,7 +304,7 @@ function OrderDetail({
 
       {/* Protected Purchase banner */}
       <div style={{ background: BLACK, borderRadius: 14, padding: '14px 16px', marginBottom: 12 }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: '#FFF', fontFamily: FONT, marginBottom: 3 }}>Paywell Protected Purchase</div>
+        <div style={{ fontSize: 13, fontWeight: 700, color: '#FFF', fontFamily: FONT, marginBottom: 3 }}>NAN Protected Purchase</div>
         <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.65)', fontFamily: FONT, lineHeight: 1.5 }}>
           Your payment is secured until the agreed transaction conditions are completed.
         </div>
@@ -528,7 +528,7 @@ export function OrdersPage() {
       {/* Header */}
       <div style={{ marginBottom: 20 }}>
         <h1 style={{ fontSize: 22, fontWeight: 700, color: BLACK, fontFamily: FONT, letterSpacing: '-0.02em', margin: 0, marginBottom: 4 }}>Orders</h1>
-        <p style={{ fontSize: 13, color: TEXT_2, fontFamily: FONT, margin: 0 }}>Your Paywell Protected Purchases</p>
+        <p style={{ fontSize: 13, color: TEXT_2, fontFamily: FONT, margin: 0 }}>Your NAN Protected Purchases</p>
       </div>
 
       {/* Tabs */}

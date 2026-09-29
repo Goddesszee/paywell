@@ -1,5 +1,5 @@
 /**
- * ShopPage — Paywell marketplace composition root.
+ * ShopPage — NAN marketplace composition root.
  * Orchestrates all shop sub-views.
  * Architecture is AI-agent ready: same Product/Order entities used by both humans and agents.
  */
@@ -377,7 +377,7 @@ export function ShopPage() {
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           }}>
             <div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: '#FFF', fontFamily: FONT }}>Sell on Paywell</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: '#FFF', fontFamily: FONT }}>Sell on NAN</div>
               <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>
                 List a product and accept USDC
               </div>

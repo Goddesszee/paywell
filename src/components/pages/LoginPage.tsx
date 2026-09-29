@@ -6,8 +6,10 @@ import { useAppStore } from '../../store/appStore'
 
 
 const F = "'Inter', -apple-system, sans-serif"
-const BLACK = '#0D0D0D'
-const SURFACE = '#F5F5F5'
+const BLACK = '#0A0A0F'
+const BLUE  = '#2563EB'
+const NAN_TEXT = '#F4F4F8'
+const SURFACE = '#111118'
 const BORDER = 'rgba(0,0,0,0.1)'
 const TEXT2 = '#6B6B6B'
 const TEXT3 = '#A0A0A0'
@@ -118,7 +120,7 @@ export function LoginPage() {
 
   return (
     <div style={{
-      minHeight: '100vh', background: '#FFF', fontFamily: F,
+      minHeight: '100vh', background: '#0A0A0F', fontFamily: F,
       display: 'flex', flexDirection: 'column', alignItems: 'center',
       justifyContent: 'center', padding: '24px 20px',
     }}>
@@ -126,7 +128,7 @@ export function LoginPage() {
 
         {/* Logo */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 40 }}>
-          <span style={{fontWeight:800,fontSize:28,letterSpacing:"-0.03em",color:"#0D0D0D",fontFamily:"Inter,sans-serif"}}>Paywell</span>
+          <span style={{fontWeight:800,fontSize:28,letterSpacing:"-0.03em",color:"#F4F4F8",fontFamily:"Inter,sans-serif"}}>NAN</span>
           <p style={{ fontSize: 14, color: TEXT2, marginTop: 10, fontWeight: 400 }}>
             The intelligent payment layer
           </p>
@@ -164,7 +166,7 @@ export function LoginPage() {
             </button>
 
             <p style={{ fontSize: 12, color: TEXT3, textAlign: 'center', marginTop: 16, lineHeight: 1.6 }}>
-              By continuing you agree to Paywell's Terms of Service and Privacy Policy.
+              By continuing you agree to NAN's Terms of Service and Privacy Policy.
             </p>
           </div>
         )}
@@ -279,7 +281,7 @@ const inputStyle: React.CSSProperties = {
   width: '100%', padding: '13px 16px',
   border: '1.5px solid rgba(0,0,0,0.12)',
   borderRadius: 12, fontSize: 16, fontFamily: F,
-  color: '#0D0D0D', background: '#FFF', outline: 'none',
+  color: '#F4F4F8', background: '#111118', outline: 'none',
   boxSizing: 'border-box',
 }
 

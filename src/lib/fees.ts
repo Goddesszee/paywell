@@ -1,5 +1,5 @@
 /**
- * Paywell platform fee configuration.
+ * NAN platform fee configuration.
  *
  * All values read from VITE_ env vars so they can be changed without code edits.
  * Fee wallet and percentages are public config — not secrets.
@@ -9,7 +9,7 @@
  *   Swap                0.3% (VITE_FEE_SWAP_BPS = 30)
  *   Bridge              0.1% (VITE_FEE_BRIDGE_BPS = 10, min VITE_FEE_BRIDGE_MIN_USDC)
  *   Send / receive      Free
- *   Onramp              No Paywell fee
+ *   Onramp              No NAN fee
  */
 
 /** Platform fee wallet — receives all USDC fees. */

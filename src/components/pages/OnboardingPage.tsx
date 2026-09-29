@@ -50,7 +50,7 @@ export function OnboardingPage() {
 
   return (
     <div style={{
-      minHeight: '100vh', background: '#FFFFFF', color: '#0D0D0D',
+      minHeight: '100vh', background: '#0A0A0F', color: '#F4F4F8',
       fontFamily: SANS, display: 'flex', flexDirection: 'column',
       alignItems: 'center', justifyContent: 'center', padding: '24px 20px',
     }}>
@@ -64,7 +64,7 @@ export function OnboardingPage() {
       }}>
         {/* Header */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 32 }}>
-          <span style={{fontWeight:800,fontSize:28,letterSpacing:"-0.03em",color:"#0D0D0D",fontFamily:"Inter,sans-serif"}}>Paywell</span>
+          <span style={{fontWeight:800,fontSize:28,letterSpacing:"-0.03em",color:"#F4F4F8",fontFamily:"Inter,sans-serif"}}>NAN</span>
           <p style={{ color: '#6B6B6B', fontSize: 13, marginTop: 10, textAlign: 'center', lineHeight: 1.5 }}>
             The intelligent payment layer
           </p>
@@ -73,7 +73,7 @@ export function OnboardingPage() {
             {[1,2,3,4].map(n => (
               <div key={n} style={{
                 width: n === stepNum ? 20 : 6, height: 6, borderRadius: 3,
-                background: n <= stepNum ? '#0D0D0D' : 'rgba(0,0,0,0.08)',
+                background: n <= stepNum ? '#2563EB' : 'rgba(0,0,0,0.08)',
                 transition: 'all 0.3s ease',
               }} />
             ))}
@@ -84,7 +84,7 @@ export function OnboardingPage() {
         {step === 'connect' && (
           <div>
             <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#A0A0A0', marginBottom: 10, fontWeight: 600 }}>Step 01</div>
-            <h2 style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em', marginBottom: 8 }}>Welcome to Paywell</h2>
+            <h2 style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em', marginBottom: 8 }}>Welcome to NAN</h2>
             <p style={{ color: '#6B6B6B', fontSize: 14, lineHeight: 1.6, marginBottom: 24 }}>
               Sign in with your email — a Circle wallet is created automatically on Arc Testnet.
             </p>
@@ -106,7 +106,7 @@ export function OnboardingPage() {
                   onClick={show}
                   style={{
                     width: '100%', padding: '13px 20px',
-                    background: 'transparent', color: '#0D0D0D',
+                    background: 'transparent', color: '#F4F4F8',
                     border: '1.5px solid rgba(0,0,0,0.12)', borderRadius: 10,
                     fontSize: 14, fontWeight: 600, cursor: 'pointer',
                     fontFamily: SANS, letterSpacing: '-0.01em',
@@ -134,7 +134,7 @@ export function OnboardingPage() {
         {step === 'usecases' && (
           <div>
             <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#A0A0A0', marginBottom: 10, fontWeight: 600 }}>Step 02</div>
-            <h2 style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em', marginBottom: 6 }}>What will you use Paywell for?</h2>
+            <h2 style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em', marginBottom: 6 }}>What will you use NAN for?</h2>
             <p style={{ color: '#6B6B6B', fontSize: 13, marginBottom: 22 }}>Select all that apply.</p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 28 }}>
               {USE_CASES.map(({ id, label, icon, desc }) => {
@@ -148,7 +148,7 @@ export function OnboardingPage() {
                       padding: '13px 16px', borderRadius: 12, cursor: 'pointer', textAlign: 'left',
                       background: on ? 'rgba(0,0,0,0.05)' : '#FFFFFF',
                       border: `1px solid ${on ? 'rgba(0,0,0,0.18)' : 'rgba(0,0,0,0.06)'}`,
-                      transition: 'all 0.18s', color: '#0D0D0D', fontFamily: SANS,
+                      transition: 'all 0.18s', color: '#F4F4F8', fontFamily: SANS,
                     }}
                   >
                     <span style={{ fontSize: 18, flexShrink: 0, color: '#0D0D0D' }}>{icon}</span>
@@ -158,7 +158,7 @@ export function OnboardingPage() {
                     </div>
                     {on && (
                       <span style={{
-                        width: 20, height: 20, borderRadius: '50%', background: '#0D0D0D',
+                        width: 20, height: 20, borderRadius: '50%', background: '#2563EB',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                         fontSize: 11, color: '#fff', flexShrink: 0,
                       }}>✓</span>
@@ -179,7 +179,7 @@ export function OnboardingPage() {
             <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#A0A0A0', marginBottom: 10, fontWeight: 600 }}>Step 03</div>
             <h2 style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em', marginBottom: 6 }}>Set up your AI Agent?</h2>
             <p style={{ color: '#6B6B6B', fontSize: 14, lineHeight: 1.6, marginBottom: 28 }}>
-              Paywell's AI agent can find products, execute recurring payments, and purchase items within limits you control.
+              NAN's AI agent can find products, execute recurring payments, and purchase items within limits you control.
             </p>
             <div style={{ display: 'flex', gap: 10, flexDirection: 'column' }}>
               <Button fullWidth onClick={() => setStep('limits')}>Yes, set up my agent</Button>
@@ -204,8 +204,8 @@ export function OnboardingPage() {
                 {[10, 20, 50, 100].map(v => (
                   <button key={v} onClick={() => setDailyLimit(String(v))} style={{
                     flex: 1, padding: '10px 0', borderRadius: 9, cursor: 'pointer',
-                    background: dailyLimit === String(v) ? '#0D0D0D' : '#EFEFEF',
-                    border: `1px solid ${dailyLimit === String(v) ? '#0D0D0D' : 'rgba(0,0,0,0.06)'}`,
+                    background: dailyLimit === String(v) ? '#2563EB' : '#1a1a24',
+                    border: `1px solid ${dailyLimit === String(v) ? '#2563EB' : 'rgba(37,99,235,0.15)'}`,
                     color: dailyLimit === String(v) ? '#fff' : '#6B6B6B',
                     fontSize: 14, fontWeight: 700, fontFamily: SANS, transition: 'all 0.18s',
                   }}>{v}</button>
@@ -215,7 +215,7 @@ export function OnboardingPage() {
                 value={![10,20,50,100].map(String).includes(dailyLimit) ? dailyLimit : ''}
                 onChange={e => setDailyLimit(e.target.value)}
                 style={{ width: '100%', padding: '10px 14px', borderRadius: 9, fontSize: 14, fontFamily: SANS,
-                  border: '1px solid rgba(0,0,0,0.12)', background: '#fff', color: '#0D0D0D', outline: 'none', boxSizing: 'border-box' }}
+                  border: '1px solid rgba(37,99,235,0.2)', background: '#111118', color: '#F4F4F8', outline: 'none', boxSizing: 'border-box' }}
               />
             </div>
 
@@ -226,8 +226,8 @@ export function OnboardingPage() {
                 {[5, 10, 25, 50].map(v => (
                   <button key={v} onClick={() => setPerTxLimit(String(v))} style={{
                     flex: 1, padding: '10px 0', borderRadius: 9, cursor: 'pointer',
-                    background: perTxLimit === String(v) ? '#0D0D0D' : '#EFEFEF',
-                    border: `1px solid ${perTxLimit === String(v) ? '#0D0D0D' : 'rgba(0,0,0,0.06)'}`,
+                    background: perTxLimit === String(v) ? '#2563EB' : '#1a1a24',
+                    border: `1px solid ${perTxLimit === String(v) ? '#2563EB' : 'rgba(37,99,235,0.15)'}`,
                     color: perTxLimit === String(v) ? '#fff' : '#6B6B6B',
                     fontSize: 14, fontWeight: 700, fontFamily: SANS, transition: 'all 0.18s',
                   }}>{v}</button>
@@ -237,7 +237,7 @@ export function OnboardingPage() {
                 value={![5,10,25,50].map(String).includes(perTxLimit) ? perTxLimit : ''}
                 onChange={e => setPerTxLimit(e.target.value)}
                 style={{ width: '100%', padding: '10px 14px', borderRadius: 9, fontSize: 14, fontFamily: SANS,
-                  border: '1px solid rgba(0,0,0,0.12)', background: '#fff', color: '#0D0D0D', outline: 'none', boxSizing: 'border-box' }}
+                  border: '1px solid rgba(37,99,235,0.2)', background: '#111118', color: '#F4F4F8', outline: 'none', boxSizing: 'border-box' }}
               />
             </div>
 
@@ -259,7 +259,7 @@ export function OnboardingPage() {
               setAgentPermissions({ dailyLimit: parseFloat(dailyLimit) || 20, perTxLimit: parseFloat(perTxLimit) || 10 })
               finish()
             }}>
-              Launch Paywell →
+              Launch NAN →
             </Button>
           </div>
         )}

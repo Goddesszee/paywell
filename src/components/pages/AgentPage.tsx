@@ -105,7 +105,7 @@ export function AgentPage() {
           <Bot size={18} color={WHITE} />
         </div>
         <div>
-          <div style={{ fontSize:17, fontWeight:700, color:BLACK, letterSpacing:'-0.02em' }}>Paywell Agent</div>
+          <div style={{ fontSize:17, fontWeight:700, color:BLACK, letterSpacing:'-0.02em' }}>NAN Agent</div>
           <AgentStatusLine />
         </div>
       </div>
@@ -314,7 +314,7 @@ function ProductPill({ product }: { product: Product }) {
 
 
 // Circle Agent Marketplace — https://agents.circle.com/services
-// Fetched via a CORS-safe proxy route on the Paywell backend
+// Fetched via a CORS-safe proxy route on the NAN backend
 const MARKETPLACE_API = '/api/marketplace'
 const MARKETPLACE_FALLBACK = 'https://agents.circle.com/services'
 
@@ -525,7 +525,7 @@ function X402Tab() {
                 <code style={{ flex:1, fontSize:10, color:TEXT2, background:SURFACE, padding:'4px 8px', borderRadius:6, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
                   {svc.endpoint}
                 </code>
-                <a href={`https://paywell-puce.vercel.app${svc.endpoint}`} target="_blank" rel="noreferrer"
+                <a href={`https://nan-puce.vercel.app${svc.endpoint}`} target="_blank" rel="noreferrer"
                   style={{ width:26, height:26, borderRadius:7, background:SURFACE, border:`1px solid ${BORDER}`, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, textDecoration:'none' }}>
                   <ExternalLink size={11} color={TEXT2} />
                 </a>

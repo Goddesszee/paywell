@@ -70,7 +70,7 @@ export function AgentPicksSection({ products, onProductClick }: AgentRecommendat
         <Zap size={13} color="#0D0D0D" />
         <p style={{ margin: 0, fontSize: 12, color: '#5C5C6B', fontFamily: FONT }}>
           <strong style={{ color: '#0D0D0D' }}>Agent commerce ready.</strong>{' '}
-          Connect a Paywell AI agent to search, compare and purchase on your behalf.
+          Connect a NAN AI agent to search, compare and purchase on your behalf.
         </p>
         <ChevronRight size={13} color="#9898A6" style={{ flexShrink: 0 }} />
       </div>

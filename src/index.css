@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ── Paywell Design System — strict black & white ── */
+/* ── NAN Design System ── */
 :root {
   --bg:          #FFFFFF;
   --surface:     #F7F7F8;
@@ -167,7 +167,7 @@ body {
   white-space: nowrap;
 }
 
-/* ── Sonner toast — Paywell B&W ── */
+/* ── Sonner toast — NAN theme ── */
 [data-sonner-toaster] [data-sonner-toast] {
   background: #FFFFFF !important;
   border: 1px solid rgba(0,0,0,0.12) !important;

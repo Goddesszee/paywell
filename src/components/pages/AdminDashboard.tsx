@@ -171,7 +171,7 @@ export function AdminDashboard() {
           >
             <ArrowLeft size={16} color="#0D0D0D" />
           </button>
-          <span style={{fontWeight:700,fontSize:18,letterSpacing:"-0.02em",color:"#0D0D0D",fontFamily:"Inter,sans-serif"}}>Paywell</span>
+          <span style={{fontWeight:700,fontSize:18,letterSpacing:"-0.02em",color:"#F4F4F8",fontFamily:"Inter,sans-serif"}}>NAN</span>
           <div style={{ width: 1, height: 20, background: B }} />
           <span style={{ fontSize: 13, fontWeight: 600, color: '#6B6B6B' }}>Admin Dashboard</span>
         </div>
@@ -352,7 +352,7 @@ export function AdminDashboard() {
         {tab === 'circle' && (
           <div>
             <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: '-0.02em', marginBottom: 4 }}>Circle Infrastructure</div>
-            <div style={{ fontSize: 13, color: '#6B6B6B', marginBottom: 20 }}>All Circle SDKs and contracts integrated into Paywell</div>
+            <div style={{ fontSize: 13, color: '#6B6B6B', marginBottom: 20 }}>All Circle SDKs and contracts integrated into NAN</div>
             {CIRCLE_INFRA.map(item => <InfraCard key={item.name} {...item} />)}
 
             {/* Env var checklist */}

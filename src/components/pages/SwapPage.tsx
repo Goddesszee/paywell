@@ -242,7 +242,7 @@ export function SwapPage() {
             <span style={{ fontSize: 12, fontWeight: 600, color: PW_TEXT }}>1%</span>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-            <span style={{ fontSize: 12, color: PW_TEXT_2 }}>Paywell fee ({bpsToPercent(SWAP_FEE_BPS)})</span>
+            <span style={{ fontSize: 12, color: PW_TEXT_2 }}>NAN fee ({bpsToPercent(SWAP_FEE_BPS)})</span>
             <span style={{ fontSize: 12, fontWeight: 600, color: PW_TEXT }}>{swapFee(parseFloat(amountIn) || 0).toFixed(4)} {tokenIn}</span>
           </div>
           {estimate.fees.map((f, i) => (
