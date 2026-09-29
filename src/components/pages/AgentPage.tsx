@@ -18,15 +18,21 @@ import { nanChat, backendConfigured } from '../../lib/api'
 import { getUsdc } from '../../onchain-facts'
 
 
-const F = "'Inter', -apple-system, sans-serif"
-const BLACK = '#F2F3F5'
-const WHITE = '#08090B'
-const SURFACE = '#111318'
-const BORDER = 'rgba(255,255,255,0.08)'
-const TEXT2 = '#8A8F9E'
-const TEXT3 = '#50556A'
+const F       = "'Inter', -apple-system, sans-serif"
+const TEXT    = 'var(--nan-text)'
+const SURF    = 'var(--nan-surface)'
+const SURF2   = 'var(--nan-surface2)'
+const BDR     = 'var(--nan-bdr)'
+const BLUE    = '#0066FF'
+const TEXT2   = 'var(--nan-text2)'
+const TEXT3   = 'var(--nan-text3)'
 const SUCCESS = '#00C853'
-const DANGER = '#FF3B3B'
+const DANGER  = '#FF3B3B'
+// short aliases kept so code below compiles unchanged
+const BLACK   = TEXT
+const WHITE   = SURF2
+const SURFACE = SURF
+const BORDER  = BDR
 
 const X402_PRICE = '0.001'
 const USDC_TRANSFER_ABI = [{
@@ -103,11 +109,11 @@ export function AgentPage() {
     <div style={{ fontFamily: F, maxWidth: 520, margin: '0 auto', padding: '0 0 88px' }}>
       {/* Header */}
       <div style={{ display:'flex', alignItems:'center', gap:10, padding:'20px 0 16px' }}>
-        <div style={{ width:36, height:36, borderRadius:10, background:BLACK, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-          <Bot size={18} color={WHITE} />
+        <div style={{ width:36, height:36, borderRadius:10, background:BLUE, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+          <Bot size={18} color="#fff" />
         </div>
         <div>
-          <div style={{ fontSize:17, fontWeight:700, color:BLACK, letterSpacing:'-0.02em' }}>NAN Agent</div>
+          <div style={{ fontSize:17, fontWeight:700, color:TEXT, letterSpacing:'-0.02em' }}>NAN Agent</div>
           <AgentStatusLine />
         </div>
       </div>
@@ -257,8 +263,8 @@ function AgentChat() {
           style={{ flex:1, padding:'11px 14px', border:`1px solid ${BORDER}`, borderRadius:12, fontFamily:F, fontSize:14, outline:'none', background:WHITE, color:BLACK }}
         />
         <button onClick={() => void send()} disabled={!input.trim()||typing||x402Paying}
-          style={{ width:44, height:44, borderRadius:12, background:BLACK, border:'none', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', flexShrink:0, opacity:(!input.trim()||typing||x402Paying)?0.4:1 }}>
-          {x402Paying ? <Loader2 size={16} color={WHITE} style={{animation:'spin 1s linear infinite'}} /> : <Send size={16} color={WHITE} />}
+          style={{ width:44, height:44, borderRadius:12, background:BLUE, border:'none', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', flexShrink:0, opacity:(!input.trim()||typing||x402Paying)?0.4:1 }}>
+          {x402Paying ? <Loader2 size={16} color={WHITE} style={{animation:'spin 1s linear infinite'}} /> : <Send size={16} color='#fff' />}
         </button>
         <button onClick={clearAgentMessages} style={{ width:44, height:44, borderRadius:12, background:SURFACE, border:`1px solid ${BORDER}`, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', flexShrink:0 }}>
           <X size={16} color={TEXT2} />
@@ -271,7 +277,7 @@ function AgentChat() {
 function MsgBubble({ msg, onApprove, onReject }: { msg:AgentMessage; onApprove:(id:string)=>void; onReject:(id:string)=>void }) {
   if (msg.role === 'user') return (
     <div style={{ display:'flex', justifyContent:'flex-end' }}>
-      <div style={{ background:BLACK, color:WHITE, fontSize:13, borderRadius:16, borderTopRightRadius:4, padding:'10px 14px', maxWidth:'78%' }}>{msg.content}</div>
+      <div style={{ background:BLUE, color:'#fff', fontSize:13, borderRadius:16, borderTopRightRadius:4, padding:'10px 14px', maxWidth:'78%' }}>{msg.content}</div>
     </div>
   )
   return (
@@ -280,14 +286,14 @@ function MsgBubble({ msg, onApprove, onReject }: { msg:AgentMessage; onApprove:(
         <Bot size={13} color={BLACK} />
       </div>
       <div style={{ flex:1, maxWidth:'90%', display:'flex', flexDirection:'column', gap:8 }}>
-        <div style={{ background:WHITE, border:`1px solid ${BORDER}`, borderRadius:16, borderTopLeftRadius:4, padding:'10px 14px', fontSize:13, color:BLACK }}>{msg.content}</div>
+        <div style={{ background:SURF, border:`1px solid ${BDR}`, borderRadius:16, borderTopLeftRadius:4, padding:'10px 14px', fontSize:13, color:BLACK }}>{msg.content}</div>
         {msg.products && msg.products.length > 0 && msg.products.map(p => <ProductPill key={p.id} product={p} />)}
         {msg.action==='purchase_request' && msg.approved===undefined && (
           <div style={{ display:'flex', gap:8 }}>
-            <button onClick={() => onApprove(msg.id)} style={{ flex:1, height:34, background:BLACK, color:WHITE, border:'none', borderRadius:10, fontSize:12, fontWeight:600, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:6, fontFamily:F }}>
+            <button onClick={() => onApprove(msg.id)} style={{ flex:1, height:34, background:BLUE, color:'#fff', border:'none', borderRadius:10, fontSize:12, fontWeight:600, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:6, fontFamily:F }}>
               <Check size={12} /> Approve
             </button>
-            <button onClick={() => onReject(msg.id)} style={{ flex:1, height:34, background:SURFACE, color:BLACK, border:`1px solid ${BORDER}`, borderRadius:10, fontSize:12, fontWeight:600, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:6, fontFamily:F }}>
+            <button onClick={() => onReject(msg.id)} style={{ flex:1, height:34, background:SURF, color:TEXT, border:`1px solid ${BDR}`, borderRadius:10, fontSize:12, fontWeight:600, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:6, fontFamily:F }}>
               <X size={12} /> Decline
             </button>
           </div>
@@ -302,7 +308,7 @@ function MsgBubble({ msg, onApprove, onReject }: { msg:AgentMessage; onApprove:(
 
 function ProductPill({ product }: { product: Product }) {
   return (
-    <div style={{ background:WHITE, border:`1px solid ${BORDER}`, borderRadius:12, padding:'10px 12px', display:'flex', alignItems:'center', gap:10 }}>
+    <div style={{ background:SURF, border:`1px solid ${BDR}`, borderRadius:12, padding:'10px 12px', display:'flex', alignItems:'center', gap:10 }}>
       <img src={product.imageUrl} alt={product.name} style={{ width:36, height:36, borderRadius:8, objectFit:'cover', background:SURFACE, flexShrink:0 }} />
       <div style={{ flex:1, minWidth:0 }}>
         <div style={{ fontSize:12, fontWeight:700, color:BLACK, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{product.name}</div>
@@ -410,20 +416,20 @@ function X402Tab() {
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
       {/* What is x402 */}
-      <div style={{ background:BLACK, borderRadius:14, padding:16, color:WHITE }}>
+      <div style={{ background:'rgba(0,102,255,0.10)', border:'1px solid rgba(0,102,255,0.20)', borderRadius:14, padding:16, color:TEXT }}>
         <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:8 }}>
-          <Coins size={16} color={WHITE} />
-          <span style={{ fontSize:13, fontWeight:700, letterSpacing:'-0.01em' }}>x402 · Pay-per-use services</span>
+          <Coins size={16} color={BLUE} />
+          <span style={{ fontSize:13, fontWeight:700, color:TEXT, letterSpacing:'-0.01em' }}>x402 · Pay-per-use services</span>
         </div>
-        <div style={{ fontSize:12, color:'rgba(255,255,255,0.7)', lineHeight:1.5, marginBottom:10 }}>
+        <div style={{ fontSize:12, color:TEXT2, lineHeight:1.5, marginBottom:10 }}>
           Other AI agents and humans pay USDC to call your services. No invoices, no subscriptions — just instant onchain micropayments per API call.
         </div>
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
-          <div style={{ background:'rgba(255,255,255,0.08)', borderRadius:10, padding:'10px 12px' }}>
+          <div style={{ background:SURF, borderRadius:10, border:`1px solid ${BDR}`, padding:'10px 12px' }}>
             <div style={{ fontSize:18, fontWeight:700 }}>{totalEarned} <span style={{ fontSize:11, fontWeight:500, opacity:0.7 }}>USDC</span></div>
             <div style={{ fontSize:11, opacity:0.6, marginTop:2 }}>Total earned</div>
           </div>
-          <div style={{ background:'rgba(255,255,255,0.08)', borderRadius:10, padding:'10px 12px' }}>
+          <div style={{ background:SURF, borderRadius:10, border:`1px solid ${BDR}`, padding:'10px 12px' }}>
             <div style={{ fontSize:18, fontWeight:700 }}>{totalCalls}</div>
             <div style={{ fontSize:11, opacity:0.6, marginTop:2 }}>Total calls</div>
           </div>
@@ -438,7 +444,7 @@ function X402Tab() {
             <div style={{ flex:1, fontSize:12, fontWeight:500, color:BLACK, fontFamily:'monospace', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
               {address.slice(0,10)}…{address.slice(-8)}
             </div>
-            <button onClick={copyAddress} style={{ width:30, height:30, borderRadius:8, background:copied?BLACK:WHITE, border:`1px solid ${BORDER}`, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', flexShrink:0 }}>
+            <button onClick={copyAddress} style={{ width:30, height:30, borderRadius:8, background:copied?BLUE:SURF, border:`1px solid ${BORDER}`, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', flexShrink:0 }}>
               {copied ? <Check size={12} color={WHITE} /> : <Copy size={12} color={TEXT2} />}
             </button>
           </div>
@@ -450,7 +456,7 @@ function X402Tab() {
       <div style={{ display:'flex', background:SURFACE, borderRadius:10, padding:3, gap:2 }}>
         {(['yours','marketplace'] as const).map(id => (
           <button key={id} onClick={() => { setMktTab(id); if(id==='marketplace'&&mktServices.length===0&&!mktLoading) void fetchMarketplace() }}
-            style={{ flex:1, padding:'7px 0', border:'none', borderRadius:8, cursor:'pointer', fontFamily:F, fontSize:12, fontWeight:mktTab===id?700:500, background:mktTab===id?WHITE:'transparent', color:mktTab===id?BLACK:TEXT2, boxShadow:mktTab===id?'0 1px 4px rgba(0,0,0,0.08)':'none', transition:'all 0.15s' }}>
+            style={{ flex:1, padding:'7px 0', border:'none', borderRadius:8, cursor:'pointer', fontFamily:F, fontSize:12, fontWeight:mktTab===id?700:500, background:mktTab===id?SURF:'transparent', color:mktTab===id?TEXT:TEXT2, boxShadow:mktTab===id?'0 1px 4px rgba(0,0,0,0.08)':'none', transition:'all 0.15s' }}>
             {id === 'yours' ? 'Your services' : 'Marketplace'}
           </button>
         ))}
@@ -460,8 +466,8 @@ function X402Tab() {
       {mktTab === 'yours' && (
       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
         <div style={{ fontSize:14, fontWeight:700, color:BLACK }}>Your x402 services</div>
-        <button onClick={() => setShowAdd(v=>!v)} style={{ width:30, height:30, borderRadius:8, background:BLACK, border:'none', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer' }}>
-          <Plus size={15} color={WHITE} />
+        <button onClick={() => setShowAdd(v=>!v)} style={{ width:30, height:30, borderRadius:8, background:BLUE, border:'none', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer' }}>
+          <Plus size={15} color='#fff' />
         </button>
       </div>
       )}
@@ -472,17 +478,17 @@ function X402Tab() {
             <div style={{ background:SURFACE, border:`1px solid ${BORDER}`, borderRadius:14, padding:16, display:'flex', flexDirection:'column', gap:10 }}>
               <div style={{ fontSize:13, fontWeight:600, color:BLACK }}>Add x402 service</div>
               <input placeholder="Service name" value={newName} onChange={e => setNewName(e.target.value)}
-                style={{ padding:'10px 12px', border:`1px solid ${BORDER}`, borderRadius:10, fontFamily:F, fontSize:13, outline:'none', color:BLACK, background:WHITE }} />
+                style={{ padding:'10px 12px', border:`1px solid ${BORDER}`, borderRadius:10, fontFamily:F, fontSize:13, outline:'none', color:TEXT, background:SURF2 }} />
               <input placeholder="Description" value={newDesc} onChange={e => setNewDesc(e.target.value)}
-                style={{ padding:'10px 12px', border:`1px solid ${BORDER}`, borderRadius:10, fontFamily:F, fontSize:13, outline:'none', color:BLACK, background:WHITE }} />
+                style={{ padding:'10px 12px', border:`1px solid ${BORDER}`, borderRadius:10, fontFamily:F, fontSize:13, outline:'none', color:TEXT, background:SURF2 }} />
               <div style={{ display:'flex', gap:8 }}>
                 <input placeholder="Price (USDC)" value={newPrice} onChange={e => setNewPrice(e.target.value)} type="number" min="0" step="0.001"
-                  style={{ flex:1, padding:'10px 12px', border:`1px solid ${BORDER}`, borderRadius:10, fontFamily:F, fontSize:13, outline:'none', color:BLACK, background:WHITE }} />
+                  style={{ flex:1, padding:'10px 12px', border:`1px solid ${BORDER}`, borderRadius:10, fontFamily:F, fontSize:13, outline:'none', color:TEXT, background:SURF2 }} />
                 <input placeholder="Endpoint (/api/...)" value={newEndpoint} onChange={e => setNewEndpoint(e.target.value)}
-                  style={{ flex:2, padding:'10px 12px', border:`1px solid ${BORDER}`, borderRadius:10, fontFamily:F, fontSize:13, outline:'none', color:BLACK, background:WHITE }} />
+                  style={{ flex:2, padding:'10px 12px', border:`1px solid ${BORDER}`, borderRadius:10, fontFamily:F, fontSize:13, outline:'none', color:TEXT, background:SURF2 }} />
               </div>
               <div style={{ display:'flex', gap:8 }}>
-                <button onClick={addService} style={{ flex:1, height:40, background:BLACK, color:WHITE, border:'none', borderRadius:10, fontSize:13, fontWeight:600, cursor:'pointer', fontFamily:F }}>Add service</button>
+                <button onClick={addService} style={{ flex:1, height:40, background:BLUE, color:'#fff', border:'none', borderRadius:10, fontSize:13, fontWeight:600, cursor:'pointer', fontFamily:F }}>Add service</button>
                 <button onClick={() => setShowAdd(false)} style={{ flex:1, height:40, background:SURFACE, color:BLACK, border:`1px solid ${BORDER}`, borderRadius:10, fontSize:13, fontWeight:600, cursor:'pointer', fontFamily:F }}>Cancel</button>
               </div>
             </div>
@@ -501,8 +507,8 @@ function X402Tab() {
                   <div style={{ fontSize:11, color:TEXT2, marginTop:2 }}>{svc.description}</div>
                 </div>
                 <div style={{ display:'flex', gap:6, flexShrink:0 }}>
-                  <button onClick={() => toggle(svc.id)} style={{ width:30, height:30, borderRadius:8, background:svc.active?BLACK:SURFACE, border:`1px solid ${svc.active?BLACK:BORDER}`, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer' }}>
-                    {svc.active ? <Pause size={13} color={WHITE} /> : <Play size={13} color={BLACK} />}
+                  <button onClick={() => toggle(svc.id)} style={{ width:30, height:30, borderRadius:8, background:svc.active?BLUE:SURF, border:`1px solid ${svc.active?BLUE:BDR}`, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer' }}>
+                    {svc.active ? <Pause size={13} color='#fff' /> : <Play size={13} color={TEXT} />}
                   </button>
                   <button onClick={() => remove(svc.id)} style={{ width:30, height:30, borderRadius:8, background:SURFACE, border:`1px solid ${BORDER}`, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer' }}>
                     <Trash2 size={13} color={BLACK} />
@@ -561,7 +567,7 @@ function X402Tab() {
             </div>
           )}
           {mktError && (
-            <div style={{ background:WHITE, border:`1px solid ${BORDER}`, borderRadius:10, padding:'10px 14px', fontSize:12, color:TEXT2 }}>
+            <div style={{ background:SURF, border:`1px solid ${BDR}`, borderRadius:10, padding:'10px 14px', fontSize:12, color:TEXT2 }}>
               {mktError}
               <button onClick={() => void fetchMarketplace()} style={{ marginLeft:8, fontSize:11, fontWeight:700, color:BLACK, background:'none', border:'none', cursor:'pointer', padding:0, textDecoration:'underline' }}>Retry</button>
             </div>
@@ -599,7 +605,7 @@ function X402Tab() {
                     <button
                       onClick={() => void useService(svc)}
                       disabled={payingId === svc.id || !address}
-                      style={{ marginLeft:'auto', height:28, padding:'0 12px', background: paidId===svc.id ? SURFACE : BLACK, color: paidId===svc.id ? BLACK : WHITE, border:`1px solid ${paidId===svc.id ? BORDER : BLACK}`, borderRadius:8, fontSize:11, fontWeight:700, cursor:'pointer', display:'flex', alignItems:'center', gap:5, fontFamily:F, opacity: payingId===svc.id ? 0.6 : 1 }}>
+                      style={{ marginLeft:'auto', height:28, padding:'0 12px', background: paidId===svc.id ? SURFACE : BLACK, color: paidId===svc.id ? BLACK : WHITE, border:`1px solid ${paidId===svc.id ? BDR : BLUE}`, borderRadius:8, fontSize:11, fontWeight:700, cursor:'pointer', display:'flex', alignItems:'center', gap:5, fontFamily:F, opacity: payingId===svc.id ? 0.6 : 1 }}>
                       {payingId===svc.id ? <Loader2 size={11} style={{animation:'spin 1s linear infinite'}} /> : paidId===svc.id ? <><Check size={11} /> Paid</> : <>Use service</>}
                     </button>
                   </>
@@ -663,12 +669,12 @@ function PermissionsTab() {
           </div>
         </div>
         <button onClick={() => setAgentPermissions({ enabled:!agentPermissions.enabled })} style={{ background:'none', border:'none', cursor:'pointer', padding:0 }}>
-          {agentPermissions.enabled ? <ToggleRight size={28} color={BLACK} /> : <ToggleLeft size={28} color={TEXT3} />}
+          {agentPermissions.enabled ? <ToggleRight size={28} color={BLUE} /> : <ToggleLeft size={28} color={TEXT3} />}
         </button>
       </div>
 
       {/* Limits */}
-      <div style={{ background:WHITE, border:`1px solid ${BORDER}`, borderRadius:14, padding:'0 14px' }}>
+      <div style={{ background:SURF, border:`1px solid ${BDR}`, borderRadius:14, padding:'0 14px' }}>
         <div style={{ display:'flex', alignItems:'center', gap:8, padding:'14px 0 10px', borderBottom:`1px solid ${BORDER}` }}>
           <Shield size={14} color={BLACK} />
           <span style={{ fontSize:13, fontWeight:700, color:BLACK }}>Spending limits</span>
@@ -686,7 +692,7 @@ function PermissionsTab() {
           <div style={{ fontSize:11, color:TEXT2 }}>Agent asks before every purchase</div>
         </div>
         <button onClick={() => setAgentPermissions({ requireApproval:!agentPermissions.requireApproval })} style={{ background:'none', border:'none', cursor:'pointer', padding:0 }}>
-          {agentPermissions.requireApproval ? <ToggleRight size={28} color={BLACK} /> : <ToggleLeft size={28} color={TEXT3} />}
+          {agentPermissions.requireApproval ? <ToggleRight size={28} color={BLUE} /> : <ToggleLeft size={28} color={TEXT3} />}
         </button>
       </div>
 
@@ -700,7 +706,7 @@ function PermissionsTab() {
           {categories.map(cat => {
             const on = agentPermissions.allowedCategories.includes(cat.id)
             return (
-              <button key={cat.id} onClick={() => toggleCat(cat.id)} style={{ height:32, padding:'0 12px', borderRadius:20, border:`1px solid ${on?BLACK:BORDER}`, background:on?BLACK:SURFACE, color:on?WHITE:BLACK, fontSize:12, fontWeight:600, cursor:'pointer', fontFamily:F, display:'flex', alignItems:'center', gap:4 }}>
+              <button key={cat.id} onClick={() => toggleCat(cat.id)} style={{ height:32, padding:'0 12px', borderRadius:20, border:`1px solid ${on?BLUE:BDR}`, background:on?BLUE:SURF, color:on?'#fff':TEXT, fontSize:12, fontWeight:600, cursor:'pointer', fontFamily:F, display:'flex', alignItems:'center', gap:4 }}>
                 {on && <Check size={11} />}{cat.label}
               </button>
             )
@@ -708,7 +714,7 @@ function PermissionsTab() {
         </div>
       </div>
 
-      <button onClick={handleSave} style={{ width:'100%', height:48, background:BLACK, color:WHITE, border:'none', borderRadius:14, fontSize:14, fontWeight:600, cursor:'pointer', fontFamily:F, display:'flex', alignItems:'center', justifyContent:'center', gap:8 }}>
+      <button onClick={handleSave} style={{ width:'100%', height:48, background:BLUE, color:'#fff', border:'none', borderRadius:14, fontSize:14, fontWeight:600, cursor:'pointer', fontFamily:F, display:'flex', alignItems:'center', justifyContent:'center', gap:8 }}>
         {saved ? <><Check size={16} /> Saved</> : 'Save permissions'}
       </button>
     </div>

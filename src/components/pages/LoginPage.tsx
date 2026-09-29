@@ -7,8 +7,8 @@ import { useAppStore } from '../../store/appStore'
 
 const F = "'Inter', -apple-system, sans-serif"
 const BG   = 'var(--nan-bg)'
-const SURFACE  = '#13151A'
-const BORDER   = 'rgba(255,255,255,0.10)'
+const SURFACE  = 'var(--nan-surface)'
+const BORDER   = 'var(--nan-bdr2)'
 const BLUE     = '#0066FF'
 const TEXT = 'var(--nan-text)'
 const TEXT2    = '#8A8F9E'

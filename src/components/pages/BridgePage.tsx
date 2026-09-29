@@ -10,13 +10,13 @@ import { bridgeFee, BRIDGE_FEE_BPS, bpsToPercent, BRIDGE_FEE_MIN_USDC, FEE_WALLE
 
 const appKit = new AppKit()
 
-const S  = '#111318'
-const B  = 'rgba(255,255,255,0.08)'
-const T  = '#F2F3F5'
+const S  = 'var(--nan-surface)'
+const B  = 'var(--nan-bdr)'
+const T  = 'var(--nan-text)'
 const T2   = 'var(--nan-text2)'
 const T3   = 'var(--nan-text3)'
 const BK = '#0066FF'
-const WH = '#ffffff'
+const WH = 'var(--nan-surface2)'
 const SANS = 'Inter, sans-serif'
 
 // ── CCTP V2 Sandbox fee endpoint ──────────────────────────────────────────────
@@ -227,7 +227,7 @@ export function BridgePage() {
         <div style={{ display:'flex', gap:8, marginTop:8 }}>
           {['1','5','10','25'].map(v => (
             <button key={v} onClick={() => setAmount(v)}
-              style={{ flex:1, padding:'6px 0', border:`1px solid ${B}`, borderRadius:8, background:amount===v?BK:S, color:amount===v?WH:T, fontSize:13, fontWeight:500, cursor:'pointer', fontFamily:SANS }}>
+              style={{ flex:1, padding:'6px 0', border:`1px solid ${B}`, borderRadius:8, background:amount===v?BK:S, color:amount===v?'#ffffff':T, fontSize:13, fontWeight:500, cursor:'pointer', fontFamily:SANS }}>
               {v}
             </button>
           ))}

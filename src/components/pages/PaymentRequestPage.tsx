@@ -17,9 +17,9 @@ import { parseAmount, Amount, usdcDecimalsFor } from '@/onchain-money'
 
 const ARC_TESTNET_ID = 5042002
 const FONT = "'Inter', -apple-system, sans-serif"
-const BLACK = '#ffffff'
-const SURFACE = '#1a1a1a'
-const BORDER = 'rgba(0,0,0,0.08)'
+const BLACK = 'var(--nan-text)'
+const SURFACE = 'var(--nan-surface)'
+const BORDER = 'var(--nan-bdr)'
 const TEXT2 = '#5C5C6B'
 const TEXT3 = '#9898A6'
 
