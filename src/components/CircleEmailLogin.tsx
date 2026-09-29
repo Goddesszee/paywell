@@ -114,7 +114,7 @@ export function CircleEmailLogin({ onSuccess }: Props) {
     <div style={{ fontFamily: SANS, textAlign: 'center', padding: 16 }}>
       <div style={{ fontSize: 32, marginBottom: 8 }}>✓</div>
       <div style={{ fontWeight: 700, fontSize: 16 }}>Wallet ready</div>
-      <div style={{ fontSize: 13, color: '#6B6B6B', marginTop: 4 }}>Circle wallet created via {email}</div>
+      <div style={{ fontSize: 13, color: '#a0a0a0', marginTop: 4 }}>Circle wallet created via {email}</div>
     </div>
   )
 
@@ -122,7 +122,7 @@ export function CircleEmailLogin({ onSuccess }: Props) {
     <div style={{ fontFamily: SANS }}>
       {step === 'email' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <div style={{ fontSize: 13, color: '#6B6B6B', marginBottom: 4 }}>
+          <div style={{ fontSize: 13, color: '#a0a0a0', marginBottom: 4 }}>
             Enter your email to create a Circle wallet — no MetaMask needed.
           </div>
           <input
@@ -142,7 +142,7 @@ export function CircleEmailLogin({ onSuccess }: Props) {
             disabled={loading || !email}
             style={{
               width: '100%', height: 48,
-              background: loading || !email ? '#D0D0D0' : '#0D0D0D',
+              background: loading || !email ? '#D0D0D0' : '#ffffff',
               color: '#fff', border: 'none', borderRadius: 10,
               fontSize: 15, fontWeight: 700, fontFamily: SANS, cursor: 'pointer',
             }}
@@ -160,14 +160,14 @@ export function CircleEmailLogin({ onSuccess }: Props) {
 
       {step === 'verify' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <div style={{ fontSize: 13, color: '#6B6B6B', marginBottom: 4 }}>
+          <div style={{ fontSize: 13, color: '#a0a0a0', marginBottom: 4 }}>
             A code was sent to <strong>{email}</strong>. Tap below to verify it.
           </div>
           <button
             onClick={handleVerifyOtp}
             style={{
               width: '100%', height: 48,
-              background: '#0D0D0D', color: '#fff',
+              background: '#ffffff', color: '#fff',
               border: 'none', borderRadius: 10,
               fontSize: 15, fontWeight: 700, fontFamily: SANS, cursor: 'pointer',
             }}
@@ -178,7 +178,7 @@ export function CircleEmailLogin({ onSuccess }: Props) {
             onClick={() => void handleSendOtp()}
             style={{
               width: '100%', height: 40, background: 'transparent',
-              color: '#6B6B6B', border: '1px solid rgba(0,0,0,0.1)',
+              color: '#a0a0a0', border: '1px solid rgba(0,0,0,0.1)',
               borderRadius: 10, fontSize: 14, fontFamily: SANS, cursor: 'pointer',
             }}
           >
@@ -190,7 +190,7 @@ export function CircleEmailLogin({ onSuccess }: Props) {
 
       {step === 'creating' && (
         <div style={{ textAlign: 'center', padding: '24px 0' }}>
-          <div style={{ fontSize: 13, color: '#6B6B6B' }}>
+          <div style={{ fontSize: 13, color: '#a0a0a0' }}>
             {loading ? 'Creating your Circle wallet on Arc Testnet…' : 'Approve wallet creation in the popup…'}
           </div>
         </div>
@@ -202,7 +202,7 @@ export function CircleEmailLogin({ onSuccess }: Props) {
           <button
             onClick={() => { setStep('email'); setError('') }}
             style={{
-              width: '100%', height: 40, background: '#0D0D0D', color: '#fff',
+              width: '100%', height: 40, background: '#ffffff', color: '#fff',
               border: 'none', borderRadius: 10, fontSize: 14, fontFamily: SANS, cursor: 'pointer',
             }}
           >

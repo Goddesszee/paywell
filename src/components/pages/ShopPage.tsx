@@ -314,13 +314,13 @@ export function ShopPage() {
         /* Empty marketplace — no approved listings yet */
         <div style={{ textAlign: 'center', padding: '60px 20px' }}>
           <div style={{
-            width: 60, height: 60, borderRadius: 16, background: '#F7F7F8',
+            width: 60, height: 60, borderRadius: 16, background: '#1a1a1a',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             margin: '0 auto 16px',
           }}>
             <ShoppingBag size={26} color="#9898A6" />
           </div>
-          <h2 style={{ fontSize: 18, fontWeight: 800, color: '#0D0D0D', fontFamily: FONT, letterSpacing: '-0.02em', marginBottom: 8 }}>
+          <h2 style={{ fontSize: 18, fontWeight: 800, color: '#ffffff', fontFamily: FONT, letterSpacing: '-0.02em', marginBottom: 8 }}>
             No listings yet
           </h2>
           <p style={{ fontSize: 14, color: '#5C5C6B', lineHeight: 1.7, marginBottom: 24, maxWidth: 300, margin: '0 auto 24px' }}>
@@ -372,12 +372,12 @@ export function ShopPage() {
           {/* Sell CTA */}
           <div style={{
             padding: '16px 18px',
-            background: '#0D0D0D',
+            background: '#ffffff',
             borderRadius: 14, marginBottom: 20,
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           }}>
             <div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: '#FFF', fontFamily: FONT }}>Sell on NAN</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: '#ffffff', fontFamily: FONT }}>Sell on NAN</div>
               <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>
                 List a product and accept USDC
               </div>
@@ -386,7 +386,7 @@ export function ShopPage() {
               variant="ghost"
               size="sm"
               onClick={() => setView('sell')}
-              style={{ background: 'rgba(255,255,255,0.10)', borderColor: 'rgba(255,255,255,0.20)', color: '#FFF' }}
+              style={{ background: 'rgba(255,255,255,0.10)', borderColor: 'rgba(255,255,255,0.20)', color: '#ffffff' }}
             >
               + List item
             </Button>
@@ -412,7 +412,7 @@ function Section({
   return (
     <section style={{ marginBottom: 28 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-        <h2 style={{ fontSize: 14, fontWeight: 700, color: '#0D0D0D', fontFamily: "'Inter', sans-serif" }}>
+        <h2 style={{ fontSize: 14, fontWeight: 700, color: '#ffffff', fontFamily: "'Inter', sans-serif" }}>
           {title}
         </h2>
       </div>
@@ -435,12 +435,12 @@ function SearchResults({
     return (
       <div style={{ textAlign: 'center', padding: '60px 20px' }}>
         <div style={{
-          width: 52, height: 52, borderRadius: 14, background: '#F7F7F8',
+          width: 52, height: 52, borderRadius: 14, background: '#1a1a1a',
           display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px',
         }}>
           <ShoppingBag size={22} color="#9898A6" />
         </div>
-        <h3 style={{ fontSize: 15, fontWeight: 700, color: '#0D0D0D', fontFamily: "'Inter', sans-serif", marginBottom: 6 }}>
+        <h3 style={{ fontSize: 15, fontWeight: 700, color: '#ffffff', fontFamily: "'Inter', sans-serif", marginBottom: 6 }}>
           No products found
         </h3>
         <p style={{ fontSize: 13, color: '#9898A6' }}>

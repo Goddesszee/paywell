@@ -10,21 +10,21 @@ interface BadgeProps {
 }
 
 const styles: Record<BadgeVariant, React.CSSProperties> = {
-  default: { background: '#F7F7F8', color: '#6B6B6B', border: '1px solid rgba(0,0,0,0.08)' },
+  default: { background: '#1a1a1a', color: '#a0a0a0', border: '1px solid rgba(0,0,0,0.08)' },
   success: { background: 'rgba(34,197,94,0.12)',   color: '#22C55E', border: '1px solid rgba(34,197,94,0.25)' },
   danger:  { background: 'rgba(239,68,68,0.12)',   color: '#ef4444', border: '1px solid rgba(239,68,68,0.25)' },
   warning: { background: 'rgba(245,158,11,0.12)',  color: '#F59E0B', border: '1px solid rgba(245,158,11,0.25)' },
-  blue:    { background: 'rgba(0,0,0,0.05)',   color: '#0D0D0D', border: '1px solid rgba(0,0,0,0.10)' },
-  mono:    { background: 'rgba(0,0,0,0.04)',   color: '#0D0D0D', border: '1px solid rgba(0,0,0,0.08)', fontFamily: 'JetBrains Mono, Menlo, monospace', letterSpacing: '0.04em' },
+  blue:    { background: 'rgba(0,0,0,0.05)',   color: '#ffffff', border: '1px solid rgba(0,0,0,0.10)' },
+  mono:    { background: 'rgba(0,0,0,0.04)',   color: '#ffffff', border: '1px solid rgba(0,0,0,0.08)', fontFamily: 'JetBrains Mono, Menlo, monospace', letterSpacing: '0.04em' },
 }
 
 const dotColors: Record<BadgeVariant, string> = {
-  default: '#6B6B6B',
+  default: '#a0a0a0',
   success: '#22C55E',
   danger:  '#ef4444',
   warning: '#F59E0B',
-  blue:    '#0D0D0D',
-  mono:    '#0D0D0D',
+  blue:    '#ffffff',
+  mono:    '#ffffff',
 }
 
 export function Badge({ variant = 'default', children, dot, size = 'md' }: BadgeProps) {

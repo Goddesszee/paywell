@@ -60,13 +60,13 @@ export function WalletPage({ initialSubView = 'main' }: { initialSubView?: Walle
   if (!address) {
     return (
       <div className="max-w-lg mx-auto px-4 py-12 text-center">
-        <div className="w-16 h-16 rounded-full bg-[#F5F5F5] flex items-center justify-center mx-auto mb-4">
-          <Wallet size={28} className="text-[#A0A0A0]" />
+        <div className="w-16 h-16 rounded-full bg-[#1a1a1a] flex items-center justify-center mx-auto mb-4">
+          <Wallet size={28} className="text-[#555555]" />
         </div>
-        <h2 className="text-xl font-bold text-[#0D0D0D] mb-2" style={{ fontFamily: SANS }}>
+        <h2 className="text-xl font-bold text-white mb-2" style={{ fontFamily: SANS }}>
           Connect a wallet
         </h2>
-        <p className="text-sm text-[#6B6B6B]">Connect your wallet to view your balance and send USDC.</p>
+        <p className="text-sm text-[#a0a0a0]">Connect your wallet to view your balance and send USDC.</p>
       </div>
     )
   }
@@ -94,7 +94,7 @@ export function WalletPage({ initialSubView = 'main' }: { initialSubView?: Walle
   return (
     <div className="max-w-lg mx-auto px-4 py-6 space-y-4 pb-28 lg:pb-8">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-[#0D0D0D]" style={{ fontFamily: SANS }}>Wallet</h1>
+        <h1 className="text-xl font-bold text-white" style={{ fontFamily: SANS }}>Wallet</h1>
         <Badge variant="default" size="sm">{chain.name}</Badge>
       </div>
 
@@ -110,7 +110,7 @@ export function WalletPage({ initialSubView = 'main' }: { initialSubView?: Walle
         {isLoading ? (
           <div style={{ height: 48, width: 160, background: 'rgba(255,255,255,0.08)', borderRadius: 10, marginBottom: 16 }} />
         ) : (
-          <div style={{ fontSize: 40, fontWeight: 700, color: '#FFFFFF', letterSpacing: '-1.5px', fontFamily: 'JetBrains Mono, Menlo, monospace', marginBottom: 16 }}>
+          <div style={{ fontSize: 40, fontWeight: 700, color: '#111111', letterSpacing: '-1.5px', fontFamily: 'JetBrains Mono, Menlo, monospace', marginBottom: 16 }}>
             {balance ?? '0.00'} <span style={{ fontSize: 18, color: 'rgba(255,255,255,0.5)' }}>USDC</span>
           </div>
         )}
@@ -129,7 +129,7 @@ export function WalletPage({ initialSubView = 'main' }: { initialSubView?: Walle
           <button
             onClick={() => setSubView('send')}
             style={{
-              flex: 1, padding: '12px', borderRadius: 10, background: '#fff', color: '#0D0D0D',
+              flex: 1, padding: '12px', borderRadius: 10, background: '#0d0d0d', color: '#ffffff',
               fontWeight: 700, fontSize: 14, border: 'none', cursor: 'pointer',
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
               fontFamily: SANS,
@@ -154,28 +154,28 @@ export function WalletPage({ initialSubView = 'main' }: { initialSubView?: Walle
 
       {/* Wallet address */}
       <Card padding="md">
-        <div className="text-xs font-bold text-[#A0A0A0] uppercase tracking-wider mb-3">Wallet address</div>
+        <div className="text-xs font-bold text-[#555555] uppercase tracking-wider mb-3">Wallet address</div>
         <div className="flex items-center gap-2">
-          <div className="flex-1 bg-[#F7F7F8] rounded-xl px-3 py-2.5 min-w-0">
-            <div className="text-sm font-mono text-[#0D0D0D] truncate">
+          <div className="flex-1 bg-[#1a1a1a] rounded-xl px-3 py-2.5 min-w-0">
+            <div className="text-sm font-mono text-white truncate">
               {address.slice(0,10)}...{address.slice(-8)}
             </div>
           </div>
-          <button onClick={handleCopy} className="w-10 h-10 flex items-center justify-center rounded-xl bg-[#F5F5F5] hover:bg-[#ECECEC] text-[#0D0D0D] transition-colors flex-shrink-0">
-            {copied ? <Check size={16} className="text-[#0D0D0D]" /> : <Copy size={16} />}
+          <button onClick={handleCopy} className="w-10 h-10 flex items-center justify-center rounded-xl bg-[#1a1a1a] hover:bg-[#ECECEC] text-white transition-colors flex-shrink-0">
+            {copied ? <Check size={16} className="text-white" /> : <Copy size={16} />}
           </button>
-          <button onClick={() => setSubView('receive')} className="w-10 h-10 flex items-center justify-center rounded-xl bg-[#F5F5F5] hover:bg-[#ECECEC] text-[#0D0D0D] transition-colors flex-shrink-0">
+          <button onClick={() => setSubView('receive')} className="w-10 h-10 flex items-center justify-center rounded-xl bg-[#1a1a1a] hover:bg-[#ECECEC] text-white transition-colors flex-shrink-0">
             <Share2 size={16} />
           </button>
         </div>
-        <div className="mt-3 flex items-center gap-2 text-xs text-[#6B6B6B]">
-          <span className="w-1.5 h-1.5 rounded-full bg-[#0D0D0D]" />
+        <div className="mt-3 flex items-center gap-2 text-xs text-[#a0a0a0]">
+          <span className="w-1.5 h-1.5 rounded-full bg-[#2563EB]" />
           Connected to {chain.name}
           <a
             href={`${chain.explorerBase}/address/${address}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="ml-auto flex items-center gap-1 text-[#0D0D0D] font-semibold hover:opacity-70 transition-opacity"
+            className="ml-auto flex items-center gap-1 text-white font-semibold hover:opacity-70 transition-opacity"
           >
             Explorer <ExternalLink size={11} />
           </a>
@@ -289,22 +289,22 @@ function SendFlow({
     return (
       <div className="max-w-lg mx-auto px-4 py-8 space-y-5">
         <div className="text-center py-8">
-          <div className="w-16 h-16 rounded-full bg-[#F5F5F5] flex items-center justify-center mx-auto mb-4">
-            <Check size={28} className="text-[#0D0D0D]" />
+          <div className="w-16 h-16 rounded-full bg-[#1a1a1a] flex items-center justify-center mx-auto mb-4">
+            <Check size={28} className="text-white" />
           </div>
-          <h2 className="text-2xl font-bold text-[#0D0D0D] mb-1" style={{ fontFamily: SANS }}>Payment sent</h2>
-          <p className="text-[#6B6B6B] text-sm mb-4">Your USDC has been sent successfully.</p>
-          <div className="bg-[#F7F7F8] rounded-2xl p-4 text-left space-y-2.5 mb-6 max-w-xs mx-auto">
+          <h2 className="text-2xl font-bold text-white mb-1" style={{ fontFamily: SANS }}>Payment sent</h2>
+          <p className="text-[#a0a0a0] text-sm mb-4">Your USDC has been sent successfully.</p>
+          <div className="bg-[#1a1a1a] rounded-2xl p-4 text-left space-y-2.5 mb-6 max-w-xs mx-auto">
             <Row label="Amount" value={`${formatUSDC(parseFloat(amount))} USDC`} mono />
             <Row label="Recipient" value={formatAddress(recipient)} mono />
             <Row label="Network" value="Arc Testnet" />
             {txHash && (
-              <div className="pt-2 border-t border-black/5">
+              <div className="pt-2 border-t border-white/5">
                 <a
                   href={buildTxExplorerUrl(ARC_TESTNET_ID, txHash)}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 text-xs text-[#0D0D0D] font-semibold hover:opacity-70 transition-opacity"
+                  className="flex items-center gap-1.5 text-xs text-white font-semibold hover:opacity-70 transition-opacity"
                 >
                   <ExternalLink size={12} /> View on explorer
                 </a>
@@ -320,13 +320,13 @@ function SendFlow({
   if (displayStep === 'submitting') {
     return (
       <div className="max-w-lg mx-auto px-4 py-8 text-center space-y-4">
-        <div className="w-16 h-16 rounded-full bg-[#F5F5F5] flex items-center justify-center mx-auto">
-          <div className="w-7 h-7 border-2 border-[#0D0D0D] border-t-transparent rounded-full animate-spin" />
+        <div className="w-16 h-16 rounded-full bg-[#1a1a1a] flex items-center justify-center mx-auto">
+          <div className="w-7 h-7 border-2 border-white border-t-transparent rounded-full animate-spin" />
         </div>
-        <h2 className="text-xl font-bold text-[#0D0D0D]" style={{ fontFamily: SANS }}>
+        <h2 className="text-xl font-bold text-white" style={{ fontFamily: SANS }}>
           {isPending ? 'Confirm in wallet' : 'Confirming…'}
         </h2>
-        <p className="text-sm text-[#6B6B6B]">
+        <p className="text-sm text-[#a0a0a0]">
           {isPending ? 'Approve the transaction in your wallet.' : 'Waiting for blockchain confirmation…'}
         </p>
       </div>
@@ -340,13 +340,13 @@ function SendFlow({
           onClick={displayStep === 'recipient' ? onBack : () => setStep(
             displayStep === 'review' ? 'note' : displayStep === 'note' ? 'amount' : 'recipient'
           )}
-          className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-[#F5F5F5] text-[#0D0D0D] transition-colors"
+          className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-[#1a1a1a] text-white transition-colors"
         >
           <X size={18} />
         </button>
         <div>
-          <h1 className="text-xl font-bold text-[#0D0D0D]" style={{ fontFamily: SANS }}>Send USDC</h1>
-          <p className="text-xs text-[#6B6B6B]">
+          <h1 className="text-xl font-bold text-white" style={{ fontFamily: SANS }}>Send USDC</h1>
+          <p className="text-xs text-[#a0a0a0]">
             {displayStep === 'recipient' && 'Step 1 of 4 — Recipient'}
             {displayStep === 'amount' && 'Step 2 of 4 — Amount'}
             {displayStep === 'note' && 'Step 3 of 4 — Note (optional)'}
@@ -357,9 +357,9 @@ function SendFlow({
       </div>
 
       {isWrongChain && (
-        <div className="flex items-center gap-2 bg-[#F5F5F5] border border-black/10 rounded-xl px-3 py-2.5">
-          <AlertCircle size={15} className="text-[#0D0D0D] flex-shrink-0" />
-          <p className="text-sm text-[#0D0D0D] font-medium flex-1">Switch to Arc Testnet to send USDC.</p>
+        <div className="flex items-center gap-2 bg-[#1a1a1a] border border-white/10 rounded-xl px-3 py-2.5">
+          <AlertCircle size={15} className="text-white flex-shrink-0" />
+          <p className="text-sm text-white font-medium flex-1">Switch to Arc Testnet to send USDC.</p>
           <Button size="sm" variant="secondary" onClick={() => switchChain({ chainId: ARC_TESTNET_ID })}>Switch</Button>
         </div>
       )}
@@ -393,17 +393,17 @@ function SendFlow({
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
             error={amountError}
-            suffix={<span className="text-xs font-bold text-[#6B6B6B]">USDC</span>}
+            suffix={<span className="text-xs font-bold text-[#a0a0a0]">USDC</span>}
             autoFocus
           />
-          <div className="mt-2 flex items-center justify-between text-xs text-[#6B6B6B]">
-            <span>Available: <span className="font-semibold text-[#0D0D0D] tabular-nums">{formatUSDC(balance)} USDC</span></span>
-            <button onClick={() => setAmount(balance.toFixed(6))} className="font-semibold text-[#0D0D0D] underline underline-offset-2">Max</button>
+          <div className="mt-2 flex items-center justify-between text-xs text-[#a0a0a0]">
+            <span>Available: <span className="font-semibold text-white tabular-nums">{formatUSDC(balance)} USDC</span></span>
+            <button onClick={() => setAmount(balance.toFixed(6))} className="font-semibold text-white underline underline-offset-2">Max</button>
           </div>
           <div className="flex gap-2 mt-3">
             {[5, 10, 25, 50].map((v) => (
               <button key={v} onClick={() => setAmount(v.toString())} disabled={v > balance}
-                className="flex-1 h-9 text-sm font-semibold rounded-xl bg-[#F5F5F5] hover:bg-[#ECECEC] text-[#0D0D0D] disabled:opacity-40 transition-colors">
+                className="flex-1 h-9 text-sm font-semibold rounded-xl bg-[#1a1a1a] hover:bg-[#ECECEC] text-white disabled:opacity-40 transition-colors">
                 {v}
               </button>
             ))}
@@ -427,13 +427,13 @@ function SendFlow({
 
       {displayStep === 'review' && (
         <Card padding="lg">
-          <h2 className="text-base font-bold text-[#0D0D0D] mb-4">Review transaction</h2>
+          <h2 className="text-base font-bold text-white mb-4">Review transaction</h2>
           <div className="space-y-3 mb-6">
             <Row label="Recipient" value={formatAddress(recipient)} mono />
             <Row label="Amount" value={`${formatUSDC(parseFloat(amount || '0'))} USDC`} mono />
             <Row label="Network" value="Arc Testnet" />
             {note && <Row label="Note" value={note} />}
-            <div className="pt-2 border-t border-black/5">
+            <div className="pt-2 border-t border-white/5">
               <Row label="Fee" value="~0.00 USDC (gas-free)" />
             </div>
           </div>
@@ -446,11 +446,11 @@ function SendFlow({
       {displayStep === 'error' && (
         <div className="space-y-3">
           <Card padding="md">
-            <div className="flex items-start gap-2 text-[#0D0D0D]">
+            <div className="flex items-start gap-2 text-white">
               <AlertCircle size={16} className="flex-shrink-0 mt-0.5" />
               <div>
                 <p className="text-sm font-semibold">Transaction failed</p>
-                <p className="text-xs mt-1 text-[#6B6B6B]">{parseOnchainError(writeError)}</p>
+                <p className="text-xs mt-1 text-[#a0a0a0]">{parseOnchainError(writeError)}</p>
               </div>
             </div>
           </Card>
@@ -464,8 +464,8 @@ function SendFlow({
 function Row({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {
   return (
     <div className="flex items-center justify-between gap-2">
-      <span className="text-sm text-[#6B6B6B]">{label}</span>
-      <span className={`text-sm font-semibold text-[#0D0D0D] ${mono ? 'font-mono text-xs' : ''}`}>{value}</span>
+      <span className="text-sm text-[#a0a0a0]">{label}</span>
+      <span className={`text-sm font-semibold text-white ${mono ? 'font-mono text-xs' : ''}`}>{value}</span>
     </div>
   )
 }
@@ -540,7 +540,7 @@ function ReceiveView({ address, onBack }: { address: string; onBack: () => void 
     const xml = new XMLSerializer().serializeToString(svg)
     const img = new Image()
     img.onload = () => {
-      ctx.fillStyle = '#FFFFFF'
+      ctx.fillStyle = '#111111'
       ctx.fillRect(0, 0, size, size)
       ctx.drawImage(img, 0, 0, size, size)
       const a = document.createElement('a')
@@ -555,20 +555,20 @@ function ReceiveView({ address, onBack }: { address: string; onBack: () => void 
     <div className="max-w-lg mx-auto px-4 py-6 space-y-4 pb-28 lg:pb-8">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <button onClick={onBack} className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-[#F5F5F5] text-[#0D0D0D]">
+        <button onClick={onBack} className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-[#1a1a1a] text-white">
           <X size={18} />
         </button>
-        <h1 className="text-xl font-bold text-[#0D0D0D]" style={{ fontFamily: SANS }}>Receive USDC</h1>
+        <h1 className="text-xl font-bold text-white" style={{ fontFamily: SANS }}>Receive USDC</h1>
       </div>
 
       {/* Tab switcher */}
-      <div style={{ display: 'flex', background: '#F7F7F8', borderRadius: 12, padding: 3, gap: 2 }}>
+      <div style={{ display: 'flex', background: '#1a1a1a', borderRadius: 12, padding: 3, gap: 2 }}>
         {(['address', 'request'] as const).map(t => (
           <button key={t} onClick={() => setTab(t)} style={{
             flex: 1, padding: '8px 0', borderRadius: 9, border: 'none', cursor: 'pointer',
             fontFamily: SANS, fontSize: 13, fontWeight: tab === t ? 700 : 500,
             background: tab === t ? '#fff' : 'transparent',
-            color: '#0D0D0D',
+            color: '#ffffff',
             boxShadow: tab === t ? '0 1px 4px rgba(0,0,0,0.08)' : 'none',
             transition: 'all 0.15s',
             textTransform: 'capitalize',
@@ -581,12 +581,12 @@ function ReceiveView({ address, onBack }: { address: string; onBack: () => void 
       {/* QR card */}
       <Card padding="lg" className="text-center">
         {/* QR code */}
-        <div ref={qrRef} style={{ width: 200, height: 200, margin: '0 auto 16px', padding: 12, background: '#fff', borderRadius: 16, border: '1px solid rgba(0,0,0,0.07)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div ref={qrRef} style={{ width: 200, height: 200, margin: '0 auto 16px', padding: 12, background: '#0d0d0d', borderRadius: 16, border: '1px solid rgba(0,0,0,0.07)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <QRCodeSVG
             value={qrValue}
             size={176}
-            bgColor="#FFFFFF"
-            fgColor="#0D0D0D"
+            bgColor="#111111"
+            fgColor="#ffffff"
             level="M"
             imageSettings={{
               src: '/favicon.ico',
@@ -598,12 +598,12 @@ function ReceiveView({ address, onBack }: { address: string; onBack: () => void 
         </div>
 
         {/* Address display */}
-        <p className="text-xs text-[#A0A0A0] font-medium mb-1">
+        <p className="text-xs text-[#555555] font-medium mb-1">
           {tab === 'address' ? 'Wallet address' : 'Scan to pay'}
         </p>
-        <p className="text-xs font-mono text-[#0D0D0D] break-all px-2 mb-1 leading-relaxed">{address}</p>
+        <p className="text-xs font-mono text-white break-all px-2 mb-1 leading-relaxed">{address}</p>
         {tab === 'request' && requestAmount && (
-          <p className="text-sm font-bold text-[#0D0D0D] mb-1">{formatUSDC(parseFloat(requestAmount))} USDC{requestNote ? ` · ${requestNote}` : ''}</p>
+          <p className="text-sm font-bold text-white mb-1">{formatUSDC(parseFloat(requestAmount))} USDC{requestNote ? ` · ${requestNote}` : ''}</p>
         )}
 
         {/* Action buttons */}
@@ -620,7 +620,7 @@ function ReceiveView({ address, onBack }: { address: string; onBack: () => void 
       {/* Payment request form */}
       {tab === 'request' && (
         <Card padding="md">
-          <p className="text-sm font-bold text-[#0D0D0D] mb-3">Request details</p>
+          <p className="text-sm font-bold text-white mb-3">Request details</p>
           <div className="space-y-3">
             <Input
               label="Amount (USDC)"
@@ -628,7 +628,7 @@ function ReceiveView({ address, onBack }: { address: string; onBack: () => void 
               type="number"
               value={requestAmount}
               onChange={(e) => setRequestAmount(e.target.value)}
-              suffix={<span className="text-xs font-bold text-[#6B6B6B]">USDC</span>}
+              suffix={<span className="text-xs font-bold text-[#a0a0a0]">USDC</span>}
             />
             <Input
               label="Description (optional)"
@@ -642,14 +642,14 @@ function ReceiveView({ address, onBack }: { address: string; onBack: () => void 
 
       {/* Share panel — always shown, richer when request is filled */}
       <Card padding="md">
-        <p className="text-sm font-bold text-[#0D0D0D] mb-3">
+        <p className="text-sm font-bold text-white mb-3">
           {tab === 'request' && requestAmount ? `Share payment request · ${formatUSDC(parseFloat(requestAmount))} USDC` : 'Share your address'}
         </p>
 
         {/* Link preview */}
-        <div style={{ background: '#F7F7F8', borderRadius: 10, padding: '10px 12px', marginBottom: 12 }}>
-          <p className="text-xs text-[#6B6B6B] mb-1 font-medium">Payment link</p>
-          <p style={{ fontSize: 11, fontFamily: 'monospace', color: '#0D0D0D', wordBreak: 'break-all', lineHeight: 1.4 }}>
+        <div style={{ background: '#1a1a1a', borderRadius: 10, padding: '10px 12px', marginBottom: 12 }}>
+          <p className="text-xs text-[#a0a0a0] mb-1 font-medium">Payment link</p>
+          <p style={{ fontSize: 11, fontFamily: 'monospace', color: '#ffffff', wordBreak: 'break-all', lineHeight: 1.4 }}>
             {tab === 'request' && requestAmount ? requestLink : `${APP_URL}/?pay=${address}`}
           </p>
         </div>
@@ -660,7 +660,7 @@ function ReceiveView({ address, onBack }: { address: string; onBack: () => void 
           style={{
             width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
             height: 42, borderRadius: 10, border: '1px solid rgba(0,0,0,0.1)',
-            background: '#fff', cursor: 'pointer', fontFamily: SANS, fontSize: 13, fontWeight: 600, color: '#0D0D0D',
+            background: '#0d0d0d', cursor: 'pointer', fontFamily: SANS, fontSize: 13, fontWeight: 600, color: '#ffffff',
             marginBottom: 10, transition: 'background 0.15s',
           }}
         >
@@ -682,7 +682,7 @@ function ReceiveView({ address, onBack }: { address: string; onBack: () => void 
               style={{
                 display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
                 gap: 5, padding: '10px 4px', borderRadius: 10, border: '1px solid rgba(0,0,0,0.08)',
-                background: '#F7F7F8', cursor: 'pointer', fontFamily: SANS, fontSize: 10, fontWeight: 600, color: '#0D0D0D',
+                background: '#1a1a1a', cursor: 'pointer', fontFamily: SANS, fontSize: 10, fontWeight: 600, color: '#ffffff',
               }}
             >
               {icon}

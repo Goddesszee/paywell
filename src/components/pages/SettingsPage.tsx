@@ -42,28 +42,28 @@ export function SettingsPage() {
 
   return (
     <div className="max-w-lg mx-auto px-4 py-6 pb-28 lg:pb-8 space-y-6">
-      <h1 className="text-xl font-bold text-[#0D0D0D]" style={{ fontFamily: SANS }}>
+      <h1 className="text-xl font-bold text-white" style={{ fontFamily: SANS }}>
         Settings
       </h1>
 
       {!isConnected && (
         <Card padding="md">
-          <p className="text-sm text-[#6B6B6B] mb-3">Connect a wallet to use NAN.</p>
+          <p className="text-sm text-[#a0a0a0] mb-3">Connect a wallet to use NAN.</p>
           <ConnectKitButton />
         </Card>
       )}
 
       {/* Wallet section */}
       <div>
-        <p className="text-xs font-bold text-[#A0A0A0] uppercase tracking-wider mb-2 px-1">Wallet</p>
+        <p className="text-xs font-bold text-[#555555] uppercase tracking-wider mb-2 px-1">Wallet</p>
         <Card padding="none">
           <div className="px-4 py-3.5 flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-[#F5F5F5] flex items-center justify-center flex-shrink-0">
-              <Wallet size={17} className="text-[#0D0D0D]" />
+            <div className="w-8 h-8 rounded-lg bg-[#1a1a1a] flex items-center justify-center flex-shrink-0">
+              <Wallet size={17} className="text-white" />
             </div>
             <div className="flex-1 min-w-0">
-              <div className="text-sm font-semibold text-[#0D0D0D]">Connected wallet</div>
-              <div className="text-xs text-[#6B6B6B] font-mono truncate">
+              <div className="text-sm font-semibold text-white">Connected wallet</div>
+              <div className="text-xs text-[#a0a0a0] font-mono truncate">
                 {isConnected ? formatAddress(address!) : 'Not connected'}
               </div>
             </div>
@@ -71,13 +71,13 @@ export function SettingsPage() {
               ? <Badge variant="success" size="sm">Connected</Badge>
               : null}
           </div>
-          <div className="px-4 py-3.5 flex items-center gap-3 border-t border-black/5">
-            <div className="w-8 h-8 rounded-lg bg-[#F5F5F5] flex items-center justify-center flex-shrink-0">
-              <Shield size={17} className="text-[#0D0D0D]" />
+          <div className="px-4 py-3.5 flex items-center gap-3 border-t border-white/5">
+            <div className="w-8 h-8 rounded-lg bg-[#1a1a1a] flex items-center justify-center flex-shrink-0">
+              <Shield size={17} className="text-white" />
             </div>
             <div className="flex-1">
-              <div className="text-sm font-semibold text-[#0D0D0D]">Network</div>
-              <div className="text-xs text-[#6B6B6B]">{chain.name}</div>
+              <div className="text-sm font-semibold text-white">Network</div>
+              <div className="text-xs text-[#a0a0a0]">{chain.name}</div>
             </div>
             <Badge variant="default" size="sm">Testnet</Badge>
           </div>
@@ -87,16 +87,16 @@ export function SettingsPage() {
       {/* Agent limits — editable */}
       <div>
         <div className="flex items-center justify-between mb-2 px-1">
-          <p className="text-xs font-bold text-[#A0A0A0] uppercase tracking-wider">Agent Limits</p>
+          <p className="text-xs font-bold text-[#555555] uppercase tracking-wider">Agent Limits</p>
           {!editingLimits ? (
             <button
               onClick={() => setEditingLimits(true)}
-              className="text-xs font-semibold text-[#0D0D0D] underline underline-offset-2"
+              className="text-xs font-semibold text-white underline underline-offset-2"
             >Edit</button>
           ) : (
             <button
               onClick={saveLimits}
-              className="flex items-center gap-1 text-xs font-semibold text-[#0D0D0D]"
+              className="flex items-center gap-1 text-xs font-semibold text-white"
             >
               <Save size={12} /> Save
             </button>
@@ -104,45 +104,45 @@ export function SettingsPage() {
         </div>
         <Card padding="none">
           <div className="px-4 py-3.5 flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-[#F5F5F5] flex items-center justify-center flex-shrink-0">
-              <Bot size={17} className="text-[#0D0D0D]" />
+            <div className="w-8 h-8 rounded-lg bg-[#1a1a1a] flex items-center justify-center flex-shrink-0">
+              <Bot size={17} className="text-white" />
             </div>
             <div className="flex-1">
-              <div className="text-sm font-semibold text-[#0D0D0D]">Daily spending limit</div>
+              <div className="text-sm font-semibold text-white">Daily spending limit</div>
               {editingLimits ? (
                 <input
                   type="number"
                   value={daily}
                   onChange={e => setDaily(e.target.value)}
-                  className="mt-1 w-full border border-black/10 rounded-lg px-3 py-1.5 text-sm font-mono text-[#0D0D0D] bg-white outline-none focus:border-black/30"
+                  className="mt-1 w-full border border-white/10 rounded-lg px-3 py-1.5 text-sm font-mono text-white bg-[#111111] outline-none focus:border-black/30"
                   placeholder="USDC amount"
                 />
               ) : (
-                <div className="text-xs text-[#6B6B6B] font-mono">{agentPermissions.dailyLimit} USDC/day</div>
+                <div className="text-xs text-[#a0a0a0] font-mono">{agentPermissions.dailyLimit} USDC/day</div>
               )}
             </div>
           </div>
-          <div className="px-4 py-3.5 flex items-center gap-3 border-t border-black/5">
-            <div className="w-8 h-8 rounded-lg bg-[#F5F5F5] flex items-center justify-center flex-shrink-0">
-              <Shield size={17} className="text-[#0D0D0D]" />
+          <div className="px-4 py-3.5 flex items-center gap-3 border-t border-white/5">
+            <div className="w-8 h-8 rounded-lg bg-[#1a1a1a] flex items-center justify-center flex-shrink-0">
+              <Shield size={17} className="text-white" />
             </div>
             <div className="flex-1">
-              <div className="text-sm font-semibold text-[#0D0D0D]">Per-transaction limit</div>
+              <div className="text-sm font-semibold text-white">Per-transaction limit</div>
               {editingLimits ? (
                 <input
                   type="number"
                   value={perTx}
                   onChange={e => setPerTx(e.target.value)}
-                  className="mt-1 w-full border border-black/10 rounded-lg px-3 py-1.5 text-sm font-mono text-[#0D0D0D] bg-white outline-none focus:border-black/30"
+                  className="mt-1 w-full border border-white/10 rounded-lg px-3 py-1.5 text-sm font-mono text-white bg-[#111111] outline-none focus:border-black/30"
                   placeholder="USDC amount"
                 />
               ) : (
-                <div className="text-xs text-[#6B6B6B] font-mono">{agentPermissions.perTxLimit} USDC/tx</div>
+                <div className="text-xs text-[#a0a0a0] font-mono">{agentPermissions.perTxLimit} USDC/tx</div>
               )}
             </div>
           </div>
           {saved && (
-            <div className="px-4 py-2 bg-[#F0FDF4] text-[#1a8047] text-xs font-semibold text-center border-t border-black/5">
+            <div className="px-4 py-2 bg-[#F0FDF4] text-[#1a8047] text-xs font-semibold text-center border-t border-white/5">
               ✓ Limits saved
             </div>
           )}
@@ -151,7 +151,7 @@ export function SettingsPage() {
 
       {/* Support */}
       <div>
-        <p className="text-xs font-bold text-[#A0A0A0] uppercase tracking-wider mb-2 px-1">Support</p>
+        <p className="text-xs font-bold text-[#555555] uppercase tracking-wider mb-2 px-1">Support</p>
         <Card padding="none">
           {[
             { icon: <HelpCircle size={17} />, label: 'Arc documentation', value: 'docs.arc.io', url: 'https://docs.arc.io' },
@@ -160,16 +160,16 @@ export function SettingsPage() {
             <button
               key={idx}
               onClick={() => window.open(item.url, '_blank')}
-              className={`w-full flex items-center gap-3 px-4 py-3.5 text-left hover:bg-[#F9F9F9] transition-colors ${idx > 0 ? 'border-t border-black/5' : ''}`}
+              className={`w-full flex items-center gap-3 px-4 py-3.5 text-left hover:bg-[#F9F9F9] transition-colors ${idx > 0 ? 'border-t border-white/5' : ''}`}
             >
-              <div className="w-8 h-8 rounded-lg bg-[#F5F5F5] flex items-center justify-center flex-shrink-0 text-[#6B6B6B]">
+              <div className="w-8 h-8 rounded-lg bg-[#1a1a1a] flex items-center justify-center flex-shrink-0 text-[#a0a0a0]">
                 {item.icon}
               </div>
               <div className="flex-1 min-w-0">
-                <div className="text-sm font-semibold text-[#0D0D0D]">{item.label}</div>
-                <div className="text-xs text-[#6B6B6B] truncate">{item.value}</div>
+                <div className="text-sm font-semibold text-white">{item.label}</div>
+                <div className="text-xs text-[#a0a0a0] truncate">{item.value}</div>
               </div>
-              <ChevronRight size={15} className="text-[#A0A0A0]" />
+              <ChevronRight size={15} className="text-[#555555]" />
             </button>
           ))}
         </Card>
@@ -177,7 +177,7 @@ export function SettingsPage() {
 
       {/* Account */}
       <div>
-        <p className="text-xs font-bold text-[#A0A0A0] uppercase tracking-wider mb-2 px-1">Account</p>
+        <p className="text-xs font-bold text-[#555555] uppercase tracking-wider mb-2 px-1">Account</p>
         <Card padding="none">
           {isConnected && (
             <button
@@ -192,17 +192,17 @@ export function SettingsPage() {
           )}
           <button
             onClick={handleReset}
-            className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-[#F9F9F9] transition-colors border-t border-black/5 text-left"
+            className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-[#F9F9F9] transition-colors border-t border-white/5 text-left"
           >
-            <div className="w-8 h-8 rounded-lg bg-[#F5F5F5] flex items-center justify-center flex-shrink-0">
-              <LogOut size={17} className="text-[#6B6B6B]" />
+            <div className="w-8 h-8 rounded-lg bg-[#1a1a1a] flex items-center justify-center flex-shrink-0">
+              <LogOut size={17} className="text-[#a0a0a0]" />
             </div>
-            <span className="text-sm font-semibold text-[#0D0D0D]">Reset onboarding</span>
+            <span className="text-sm font-semibold text-white">Reset onboarding</span>
           </button>
         </Card>
       </div>
 
-      <p className="text-center text-xs text-[#A0A0A0]" style={{ fontFamily: MONO }}>
+      <p className="text-center text-xs text-[#555555]" style={{ fontFamily: MONO }}>
         NAN · Arc Testnet · Powered by Circle USDC
       </p>
     </div>

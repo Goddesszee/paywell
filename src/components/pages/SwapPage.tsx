@@ -9,13 +9,13 @@ import { swapFee, SWAP_FEE_BPS, bpsToPercent, FEE_WALLET } from '../../lib/fees'
 
 const appKit = new AppKit()
 
-const PW_BG      = '#FFFFFF'
-const PW_SURFACE = '#F7F7F8'
+const PW_BG      = '#111111'
+const PW_SURFACE = '#1a1a1a'
 const PW_BORDER  = '#E4E4E7'
-const PW_TEXT    = '#0D0D0D'
+const PW_TEXT    = '#ffffff'
 const PW_TEXT_2  = '#5C5C6B'
-const PW_BLACK   = '#0D0D0D'
-const PW_WHITE   = '#FFFFFF'
+const PW_BLACK   = '#ffffff'
+const PW_WHITE   = '#111111'
 const SANS       = 'Inter, sans-serif'
 
 // Supported tokens (no NATIVE on Arc — same asset as USDC)

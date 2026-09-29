@@ -16,10 +16,10 @@ const FONT = "'Inter', -apple-system, sans-serif"
 
 const STATUS_CONFIG: Record<OrderStatus, { label: string; color: string }> = {
   pending_payment:    { label: 'Pending payment',    color: '#9898A6' },
-  payment_protected:  { label: 'Payment protected',  color: '#0D0D0D' },
-  confirmed:          { label: 'Confirmed',          color: '#0D0D0D' },
-  shipped:            { label: 'Shipped',            color: '#0D0D0D' },
-  delivered:          { label: 'Delivered',          color: '#0D0D0D' },
+  payment_protected:  { label: 'Payment protected',  color: '#ffffff' },
+  confirmed:          { label: 'Confirmed',          color: '#ffffff' },
+  shipped:            { label: 'Shipped',            color: '#ffffff' },
+  delivered:          { label: 'Delivered',          color: '#ffffff' },
   completed:          { label: 'Completed',          color: '#16A34A' },
   disputed:           { label: 'Disputed',           color: '#DC2626' },
   refunded:           { label: 'Refunded',           color: '#5C5C6B' },
@@ -101,7 +101,7 @@ export function OrderCard({ order, onBack, expanded = false }: OrderCardProps) {
   const canReview = order.status === 'completed' && !order.review
 
   return (
-    <div style={{ background: '#FFF', border: '1px solid rgba(0,0,0,0.08)', borderRadius: 16, overflow: 'hidden', fontFamily: FONT }}>
+    <div style={{ background: '#ffffff', border: '1px solid rgba(0,0,0,0.08)', borderRadius: 16, overflow: 'hidden', fontFamily: FONT }}>
       {/* Header */}
       <div style={{ padding: '14px 16px', borderBottom: '1px solid rgba(0,0,0,0.07)' }}>
         {onBack && (
@@ -111,13 +111,13 @@ export function OrderCard({ order, onBack, expanded = false }: OrderCardProps) {
         )}
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
           <div style={{ display: 'flex', gap: 12, flex: 1, minWidth: 0 }}>
-            <div style={{ width: 48, height: 48, borderRadius: 10, overflow: 'hidden', background: '#F7F7F8', flexShrink: 0 }}>
+            <div style={{ width: 48, height: 48, borderRadius: 10, overflow: 'hidden', background: '#1a1a1a', flexShrink: 0 }}>
               <img src={order.productImage} alt={order.productName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 14, fontWeight: 700, color: '#0D0D0D', marginBottom: 2 }}>{order.productName}</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: '#ffffff', marginBottom: 2 }}>{order.productName}</div>
               <div style={{ fontSize: 12, color: '#9898A6' }}>Seller: {order.sellerName}</div>
-              <div style={{ fontSize: 14, fontWeight: 800, color: '#0D0D0D', fontVariantNumeric: 'tabular-nums', marginTop: 3 }}>
+              <div style={{ fontSize: 14, fontWeight: 800, color: '#ffffff', fontVariantNumeric: 'tabular-nums', marginTop: 3 }}>
                 {formatUSDC(order.totalPrice)} USDC
               </div>
             </div>
@@ -125,7 +125,7 @@ export function OrderCard({ order, onBack, expanded = false }: OrderCardProps) {
           <div style={{ flexShrink: 0, textAlign: 'right' }}>
             <span style={{
               display: 'inline-block', padding: '3px 10px', borderRadius: 20,
-              background: '#F7F7F8', fontSize: 11, fontWeight: 700,
+              background: '#1a1a1a', fontSize: 11, fontWeight: 700,
               color: cfg.color, border: '1px solid rgba(0,0,0,0.08)',
               whiteSpace: 'nowrap',
             }}>
@@ -153,9 +153,9 @@ export function OrderCard({ order, onBack, expanded = false }: OrderCardProps) {
 
           {/* Tracking */}
           {order.deliveryTracking && (
-            <div style={{ padding: '8px 12px', background: '#F7F7F8', borderRadius: 9, marginTop: 8 }}>
+            <div style={{ padding: '8px 12px', background: '#1a1a1a', borderRadius: 9, marginTop: 8 }}>
               <span style={{ fontSize: 12, color: '#5C5C6B' }}>Tracking: </span>
-              <span style={{ fontSize: 12, fontWeight: 700, color: '#0D0D0D' }}>{order.deliveryTracking}</span>
+              <span style={{ fontSize: 12, fontWeight: 700, color: '#ffffff' }}>{order.deliveryTracking}</span>
             </div>
           )}
 
@@ -198,12 +198,12 @@ export function OrderCard({ order, onBack, expanded = false }: OrderCardProps) {
 
           {/* Dispute form */}
           {showDispute && (
-            <div style={{ marginTop: 14, padding: '14px', background: '#F7F7F8', borderRadius: 12 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: '#0D0D0D', marginBottom: 10 }}>Raise a dispute</div>
+            <div style={{ marginTop: 14, padding: '14px', background: '#1a1a1a', borderRadius: 12 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#ffffff', marginBottom: 10 }}>Raise a dispute</div>
               <select
                 value={disputeReason}
                 onChange={(e) => setDisputeReason(e.target.value as DisputeReason)}
-                style={{ width: '100%', height: 38, padding: '0 12px', borderRadius: 8, border: '1px solid rgba(0,0,0,0.10)', background: '#FFF', fontSize: 13, fontFamily: FONT, marginBottom: 8, color: '#0D0D0D' }}
+                style={{ width: '100%', height: 38, padding: '0 12px', borderRadius: 8, border: '1px solid rgba(0,0,0,0.10)', background: '#ffffff', fontSize: 13, fontFamily: FONT, marginBottom: 8, color: '#ffffff' }}
               >
                 {DISPUTE_REASONS.map((r) => (
                   <option key={r.id} value={r.id}>{r.label}</option>
@@ -214,7 +214,7 @@ export function OrderCard({ order, onBack, expanded = false }: OrderCardProps) {
                 placeholder="Describe the issue..."
                 value={disputeDesc}
                 onChange={(e) => setDisputeDesc(e.target.value)}
-                style={{ width: '100%', padding: '10px 12px', border: '1px solid rgba(0,0,0,0.10)', borderRadius: 8, fontSize: 13, fontFamily: FONT, resize: 'none', background: '#FFF', color: '#0D0D0D', boxSizing: 'border-box', marginBottom: 8 }}
+                style={{ width: '100%', padding: '10px 12px', border: '1px solid rgba(0,0,0,0.10)', borderRadius: 8, fontSize: 13, fontFamily: FONT, resize: 'none', background: '#ffffff', color: '#ffffff', boxSizing: 'border-box', marginBottom: 8 }}
               />
               <div style={{ display: 'flex', gap: 8 }}>
                 <Button variant="ghost" fullWidth onClick={() => setShowDispute(false)}>Cancel</Button>
@@ -225,12 +225,12 @@ export function OrderCard({ order, onBack, expanded = false }: OrderCardProps) {
 
           {/* Review form */}
           {showReview && (
-            <div style={{ marginTop: 14, padding: '14px', background: '#F7F7F8', borderRadius: 12 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: '#0D0D0D', marginBottom: 10 }}>Leave a review</div>
+            <div style={{ marginTop: 14, padding: '14px', background: '#1a1a1a', borderRadius: 12 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#ffffff', marginBottom: 10 }}>Leave a review</div>
               <div style={{ display: 'flex', gap: 4, marginBottom: 10 }}>
                 {[1,2,3,4,5].map((s) => (
                   <button key={s} onClick={() => setReviewRating(s)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
-                    <Star size={22} color="#0D0D0D" fill={s <= reviewRating ? '#0D0D0D' : 'none'} />
+                    <Star size={22} color="#ffffff" fill={s <= reviewRating ? '#ffffff' : 'none'} />
                   </button>
                 ))}
               </div>
@@ -239,7 +239,7 @@ export function OrderCard({ order, onBack, expanded = false }: OrderCardProps) {
                 placeholder="Share your experience..."
                 value={reviewBody}
                 onChange={(e) => setReviewBody(e.target.value)}
-                style={{ width: '100%', padding: '10px 12px', border: '1px solid rgba(0,0,0,0.10)', borderRadius: 8, fontSize: 13, fontFamily: FONT, resize: 'none', background: '#FFF', color: '#0D0D0D', boxSizing: 'border-box', marginBottom: 8 }}
+                style={{ width: '100%', padding: '10px 12px', border: '1px solid rgba(0,0,0,0.10)', borderRadius: 8, fontSize: 13, fontFamily: FONT, resize: 'none', background: '#ffffff', color: '#ffffff', boxSizing: 'border-box', marginBottom: 8 }}
               />
               <div style={{ display: 'flex', gap: 8 }}>
                 <Button variant="ghost" fullWidth onClick={() => setShowReview(false)}>Cancel</Button>
@@ -294,20 +294,20 @@ function OrderTimeline({ status }: { status: OrderStatus }) {
             {i < TIMELINE_STEPS.length - 1 && (
               <div style={{
                 position: 'absolute', left: 12, top: 24, width: 1, bottom: 0,
-                background: done ? '#0D0D0D' : 'rgba(0,0,0,0.10)',
+                background: done ? '#ffffff' : 'rgba(0,0,0,0.10)',
               }} />
             )}
             {/* Dot */}
             <div style={{
               width: 24, height: 24, borderRadius: '50%', flexShrink: 0,
-              background: done ? '#0D0D0D' : '#F7F7F8',
-              border: `1.5px solid ${done ? '#0D0D0D' : 'rgba(0,0,0,0.12)'}`,
+              background: done ? '#ffffff' : '#1a1a1a',
+              border: `1.5px solid ${done ? '#ffffff' : 'rgba(0,0,0,0.12)'}`,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}>
-              <Icon size={11} color={done ? '#FFF' : '#9898A6'} />
+              <Icon size={11} color={done ? '#ffffff' : '#9898A6'} />
             </div>
             <div style={{ paddingTop: 2 }}>
-              <div style={{ fontSize: 13, fontWeight: active ? 700 : 500, color: done ? '#0D0D0D' : '#9898A6', fontFamily: FONT }}>
+              <div style={{ fontSize: 13, fontWeight: active ? 700 : 500, color: done ? '#ffffff' : '#9898A6', fontFamily: FONT }}>
                 {step.label}
               </div>
             </div>

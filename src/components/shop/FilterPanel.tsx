@@ -46,7 +46,7 @@ export function FilterPanel({ onClose }: FilterPanelProps) {
       {/* Panel */}
       <div style={{
         position: 'relative', width: '100%',
-        background: '#FFF',
+        background: '#ffffff',
         borderRadius: '20px 20px 0 0',
         maxHeight: '90dvh',
         overflowY: 'auto',
@@ -55,11 +55,11 @@ export function FilterPanel({ onClose }: FilterPanelProps) {
         animation: 'pw-up 0.22s ease both',
       }}>
         {/* Handle */}
-        <div style={{ width: 36, height: 4, background: '#EFEFEF', borderRadius: 2, margin: '0 auto 20px' }} />
+        <div style={{ width: 36, height: 4, background: '#1a1a1a', borderRadius: 2, margin: '0 auto 20px' }} />
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-          <h2 style={{ fontSize: 16, fontWeight: 700, color: '#0D0D0D', fontFamily: FONT }}>Filters & Sort</h2>
-          <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: 8, background: '#F7F7F8', border: '1px solid rgba(0,0,0,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+          <h2 style={{ fontSize: 16, fontWeight: 700, color: '#ffffff', fontFamily: FONT }}>Filters & Sort</h2>
+          <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: 8, background: '#1a1a1a', border: '1px solid rgba(0,0,0,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
             <X size={15} color="#5C5C6B" />
           </button>
         </div>
@@ -128,7 +128,7 @@ export function FilterPanel({ onClose }: FilterPanelProps) {
               onClick={() => setFilter({ verifiedOnly: !filter.verifiedOnly })}
               style={{
                 width: 40, height: 22, borderRadius: 11,
-                background: filter.verifiedOnly ? '#0D0D0D' : '#EFEFEF',
+                background: filter.verifiedOnly ? '#ffffff' : '#1a1a1a',
                 border: '1px solid rgba(0,0,0,0.10)',
                 position: 'relative', transition: 'background 0.2s', cursor: 'pointer',
               }}
@@ -137,12 +137,12 @@ export function FilterPanel({ onClose }: FilterPanelProps) {
                 position: 'absolute', top: 2,
                 left: filter.verifiedOnly ? 20 : 2,
                 width: 16, height: 16, borderRadius: '50%',
-                background: '#FFF',
+                background: '#ffffff',
                 boxShadow: '0 1px 4px rgba(0,0,0,0.20)',
                 transition: 'left 0.2s',
               }} />
             </div>
-            <span style={{ fontSize: 14, color: '#0D0D0D', fontFamily: FONT, fontWeight: 500 }}>
+            <span style={{ fontSize: 14, color: '#ffffff', fontFamily: FONT, fontWeight: 500 }}>
               Verified sellers only
             </span>
           </label>
@@ -190,9 +190,9 @@ function Chip({ active, onClick, children }: { active: boolean; onClick: () => v
       onClick={onClick}
       style={{
         height: 32, padding: '0 12px', borderRadius: 20,
-        border: `1px solid ${active ? '#0D0D0D' : 'rgba(0,0,0,0.10)'}`,
-        background: active ? '#0D0D0D' : '#F7F7F8',
-        color: active ? '#FFF' : '#0D0D0D',
+        border: `1px solid ${active ? '#ffffff' : 'rgba(0,0,0,0.10)'}`,
+        background: active ? '#ffffff' : '#1a1a1a',
+        color: active ? '#ffffff' : '#ffffff',
         fontSize: 12, fontWeight: 600, cursor: 'pointer',
         transition: 'all 0.12s', fontFamily: "'Inter', sans-serif",
       }}
@@ -205,8 +205,8 @@ function Chip({ active, onClick, children }: { active: boolean; onClick: () => v
 const inputStyle: React.CSSProperties = {
   width: '100%', height: 38, padding: '0 12px',
   border: '1px solid rgba(0,0,0,0.10)',
-  borderRadius: 9, background: '#F7F7F8',
-  fontSize: 14, color: '#0D0D0D',
+  borderRadius: 9, background: '#1a1a1a',
+  fontSize: 14, color: '#ffffff',
   fontFamily: "'Inter', sans-serif",
   outline: 'none', boxSizing: 'border-box',
 }

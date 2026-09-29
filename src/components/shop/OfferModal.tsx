@@ -44,29 +44,29 @@ export function OfferModal({ product, onClose }: OfferModalProps) {
       <div onClick={onClose} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.32)', backdropFilter: 'blur(2px)' }} />
       <div style={{
         position: 'relative', width: '100%',
-        background: '#FFF', borderRadius: '20px 20px 0 0',
+        background: '#ffffff', borderRadius: '20px 20px 0 0',
         padding: '20px 20px 40px', zIndex: 1,
         animation: 'pw-up 0.22s ease both',
       }}>
         {/* Handle */}
-        <div style={{ width: 36, height: 4, background: '#EFEFEF', borderRadius: 2, margin: '0 auto 20px' }} />
+        <div style={{ width: 36, height: 4, background: '#1a1a1a', borderRadius: 2, margin: '0 auto 20px' }} />
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <MessageSquare size={16} color="#0D0D0D" />
-            <h2 style={{ fontSize: 16, fontWeight: 700, color: '#0D0D0D', fontFamily: FONT }}>Make an Offer</h2>
+            <MessageSquare size={16} color="#ffffff" />
+            <h2 style={{ fontSize: 16, fontWeight: 700, color: '#ffffff', fontFamily: FONT }}>Make an Offer</h2>
           </div>
-          <button onClick={onClose} style={{ width: 30, height: 30, borderRadius: 8, background: '#F7F7F8', border: '1px solid rgba(0,0,0,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+          <button onClick={onClose} style={{ width: 30, height: 30, borderRadius: 8, background: '#1a1a1a', border: '1px solid rgba(0,0,0,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
             <X size={14} color="#5C5C6B" />
           </button>
         </div>
 
         {submitted ? (
           <div style={{ textAlign: 'center', padding: '20px 0' }}>
-            <div style={{ width: 48, height: 48, borderRadius: '50%', background: '#F7F7F8', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
-              <MessageSquare size={20} color="#0D0D0D" />
+            <div style={{ width: 48, height: 48, borderRadius: '50%', background: '#1a1a1a', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
+              <MessageSquare size={20} color="#ffffff" />
             </div>
-            <h3 style={{ fontSize: 16, fontWeight: 700, color: '#0D0D0D', fontFamily: FONT, marginBottom: 6 }}>Offer sent</h3>
+            <h3 style={{ fontSize: 16, fontWeight: 700, color: '#ffffff', fontFamily: FONT, marginBottom: 6 }}>Offer sent</h3>
             <p style={{ fontSize: 13, color: '#5C5C6B' }}>
               Your offer of <strong>{formatUSDC(parseFloat(offerPrice))} USDC</strong> has been sent to the seller.
               Offers expire in 48 hours.
@@ -76,13 +76,13 @@ export function OfferModal({ product, onClose }: OfferModalProps) {
         ) : (
           <>
             {/* Product summary */}
-            <div style={{ display: 'flex', gap: 10, marginBottom: 16, padding: '10px 12px', background: '#F7F7F8', borderRadius: 10 }}>
+            <div style={{ display: 'flex', gap: 10, marginBottom: 16, padding: '10px 12px', background: '#1a1a1a', borderRadius: 10 }}>
               <div style={{ width: 48, height: 48, borderRadius: 8, overflow: 'hidden', flexShrink: 0, background: '#E8E8E8' }}>
                 {product.images[0] && <img src={product.images[0]} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
               </div>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: '#0D0D0D', fontFamily: FONT }}>{product.name}</div>
-                <div style={{ fontSize: 13, color: '#9898A6' }}>Listed at <strong style={{ color: '#0D0D0D' }}>{formatUSDC(product.price)} USDC</strong></div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#ffffff', fontFamily: FONT }}>{product.name}</div>
+                <div style={{ fontSize: 13, color: '#9898A6' }}>Listed at <strong style={{ color: '#ffffff' }}>{formatUSDC(product.price)} USDC</strong></div>
               </div>
             </div>
 
@@ -103,8 +103,8 @@ export function OfferModal({ product, onClose }: OfferModalProps) {
                   style={{
                     width: '100%', height: 46, padding: '0 50px 0 14px',
                     border: '1px solid rgba(0,0,0,0.12)',
-                    borderRadius: 11, background: '#F7F7F8',
-                    fontSize: 18, fontWeight: 700, color: '#0D0D0D',
+                    borderRadius: 11, background: '#1a1a1a',
+                    fontSize: 18, fontWeight: 700, color: '#ffffff',
                     fontFamily: FONT, outline: 'none', boxSizing: 'border-box',
                     fontVariantNumeric: 'tabular-nums',
                   }}
@@ -136,8 +136,8 @@ export function OfferModal({ product, onClose }: OfferModalProps) {
                 style={{
                   width: '100%', padding: '10px 14px',
                   border: '1px solid rgba(0,0,0,0.10)',
-                  borderRadius: 11, background: '#F7F7F8',
-                  fontSize: 14, color: '#0D0D0D', fontFamily: FONT,
+                  borderRadius: 11, background: '#1a1a1a',
+                  fontSize: 14, color: '#ffffff', fontFamily: FONT,
                   outline: 'none', resize: 'none', boxSizing: 'border-box',
                 }}
               />

@@ -29,11 +29,11 @@ export function CartPage({
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
         <button
           onClick={onBack}
-          style={{ width: 36, height: 36, borderRadius: 9, background: '#F7F7F8', border: '1px solid rgba(0,0,0,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}
+          style={{ width: 36, height: 36, borderRadius: 9, background: '#1a1a1a', border: '1px solid rgba(0,0,0,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}
         >
-          <ArrowLeft size={16} color="#0D0D0D" />
+          <ArrowLeft size={16} color="#ffffff" />
         </button>
-        <h1 style={{ fontSize: 19, fontWeight: 800, color: '#0D0D0D', fontFamily: FONT, letterSpacing: '-0.02em' }}>
+        <h1 style={{ fontSize: 19, fontWeight: 800, color: '#ffffff', fontFamily: FONT, letterSpacing: '-0.02em' }}>
           Cart {cart.length > 0 && <span style={{ color: '#9898A6', fontWeight: 600 }}>({cart.length})</span>}
         </h1>
       </div>
@@ -41,10 +41,10 @@ export function CartPage({
       {cart.length === 0 ? (
         /* Empty state */
         <div style={{ textAlign: 'center', padding: '60px 20px' }}>
-          <div style={{ width: 56, height: 56, borderRadius: 16, background: '#F7F7F8', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px' }}>
+          <div style={{ width: 56, height: 56, borderRadius: 16, background: '#1a1a1a', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px' }}>
             <ShoppingBag size={24} color="#9898A6" />
           </div>
-          <h3 style={{ fontSize: 17, fontWeight: 700, color: '#0D0D0D', fontFamily: FONT, marginBottom: 6 }}>Your cart is empty</h3>
+          <h3 style={{ fontSize: 17, fontWeight: 700, color: '#ffffff', fontFamily: FONT, marginBottom: 6 }}>Your cart is empty</h3>
           <p style={{ fontSize: 13, color: '#5C5C6B', marginBottom: 20 }}>Add products to get started.</p>
           <Button onClick={onContinueShopping}>Continue Shopping</Button>
         </div>
@@ -62,13 +62,13 @@ export function CartPage({
             const fee = marketplaceFee(total)
             const gross = total + fee
             return (
-              <div style={{ background: '#FFF', border: '1px solid rgba(0,0,0,0.08)', borderRadius: 14, padding: '14px 16px', marginBottom: 12 }}>
+              <div style={{ background: '#ffffff', border: '1px solid rgba(0,0,0,0.08)', borderRadius: 14, padding: '14px 16px', marginBottom: 12 }}>
                 <SummaryRow label="Subtotal" value={`${formatUSDC(total)} USDC`} />
                 <SummaryRow label="Network fee" value="Free" />
                 <SummaryRow label={`Platform fee (${bpsToPercent(MARKETPLACE_FEE_BPS)})`} value={`${formatUSDC(fee)} USDC`} />
                 <div style={{ borderTop: '1px solid rgba(0,0,0,0.07)', paddingTop: 10, marginTop: 6, display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: 15, fontWeight: 800, color: '#0D0D0D', fontFamily: FONT }}>Total</span>
-                  <span style={{ fontSize: 15, fontWeight: 800, color: '#0D0D0D', fontVariantNumeric: 'tabular-nums', fontFamily: FONT }}>
+                  <span style={{ fontSize: 15, fontWeight: 800, color: '#ffffff', fontFamily: FONT }}>Total</span>
+                  <span style={{ fontSize: 15, fontWeight: 800, color: '#ffffff', fontVariantNumeric: 'tabular-nums', fontFamily: FONT }}>
                     {formatUSDC(gross)} USDC
                   </span>
                 </div>
@@ -77,8 +77,8 @@ export function CartPage({
           })()}
 
           {/* Protected purchase note */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', background: '#F7F7F8', borderRadius: 10, border: '1px solid rgba(0,0,0,0.07)', marginBottom: 14 }}>
-            <ShieldCheck size={14} color="#0D0D0D" />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', background: '#1a1a1a', borderRadius: 10, border: '1px solid rgba(0,0,0,0.07)', marginBottom: 14 }}>
+            <ShieldCheck size={14} color="#ffffff" />
             <span style={{ fontSize: 12, color: '#5C5C6B', fontFamily: FONT }}>
               Payment held in escrow · Released when you confirm delivery
             </span>
@@ -97,24 +97,24 @@ function CartItemRow({ item, onRemove }: { item: CartItem; onRemove: (id: string
   return (
     <div style={{
       display: 'flex', alignItems: 'center', gap: 12,
-      background: '#FFF', border: '1px solid rgba(0,0,0,0.08)',
+      background: '#ffffff', border: '1px solid rgba(0,0,0,0.08)',
       borderRadius: 12, padding: '12px 12px',
     }}>
-      <div style={{ width: 56, height: 56, borderRadius: 10, overflow: 'hidden', background: '#F7F7F8', flexShrink: 0 }}>
+      <div style={{ width: 56, height: 56, borderRadius: 10, overflow: 'hidden', background: '#1a1a1a', flexShrink: 0 }}>
         <img src={item.product.imageUrl} alt={item.product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 14, fontWeight: 700, color: '#0D0D0D', fontFamily: FONT, marginBottom: 2 }}>
+        <div style={{ fontSize: 14, fontWeight: 700, color: '#ffffff', fontFamily: FONT, marginBottom: 2 }}>
           {item.product.name}
         </div>
         <div style={{ fontSize: 12, color: '#9898A6' }}>{item.product.merchant}</div>
-        <div style={{ fontSize: 15, fontWeight: 800, color: '#0D0D0D', fontVariantNumeric: 'tabular-nums', marginTop: 3 }}>
+        <div style={{ fontSize: 15, fontWeight: 800, color: '#ffffff', fontVariantNumeric: 'tabular-nums', marginTop: 3 }}>
           {formatUSDC(item.product.price * item.quantity)} USDC
         </div>
       </div>
       <button
         onClick={() => onRemove(item.product.id)}
-        style={{ width: 28, height: 28, borderRadius: 7, background: '#F7F7F8', border: '1px solid rgba(0,0,0,0.07)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}
+        style={{ width: 28, height: 28, borderRadius: 7, background: '#1a1a1a', border: '1px solid rgba(0,0,0,0.07)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}
       >
         <X size={13} color="#5C5C6B" />
       </button>
@@ -126,7 +126,7 @@ function SummaryRow({ label, value }: { label: string; value: string }) {
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
       <span style={{ fontSize: 13, color: '#5C5C6B', fontFamily: FONT }}>{label}</span>
-      <span style={{ fontSize: 13, fontWeight: 600, color: '#0D0D0D', fontFamily: FONT }}>{value}</span>
+      <span style={{ fontSize: 13, fontWeight: 600, color: '#ffffff', fontFamily: FONT }}>{value}</span>
     </div>
   )
 }
@@ -171,46 +171,46 @@ export function CheckoutPage({ cart, total, onBack, onComplete }: CheckoutPagePr
     <div style={{ maxWidth: 520, margin: '0 auto', paddingBottom: 80 }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
-        <button onClick={onBack} style={{ width: 36, height: 36, borderRadius: 9, background: '#F7F7F8', border: '1px solid rgba(0,0,0,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
-          <ArrowLeft size={16} color="#0D0D0D" />
+        <button onClick={onBack} style={{ width: 36, height: 36, borderRadius: 9, background: '#1a1a1a', border: '1px solid rgba(0,0,0,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
+          <ArrowLeft size={16} color="#ffffff" />
         </button>
-        <h1 style={{ fontSize: 19, fontWeight: 800, color: '#0D0D0D', fontFamily: FONT, letterSpacing: '-0.02em' }}>Checkout</h1>
+        <h1 style={{ fontSize: 19, fontWeight: 800, color: '#ffffff', fontFamily: FONT, letterSpacing: '-0.02em' }}>Checkout</h1>
       </div>
 
       {!isConnected && (
-        <div style={{ padding: '10px 14px', background: '#F7F7F8', borderRadius: 10, border: '1px solid rgba(0,0,0,0.10)', marginBottom: 14 }}>
+        <div style={{ padding: '10px 14px', background: '#1a1a1a', borderRadius: 10, border: '1px solid rgba(0,0,0,0.10)', marginBottom: 14 }}>
           <span style={{ fontSize: 13, color: '#5C5C6B', fontFamily: FONT }}>Connect your wallet to complete this purchase.</span>
         </div>
       )}
 
       {/* Order summary */}
-      <div style={{ background: '#FFF', border: '1px solid rgba(0,0,0,0.08)', borderRadius: 14, padding: '14px 16px', marginBottom: 12 }}>
+      <div style={{ background: '#ffffff', border: '1px solid rgba(0,0,0,0.08)', borderRadius: 14, padding: '14px 16px', marginBottom: 12 }}>
         <div style={{ fontSize: 11, fontWeight: 700, color: '#9898A6', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 10 }}>Order summary</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 10 }}>
           {cart.map((item) => (
             <div key={item.product.id} style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span style={{ fontSize: 13, color: '#5C5C6B', fontFamily: FONT }}>{item.product.name} ×{item.quantity}</span>
-              <span style={{ fontSize: 13, fontWeight: 700, color: '#0D0D0D', fontVariantNumeric: 'tabular-nums' }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: '#ffffff', fontVariantNumeric: 'tabular-nums' }}>
                 {formatUSDC(item.product.price * item.quantity)} USDC
               </span>
             </div>
           ))}
         </div>
         <div style={{ borderTop: '1px solid rgba(0,0,0,0.07)', paddingTop: 10, display: 'flex', justifyContent: 'space-between' }}>
-          <span style={{ fontSize: 15, fontWeight: 800, color: '#0D0D0D', fontFamily: FONT }}>Total</span>
-          <span style={{ fontSize: 15, fontWeight: 800, color: '#0D0D0D', fontVariantNumeric: 'tabular-nums' }}>{formatUSDC(total)} USDC</span>
+          <span style={{ fontSize: 15, fontWeight: 800, color: '#ffffff', fontFamily: FONT }}>Total</span>
+          <span style={{ fontSize: 15, fontWeight: 800, color: '#ffffff', fontVariantNumeric: 'tabular-nums' }}>{formatUSDC(total)} USDC</span>
         </div>
       </div>
 
       {/* Payment method */}
-      <div style={{ background: '#FFF', border: '1px solid rgba(0,0,0,0.08)', borderRadius: 14, padding: '14px 16px', marginBottom: 12 }}>
+      <div style={{ background: '#ffffff', border: '1px solid rgba(0,0,0,0.08)', borderRadius: 14, padding: '14px 16px', marginBottom: 12 }}>
         <div style={{ fontSize: 11, fontWeight: 700, color: '#9898A6', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 10 }}>Payment</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ width: 36, height: 36, borderRadius: 9, background: '#0D0D0D', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <ShieldCheck size={16} color="#FFF" />
+          <div style={{ width: 36, height: 36, borderRadius: 9, background: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <ShieldCheck size={16} color="#ffffff" />
           </div>
           <div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: '#0D0D0D' }}>USDC · Protected Purchase</div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: '#ffffff' }}>USDC · Protected Purchase</div>
             <div style={{ fontSize: 12, color: '#9898A6' }}>Held in PaywellEscrow · Arc Testnet</div>
           </div>
         </div>
@@ -226,12 +226,12 @@ export function CheckoutPage({ cart, total, onBack, onComplete }: CheckoutPagePr
 
       {/* Tx hash */}
       {txHash && chainId && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: '#F7F7F8', borderRadius: 10, marginBottom: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: '#1a1a1a', borderRadius: 10, marginBottom: 12 }}>
           <span style={{ fontSize: 12, color: '#5C5C6B', fontFamily: 'JetBrains Mono, monospace', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {txHash.slice(0, 24)}…
           </span>
           <a href={buildTxExplorerUrl(chainId, txHash)} target="_blank" rel="noopener noreferrer">
-            <ExternalLink size={13} color="#0D0D0D" />
+            <ExternalLink size={13} color="#ffffff" />
           </a>
         </div>
       )}
@@ -264,10 +264,10 @@ export function ProtectedPurchaseSuccess({
 }) {
   return (
     <div style={{ maxWidth: 440, margin: '0 auto', padding: '60px 20px', textAlign: 'center' }}>
-      <div style={{ width: 64, height: 64, borderRadius: 20, background: '#0D0D0D', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
-        <ShieldCheck size={28} color="#FFF" />
+      <div style={{ width: 64, height: 64, borderRadius: 20, background: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+        <ShieldCheck size={28} color="#ffffff" />
       </div>
-      <h2 style={{ fontSize: 22, fontWeight: 800, color: '#0D0D0D', fontFamily: FONT, letterSpacing: '-0.02em', marginBottom: 8 }}>
+      <h2 style={{ fontSize: 22, fontWeight: 800, color: '#ffffff', fontFamily: FONT, letterSpacing: '-0.02em', marginBottom: 8 }}>
         Payment protected
       </h2>
       <p style={{ fontSize: 14, color: '#5C5C6B', lineHeight: 1.7, marginBottom: 20 }}>
@@ -277,7 +277,7 @@ export function ProtectedPurchaseSuccess({
       </p>
 
       {/* What happens next */}
-      <div style={{ background: '#F7F7F8', borderRadius: 14, padding: '14px 16px', marginBottom: 20, textAlign: 'left' }}>
+      <div style={{ background: '#1a1a1a', borderRadius: 14, padding: '14px 16px', marginBottom: 20, textAlign: 'left' }}>
         <div style={{ fontSize: 11, fontWeight: 700, color: '#9898A6', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 10 }}>What happens next</div>
         {[
           { step: '1', text: 'Seller ships your order' },
@@ -285,10 +285,10 @@ export function ProtectedPurchaseSuccess({
           { step: '3', text: 'USDC released to seller' },
         ].map(({ step, text }) => (
           <div key={step} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-            <div style={{ width: 22, height: 22, borderRadius: '50%', background: '#0D0D0D', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <span style={{ fontSize: 10, fontWeight: 800, color: '#FFF' }}>{step}</span>
+            <div style={{ width: 22, height: 22, borderRadius: '50%', background: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <span style={{ fontSize: 10, fontWeight: 800, color: '#ffffff' }}>{step}</span>
             </div>
-            <span style={{ fontSize: 13, color: '#0D0D0D' }}>{text}</span>
+            <span style={{ fontSize: 13, color: '#ffffff' }}>{text}</span>
           </div>
         ))}
       </div>

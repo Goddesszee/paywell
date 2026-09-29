@@ -21,8 +21,8 @@ import { Button } from '../ui/Button'
 // ── constants ──────────────────────────────────────────────────────────────────
 
 const FONT = "'Inter', -apple-system, sans-serif"
-const BLACK = '#0D0D0D'
-const SURFACE = '#F7F7F8'
+const BLACK = '#ffffff'
+const SURFACE = '#1a1a1a'
 const BORDER = 'rgba(0,0,0,0.07)'
 const TEXT_2 = '#5C5C6B'
 const TEXT_3 = '#9898A6'
@@ -61,11 +61,11 @@ function stageIndex(stage: DeliveryStage) {
 
 function StatusPill({ status }: { status: OrderStatus | string }) {
   const map: Record<string, string> = {
-    active:    'border border-[rgba(0,0,0,0.1)] text-[#0D0D0D] bg-[#F7F7F8]',
-    completed: 'border border-[rgba(0,0,0,0.12)] text-[#0D0D0D] bg-[#F7F7F8]',
-    disputed:  'border border-[rgba(0,0,0,0.15)] text-[#0D0D0D] bg-[#F0F0F0]',
-    refunded:  'border border-[rgba(0,0,0,0.1)] text-[#5C5C6B] bg-[#F7F7F8]',
-    cancelled: 'border border-[rgba(0,0,0,0.1)] text-[#9898A6] bg-[#F7F7F8]',
+    active:    'border border-[rgba(0,0,0,0.1)] text-white bg-[#1a1a1a]',
+    completed: 'border border-[rgba(0,0,0,0.12)] text-white bg-[#1a1a1a]',
+    disputed:  'border border-[rgba(0,0,0,0.15)] text-white bg-[#F0F0F0]',
+    refunded:  'border border-[rgba(0,0,0,0.1)] text-[#5C5C6B] bg-[#1a1a1a]',
+    cancelled: 'border border-[rgba(0,0,0,0.1)] text-[#9898A6] bg-[#1a1a1a]',
   }
   const label: Record<string, string> = {
     active:    '● Active',
@@ -122,7 +122,7 @@ function DeliveryTimeline({ order }: { order: ProtectedOrder }) {
                 background: done ? BLACK : active ? BLACK : SURFACE,
                 border: done || active ? `2px solid ${BLACK}` : `2px solid rgba(0,0,0,0.15)`,
                 fontSize: 11, fontWeight: 700,
-                color: done || active ? '#FFF' : TEXT_3,
+                color: done || active ? '#ffffff' : TEXT_3,
                 flexShrink: 0,
               }}>
                 {symbol}
@@ -271,7 +271,7 @@ function OrderDetail({
       </div>
 
       {/* Product card */}
-      <div style={{ background: '#FFF', border: `1px solid ${BORDER}`, borderRadius: 16, padding: 16, marginBottom: 12 }}>
+      <div style={{ background: '#ffffff', border: `1px solid ${BORDER}`, borderRadius: 16, padding: 16, marginBottom: 12 }}>
         <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 12 }}>
           {order.productImageUrl ? (
             <div style={{ width: 52, height: 52, borderRadius: 10, overflow: 'hidden', background: SURFACE, flexShrink: 0 }}>
@@ -304,14 +304,14 @@ function OrderDetail({
 
       {/* Protected Purchase banner */}
       <div style={{ background: BLACK, borderRadius: 14, padding: '14px 16px', marginBottom: 12 }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: '#FFF', fontFamily: FONT, marginBottom: 3 }}>NAN Protected Purchase</div>
+        <div style={{ fontSize: 13, fontWeight: 700, color: '#ffffff', fontFamily: FONT, marginBottom: 3 }}>NAN Protected Purchase</div>
         <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.65)', fontFamily: FONT, lineHeight: 1.5 }}>
           Your payment is secured until the agreed transaction conditions are completed.
         </div>
       </div>
 
       {/* Delivery timeline */}
-      <div style={{ background: '#FFF', border: `1px solid ${BORDER}`, borderRadius: 16, padding: '16px', marginBottom: 12 }}>
+      <div style={{ background: '#ffffff', border: `1px solid ${BORDER}`, borderRadius: 16, padding: '16px', marginBottom: 12 }}>
         <div style={{ fontSize: 11, fontWeight: 700, color: TEXT_3, textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: FONT, marginBottom: 12 }}>Delivery status</div>
         <DeliveryTimeline order={order} />
       </div>
@@ -384,7 +384,7 @@ function OrderDetail({
 
       {/* Dispute form */}
       {showDispute && (
-        <div style={{ background: '#FFF', border: `1px solid ${BORDER}`, borderRadius: 16, padding: 16, marginTop: 12 }}>
+        <div style={{ background: '#ffffff', border: `1px solid ${BORDER}`, borderRadius: 16, padding: 16, marginTop: 12 }}>
           <div style={{ fontSize: 14, fontWeight: 700, color: BLACK, fontFamily: FONT, marginBottom: 4 }}>Open a dispute</div>
           <div style={{ fontSize: 12, color: TEXT_2, fontFamily: FONT, marginBottom: 14, lineHeight: 1.5 }}>
             Your payment remains protected while the dispute is being reviewed.
@@ -412,7 +412,7 @@ function OrderDetail({
             <button onClick={() => setShowDispute(false)} style={{ flex: 1, height: 44, borderRadius: 12, background: SURFACE, border: `1px solid ${BORDER}`, color: TEXT_2, fontSize: 14, fontWeight: 600, fontFamily: FONT, cursor: 'pointer' }}>
               Cancel
             </button>
-            <button onClick={() => { void handleDispute() }} disabled={submittingDispute} style={{ flex: 2, height: 44, borderRadius: 12, background: BLACK, border: 'none', color: '#FFF', fontSize: 14, fontWeight: 600, fontFamily: FONT, cursor: submittingDispute ? 'not-allowed' : 'pointer', opacity: submittingDispute ? 0.6 : 1 }}>
+            <button onClick={() => { void handleDispute() }} disabled={submittingDispute} style={{ flex: 2, height: 44, borderRadius: 12, background: BLACK, border: 'none', color: '#ffffff', fontSize: 14, fontWeight: 600, fontFamily: FONT, cursor: submittingDispute ? 'not-allowed' : 'pointer', opacity: submittingDispute ? 0.6 : 1 }}>
               {submittingDispute ? 'Submitting…' : 'Submit dispute'}
             </button>
           </div>
@@ -421,7 +421,7 @@ function OrderDetail({
 
       {/* Refund confirmation */}
       {showRefund && (
-        <div style={{ background: '#FFF', border: `1px solid ${BORDER}`, borderRadius: 16, padding: 16, marginTop: 12 }}>
+        <div style={{ background: '#ffffff', border: `1px solid ${BORDER}`, borderRadius: 16, padding: 16, marginTop: 12 }}>
           <div style={{ fontSize: 14, fontWeight: 700, color: BLACK, fontFamily: FONT, marginBottom: 4 }}>Request a refund</div>
           <div style={{ fontSize: 12, color: TEXT_2, fontFamily: FONT, marginBottom: 16, lineHeight: 1.5 }}>
             A refund request will be sent to the seller. Your USDC remains protected during review.
@@ -430,7 +430,7 @@ function OrderDetail({
             <button onClick={() => setShowRefund(false)} style={{ flex: 1, height: 44, borderRadius: 12, background: SURFACE, border: `1px solid ${BORDER}`, color: TEXT_2, fontSize: 14, fontWeight: 600, fontFamily: FONT, cursor: 'pointer' }}>
               Cancel
             </button>
-            <button onClick={handleRefund} style={{ flex: 2, height: 44, borderRadius: 12, background: BLACK, border: 'none', color: '#FFF', fontSize: 14, fontWeight: 600, fontFamily: FONT, cursor: 'pointer' }}>
+            <button onClick={handleRefund} style={{ flex: 2, height: 44, borderRadius: 12, background: BLACK, border: 'none', color: '#ffffff', fontSize: 14, fontWeight: 600, fontFamily: FONT, cursor: 'pointer' }}>
               Request refund
             </button>
           </div>
@@ -549,7 +549,7 @@ export function OrdersPage() {
                 flexShrink: 0, height: 32, padding: '0 14px', borderRadius: 20,
                 background: activeTab === tab.id ? BLACK : SURFACE,
                 border: `1px solid ${activeTab === tab.id ? BLACK : BORDER}`,
-                color: activeTab === tab.id ? '#FFF' : BLACK,
+                color: activeTab === tab.id ? '#ffffff' : BLACK,
                 fontSize: 12, fontWeight: 600, fontFamily: FONT, cursor: 'pointer',
                 transition: 'all 0.15s',
               }}

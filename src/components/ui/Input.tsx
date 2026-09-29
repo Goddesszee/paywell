@@ -17,13 +17,13 @@ interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement
 
 const inputBase: React.CSSProperties = {
   width: '100%',
-  background: '#EFEFEF',
+  background: '#1a1a1a',
   border: '1px solid rgba(0,0,0,0.10)',
   borderRadius: 10,
   padding: '12px 14px',
   fontSize: 14,
   fontFamily: 'Inter, -apple-system, sans-serif',
-  color: '#0D0D0D',
+  color: '#ffffff',
   outline: 'none',
   transition: 'border-color 0.2s, box-shadow 0.2s',
   letterSpacing: '-0.01em',
@@ -62,7 +62,7 @@ export function Input({ label, error, helper, prefix, suffix, mono, className, s
             ...style,
           }}
           onFocus={(e) => {
-            e.target.style.borderColor = '#0D0D0D'
+            e.target.style.borderColor = '#ffffff'
             e.target.style.boxShadow = '0 0 0 3px rgba(0,0,0,0.05)'
             props.onFocus?.(e)
           }}
@@ -101,7 +101,7 @@ export function Textarea({ label, error, helper, className, style, ...props }: T
           ...style,
         }}
         onFocus={(e) => {
-          e.target.style.borderColor = '#0D0D0D'
+          e.target.style.borderColor = '#ffffff'
           e.target.style.boxShadow = '0 0 0 3px rgba(0,0,0,0.05)'
           props.onFocus?.(e)
         }}

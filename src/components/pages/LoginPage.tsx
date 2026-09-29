@@ -154,13 +154,13 @@ export function LoginPage() {
             </div>
 
             {/* Google */}
-            <button onClick={googleLogin} style={btnStyle('rgba(255,255,255,0.06)', '#ffffff', 'rgba(255,255,255,0.12)')}>
+            <button onClick={googleLogin} style={btnStyle('rgba(255,255,255,0.06)', '#111111', 'rgba(255,255,255,0.12)')}>
               <GoogleIcon />
               <span>Continue with Google</span>
             </button>
 
             {/* Email */}
-            <button onClick={() => setMode('email')} style={btnStyle('rgba(255,255,255,0.04)', '#ffffff', 'rgba(255,255,255,0.1)')}>
+            <button onClick={() => setMode('email')} style={btnStyle('rgba(255,255,255,0.04)', '#111111', 'rgba(255,255,255,0.1)')}>
               <Mail size={18} />
               <span>Continue with Email</span>
             </button>
@@ -178,7 +178,7 @@ export function LoginPage() {
               style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', cursor: 'pointer', color: TEXT2, fontSize: 14, marginBottom: 28, padding: 0, fontFamily: F }}>
               <ArrowLeft size={15} /> Back
             </button>
-            <h2 style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.03em', marginBottom: 6, color: '#ffffff' }}>Enter your email</h2>
+            <h2 style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.03em', marginBottom: 6, color: '#111111' }}>Enter your email</h2>
             <p style={{ fontSize: 14, color: TEXT2, marginBottom: 24 }}>We'll send you a one-time code to sign in.</p>
             <input
               type="email"
@@ -193,7 +193,7 @@ export function LoginPage() {
             <button
               onClick={() => void sendOtp()}
               disabled={loading || !email.trim()}
-              style={{ ...btnStyle(loading || !email.trim() ? 'rgba(255,255,255,0.06)' : '#2563EB', loading || !email.trim() ? '#555555' : '#ffffff'), marginTop: 12, cursor: loading || !email.trim() ? 'not-allowed' : 'pointer' }}
+              style={{ ...btnStyle(loading || !email.trim() ? 'rgba(255,255,255,0.06)' : '#2563EB', loading || !email.trim() ? '#555555' : '#111111'), marginTop: 12, cursor: loading || !email.trim() ? 'not-allowed' : 'pointer' }}
             >
               {loading ? <Loader size={16} style={{ animation: 'spin 1s linear infinite' }} /> : null}
               {loading ? 'Sending…' : 'Send code →'}
@@ -208,7 +208,7 @@ export function LoginPage() {
               style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', cursor: 'pointer', color: TEXT2, fontSize: 14, marginBottom: 28, padding: 0, fontFamily: F }}>
               <ArrowLeft size={15} /> Back
             </button>
-            <h2 style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.03em', marginBottom: 6, color: '#ffffff' }}>Check your email</h2>
+            <h2 style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.03em', marginBottom: 6, color: '#111111' }}>Check your email</h2>
             <p style={{ fontSize: 14, color: TEXT2, marginBottom: 24 }}>
               We sent a 6-digit code to <strong>{email}</strong>
             </p>
@@ -232,7 +232,7 @@ export function LoginPage() {
             <button
               onClick={() => void verifyOtp()}
               disabled={loading || otp.length !== 6}
-              style={{ ...btnStyle(loading || otp.length !== 6 ? 'rgba(255,255,255,0.06)' : '#2563EB', loading || otp.length !== 6 ? '#555555' : '#ffffff'), marginTop: 12, cursor: loading || otp.length !== 6 ? 'not-allowed' : 'pointer' }}
+              style={{ ...btnStyle(loading || otp.length !== 6 ? 'rgba(255,255,255,0.06)' : '#2563EB', loading || otp.length !== 6 ? '#555555' : '#111111'), marginTop: 12, cursor: loading || otp.length !== 6 ? 'not-allowed' : 'pointer' }}
             >
               {loading ? <Loader size={16} style={{ animation: 'spin 1s linear infinite' }} /> : null}
               {loading ? 'Verifying…' : 'Verify →'}

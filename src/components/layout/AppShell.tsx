@@ -73,7 +73,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       {adminToast && (
         <div style={{
           position: 'fixed', top: 60, left: '50%', transform: 'translateX(-50%)',
-          background: BLACK, color: '#FFF', padding: '8px 20px',
+          background: BLACK, color: '#ffffff', padding: '8px 20px',
           borderRadius: 20, fontSize: 13, fontWeight: 600,
           zIndex: 200, pointerEvents: 'none',
           animation: 'pw-up 0.2s ease both',
@@ -117,7 +117,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             }}
           >
             {drawerOpen
-              ? <X size={16} color="#FFF" />
+              ? <X size={16} color="#ffffff" />
               : <Menu size={16} color={TEXT_2} />}
           </button>
         </div>
@@ -172,10 +172,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   background: isActive ? 'rgba(255,255,255,0.15)' : SURFACE,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}>
-                  <Icon size={17} color={isActive ? '#FFF' : TEXT_2} />
+                  <Icon size={17} color={isActive ? '#ffffff' : TEXT_2} />
                 </div>
                 <div style={{ flex: 1, textAlign: 'left' }}>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: isActive ? '#FFF' : '#F4F4F8', lineHeight: 1.2 }}>{label}</div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: isActive ? '#ffffff' : '#F4F4F8', lineHeight: 1.2 }}>{label}</div>
                   <div style={{ fontSize: 12, color: isActive ? 'rgba(255,255,255,0.6)' : TEXT_2, marginTop: 1 }}>{desc}</div>
                 </div>
                 <ChevronRight size={14} color={isActive ? 'rgba(255,255,255,0.5)' : TEXT_3} />

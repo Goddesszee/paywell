@@ -18,14 +18,14 @@ import { getUsdc } from '../../onchain-facts'
 
 
 const F = "'Inter', -apple-system, sans-serif"
-const BLACK = '#0D0D0D'
-const WHITE = '#FFFFFF'
-const SURFACE = '#F7F7F8'
+const BLACK = '#ffffff'
+const WHITE = '#111111'
+const SURFACE = '#1a1a1a'
 const BORDER = 'rgba(0,0,0,0.08)'
 const TEXT2 = '#5C5C6B'
 const TEXT3 = '#9898A6'
-const SUCCESS = '#0D0D0D'
-const DANGER = '#0D0D0D'
+const SUCCESS = '#ffffff'
+const DANGER = '#ffffff'
 
 const X402_PRICE = '0.001'
 const USDC_TRANSFER_ABI = [{

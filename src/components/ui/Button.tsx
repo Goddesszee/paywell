@@ -18,18 +18,18 @@ const base = [
   'inline-flex items-center justify-center gap-2 font-semibold',
   'border cursor-pointer select-none',
   'transition-all duration-150 ease-out',
-  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0D0D0D] focus-visible:ring-offset-2',
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:ring-offset-2',
   'disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none',
 ].join(' ')
 
 const variants: Record<Variant, string> = {
   primary: [
-    'bg-[#0D0D0D] text-white border-transparent',
-    'hover:bg-[#1A1A1A]',
+    'bg-[#2563EB] text-white border-transparent',
+    'hover:bg-[#222222]',
     'active:bg-[#1038A0] active:scale-[0.99]',
   ].join(' '),
   ghost: [
-    'bg-transparent text-[#0D0D0D] border-[rgba(0,0,0,0.14)]',
+    'bg-transparent text-white border-[rgba(0,0,0,0.14)]',
     'hover:border-[rgba(0,0,0,0.24)] hover:bg-[rgba(0,0,0,0.03)]',
     'active:scale-[0.99]',
   ].join(' '),
@@ -44,13 +44,13 @@ const variants: Record<Variant, string> = {
     'active:scale-[0.99]',
   ].join(' '),
   soft: [
-    'bg-[rgba(0,0,0,0.05)] text-[#0D0D0D] border-[rgba(27,79,216,0.18)]',
+    'bg-[rgba(0,0,0,0.05)] text-white border-[rgba(27,79,216,0.18)]',
     'hover:bg-[rgba(0,0,0,0.08)]',
     'active:scale-[0.99]',
   ].join(' '),
   secondary: [
-    'bg-[#F7F7F8] text-[#0D0D0D] border-[rgba(0,0,0,0.10)]',
-    'hover:bg-[#EFEFEF] hover:border-[rgba(0,0,0,0.18)]',
+    'bg-[#1a1a1a] text-white border-[rgba(0,0,0,0.10)]',
+    'hover:bg-[#1a1a1a] hover:border-[rgba(0,0,0,0.18)]',
     'active:scale-[0.99]',
   ].join(' '),
 }
@@ -88,10 +88,10 @@ export function IconButton({ children, className = '', ...props }: React.ButtonH
       {...props}
       className={[
         'inline-flex items-center justify-center w-9 h-9 rounded-[9px]',
-        'bg-[#F7F7F8] border border-[rgba(0,0,0,0.10)] text-[#5C5C6B]',
-        'hover:bg-[#EFEFEF] hover:text-[#0D0D0D] hover:border-[rgba(0,0,0,0.18)]',
+        'bg-[#1a1a1a] border border-[rgba(0,0,0,0.10)] text-[#5C5C6B]',
+        'hover:bg-[#1a1a1a] hover:text-white hover:border-[rgba(0,0,0,0.18)]',
         'transition-all duration-150 cursor-pointer',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0D0D0D]',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]',
         'disabled:opacity-40 disabled:cursor-not-allowed',
         className,
       ].join(' ')}

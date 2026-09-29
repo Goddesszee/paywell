@@ -30,7 +30,7 @@ export function ShopProductCard({ product, onClick, size = 'md' }: ShopProductCa
     <div
       onClick={onClick}
       style={{
-        background: '#FFF',
+        background: '#ffffff',
         border: '1px solid rgba(0,0,0,0.08)',
         borderRadius: size === 'sm' ? 12 : 14,
         overflow: 'hidden',
@@ -51,7 +51,7 @@ export function ShopProductCard({ product, onClick, size = 'md' }: ShopProductCa
       <div style={{
         aspectRatio: '4/3',
         overflow: 'hidden',
-        background: '#F7F7F8',
+        background: '#1a1a1a',
         position: 'relative',
       }}>
         <img
@@ -84,7 +84,7 @@ export function ShopProductCard({ product, onClick, size = 'md' }: ShopProductCa
             cursor: 'pointer', transition: 'all 0.15s',
           }}
         >
-          <Heart size={13} color={fav ? '#0D0D0D' : '#9898A6'} fill={fav ? '#0D0D0D' : 'none'} />
+          <Heart size={13} color={fav ? '#ffffff' : '#9898A6'} fill={fav ? '#ffffff' : 'none'} />
         </button>
         {/* Condition pill */}
         <div style={{
@@ -92,7 +92,7 @@ export function ShopProductCard({ product, onClick, size = 'md' }: ShopProductCa
           background: 'rgba(13,13,13,0.78)',
           borderRadius: 20, padding: '2px 8px',
         }}>
-          <span style={{ fontSize: 10, fontWeight: 700, color: '#FFF', letterSpacing: '0.03em' }}>
+          <span style={{ fontSize: 10, fontWeight: 700, color: '#ffffff', letterSpacing: '0.03em' }}>
             {CONDITION_LABEL[product.condition]}
           </span>
         </div>
@@ -104,7 +104,7 @@ export function ShopProductCard({ product, onClick, size = 'md' }: ShopProductCa
           {product.merchant}
         </div>
         <h3 style={{
-          fontSize: size === 'sm' ? 13 : 14, fontWeight: 700, color: '#0D0D0D',
+          fontSize: size === 'sm' ? 13 : 14, fontWeight: 700, color: '#ffffff',
           lineHeight: 1.3, marginBottom: 6,
           display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
           fontFamily: "'Inter', sans-serif",
@@ -114,13 +114,13 @@ export function ShopProductCard({ product, onClick, size = 'md' }: ShopProductCa
 
         {/* Rating row */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 6 }}>
-          <Star size={10} color="#0D0D0D" fill="#0D0D0D" />
-          <span style={{ fontSize: 12, fontWeight: 700, color: '#0D0D0D', fontVariantNumeric: 'tabular-nums' }}>
+          <Star size={10} color="#ffffff" fill="#ffffff" />
+          <span style={{ fontSize: 12, fontWeight: 700, color: '#ffffff', fontVariantNumeric: 'tabular-nums' }}>
             {product.rating.toFixed(1)}
           </span>
           <span style={{ fontSize: 11, color: '#9898A6' }}>({product.reviewCount})</span>
           {product.merchantVerified && (
-            <ShieldCheck size={11} color="#0D0D0D" style={{ marginLeft: 2 }} />
+            <ShieldCheck size={11} color="#ffffff" style={{ marginLeft: 2 }} />
           )}
         </div>
 
@@ -137,7 +137,7 @@ export function ShopProductCard({ product, onClick, size = 'md' }: ShopProductCa
           <div>
             <span style={{
               fontSize: size === 'sm' ? 15 : 16,
-              fontWeight: 800, color: '#0D0D0D',
+              fontWeight: 800, color: '#ffffff',
               fontVariantNumeric: 'tabular-nums',
               fontFamily: "'Inter', sans-serif",
               letterSpacing: '-0.02em',
@@ -161,15 +161,15 @@ export function ShopProductCard({ product, onClick, size = 'md' }: ShopProductCa
 export function ShopProductCardSkeleton() {
   return (
     <div style={{
-      background: '#FFF', border: '1px solid rgba(0,0,0,0.08)',
+      background: '#ffffff', border: '1px solid rgba(0,0,0,0.08)',
       borderRadius: 14, overflow: 'hidden',
     }}>
       <div style={{ aspectRatio: '4/3', background: '#F0F0F0', animation: 'pw-pulse 1.4s ease infinite' }} />
       <div style={{ padding: '12px 12px' }}>
-        <div style={{ height: 10, width: '50%', background: '#EFEFEF', borderRadius: 4, marginBottom: 8, animation: 'pw-pulse 1.4s ease infinite' }} />
-        <div style={{ height: 14, width: '80%', background: '#EFEFEF', borderRadius: 4, marginBottom: 8, animation: 'pw-pulse 1.4s ease infinite' }} />
-        <div style={{ height: 12, width: '40%', background: '#EFEFEF', borderRadius: 4, marginBottom: 8, animation: 'pw-pulse 1.4s ease infinite' }} />
-        <div style={{ height: 18, width: '55%', background: '#EFEFEF', borderRadius: 4, animation: 'pw-pulse 1.4s ease infinite' }} />
+        <div style={{ height: 10, width: '50%', background: '#1a1a1a', borderRadius: 4, marginBottom: 8, animation: 'pw-pulse 1.4s ease infinite' }} />
+        <div style={{ height: 14, width: '80%', background: '#1a1a1a', borderRadius: 4, marginBottom: 8, animation: 'pw-pulse 1.4s ease infinite' }} />
+        <div style={{ height: 12, width: '40%', background: '#1a1a1a', borderRadius: 4, marginBottom: 8, animation: 'pw-pulse 1.4s ease infinite' }} />
+        <div style={{ height: 18, width: '55%', background: '#1a1a1a', borderRadius: 4, animation: 'pw-pulse 1.4s ease infinite' }} />
       </div>
     </div>
   )

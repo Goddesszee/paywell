@@ -7,11 +7,11 @@ import { Badge } from '../ui/Badge'
 import { getUsdc } from '@/onchain-facts'
 import { Amount, usdcDecimalsFor } from '@/onchain-money'
 
-const PW_TEXT = '#0D0D0D'
-const PW_TEXT_2 = '#6B6B6B'
-const PW_TEXT_3 = '#A0A0A0'
-const PW_BLUE = '#0D0D0D'
-const PW_BLUE_LIGHT = '#0D0D0D'
+const PW_TEXT = '#ffffff'
+const PW_TEXT_2 = '#a0a0a0'
+const PW_TEXT_3 = '#555555'
+const PW_BLUE = '#ffffff'
+const PW_BLUE_LIGHT = '#ffffff'
 const PW_BORDER = 'rgba(0,0,0,0.06)'
 const MONO = 'JetBrains Mono, Menlo, monospace'
 const SANS = 'Inter, -apple-system, sans-serif'
@@ -23,7 +23,7 @@ function QuickAction({ Icon, label, onClick }: { Icon: React.ElementType, label:
       onClick={onClick}
       aria-label={label}
       style={{
-        background: '#F7F7F8',
+        background: '#1a1a1a',
         border: '1px solid rgba(0,0,0,0.08)',
         borderRadius: 16, padding: '14px 8px',
         display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 7,
@@ -34,11 +34,11 @@ function QuickAction({ Icon, label, onClick }: { Icon: React.ElementType, label:
     >
       <div style={{
         width: 38, height: 38, borderRadius: 11,
-        background: '#ECECEC',
+        background: '#222222',
         border: '1px solid rgba(0,0,0,0.08)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}>
-        <Icon size={17} color="#0D0D0D" />
+        <Icon size={17} color="#ffffff" />
       </div>
       <span style={{ fontSize: 11, fontWeight: 700, color: PW_TEXT_2, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{label}</span>
     </button>
@@ -149,7 +149,7 @@ export function HomePage() {
             — USDC
           </div>
         ) : (
-          <div style={{ fontSize: 38, fontWeight: 700, color: '#FFFFFF', marginBottom: 4, letterSpacing: '-1.5px', fontFamily: MONO }}>
+          <div style={{ fontSize: 38, fontWeight: 700, color: '#111111', marginBottom: 4, letterSpacing: '-1.5px', fontFamily: MONO }}>
             {formattedBalance ?? '0.00'} <span style={{ fontSize: 18, color: 'rgba(255,255,255,0.6)' }}>USDC</span>
           </div>
         )}
@@ -165,7 +165,7 @@ export function HomePage() {
               borderRadius: 100, padding: '4px 10px',
               fontFamily: MONO, fontSize: 11, fontWeight: 500, color: 'rgba(255,255,255,0.85)',
             }}>
-              <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#fff', flexShrink: 0 }} />
+              <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#0d0d0d', flexShrink: 0 }} />
               <span style={{ color: 'rgba(255,255,255,0.55)' }}>{label}: </span>{val}
             </div>
           ))}
@@ -182,7 +182,7 @@ export function HomePage() {
 
       {/* Agent spending */}
       <div style={{
-        background: '#EFEFEF', border: `1px solid ${PW_BORDER}`,
+        background: '#1a1a1a', border: `1px solid ${PW_BORDER}`,
         borderRadius: 14, padding: 16, marginBottom: 12,
         boxShadow: '0 8px 32px rgba(0,0,0,0.3), inset 0 1px 0 rgba(0,0,0,0.05)',
       }}>
@@ -219,7 +219,7 @@ export function HomePage() {
 
       {/* Recent activity */}
       <div style={{
-        background: '#EFEFEF', border: `1px solid ${PW_BORDER}`,
+        background: '#1a1a1a', border: `1px solid ${PW_BORDER}`,
         borderRadius: 14, padding: 16,
         boxShadow: '0 8px 32px rgba(0,0,0,0.3), inset 0 1px 0 rgba(0,0,0,0.05)',
       }}>

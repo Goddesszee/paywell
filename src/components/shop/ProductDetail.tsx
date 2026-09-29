@@ -59,7 +59,7 @@ export function ProductDetail({
       {/* Image gallery */}
       <div style={{ marginBottom: 16 }}>
         <div style={{
-          borderRadius: 16, overflow: 'hidden', background: '#F7F7F8',
+          borderRadius: 16, overflow: 'hidden', background: '#1a1a1a',
           aspectRatio: '16/10', position: 'relative',
         }}>
           <img
@@ -79,7 +79,7 @@ export function ProductDetail({
               cursor: 'pointer',
             }}
           >
-            <Heart size={15} color={fav ? '#0D0D0D' : '#9898A6'} fill={fav ? '#0D0D0D' : 'none'} />
+            <Heart size={15} color={fav ? '#ffffff' : '#9898A6'} fill={fav ? '#ffffff' : 'none'} />
           </button>
         </div>
         {/* Thumbnails */}
@@ -91,7 +91,7 @@ export function ProductDetail({
                 onClick={() => setImgIdx(i)}
                 style={{
                   width: 60, height: 60, flexShrink: 0, borderRadius: 8, overflow: 'hidden',
-                  border: `2px solid ${i === imgIdx ? '#0D0D0D' : 'rgba(0,0,0,0.08)'}`,
+                  border: `2px solid ${i === imgIdx ? '#ffffff' : 'rgba(0,0,0,0.08)'}`,
                   cursor: 'pointer', background: 'none', padding: 0,
                 }}
               >
@@ -104,7 +104,7 @@ export function ProductDetail({
 
       {/* Product info */}
       <div style={{
-        background: '#FFF', border: '1px solid rgba(0,0,0,0.08)',
+        background: '#ffffff', border: '1px solid rgba(0,0,0,0.08)',
         borderRadius: 16, padding: '18px 18px', marginBottom: 12,
       }}>
         {/* Category + condition row */}
@@ -118,7 +118,7 @@ export function ProductDetail({
         </div>
 
         <h1 style={{
-          fontSize: 22, fontWeight: 800, color: '#0D0D0D',
+          fontSize: 22, fontWeight: 800, color: '#ffffff',
           letterSpacing: '-0.03em', lineHeight: 1.2,
           fontFamily: FONT, marginBottom: 4,
         }}>
@@ -129,10 +129,10 @@ export function ProductDetail({
         <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 10 }}>
           {[1,2,3,4,5].map((s) => (
             <Star key={s} size={13}
-              color="#0D0D0D"
-              fill={s <= Math.round(product.rating) ? '#0D0D0D' : 'none'} />
+              color="#ffffff"
+              fill={s <= Math.round(product.rating) ? '#ffffff' : 'none'} />
           ))}
-          <span style={{ fontSize: 14, fontWeight: 700, color: '#0D0D0D', marginLeft: 2, fontVariantNumeric: 'tabular-nums' }}>
+          <span style={{ fontSize: 14, fontWeight: 700, color: '#ffffff', marginLeft: 2, fontVariantNumeric: 'tabular-nums' }}>
             {product.rating.toFixed(1)}
           </span>
           <span style={{ fontSize: 13, color: '#9898A6' }}>({product.reviewCount} reviews)</span>
@@ -142,7 +142,7 @@ export function ProductDetail({
         <div style={{ marginBottom: 14 }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
             <span style={{
-              fontSize: 32, fontWeight: 800, color: '#0D0D0D',
+              fontSize: 32, fontWeight: 800, color: '#ffffff',
               fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.03em', fontFamily: FONT,
             }}>
               {formatUSDC(product.price)}
@@ -156,7 +156,7 @@ export function ProductDetail({
           )}
         </div>
 
-        <p style={{ fontSize: 14, color: '#0D0D0D', lineHeight: 1.7, marginBottom: 14, fontFamily: FONT }}>
+        <p style={{ fontSize: 14, color: '#ffffff', lineHeight: 1.7, marginBottom: 14, fontFamily: FONT }}>
           {product.description}
         </p>
 
@@ -166,7 +166,7 @@ export function ProductDetail({
             {product.tags.map((t) => (
               <span key={t} style={{
                 padding: '3px 10px', borderRadius: 20,
-                background: '#F7F7F8', border: '1px solid rgba(0,0,0,0.07)',
+                background: '#1a1a1a', border: '1px solid rgba(0,0,0,0.07)',
                 fontSize: 11, color: '#5C5C6B', fontWeight: 500,
               }}>
                 #{t}
@@ -185,7 +185,7 @@ export function ProductDetail({
               {product.deliveryOptions.map((d) => (
                 <div key={d} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <Package size={13} color="#5C5C6B" />
-                  <span style={{ fontSize: 13, color: '#0D0D0D' }}>{DELIVERY_LABEL[d] ?? d}</span>
+                  <span style={{ fontSize: 13, color: '#ffffff' }}>{DELIVERY_LABEL[d] ?? d}</span>
                   {product.deliveryDays && d === 'standard' && (
                     <span style={{ fontSize: 12, color: '#9898A6', marginLeft: 2 }}>· {product.deliveryDays} days est.</span>
                   )}
@@ -206,7 +206,7 @@ export function ProductDetail({
 
       {/* Seller card */}
       <div style={{
-        background: '#FFF', border: '1px solid rgba(0,0,0,0.08)',
+        background: '#ffffff', border: '1px solid rgba(0,0,0,0.08)',
         borderRadius: 16, padding: '14px 16px', marginBottom: 12,
       }}>
         <div style={{ fontSize: 11, fontWeight: 700, color: '#9898A6', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 10 }}>
@@ -216,23 +216,23 @@ export function ProductDetail({
           {/* Avatar */}
           <div style={{
             width: 44, height: 44, borderRadius: '50%',
-            background: '#0D0D0D',
+            background: '#ffffff',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             flexShrink: 0,
           }}>
-            <span style={{ fontSize: 16, fontWeight: 800, color: '#FFF', fontFamily: FONT }}>
+            <span style={{ fontSize: 16, fontWeight: 800, color: '#ffffff', fontFamily: FONT }}>
               {product.merchant[0]?.toUpperCase()}
             </span>
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ fontSize: 15, fontWeight: 700, color: '#0D0D0D', fontFamily: FONT }}>{product.merchant}</span>
-              {product.merchantVerified && <ShieldCheck size={14} color="#0D0D0D" />}
+              <span style={{ fontSize: 15, fontWeight: 700, color: '#ffffff', fontFamily: FONT }}>{product.merchant}</span>
+              {product.merchantVerified && <ShieldCheck size={14} color="#ffffff" />}
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-                <Star size={11} color="#0D0D0D" fill="#0D0D0D" />
-                <span style={{ fontSize: 12, fontWeight: 600, color: '#0D0D0D' }}>{product.merchantRating.toFixed(1)}</span>
+                <Star size={11} color="#ffffff" fill="#ffffff" />
+                <span style={{ fontSize: 12, fontWeight: 600, color: '#ffffff' }}>{product.merchantRating.toFixed(1)}</span>
               </div>
               <span style={{ fontSize: 11, color: '#9898A6' }}>{product.merchantCompletedTx} sales</span>
               {product.merchantLocation && (
@@ -245,20 +245,20 @@ export function ProductDetail({
         {product.merchantResponseRate !== undefined && (
           <div style={{
             marginTop: 10, padding: '8px 12px',
-            background: '#F7F7F8', borderRadius: 8,
+            background: '#1a1a1a', borderRadius: 8,
             display: 'flex', gap: 16,
           }}>
             <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: 14, fontWeight: 700, color: '#0D0D0D' }}>{product.merchantResponseRate}%</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: '#ffffff' }}>{product.merchantResponseRate}%</div>
               <div style={{ fontSize: 11, color: '#9898A6' }}>Response rate</div>
             </div>
             <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: 14, fontWeight: 700, color: '#0D0D0D' }}>{product.merchantCompletedTx}</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: '#ffffff' }}>{product.merchantCompletedTx}</div>
               <div style={{ fontSize: 11, color: '#9898A6' }}>Completed</div>
             </div>
             {product.merchantJoined && (
               <div style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: 14, fontWeight: 700, color: '#0D0D0D' }}>{product.merchantJoined}</div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: '#ffffff' }}>{product.merchantJoined}</div>
                 <div style={{ fontSize: 11, color: '#9898A6' }}>Joined</div>
               </div>
             )}
@@ -270,17 +270,17 @@ export function ProductDetail({
       <div style={{
         display: 'flex', alignItems: 'flex-start', gap: 10,
         padding: '12px 14px', marginBottom: 16,
-        background: '#F7F7F8', borderRadius: 12,
+        background: '#1a1a1a', borderRadius: 12,
         border: '1px solid rgba(0,0,0,0.07)',
       }}>
         <div style={{
-          width: 28, height: 28, borderRadius: 8, background: '#0D0D0D',
+          width: 28, height: 28, borderRadius: 8, background: '#ffffff',
           display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
         }}>
-          <ShieldCheck size={14} color="#FFF" />
+          <ShieldCheck size={14} color="#ffffff" />
         </div>
         <div>
-          <div style={{ fontSize: 13, fontWeight: 700, color: '#0D0D0D', fontFamily: FONT }}>Protected Purchase</div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: '#ffffff', fontFamily: FONT }}>Protected Purchase</div>
           <div style={{ fontSize: 12, color: '#5C5C6B', marginTop: 1 }}>
             USDC is held in the PaywellEscrow smart contract until you confirm delivery.
             Dispute resolution is available within 3 days.
@@ -325,16 +325,16 @@ export function ProductDetail({
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {productReviews.slice(0, 5).map((r) => (
               <div key={r.id} style={{
-                background: '#FFF', border: '1px solid rgba(0,0,0,0.07)',
+                background: '#ffffff', border: '1px solid rgba(0,0,0,0.07)',
                 borderRadius: 12, padding: '12px 14px',
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
                   {[1,2,3,4,5].map((s) => (
-                    <Star key={s} size={11} color="#0D0D0D" fill={s <= r.rating ? '#0D0D0D' : 'none'} />
+                    <Star key={s} size={11} color="#ffffff" fill={s <= r.rating ? '#ffffff' : 'none'} />
                   ))}
-                  <span style={{ fontSize: 12, fontWeight: 600, color: '#0D0D0D' }}>{r.reviewerName ?? 'Verified buyer'}</span>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: '#ffffff' }}>{r.reviewerName ?? 'Verified buyer'}</span>
                 </div>
-                <p style={{ fontSize: 13, color: '#0D0D0D', margin: 0, lineHeight: 1.6 }}>{r.body}</p>
+                <p style={{ fontSize: 13, color: '#ffffff', margin: 0, lineHeight: 1.6 }}>{r.body}</p>
               </div>
             ))}
           </div>

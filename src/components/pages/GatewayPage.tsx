@@ -7,9 +7,9 @@ import { getUsdc, buildTxExplorerUrl } from '@/onchain-facts'
 import { usdcDecimalsFor } from '@/onchain-money'
 
 const F = "'Inter', -apple-system, sans-serif"
-const BLACK = '#0D0D0D'
-const WHITE = '#FFFFFF'
-const SURFACE = '#F7F7F8'
+const BLACK = '#ffffff'
+const WHITE = '#111111'
+const SURFACE = '#1a1a1a'
 const BORDER = 'rgba(0,0,0,0.08)'
 const TEXT2 = '#5C5C6B'
 const TEXT3 = '#9898A6'

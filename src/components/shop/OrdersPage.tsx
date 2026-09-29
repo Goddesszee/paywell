@@ -42,14 +42,14 @@ export function OrdersPage({ onBack, onContinueShopping }: OrdersPageProps) {
     <div style={{ maxWidth: 560, margin: '0 auto', paddingBottom: 80 }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
-        <button onClick={onBack} style={{ width: 36, height: 36, borderRadius: 9, background: '#F7F7F8', border: '1px solid rgba(0,0,0,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
-          <ArrowLeft size={16} color="#0D0D0D" />
+        <button onClick={onBack} style={{ width: 36, height: 36, borderRadius: 9, background: '#1a1a1a', border: '1px solid rgba(0,0,0,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
+          <ArrowLeft size={16} color="#ffffff" />
         </button>
-        <h1 style={{ fontSize: 19, fontWeight: 800, color: '#0D0D0D', fontFamily: FONT, letterSpacing: '-0.02em' }}>My Orders</h1>
+        <h1 style={{ fontSize: 19, fontWeight: 800, color: '#ffffff', fontFamily: FONT, letterSpacing: '-0.02em' }}>My Orders</h1>
       </div>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: 4, marginBottom: 16, background: '#F7F7F8', borderRadius: 11, padding: 4 }}>
+      <div style={{ display: 'flex', gap: 4, marginBottom: 16, background: '#1a1a1a', borderRadius: 11, padding: 4 }}>
         {([
           { id: 'buying' as Tab, label: `Buying (${buyingOrders.length})` },
           { id: 'selling' as Tab, label: `Selling (${sellingOrders.length})` },
@@ -60,9 +60,9 @@ export function OrdersPage({ onBack, onContinueShopping }: OrdersPageProps) {
             onClick={() => setTab(id)}
             style={{
               flex: 1, height: 34, borderRadius: 8,
-              background: tab === id ? '#FFF' : 'transparent',
+              background: tab === id ? '#ffffff' : 'transparent',
               border: tab === id ? '1px solid rgba(0,0,0,0.09)' : 'none',
-              fontSize: 12, fontWeight: 700, color: tab === id ? '#0D0D0D' : '#5C5C6B',
+              fontSize: 12, fontWeight: 700, color: tab === id ? '#ffffff' : '#5C5C6B',
               cursor: 'pointer', fontFamily: FONT, transition: 'all 0.15s',
             }}
           >
@@ -74,10 +74,10 @@ export function OrdersPage({ onBack, onContinueShopping }: OrdersPageProps) {
       {/* List */}
       {currentList.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '60px 20px' }}>
-          <div style={{ width: 52, height: 52, borderRadius: 14, background: '#F7F7F8', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
+          <div style={{ width: 52, height: 52, borderRadius: 14, background: '#1a1a1a', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
             <ShoppingBag size={22} color="#9898A6" />
           </div>
-          <h3 style={{ fontSize: 15, fontWeight: 700, color: '#0D0D0D', fontFamily: FONT, marginBottom: 6 }}>
+          <h3 style={{ fontSize: 15, fontWeight: 700, color: '#ffffff', fontFamily: FONT, marginBottom: 6 }}>
             {tab === 'buying' ? "You haven't made any purchases yet." : tab === 'selling' ? 'No sales yet.' : 'No disputes.'}
           </h3>
           <p style={{ fontSize: 13, color: '#9898A6', marginBottom: 20 }}>

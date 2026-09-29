@@ -42,13 +42,13 @@ export function ActivityPage() {
   return (
     <div className="max-w-2xl mx-auto px-4 py-6 pb-28 lg:pb-8">
       <div className="flex items-center gap-3 mb-5">
-        <h1 className="text-xl font-bold text-[#0D0D0D]" style={{ fontFamily: "'Inter', -apple-system, sans-serif" }}>
+        <h1 className="text-xl font-bold text-white" style={{ fontFamily: "'Inter', -apple-system, sans-serif" }}>
           Activity
         </h1>
         <Badge variant="default" size="sm">{mergedActivity.length} transactions</Badge>
         <button
           onClick={() => void refetch()}
-          className="ml-auto w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[#F7F7F8] text-[#5C5C6B] transition-colors"
+          className="ml-auto w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[#1a1a1a] text-[#5C5C6B] transition-colors"
           title="Refresh from chain"
         >
           <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
@@ -64,7 +64,7 @@ export function ActivityPage() {
             className={`flex-shrink-0 h-8 px-3 rounded-full text-xs font-semibold transition-all ${
               filter === f.id
                 ? 'bg-[#0D0D0D] text-white'
-                : 'bg-[#F7F7F8] text-[#0D0D0D] hover:bg-[#EFEFEF]'
+                : 'bg-[#1a1a1a] text-white hover:bg-[#1a1a1a]'
             }`}
           >
             {f.label}
@@ -75,7 +75,7 @@ export function ActivityPage() {
       {filtered.length === 0 ? (
         <div className="text-center py-16">
           <Activity size={36} className="text-[#9898A6] mx-auto mb-3" />
-          <h3 className="text-base font-bold text-[#0D0D0D] mb-1">No activity yet</h3>
+          <h3 className="text-base font-bold text-white mb-1">No activity yet</h3>
           <p className="text-sm text-[#5C5C6B]">Your onchain USDC transfers will appear here automatically.</p>
         </div>
       ) : (
@@ -102,13 +102,13 @@ function ActivityDetailRow({ item }: { item: ActivityItem }) {
   const typeConfig: Record<string, { bg: string; color: string; Icon: React.FC<{ size: number }> }> = {
     received: { bg: 'bg-[#dcfce7]', color: 'text-[#1a8047]', Icon: ({ size }) => <ArrowDownLeft size={size} /> },
     sent: { bg: 'bg-[#fee2e2]', color: 'text-[#DC2626]', Icon: ({ size }) => <ArrowUpRight size={size} /> },
-    purchase: { bg: 'bg-[#dbeafe]', color: 'text-[#0D0D0D]', Icon: ({ size }) => <ShoppingBag size={size} /> },
+    purchase: { bg: 'bg-[#dbeafe]', color: 'text-white', Icon: ({ size }) => <ShoppingBag size={size} /> },
     agent_purchase: { bg: 'bg-[#ede9fe]', color: 'text-[#6d28d9]', Icon: ({ size }) => <Bot size={size} /> },
     request: { bg: 'bg-[#fef9c3]', color: 'text-[#854d0e]', Icon: ({ size }) => <ArrowUpRight size={size} /> },
   }
   const config = typeConfig[item.type] || typeConfig.purchase
   const { Icon } = config
-  const amountColor = item.sign === '+' ? 'text-[#1a8047]' : 'text-[#0D0D0D]'
+  const amountColor = item.sign === '+' ? 'text-[#1a8047]' : 'text-white'
   const sign = item.sign === '+' ? '+' : '−'
 
   return (
@@ -118,7 +118,7 @@ function ActivityDetailRow({ item }: { item: ActivityItem }) {
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-semibold text-[#0D0D0D] truncate">{item.description}</span>
+          <span className="text-sm font-semibold text-white truncate">{item.description}</span>
           {item.agentInitiated && <Badge variant="blue" size="sm">Agent</Badge>}
         </div>
         <div className="flex items-center gap-1.5 text-xs text-[#5C5C6B] mt-0.5">
@@ -133,7 +133,7 @@ function ActivityDetailRow({ item }: { item: ActivityItem }) {
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={(e) => e.stopPropagation()}
-                className="flex items-center gap-0.5 text-[#0D0D0D] hover:text-[#0D0D0D] font-semibold transition-colors"
+                className="flex items-center gap-0.5 text-white hover:text-white font-semibold transition-colors"
               >
                 <ExternalLink size={11} />
                 Tx

@@ -35,18 +35,18 @@ export function SavedItemsPage({ onBack, onProduct, onContinueShopping }: SavedI
     <div style={{ maxWidth: 640, margin: '0 auto', paddingBottom: 80 }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
-        <button onClick={onBack} style={{ width: 36, height: 36, borderRadius: 9, background: '#F7F7F8', border: '1px solid rgba(0,0,0,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
-          <ArrowLeft size={16} color="#0D0D0D" />
+        <button onClick={onBack} style={{ width: 36, height: 36, borderRadius: 9, background: '#1a1a1a', border: '1px solid rgba(0,0,0,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
+          <ArrowLeft size={16} color="#ffffff" />
         </button>
-        <h1 style={{ fontSize: 19, fontWeight: 800, color: '#0D0D0D', fontFamily: FONT, letterSpacing: '-0.02em' }}>Saved Items</h1>
+        <h1 style={{ fontSize: 19, fontWeight: 800, color: '#ffffff', fontFamily: FONT, letterSpacing: '-0.02em' }}>Saved Items</h1>
       </div>
 
       {saved.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '60px 20px' }}>
-          <div style={{ width: 52, height: 52, borderRadius: 14, background: '#F7F7F8', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
+          <div style={{ width: 52, height: 52, borderRadius: 14, background: '#1a1a1a', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
             <Heart size={22} color="#9898A6" />
           </div>
-          <h3 style={{ fontSize: 15, fontWeight: 700, color: '#0D0D0D', fontFamily: FONT, marginBottom: 6 }}>No saved items yet</h3>
+          <h3 style={{ fontSize: 15, fontWeight: 700, color: '#ffffff', fontFamily: FONT, marginBottom: 6 }}>No saved items yet</h3>
           <p style={{ fontSize: 13, color: '#9898A6', marginBottom: 20 }}>Tap the heart icon on any product to save it.</p>
           <Button onClick={onContinueShopping}>Explore Shop</Button>
         </div>

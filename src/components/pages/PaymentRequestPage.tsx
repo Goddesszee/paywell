@@ -17,8 +17,8 @@ import { parseAmount, Amount, usdcDecimalsFor } from '@/onchain-money'
 
 const ARC_TESTNET_ID = 5042002
 const FONT = "'Inter', -apple-system, sans-serif"
-const BLACK = '#0D0D0D'
-const SURFACE = '#F7F7F8'
+const BLACK = '#ffffff'
+const SURFACE = '#1a1a1a'
 const BORDER = 'rgba(0,0,0,0.08)'
 const TEXT2 = '#5C5C6B'
 const TEXT3 = '#9898A6'
@@ -189,8 +189,8 @@ export function PaymentRequestPage({ params }: { params: PaymentParams }) {
       {/* Request card */}
       <div style={{ background: BLACK, borderRadius: 20, padding: '24px 20px', marginBottom: 20, textAlign: 'center' }}>
         {/* QR */}
-        <div style={{ width: 140, height: 140, background: '#fff', borderRadius: 14, margin: '0 auto 16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <QRCodeSVG value={params.to} size={120} bgColor="#fff" fgColor="#0D0D0D" level="M" />
+        <div style={{ width: 140, height: 140, background: '#0d0d0d', borderRadius: 14, margin: '0 auto 16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <QRCodeSVG value={params.to} size={120} bgColor="#fff" fgColor="#ffffff" level="M" />
         </div>
 
         {/* Amount */}
@@ -246,7 +246,7 @@ export function PaymentRequestPage({ params }: { params: PaymentParams }) {
 
       {/* Amount editor */}
       {address && (
-        <div style={{ background: '#fff', border: `1px solid ${BORDER}`, borderRadius: 14, padding: 16, marginBottom: 14 }}>
+        <div style={{ background: '#0d0d0d', border: `1px solid ${BORDER}`, borderRadius: 14, padding: 16, marginBottom: 14 }}>
           {step === 'edit_amount' ? (
             <div>
               <label style={{ fontSize: 12, fontWeight: 600, color: TEXT3, textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 8 }}>
@@ -345,7 +345,7 @@ export function PaymentRequestPage({ params }: { params: PaymentParams }) {
 function FullPage({ children }: { children: React.ReactNode }) {
   return (
     <div style={{
-      minHeight: '100vh', background: '#fff', fontFamily: FONT,
+      minHeight: '100vh', background: '#0d0d0d', fontFamily: FONT,
       display: 'flex', flexDirection: 'column', alignItems: 'center',
       padding: '24px 20px 40px',
     }}>

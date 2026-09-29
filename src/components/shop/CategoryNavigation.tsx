@@ -36,9 +36,9 @@ export function CategoryNavigation({ active, onChange }: CategoryNavigationProps
               flexShrink: 0,
               height: 34, padding: '0 13px',
               borderRadius: 20,
-              border: `1px solid ${isActive ? '#0D0D0D' : 'rgba(0,0,0,0.09)'}`,
-              background: isActive ? '#0D0D0D' : '#F7F7F8',
-              color: isActive ? '#FFF' : '#0D0D0D',
+              border: `1px solid ${isActive ? '#ffffff' : 'rgba(0,0,0,0.09)'}`,
+              background: isActive ? '#ffffff' : '#1a1a1a',
+              color: isActive ? '#ffffff' : '#ffffff',
               fontSize: 12, fontWeight: 600,
               display: 'flex', alignItems: 'center', gap: 5,
               cursor: 'pointer', transition: 'all 0.15s',
@@ -46,7 +46,7 @@ export function CategoryNavigation({ active, onChange }: CategoryNavigationProps
               whiteSpace: 'nowrap',
             }}
           >
-            <Icon size={12} color={isActive ? '#FFF' : '#5C5C6B'} />
+            <Icon size={12} color={isActive ? '#ffffff' : '#5C5C6B'} />
             {cat.label}
           </button>
         )

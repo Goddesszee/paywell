@@ -9,9 +9,9 @@ import { parseAmount } from '@/onchain-money'
 import { formatAddress } from '../../utils/format'
 
 const F = "'Inter', -apple-system, sans-serif"
-const BLACK = '#0D0D0D'
-const WHITE = '#FFFFFF'
-const SURFACE = '#F7F7F8'
+const BLACK = '#ffffff'
+const WHITE = '#111111'
+const SURFACE = '#1a1a1a'
 const BORDER = 'rgba(0,0,0,0.08)'
 const TEXT2 = '#5C5C6B'
 const TEXT3 = '#9898A6'
@@ -207,20 +207,20 @@ export function RecurringPage() {
 
           <div>
             <input placeholder="Name (e.g. Weekly allowance)" value={newName} onChange={e => setNewName(e.target.value)}
-              style={{ width: '100%', padding: '10px 12px', border: `1px solid ${errors.name ? '#0D0D0D' : BORDER}`, borderRadius: 10, fontFamily: F, fontSize: 13, outline: 'none', color: BLACK, background: WHITE, boxSizing: 'border-box' }} />
+              style={{ width: '100%', padding: '10px 12px', border: `1px solid ${errors.name ? '#ffffff' : BORDER}`, borderRadius: 10, fontFamily: F, fontSize: 13, outline: 'none', color: BLACK, background: WHITE, boxSizing: 'border-box' }} />
             {errors.name && <div style={{ fontSize: 11, color: BLACK, marginTop: 3 }}>{errors.name}</div>}
           </div>
 
           <div>
             <input placeholder="Recipient address (0x...)" value={newRecipient} onChange={e => setNewRecipient(e.target.value)}
-              style={{ width: '100%', padding: '10px 12px', border: `1px solid ${errors.recipient ? '#0D0D0D' : BORDER}`, borderRadius: 10, fontFamily: 'monospace', fontSize: 12, outline: 'none', color: BLACK, background: WHITE, boxSizing: 'border-box' }} />
+              style={{ width: '100%', padding: '10px 12px', border: `1px solid ${errors.recipient ? '#ffffff' : BORDER}`, borderRadius: 10, fontFamily: 'monospace', fontSize: 12, outline: 'none', color: BLACK, background: WHITE, boxSizing: 'border-box' }} />
             {errors.recipient && <div style={{ fontSize: 11, color: BLACK, marginTop: 3 }}>{errors.recipient}</div>}
           </div>
 
           <div>
             <div style={{ position: 'relative' }}>
               <input placeholder="0.00" type="number" min="0" step="0.01" value={newAmount} onChange={e => setNewAmount(e.target.value)}
-                style={{ width: '100%', padding: '10px 52px 10px 12px', border: `1px solid ${errors.amount ? '#0D0D0D' : BORDER}`, borderRadius: 10, fontFamily: F, fontSize: 14, fontWeight: 600, outline: 'none', color: BLACK, background: WHITE, boxSizing: 'border-box' }} />
+                style={{ width: '100%', padding: '10px 52px 10px 12px', border: `1px solid ${errors.amount ? '#ffffff' : BORDER}`, borderRadius: 10, fontFamily: F, fontSize: 14, fontWeight: 600, outline: 'none', color: BLACK, background: WHITE, boxSizing: 'border-box' }} />
               <span style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 12, fontWeight: 600, color: TEXT2 }}>USDC</span>
             </div>
             {errors.amount && <div style={{ fontSize: 11, color: BLACK, marginTop: 3 }}>{errors.amount}</div>}

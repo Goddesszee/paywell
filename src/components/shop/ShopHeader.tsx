@@ -26,7 +26,7 @@ export function ShopHeader({
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14 }}>
         <div>
           <h1 style={{
-            fontSize: 22, fontWeight: 800, color: '#0D0D0D',
+            fontSize: 22, fontWeight: 800, color: '#ffffff',
             letterSpacing: '-0.03em', lineHeight: 1.15,
             fontFamily: FONT, marginBottom: 2,
           }}>
@@ -41,15 +41,15 @@ export function ShopHeader({
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
           {/* Saved */}
           <HeaderIconBtn onClick={onOpenSaved} label="Saved items" badge={savedCount}>
-            <Heart size={17} color="#0D0D0D" />
+            <Heart size={17} color="#ffffff" />
           </HeaderIconBtn>
           {/* Orders */}
           <HeaderIconBtn onClick={onOpenOrders} label="My orders" badge={ordersCount}>
-            <Package size={17} color="#0D0D0D" />
+            <Package size={17} color="#ffffff" />
           </HeaderIconBtn>
           {/* Cart */}
           <HeaderIconBtn onClick={onOpenCart} label="Cart" badge={cartCount}>
-            <ShoppingCart size={17} color="#0D0D0D" />
+            <ShoppingCart size={17} color="#ffffff" />
           </HeaderIconBtn>
         </div>
       </div>
@@ -70,14 +70,14 @@ export function ShopHeader({
               paddingLeft: 36, paddingRight: 14,
               border: '1px solid rgba(0,0,0,0.10)',
               borderRadius: 11,
-              background: '#F7F7F8',
-              fontSize: 14, color: '#0D0D0D',
+              background: '#1a1a1a',
+              fontSize: 14, color: '#ffffff',
               fontFamily: FONT,
               outline: 'none',
               boxSizing: 'border-box',
             }}
-            onFocus={(e) => { e.currentTarget.style.borderColor = '#0D0D0D'; e.currentTarget.style.background = '#FFF' }}
-            onBlur={(e) => { e.currentTarget.style.borderColor = 'rgba(0,0,0,0.10)'; e.currentTarget.style.background = '#F7F7F8' }}
+            onFocus={(e) => { e.currentTarget.style.borderColor = '#ffffff'; e.currentTarget.style.background = '#ffffff' }}
+            onBlur={(e) => { e.currentTarget.style.borderColor = 'rgba(0,0,0,0.10)'; e.currentTarget.style.background = '#1a1a1a' }}
           />
         </div>
         {/* Filter button */}
@@ -86,14 +86,14 @@ export function ShopHeader({
           aria-label="Filters"
           style={{
             width: 42, height: 42, borderRadius: 11, flexShrink: 0,
-            background: '#F7F7F8', border: '1px solid rgba(0,0,0,0.10)',
+            background: '#1a1a1a', border: '1px solid rgba(0,0,0,0.10)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             cursor: 'pointer', transition: 'all 0.15s',
           }}
-          onMouseEnter={(e) => { e.currentTarget.style.background = '#EFEFEF' }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = '#F7F7F8' }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = '#1a1a1a' }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = '#1a1a1a' }}
         >
-          <SlidersHorizontal size={16} color="#0D0D0D" />
+          <SlidersHorizontal size={16} color="#ffffff" />
         </button>
         {/* Sell */}
         <button
@@ -101,15 +101,15 @@ export function ShopHeader({
           aria-label="Sell an item"
           style={{
             height: 42, padding: '0 14px', borderRadius: 11, flexShrink: 0,
-            background: '#0D0D0D', border: 'none',
+            background: '#ffffff', border: 'none',
             display: 'flex', alignItems: 'center', gap: 6,
             cursor: 'pointer', transition: 'background 0.15s',
           }}
           onMouseEnter={(e) => { e.currentTarget.style.background = '#1A1A1A' }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = '#0D0D0D' }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = '#ffffff' }}
         >
-          <Plus size={15} color="#FFF" />
-          <span style={{ fontSize: 13, fontWeight: 700, color: '#FFF', fontFamily: FONT }}>Sell</span>
+          <Plus size={15} color="#ffffff" />
+          <span style={{ fontSize: 13, fontWeight: 700, color: '#ffffff', fontFamily: FONT }}>Sell</span>
         </button>
       </div>
     </div>
@@ -130,19 +130,19 @@ function HeaderIconBtn({
       aria-label={label}
       style={{
         width: 38, height: 38, borderRadius: 10, position: 'relative',
-        background: '#F7F7F8', border: '1px solid rgba(0,0,0,0.09)',
+        background: '#1a1a1a', border: '1px solid rgba(0,0,0,0.09)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         cursor: 'pointer', transition: 'all 0.15s', flexShrink: 0,
       }}
-      onMouseEnter={(e) => { e.currentTarget.style.background = '#EFEFEF' }}
-      onMouseLeave={(e) => { e.currentTarget.style.background = '#F7F7F8' }}
+      onMouseEnter={(e) => { e.currentTarget.style.background = '#1a1a1a' }}
+      onMouseLeave={(e) => { e.currentTarget.style.background = '#1a1a1a' }}
     >
       {children}
       {!!badge && badge > 0 && (
         <span style={{
           position: 'absolute', top: -4, right: -4,
           minWidth: 16, height: 16, borderRadius: 8,
-          background: '#0D0D0D', color: '#FFF',
+          background: '#ffffff', color: '#ffffff',
           fontSize: 10, fontWeight: 800,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           padding: '0 3px', fontFamily: "'Inter', sans-serif",

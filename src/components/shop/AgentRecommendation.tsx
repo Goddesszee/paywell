@@ -31,13 +31,13 @@ export function AgentPicksSection({ products, onProductClick }: AgentRecommendat
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <div style={{
             width: 26, height: 26, borderRadius: 8,
-            background: '#0D0D0D',
+            background: '#ffffff',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
-            <Zap size={13} color="#FFF" fill="#FFF" />
+            <Zap size={13} color="#ffffff" fill="#ffffff" />
           </div>
           <div>
-            <div style={{ fontSize: 14, fontWeight: 700, color: '#0D0D0D', fontFamily: FONT }}>Agent Picks</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: '#ffffff', fontFamily: FONT }}>Agent Picks</div>
             <div style={{ fontSize: 11, color: '#9898A6', fontFamily: FONT }}>
               Curated · AI integration coming soon
             </div>
@@ -63,13 +63,13 @@ export function AgentPicksSection({ products, onProductClick }: AgentRecommendat
       {/* Readiness note */}
       <div style={{
         marginTop: 10, padding: '10px 13px',
-        background: '#F7F7F8', borderRadius: 10,
+        background: '#1a1a1a', borderRadius: 10,
         border: '1px solid rgba(0,0,0,0.07)',
         display: 'flex', alignItems: 'center', gap: 8,
       }}>
-        <Zap size={13} color="#0D0D0D" />
+        <Zap size={13} color="#ffffff" />
         <p style={{ margin: 0, fontSize: 12, color: '#5C5C6B', fontFamily: FONT }}>
-          <strong style={{ color: '#0D0D0D' }}>Agent commerce ready.</strong>{' '}
+          <strong style={{ color: '#ffffff' }}>Agent commerce ready.</strong>{' '}
           Connect a NAN AI agent to search, compare and purchase on your behalf.
         </p>
         <ChevronRight size={13} color="#9898A6" style={{ flexShrink: 0 }} />
@@ -94,20 +94,20 @@ export function AgentProductCard({
     <div style={{
       border: '1px solid rgba(0,0,0,0.10)',
       borderRadius: 14, overflow: 'hidden',
-      background: '#FFF', fontFamily: FONT,
+      background: '#ffffff', fontFamily: FONT,
     }}>
       <div style={{ display: 'flex', gap: 12, padding: '12px 12px' }}>
         <div style={{
           width: 64, height: 64, borderRadius: 10,
-          overflow: 'hidden', flexShrink: 0, background: '#F7F7F8',
+          overflow: 'hidden', flexShrink: 0, background: '#1a1a1a',
         }}>
           <img src={product.images[0]} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 14, fontWeight: 700, color: '#0D0D0D', marginBottom: 2 }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: '#ffffff', marginBottom: 2 }}>
             {product.name}
           </div>
-          <div style={{ fontSize: 16, fontWeight: 800, color: '#0D0D0D', fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em' }}>
+          <div style={{ fontSize: 16, fontWeight: 800, color: '#ffffff', fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em' }}>
             {formatUSDC(product.price)} <span style={{ fontSize: 12, fontWeight: 600, color: '#5C5C6B' }}>USDC</span>
           </div>
           <div style={{ fontSize: 12, color: '#5C5C6B', marginTop: 2 }}>
@@ -131,8 +131,8 @@ export function AgentProductCard({
               onClick={onView}
               style={{
                 flex: 1, height: 34, borderRadius: 8,
-                background: '#F7F7F8', border: '1px solid rgba(0,0,0,0.09)',
-                fontSize: 12, fontWeight: 600, color: '#0D0D0D',
+                background: '#1a1a1a', border: '1px solid rgba(0,0,0,0.09)',
+                fontSize: 12, fontWeight: 600, color: '#ffffff',
                 cursor: 'pointer', fontFamily: FONT,
               }}
             >
@@ -144,8 +144,8 @@ export function AgentProductCard({
               onClick={onApprove}
               style={{
                 flex: 1, height: 34, borderRadius: 8,
-                background: '#0D0D0D', border: 'none',
-                fontSize: 12, fontWeight: 700, color: '#FFF',
+                background: '#ffffff', border: 'none',
+                fontSize: 12, fontWeight: 700, color: '#ffffff',
                 cursor: 'pointer', fontFamily: FONT,
               }}
             >
