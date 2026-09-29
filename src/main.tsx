@@ -23,6 +23,18 @@ import { config } from './config'
 import App from './App'
 import './index.css'
 
+// Apply persisted theme before first render to avoid flash
+try {
+  const raw = localStorage.getItem('paywell-state-v2')
+  if (raw) {
+    const parsed = JSON.parse(raw) as { state?: { theme?: string } }
+    const t = parsed?.state?.theme
+    if (t === 'light' || t === 'dark') {
+      document.documentElement.setAttribute('data-theme', t)
+    }
+  }
+} catch { /* ignore */ }
+
 const queryClient = new QueryClient()
 
 // Studio logo SVG
