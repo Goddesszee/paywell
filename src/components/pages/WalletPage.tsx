@@ -110,7 +110,7 @@ export function WalletPage({ initialSubView = 'main' }: { initialSubView?: Walle
         {isLoading ? (
           <div style={{ height: 48, width: 160, background: 'rgba(255,255,255,0.08)', borderRadius: 10, marginBottom: 16 }} />
         ) : (
-          <div style={{ fontSize: 40, fontWeight: 700, color: '#111111', letterSpacing: '-1.5px', fontFamily: 'JetBrains Mono, Menlo, monospace', marginBottom: 16 }}>
+          <div style={{ fontSize: 40, fontWeight: 700, color: '#FFFFFF', letterSpacing: '-1.5px', fontFamily: 'JetBrains Mono, Menlo, monospace', marginBottom: 16 }}>
             {balance ?? '0.00'} <span style={{ fontSize: 18, color: 'rgba(255,255,255,0.5)' }}>USDC</span>
           </div>
         )}
@@ -129,7 +129,7 @@ export function WalletPage({ initialSubView = 'main' }: { initialSubView?: Walle
           <button
             onClick={() => setSubView('send')}
             style={{
-              flex: 1, padding: '12px', borderRadius: 10, background: '#0d0d0d', color: '#ffffff',
+              flex: 1, padding: '12px', borderRadius: 10, background: '#0066FF', color: '#ffffff',
               fontWeight: 700, fontSize: 14, border: 'none', cursor: 'pointer',
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
               fontFamily: SANS,
@@ -161,10 +161,10 @@ export function WalletPage({ initialSubView = 'main' }: { initialSubView?: Walle
               {address.slice(0,10)}...{address.slice(-8)}
             </div>
           </div>
-          <button onClick={handleCopy} className="w-10 h-10 flex items-center justify-center rounded-xl bg-[#1a1a1a] hover:bg-[#ECECEC] text-white transition-colors flex-shrink-0">
+          <button onClick={handleCopy} className="w-10 h-10 flex items-center justify-center rounded-xl bg-[#1a1a1a] hover:bg-[#1e2028] text-white transition-colors flex-shrink-0">
             {copied ? <Check size={16} className="text-white" /> : <Copy size={16} />}
           </button>
-          <button onClick={() => setSubView('receive')} className="w-10 h-10 flex items-center justify-center rounded-xl bg-[#1a1a1a] hover:bg-[#ECECEC] text-white transition-colors flex-shrink-0">
+          <button onClick={() => setSubView('receive')} className="w-10 h-10 flex items-center justify-center rounded-xl bg-[#1a1a1a] hover:bg-[#1e2028] text-white transition-colors flex-shrink-0">
             <Share2 size={16} />
           </button>
         </div>
@@ -403,7 +403,7 @@ function SendFlow({
           <div className="flex gap-2 mt-3">
             {[5, 10, 25, 50].map((v) => (
               <button key={v} onClick={() => setAmount(v.toString())} disabled={v > balance}
-                className="flex-1 h-9 text-sm font-semibold rounded-xl bg-[#1a1a1a] hover:bg-[#ECECEC] text-white disabled:opacity-40 transition-colors">
+                className="flex-1 h-9 text-sm font-semibold rounded-xl bg-[#1a1a1a] hover:bg-[#1e2028] text-white disabled:opacity-40 transition-colors">
                 {v}
               </button>
             ))}
@@ -567,7 +567,7 @@ function ReceiveView({ address, onBack }: { address: string; onBack: () => void 
           <button key={t} onClick={() => setTab(t)} style={{
             flex: 1, padding: '8px 0', borderRadius: 9, border: 'none', cursor: 'pointer',
             fontFamily: SANS, fontSize: 13, fontWeight: tab === t ? 700 : 500,
-            background: tab === t ? '#fff' : 'transparent',
+            background: tab === t ? '#0066FF' : 'transparent',
             color: '#ffffff',
             boxShadow: tab === t ? '0 1px 4px rgba(0,0,0,0.08)' : 'none',
             transition: 'all 0.15s',
@@ -581,7 +581,7 @@ function ReceiveView({ address, onBack }: { address: string; onBack: () => void 
       {/* QR card */}
       <Card padding="lg" className="text-center">
         {/* QR code */}
-        <div ref={qrRef} style={{ width: 200, height: 200, margin: '0 auto 16px', padding: 12, background: '#0d0d0d', borderRadius: 16, border: '1px solid rgba(0,0,0,0.07)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div ref={qrRef} style={{ width: 200, height: 200, margin: '0 auto 16px', padding: 12, background: '#0d0d0d', borderRadius: 16, border: '1px solid rgba(255,255,255,0.07)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <QRCodeSVG
             value={qrValue}
             size={176}
@@ -659,7 +659,7 @@ function ReceiveView({ address, onBack }: { address: string; onBack: () => void 
           onClick={copyLink}
           style={{
             width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-            height: 42, borderRadius: 10, border: '1px solid rgba(0,0,0,0.1)',
+            height: 42, borderRadius: 10, border: '1px solid rgba(255,255,255,0.12)',
             background: '#0d0d0d', cursor: 'pointer', fontFamily: SANS, fontSize: 13, fontWeight: 600, color: '#ffffff',
             marginBottom: 10, transition: 'background 0.15s',
           }}
@@ -681,7 +681,7 @@ function ReceiveView({ address, onBack }: { address: string; onBack: () => void 
               onClick={action}
               style={{
                 display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                gap: 5, padding: '10px 4px', borderRadius: 10, border: '1px solid rgba(0,0,0,0.08)',
+                gap: 5, padding: '10px 4px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.08)',
                 background: '#1a1a1a', cursor: 'pointer', fontFamily: SANS, fontSize: 10, fontWeight: 600, color: '#ffffff',
               }}
             >
