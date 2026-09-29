@@ -26,6 +26,14 @@ const STYLES = `
   from { opacity: 1; }
   to   { opacity: 0; }
 }
+@keyframes pw-card-slide-enter {
+  from { opacity: 0; transform: translate(calc(-50% + 60px), -50%) scale(0.96); }
+  to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+@keyframes pw-card-slide-exit {
+  from { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  to   { opacity: 0; transform: translate(calc(-50% - 60px), -50%) scale(0.96); }
+}
 `
 
 /* The two slides: girl photo + card-only dark slide */
@@ -61,6 +69,9 @@ export function LandingPage() {
   const slideAnim = exiting
     ? 'pw-slide-exit 0.42s ease forwards'
     : 'pw-slide-enter 0.42s ease forwards'
+  const cardSlideAnim = exiting
+    ? 'pw-card-slide-exit 0.42s ease forwards'
+    : 'pw-card-slide-enter 0.42s ease forwards'
   const bgAnim = exiting
     ? 'pw-bg-exit 0.42s ease forwards'
     : 'pw-bg-enter 0.42s ease forwards'
@@ -134,39 +145,12 @@ export function LandingPage() {
 
       {/* ── Slide content ── */}
 
-      {/* Slide 1: girl photo — subtle caption card */}
-      {current === 'photo' && (
-        <div style={{
-          position: 'absolute', bottom: 190, left: 24, right: 24,
-          animation: slideAnim,
-          zIndex: 2,
-        }}>
-          <div style={{
-            display: 'inline-block',
-            background: 'rgba(255,255,255,0.10)',
-            backdropFilter: 'blur(12px)',
-            WebkitBackdropFilter: 'blur(12px)',
-            border: '1px solid rgba(255,255,255,0.18)',
-            borderRadius: 16,
-            padding: '10px 16px',
-          }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: '#fff', letterSpacing: '-0.01em' }}>
-              Send USDC instantly
-            </div>
-            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.65)', marginTop: 2 }}>
-              No fees · Settles on Arc
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Slide 2: dark bg — payment card, fixed centre of screen */}
       {current === 'card' && (
         <div style={{
           position: 'absolute',
           top: '50%', left: '50%',
-          transform: 'translate(-50%, -50%)',
-          animation: slideAnim,
+          animation: cardSlideAnim,
           zIndex: 2,
           width: 'min(300px, calc(100vw - 48px))',
         }}>
