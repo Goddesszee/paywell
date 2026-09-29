@@ -20,8 +20,8 @@ const FONT = "'Inter', -apple-system, sans-serif"
 const BLACK = 'var(--nan-text)'
 const SURFACE = 'var(--nan-surface)'
 const BORDER = 'var(--nan-bdr)'
-const TEXT2 = '#5C5C6B'
-const TEXT3 = '#9898A6'
+const TEXT2 = 'var(--nan-text2)'
+const TEXT3 = 'var(--nan-text3)'
 
 interface PaymentParams {
   to: string
@@ -150,7 +150,7 @@ export function PaymentRequestPage({ params }: { params: PaymentParams }) {
           )}
           <button
             onClick={() => setActiveView('home')}
-            style={{ display: 'block', width: '100%', padding: '14px', background: BLACK, color: '#fff', borderRadius: 12, border: 'none', fontFamily: FONT, fontSize: 15, fontWeight: 700, cursor: 'pointer' }}
+            style={{ display: 'block', width: '100%', padding: '14px', background: '#0066FF', color: '#fff', borderRadius: 12, border: 'none', fontFamily: FONT, fontSize: 15, fontWeight: 700, cursor: 'pointer' }}
           >
             Back to NAN
           </button>
@@ -182,7 +182,7 @@ export function PaymentRequestPage({ params }: { params: PaymentParams }) {
     <FullPage>
       {/* NAN wordmark */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 28 }}>
-        <span style={{ fontSize: 18, fontWeight: 800, color: '#F4F4F8'}>NAN</span>
+        <span style={{ fontSize: 18, fontWeight: 800, color: 'var(--nan-text)'>NAN</span>
         <span style={{ fontSize: 11, color: TEXT3, background: SURFACE, padding: '3px 10px', borderRadius: 20, fontWeight: 600 }}>Arc Testnet</span>
       </div>
 
@@ -223,7 +223,7 @@ export function PaymentRequestPage({ params }: { params: PaymentParams }) {
           <p style={{ fontSize: 12, color: TEXT2, marginBottom: 14 }}>You need a connected wallet to send USDC on Arc Testnet.</p>
           <button
             onClick={() => setActiveView('wallet')}
-            style={{ padding: '10px 24px', background: BLACK, color: '#fff', borderRadius: 10, border: 'none', fontFamily: FONT, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
+            style={{ padding: '10px 24px', background: '#0066FF', color: '#fff', borderRadius: 10, border: 'none', fontFamily: FONT, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
           >
             Connect wallet
           </button>
@@ -237,7 +237,7 @@ export function PaymentRequestPage({ params }: { params: PaymentParams }) {
           <p style={{ fontSize: 13, color: BLACK, flex: 1, fontFamily: FONT }}>Switch to Arc Testnet to send USDC.</p>
           <button
             onClick={() => switchChain({ chainId: ARC_TESTNET_ID })}
-            style={{ padding: '6px 14px', background: BLACK, color: '#fff', borderRadius: 8, border: 'none', fontFamily: FONT, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
+            style={{ padding: '6px 14px', background: '#0066FF', color: '#fff', borderRadius: 8, border: 'none', fontFamily: FONT, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
           >
             Switch
           </button>
@@ -246,7 +246,7 @@ export function PaymentRequestPage({ params }: { params: PaymentParams }) {
 
       {/* Amount editor */}
       {address && (
-        <div style={{ background: '#0066FF', border: `1px solid ${BORDER}`, borderRadius: 14, padding: 16, marginBottom: 14 }}>
+        <div style={{ background: 'var(--nan-surface)', border: '1px solid var(--nan-bdr)', borderRadius: 14, padding: 16, marginBottom: 14 }}>
           {step === 'edit_amount' ? (
             <div>
               <label style={{ fontSize: 12, fontWeight: 600, color: TEXT3, textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 8 }}>
@@ -260,12 +260,12 @@ export function PaymentRequestPage({ params }: { params: PaymentParams }) {
                   value={amount}
                   onChange={e => { setAmount(e.target.value); setAmountError('') }}
                   autoFocus
-                  style={{ flex: 1, padding: '10px 12px', border: `1px solid ${BORDER}`, borderRadius: 10, fontFamily: FONT, fontSize: 16, fontWeight: 600, color: BLACK, outline: 'none' }}
+                  style={{ flex: 1, padding: '10px 12px', border: '1px solid var(--nan-bdr)', borderRadius: 10, fontFamily: FONT, fontSize: 16, fontWeight: 600, background: 'var(--nan-surface2)', color: 'var(--nan-text)', outline: 'none' }}
                   placeholder="0.00"
                 />
                 <button
                   onClick={() => setStep('review')}
-                  style={{ padding: '10px 16px', background: BLACK, color: '#fff', borderRadius: 10, border: 'none', fontFamily: FONT, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
+                  style={{ padding: '10px 16px', background: '#0066FF', color: '#fff', borderRadius: 10, border: 'none', fontFamily: FONT, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
                 >
                   Set
                 </button>
@@ -319,7 +319,7 @@ export function PaymentRequestPage({ params }: { params: PaymentParams }) {
           onClick={handleSend}
           disabled={!amount || isWrongChain || parseFloat(amount) <= 0}
           style={{
-            width: '100%', padding: '16px', background: (!amount || parseFloat(amount) <= 0) ? SURFACE : BLACK,
+            width: '100%', padding: '16px', background: (!amount || parseFloat(amount) <= 0) ? 'var(--nan-surface)' : '#0066FF',
             color: (!amount || parseFloat(amount) <= 0) ? TEXT3 : '#fff',
             border: 'none', borderRadius: 14, fontFamily: FONT, fontSize: 16, fontWeight: 800,
             cursor: (!amount || parseFloat(amount) <= 0) ? 'default' : 'pointer',
@@ -345,7 +345,7 @@ export function PaymentRequestPage({ params }: { params: PaymentParams }) {
 function FullPage({ children }: { children: React.ReactNode }) {
   return (
     <div style={{
-      minHeight: '100vh', background: '#0066FF', fontFamily: FONT,
+      minHeight: '100vh', background: 'var(--nan-bg)', fontFamily: FONT,
       display: 'flex', flexDirection: 'column', alignItems: 'center',
       padding: '24px 20px 40px',
     }}>
