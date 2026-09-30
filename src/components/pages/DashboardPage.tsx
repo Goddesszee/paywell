@@ -128,16 +128,21 @@ export function DashboardPage() {
     <div style={{ fontFamily: F, padding: '28px 32px 48px', minHeight: '100%' }}>
 
       {/* ── Header row ── */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24, gap: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, gap: 16 }}>
         <h1 style={{ fontSize: 28, fontWeight: 800, color: C.text, letterSpacing: '-0.04em', margin: 0 }}>Dashboard</h1>
-        <div style={{
-          ...card, padding: '10px 16px', display: 'flex', flexDirection: 'column', gap: 2,
-          background: C.isDark ? 'rgba(0,102,255,0.08)' : 'rgba(0,102,255,0.06)',
-          border: `1px solid rgba(0,102,255,0.18)`,
-        }}>
-          <span style={{ fontSize: 11, fontWeight: 700, color: BLUE }}>Info</span>
-          <span style={{ fontSize: 12, color: C.t2 }}>Get free USDC at the Faucet</span>
-        </div>
+        <button
+          onClick={() => setActiveView('onramp')}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 7,
+            padding: '11px 22px', borderRadius: 50,
+            background: BLUE, border: 'none',
+            color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: F,
+            boxShadow: '0 4px 18px rgba(0,102,255,0.35)',
+            letterSpacing: '-0.01em',
+          }}
+        >
+          <span style={{ fontSize: 18, lineHeight: 1 }}>+</span> Add Money
+        </button>
       </div>
 
       {/* ── Total portfolio balance card ── */}

@@ -121,6 +121,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // On desktop, always open Dashboard — never the mobile Home view
+  useEffect(() => {
+    if (isDesktop && activeView === 'home') setActiveView('dashboard')
+  }, [isDesktop, activeView, setActiveView])
+
   // 5-tap logo hidden admin unlock
   const tapCount = useRef(0)
   const tapTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
