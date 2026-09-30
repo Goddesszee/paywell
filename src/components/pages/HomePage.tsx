@@ -198,37 +198,37 @@ export function HomePage() {
         )}
       </div>
 
-      {/* ── Account cards ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 14 }}>
-        <div style={{ background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 16, padding: '12px 12px 10px', minWidth: 0 }}>
-          <div style={{ marginBottom: 8 }}><span style={{ fontSize: 20 }}>🇺🇸</span></div>
-          <div style={{ fontSize: 16, fontWeight: 800, color: C.text, fontFamily: MONO, letterSpacing: '-0.02em', marginBottom: 8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {hidden ? '••••' : `$${formatted}`}
-          </div>
-          <button onClick={() => setActiveView('wallet')} style={{
-            display: 'flex', alignItems: 'center', gap: 3, fontSize: 10, fontWeight: 600, color: C.t2,
-            background: C.surf2, border: `1px solid ${C.bdr}`, borderRadius: 7,
-            padding: '5px 8px', cursor: 'pointer', fontFamily: F,
-            WebkitTapHighlightColor: 'transparent', width: '100%', justifyContent: 'center',
-          }}>
-            <span>🏛</span> USDC Wallet
+      {/* ── Balance cards — horizontal scroll ── */}
+      <div style={{
+        display: 'flex', gap: 8, marginBottom: 14, overflowX: 'auto',
+        marginLeft: -14, marginRight: -14,
+        paddingLeft: 14, paddingRight: 14,
+        scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch',
+      }}>
+        {[
+          { flag: '🇺🇸', label: 'USDC',    symbol: '$',  value: formatted, view: 'wallet',  accent: '#0066FF' },
+          { flag: '🇪🇺', label: 'EURC',    symbol: '€',  value: '0.00',    view: 'wallet',  accent: '#0099CC' },
+          { flag: '🇳🇬', label: 'NGN',     symbol: '₦',  value: '0.00',    view: 'wallet',  accent: '#00A651' },
+          { flag: '🇨🇦', label: 'CAD',     symbol: 'C$', value: '0.00',    view: 'wallet',  accent: '#FF0000' },
+          { flag: '🎁',  label: 'Rewards', symbol: '',   value: '0 pts',   view: 'faucet',  accent: '#FF9500' },
+        ].map(card => (
+          <button
+            key={card.label}
+            onClick={() => setActiveView(card.view)}
+            style={{
+              flexShrink: 0, width: 120,
+              background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 16,
+              padding: '12px 12px 10px', cursor: 'pointer', fontFamily: F,
+              WebkitTapHighlightColor: 'transparent', textAlign: 'left',
+            }}
+          >
+            <div style={{ marginBottom: 7 }}><span style={{ fontSize: 20 }}>{card.flag}</span></div>
+            <div style={{ fontSize: 15, fontWeight: 800, color: C.text, fontFamily: MONO, letterSpacing: '-0.02em', marginBottom: 6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {hidden ? '••••' : `${card.symbol}${card.value}`}
+            </div>
+            <div style={{ fontSize: 10, fontWeight: 600, color: card.accent }}>{card.label}</div>
           </button>
-        </div>
-
-        <div style={{ background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 16, padding: '12px 12px 10px', minWidth: 0 }}>
-          <div style={{ marginBottom: 8 }}><span style={{ fontSize: 20 }}>🤖</span></div>
-          <div style={{ fontSize: 16, fontWeight: 800, color: C.text, fontFamily: MONO, letterSpacing: '-0.02em', marginBottom: 8 }}>
-            {hidden ? '••••' : '$0.00'}
-          </div>
-          <button onClick={() => setActiveView('agent')} style={{
-            display: 'flex', alignItems: 'center', gap: 3, fontSize: 10, fontWeight: 600, color: C.t2,
-            background: C.surf2, border: `1px solid ${C.bdr}`, borderRadius: 7,
-            padding: '5px 8px', cursor: 'pointer', fontFamily: F,
-            WebkitTapHighlightColor: 'transparent', width: '100%', justifyContent: 'center',
-          }}>
-            <span>🏛</span> Agent Budget
-          </button>
-        </div>
+        ))}
       </div>
 
       {/* ── Primary actions ── */}
