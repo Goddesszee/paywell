@@ -30,28 +30,7 @@ export function LoginPage() {
     }
   }, [isConnected, address, profile.displayName, setAuth, setActiveView])
 
-  // ── Google OAuth hash callback (legacy server-side redirect) ─────────────
-  useEffect(() => {
-    const hash = window.location.hash
-    if (hash.includes('google-auth=')) {
-      const params      = new URLSearchParams(hash.slice(1))
-      const token       = params.get('google-auth')
-      const emailParam  = params.get('email')
-      const nameParam   = params.get('name')
-      if (token && emailParam !== null) {
-        window.location.hash = ''
-        setAuth({ email: emailParam, sessionToken: token, walletAddress: '', walletId: '' })
-        if (nameParam && !profile.displayName) {
-          // pre-populate name if Google returned it and user has none yet
-          useAppStore.getState().setProfile({ displayName: nameParam })
-        }
-        setActiveView(profile.displayName || nameParam ? 'home' : 'name')
-      }
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  // ── Circle auth success (email or Google via Circle SDK) ──────────────────
+  // ── Circle email auth success ─────────────────────────────────────────────
   const onCircleSuccess = (walletAddress: string, userToken: string, email: string) => {
     setAuth({ email, sessionToken: userToken, userToken, walletAddress, walletId: walletAddress, circleWalletAddress: walletAddress })
     setActiveView(profile.displayName ? 'home' : 'name')
@@ -89,16 +68,6 @@ export function LoginPage() {
   if (mode === 'email') {
     return wrap(
       <CircleEmailLogin
-        onBack={() => setMode('choose')}
-        onSuccess={onCircleSuccess}
-      />
-    )
-  }
-
-  // ── google mode — render Circle Google login ──────────────────────────────
-  if (mode === 'google') {
-    return wrap(
-      <CircleGoogleLogin
         onBack={() => setMode('choose')}
         onSuccess={onCircleSuccess}
       />
