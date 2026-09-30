@@ -34,7 +34,7 @@ export function FaucetPage() {
     setCooldownMs(null)
 
     try {
-      const res = await fetch('/api/faucet', {
+      const res = await fetch('/api/misc?route=faucet', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ address }),

@@ -10,7 +10,7 @@
     { "source": "/api/misc",           "destination": "/api/misc" },
     { "source": "/api/marketplace",    "destination": "/api/marketplace" },
     { "source": "/api/onramp-session", "destination": "/api/onramp-session" },
-    { "source": "/api/faucet",         "destination": "/api/faucet" },
+
     { "source": "/api/listings",       "destination": "/api/listings" },
     { "source": "/api/wallets",        "destination": "/api/wallets" },
     { "source": "/api/wallet",         "destination": "/api/wallet" },
