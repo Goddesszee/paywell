@@ -267,6 +267,19 @@ export function WalletPage({ initialSubView = 'main' }: { initialSubView?: Walle
 
 type SendStep = 'recipient' | 'amount' | 'note' | 'review' | 'submitting' | 'success' | 'error'
 
+function useIsDesktop() {
+  const mq = typeof window !== 'undefined' ? window.matchMedia('(min-width: 769px)') : null
+  const [isDesktop, setIsDesktop] = React.useState(mq ? mq.matches : false)
+  React.useEffect(() => {
+    if (!mq) return
+    const h = (e: MediaQueryListEvent) => setIsDesktop(e.matches)
+    mq.addEventListener('change', h)
+    return () => mq.removeEventListener('change', h)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+  return isDesktop
+}
+
 function SendFlow({
   balance,
   address: _address,
@@ -282,7 +295,8 @@ function SendFlow({
   onSuccess: () => void
   addActivity: (item: Omit<ActivityItem, 'id' | 'timestamp'>) => void
 }) {
-  const [step, setStep] = useState<SendStep>('recipient')
+  const isDesktop = useIsDesktop()
+  const [step, setStep] = useState<SendStep>('amount')
   const [recipient, setRecipient] = useState('')
   const [amount, setAmount] = useState('')
   const [note, setNote] = useState('')
@@ -363,54 +377,285 @@ function SendFlow({
     })
   }
 
+  // ── desktop numpad key handler ─────────────────────────────────────────────
+  const handleKey = (key: string) => {
+    setAmountError('')
+    if (key === 'backspace') { setAmount(a => a.slice(0, -1)); return }
+    if (key === '.' && amount.includes('.')) return
+    if (key === '.' && amount === '') { setAmount('0.'); return }
+    if (amount === '0' && key !== '.') { setAmount(key); return }
+    if (amount.split('.')[1]?.length >= 6) return
+    setAmount(a => a + key)
+  }
+
+  // ── success ────────────────────────────────────────────────────────────────
   if (displayStep === 'success') {
     return (
-      <div className="max-w-lg mx-auto px-4 py-8 space-y-5">
-        <div className="text-center py-8">
-          <div className="w-16 h-16 rounded-full nan-surface-fix flex items-center justify-center mx-auto mb-4">
-            <Check size={28} className="text-nan" />
+      <div style={{
+        minHeight: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontFamily: SANS, padding: '32px 24px',
+      }}>
+        <div style={{ maxWidth: 420, width: '100%', textAlign: 'center' }}>
+          <div style={{
+            width: 72, height: 72, borderRadius: '50%',
+            background: 'rgba(0,200,83,0.12)', border: '1px solid rgba(0,200,83,0.25)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            margin: '0 auto 20px',
+          }}>
+            <Check size={32} color="#00C853" />
           </div>
-          <h2 className="text-2xl font-bold text-nan mb-1" style={{ fontFamily: SANS }}>Payment sent</h2>
-          <p className="text-nan2 text-sm mb-4">Your USDC has been sent successfully.</p>
-          <div className="nan-surface-fix rounded-2xl p-4 text-left space-y-2.5 mb-6 max-w-xs mx-auto">
-            <Row label="Amount" value={`${formatUSDC(parseFloat(amount))} USDC`} mono />
-            <Row label="Recipient" value={formatAddress(recipient)} mono />
-            <Row label="Network" value="Arc Testnet" />
+          <h2 style={{ fontSize: 26, fontWeight: 800, color: 'var(--nan-text)', letterSpacing: '-0.03em', marginBottom: 6 }}>Sent!</h2>
+          <p style={{ fontSize: 14, color: 'var(--nan-text2)', marginBottom: 28 }}>
+            {formatUSDC(parseFloat(amount))} USDC sent to {formatAddress(recipient)}
+          </p>
+          <div style={{
+            background: 'var(--nan-surface)', border: '1px solid var(--nan-bdr)',
+            borderRadius: 16, padding: '16px 20px', marginBottom: 24, textAlign: 'left',
+          }}>
+            {[
+              { label: 'Amount', value: `${formatUSDC(parseFloat(amount))} USDC` },
+              { label: 'To', value: formatAddress(recipient) },
+              { label: 'Network', value: 'Arc Testnet' },
+              { label: 'Fee', value: '~0.00 USDC' },
+            ].map(({ label, value }) => (
+              <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid var(--nan-bdr)' }}>
+                <span style={{ fontSize: 13, color: 'var(--nan-text2)' }}>{label}</span>
+                <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--nan-text)', fontFamily: 'JetBrains Mono, monospace' }}>{value}</span>
+              </div>
+            ))}
             {txHash && (
-              <div className="pt-2 border-t border-white/5">
-                <a
-                  href={buildTxExplorerUrl(ARC_TESTNET_ID, txHash)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 text-xs text-nan font-semibold hover:opacity-70 transition-opacity"
-                >
+              <div style={{ paddingTop: 8 }}>
+                <a href={buildTxExplorerUrl(ARC_TESTNET_ID, txHash)} target="_blank" rel="noopener noreferrer"
+                  style={{ fontSize: 12, color: '#0066FF', display: 'flex', alignItems: 'center', gap: 5, fontWeight: 600 }}>
                   <ExternalLink size={12} /> View on explorer
                 </a>
               </div>
             )}
           </div>
-          <Button onClick={onSuccess} fullWidth>Back to Wallet</Button>
+          <button onClick={onSuccess} style={{
+            width: '100%', height: 50, borderRadius: 12, background: '#0066FF',
+            color: '#fff', fontWeight: 700, fontSize: 15, border: 'none', cursor: 'pointer', fontFamily: SANS,
+          }}>Back to Wallet</button>
         </div>
       </div>
     )
   }
 
+  // ── submitting ─────────────────────────────────────────────────────────────
   if (displayStep === 'submitting') {
     return (
-      <div className="max-w-lg mx-auto px-4 py-8 text-center space-y-4">
-        <div className="w-16 h-16 rounded-full nan-surface-fix flex items-center justify-center mx-auto">
-          <div className="w-7 h-7 border-2 border-white border-t-transparent rounded-full animate-spin" />
+      <div style={{
+        minHeight: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+        flexDirection: 'column', gap: 16, fontFamily: SANS,
+      }}>
+        <div style={{
+          width: 64, height: 64, borderRadius: '50%',
+          background: 'var(--nan-surface)', border: '1px solid var(--nan-bdr)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <div style={{ width: 28, height: 28, border: '2px solid #0066FF', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
         </div>
-        <h2 className="text-xl font-bold text-nan" style={{ fontFamily: SANS }}>
+        <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--nan-text)', margin: 0 }}>
           {isPending ? 'Confirm in wallet' : 'Confirming…'}
         </h2>
-        <p className="text-sm text-nan2">
+        <p style={{ fontSize: 14, color: 'var(--nan-text2)', margin: 0 }}>
           {isPending ? 'Approve the transaction in your wallet.' : 'Waiting for blockchain confirmation…'}
         </p>
       </div>
     )
   }
 
+  // ── DESKTOP layout ─────────────────────────────────────────────────────────
+  if (isDesktop) {
+    const numVal = parseFloat(amount) || 0
+    const canProceedAmount = amount !== '' && numVal > 0 && numVal <= balance
+    const KEYS = ['1','2','3','4','5','6','7','8','9','.','0','backspace']
+
+    return (
+      <div style={{
+        minHeight: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontFamily: SANS, padding: '24px',
+        background: 'var(--nan-bg)',
+      }}>
+        <div style={{
+          width: '100%', maxWidth: 900,
+          display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24,
+          alignItems: 'start',
+        }}>
+
+          {/* ── Left: amount entry + numpad ── */}
+          <div style={{
+            background: 'var(--nan-surface)', border: '1px solid var(--nan-bdr)',
+            borderRadius: 24, padding: '32px 28px', display: 'flex', flexDirection: 'column', gap: 0,
+          }}>
+            {/* Header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 32 }}>
+              <h2 style={{ fontSize: 20, fontWeight: 800, color: 'var(--nan-text)', letterSpacing: '-0.03em', margin: 0 }}>Send</h2>
+              <button onClick={onBack} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}>
+                <X size={20} color="var(--nan-text2)" />
+              </button>
+            </div>
+
+            {/* Amount display */}
+            <div style={{ textAlign: 'center', marginBottom: 8 }}>
+              <div style={{ fontSize: 56, fontWeight: 800, color: amount ? 'var(--nan-text)' : 'rgba(255,255,255,0.2)', letterSpacing: '-0.04em', fontFamily: 'JetBrains Mono, monospace', lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                <span>{amount || '0'}</span>
+                <span style={{ fontSize: 28, color: 'rgba(255,255,255,0.3)', fontWeight: 600 }}>USDC</span>
+              </div>
+              <div style={{ marginTop: 10, display: 'inline-flex', alignItems: 'center', gap: 6, background: 'var(--nan-surface2)', borderRadius: 100, padding: '5px 14px' }}>
+                <span style={{ fontSize: 13, color: 'var(--nan-text2)' }}>$ {(numVal).toFixed(2)}</span>
+              </div>
+            </div>
+            <div style={{ textAlign: 'center', fontSize: 13, color: 'var(--nan-text3)', marginBottom: 20 }}>
+              {formatUSDC(balance)} USDC available
+            </div>
+            {amountError && <p style={{ fontSize: 12, color: '#FF3B3B', textAlign: 'center', marginBottom: 8 }}>{amountError}</p>}
+
+            {/* Quick amounts */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 16 }}>
+              {['25%', '50%', '75%', 'Max'].map((lbl) => (
+                <button key={lbl} onClick={() => {
+                  const pct = lbl === 'Max' ? 1 : parseFloat(lbl) / 100
+                  setAmount((balance * pct).toFixed(6).replace(/\.?0+$/, ''))
+                  setAmountError('')
+                }} style={{
+                  height: 44, borderRadius: 12,
+                  background: 'var(--nan-surface2)', border: '1px solid var(--nan-bdr)',
+                  color: 'var(--nan-text)', fontSize: 14, fontWeight: 700,
+                  cursor: 'pointer', fontFamily: SANS,
+                }}>{lbl}</button>
+              ))}
+            </div>
+
+            {/* Numpad */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+              {KEYS.map((k) => (
+                <button key={k} onClick={() => handleKey(k)} style={{
+                  height: 60, borderRadius: 14,
+                  background: k === 'backspace' ? 'transparent' : 'var(--nan-surface2)',
+                  border: k === 'backspace' ? 'none' : '1px solid var(--nan-bdr)',
+                  color: 'var(--nan-text)', fontSize: k === 'backspace' ? 18 : 22,
+                  fontWeight: 700, cursor: 'pointer', fontFamily: SANS,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  transition: 'background 0.1s',
+                }}>
+                  {k === 'backspace' ? '⌫' : k}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* ── Right: recipient + confirm ── */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {/* Recipient input */}
+            <div style={{
+              background: 'var(--nan-surface)', border: '1px solid var(--nan-bdr)',
+              borderRadius: 24, padding: '28px',
+            }}>
+              <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--nan-text3)', letterSpacing: '0.1em', textTransform: 'uppercase', display: 'block', marginBottom: 12 }}>
+                Recipient Address
+              </label>
+              <input
+                type="text"
+                placeholder="0x..."
+                value={recipient}
+                onChange={e => { setRecipient(e.target.value); setRecipientError('') }}
+                style={{
+                  width: '100%', padding: '14px 16px', borderRadius: 12,
+                  background: 'var(--nan-surface2)', border: `1px solid ${recipientError ? '#FF3B3B' : 'var(--nan-bdr)'}`,
+                  color: 'var(--nan-text)', fontSize: 14, fontFamily: 'JetBrains Mono, monospace',
+                  outline: 'none', boxSizing: 'border-box',
+                }}
+              />
+              {recipientError && <p style={{ fontSize: 12, color: '#FF3B3B', marginTop: 6 }}>{recipientError}</p>}
+            </div>
+
+            {/* Note (optional) */}
+            <div style={{
+              background: 'var(--nan-surface)', border: '1px solid var(--nan-bdr)',
+              borderRadius: 24, padding: '28px',
+            }}>
+              <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--nan-text3)', letterSpacing: '0.1em', textTransform: 'uppercase', display: 'block', marginBottom: 12 }}>
+                Note (optional)
+              </label>
+              <input
+                type="text"
+                placeholder="What's this for?"
+                value={note}
+                onChange={e => setNote(e.target.value)}
+                style={{
+                  width: '100%', padding: '14px 16px', borderRadius: 12,
+                  background: 'var(--nan-surface2)', border: '1px solid var(--nan-bdr)',
+                  color: 'var(--nan-text)', fontSize: 14, fontFamily: SANS,
+                  outline: 'none', boxSizing: 'border-box',
+                }}
+              />
+            </div>
+
+            {/* Summary */}
+            {(amount || recipient) && (
+              <div style={{
+                background: 'var(--nan-surface)', border: '1px solid var(--nan-bdr)',
+                borderRadius: 24, padding: '20px 24px',
+              }}>
+                {[
+                  { label: 'Sending', value: amount ? `${formatUSDC(numVal)} USDC` : '—' },
+                  { label: 'To', value: recipient ? formatAddress(recipient) : '—' },
+                  { label: 'Fee', value: '~0.00 USDC' },
+                ].map(({ label, value }) => (
+                  <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid var(--nan-bdr)' }}>
+                    <span style={{ fontSize: 13, color: 'var(--nan-text2)' }}>{label}</span>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--nan-text)', fontFamily: 'JetBrains Mono, monospace' }}>{value}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Wrong chain */}
+            {isWrongChain && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(255,59,59,0.08)', border: '1px solid rgba(255,59,59,0.2)', borderRadius: 12, padding: '12px 16px' }}>
+                <AlertCircle size={15} color="#FF3B3B" />
+                <span style={{ fontSize: 13, color: '#FF3B3B', flex: 1 }}>Switch to Arc Testnet to send.</span>
+                <button onClick={() => switchChain({ chainId: ARC_TESTNET_ID })} style={{ fontSize: 12, fontWeight: 700, color: '#FF3B3B', background: 'none', border: 'none', cursor: 'pointer' }}>Switch</button>
+              </div>
+            )}
+
+            {/* Confirm button */}
+            <button
+              disabled={!canProceedAmount || !recipient}
+              onClick={() => {
+                if (!validateAmount() || !validateRecipient()) return
+                handleSend()
+              }}
+              style={{
+                width: '100%', height: 56, borderRadius: 16,
+                background: canProceedAmount && recipient ? '#0066FF' : 'var(--nan-surface2)',
+                border: 'none', cursor: canProceedAmount && recipient ? 'pointer' : 'not-allowed',
+                color: canProceedAmount && recipient ? '#fff' : 'var(--nan-text3)',
+                fontSize: 16, fontWeight: 700, fontFamily: SANS,
+                boxShadow: canProceedAmount && recipient ? '0 4px 20px rgba(0,102,255,0.35)' : 'none',
+                transition: 'all 0.15s',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              }}
+            >
+              <ArrowUpRight size={18} />
+              {isWrongChain ? 'Switch Network First' : 'Confirm & Send'}
+            </button>
+
+            {displayStep === 'error' && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(255,59,59,0.08)', border: '1px solid rgba(255,59,59,0.2)', borderRadius: 12, padding: '12px 16px' }}>
+                <AlertCircle size={15} color="#FF3B3B" />
+                <span style={{ fontSize: 13, color: '#FF3B3B' }}>{parseOnchainError(writeError)}</span>
+                <button onClick={() => { reset(); setStep('review') }} style={{ fontSize: 12, fontWeight: 700, color: '#FF3B3B', background: 'none', border: 'none', cursor: 'pointer', marginLeft: 'auto' }}>Retry</button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // ── MOBILE layout (unchanged) ──────────────────────────────────────────────
   return (
     <div style={{ minHeight: 'calc(100vh - 120px)', display: 'flex', flexDirection: 'column' }}>
     <div className="max-w-lg mx-auto px-4 py-6 space-y-4 pb-28 lg:pb-8" style={{ flex: 1 }}>
@@ -443,7 +688,7 @@ function SendFlow({
         </div>
       )}
 
-      {displayStep === 'recipient' && (
+      {(displayStep === 'recipient' || displayStep === 'amount') && (
         <Card padding="lg">
           <Input
             label="Recipient address"
