@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react'
 import {
-  Home, Wallet, Activity, Menu, X,
+  Home, Activity, Menu, X,
   ArrowLeftRight, ArrowUpDown, Settings, ChevronRight,
   Droplet, Layers, Repeat, Bot, Shield,
   MessageSquare, HelpCircle, Info, User, Search, Bookmark,
@@ -16,7 +16,6 @@ const ADMIN_ADDRESS = (import.meta.env.VITE_ADMIN_ADDRESS as string ?? '').toLow
 
 const NAV_ITEMS = [
   { id: 'home',     label: 'Home',     Icon: Home },
-  { id: 'wallet',   label: 'Wallet',   Icon: Wallet },
   { id: 'bridge',   label: 'Bridge',   Icon: ArrowLeftRight },
   { id: 'activity', label: 'Activity', Icon: Activity },
 ]
@@ -69,8 +68,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     tapTimer.current = setTimeout(() => { tapCount.current = 0 }, 1500)
   }
 
-  const navActive = (id: string) =>
-    activeView === id || (id === 'wallet' && ['send','receive','send_confirm','send_success'].includes(activeView))
+  const navActive = (id: string) => activeView === id
 
   const go = (id: string) => { setActiveView(id); setDrawerOpen(false) }
 
