@@ -1,7 +1,7 @@
 [build]
   command   = "bun run build"
   publish   = "dist"
-  functions = "netlify/functions"
+  functions = "netlify-functions"
 
 [functions]
   node_bundler = "esbuild"
