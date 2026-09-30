@@ -89,7 +89,7 @@ export function LandingPage() {
         {/* bottom */}
         <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 10, padding: '0 24px calc(env(safe-area-inset-bottom,0px) + 36px)', opacity: fading ? 0 : 1, transition: 'opacity 0.3s' }}>
           <h1 style={{ fontSize: 'clamp(30px,8vw,42px)', fontWeight: 800, lineHeight: 1.05, letterSpacing: '-0.03em', color: '#fff', marginBottom: 4, whiteSpace: 'pre-line', textShadow: '0 2px 12px rgba(0,0,0,0.6)' }}>{cur.headline}</h1>
-          <h1 style={{ fontSize: 'clamp(30px,8vw,42px)', fontWeight: 800, lineHeight: 1.05, letterSpacing: '-0.03em', color: '#7C5CFC', marginBottom: 10, whiteSpace: 'pre-line', textShadow: '0 2px 12px rgba(0,0,0,0.6)' }}>{cur.accent}</h1>
+          <h1 style={{ fontSize: 'clamp(30px,8vw,42px)', fontWeight: 800, lineHeight: 1.05, letterSpacing: '-0.03em', color: '#0066FF', marginBottom: 10, whiteSpace: 'pre-line', textShadow: '0 2px 12px rgba(0,0,0,0.6)' }}>{cur.accent}</h1>
           <p style={{ fontSize: 15, color: 'rgba(255,255,255,0.90)', marginBottom: 28, lineHeight: 1.55, textShadow: '0 1px 8px rgba(0,0,0,0.7)' }}>{cur.sub}</p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <button onClick={() => setActiveView('login')} style={{ width: '100%', height: 54, background: '#0066FF', color: '#fff', border: 'none', borderRadius: 14, fontSize: 16, fontWeight: 700, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, letterSpacing: '-0.01em' }}>
@@ -157,7 +157,7 @@ export function LandingPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <button
             onClick={() => setActiveView('login')}
-            style={{ padding: '9px 20px', borderRadius: 50, background: '#7C5CFC', border: 'none', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', gap: 6 }}
+            style={{ padding: '9px 20px', borderRadius: 50, background: '#0066FF', border: 'none', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', gap: 6 }}
           >
             Get started <ArrowRight size={14} />
           </button>
@@ -178,12 +178,12 @@ export function LandingPage() {
         <h1 style={{ fontSize: 'clamp(36px,4.5vw,64px)', fontWeight: 900, lineHeight: 1.05, letterSpacing: '-0.04em', color: '#ffffff', margin: 0, textShadow: '0 2px 24px rgba(0,0,0,0.5)' }}>
           {cur.headline}
         </h1>
-        <h1 style={{ fontSize: 'clamp(36px,4.5vw,64px)', fontWeight: 900, lineHeight: 1.05, letterSpacing: '-0.04em', color: '#7C5CFC', margin: '0 0 16px', textShadow: '0 2px 24px rgba(124,92,252,0.4)' }}>
+        <h1 style={{ fontSize: 'clamp(36px,4.5vw,64px)', fontWeight: 900, lineHeight: 1.05, letterSpacing: '-0.04em', color: '#0066FF', margin: '0 0 16px', textShadow: '0 2px 24px rgba(0,102,255,0.4)' }}>
           {cur.accent}
         </h1>
         <p style={{ fontSize: 16, color: 'rgba(255,255,255,0.80)', lineHeight: 1.6, marginBottom: 28, maxWidth: 420 }}>{cur.sub}</p>
         <div style={{ display: 'flex', gap: 12 }}>
-          <button onClick={() => setActiveView('login')} style={{ padding: '13px 28px', borderRadius: 50, background: '#7C5CFC', border: 'none', color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', gap: 7, boxShadow: '0 4px 20px rgba(124,92,252,0.45)' }}>
+          <button onClick={() => setActiveView('login')} style={{ padding: '13px 28px', borderRadius: 50, background: '#0066FF', border: 'none', color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', gap: 7, boxShadow: '0 4px 20px rgba(0,102,255,0.45)' }}>
             Get started <ArrowRight size={16} />
           </button>
           <button onClick={() => setActiveView('login')} style={{ padding: '13px 28px', borderRadius: 50, background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', fontSize: 15, fontWeight: 600, cursor: 'pointer', fontFamily: F, backdropFilter: 'blur(8px)' }}>
@@ -195,7 +195,7 @@ export function LandingPage() {
       {/* ── Slide dots — bottom left below headline ── */}
       <div style={{ position: 'absolute', bottom: 40, left: 64, zIndex: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
         {SLIDES.map((_, i) => (
-          <button key={i} onClick={() => go(i)} style={{ width: i === slide ? 24 : 8, height: 8, borderRadius: 4, background: i === slide ? '#7C5CFC' : 'rgba(255,255,255,0.35)', border: 'none', cursor: 'pointer', padding: 0, transition: 'all 0.3s' }} />
+          <button key={i} onClick={() => go(i)} style={{ width: i === slide ? 24 : 8, height: 8, borderRadius: 4, background: i === slide ? '#0066FF' : 'rgba(255,255,255,0.35)', border: 'none', cursor: 'pointer', padding: 0, transition: 'all 0.3s' }} />
         ))}
       </div>
 
