@@ -3,7 +3,8 @@ import {
   Home, Wallet, Activity, Menu, X,
   ArrowLeftRight, ArrowUpDown, Settings, ChevronRight,
   CreditCard, Droplet, Layers, Repeat, Bot, Shield,
-  MessageSquare, HelpCircle, Info
+  MessageSquare, HelpCircle, Info, User, Search, Bookmark,
+  Star, Lightbulb
 } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
 import { useAccount } from 'wagmi'
@@ -33,12 +34,17 @@ const DRAWER_SECTIONS = [
     { id: 'recurring', label: 'Recurring',        Icon: Repeat,  desc: 'Scheduled payments' },
   ]},
   { title: 'Account', items: [
-    { id: 'settings',  label: 'Settings',   Icon: Settings,       desc: 'Wallet & preferences' },
+    { id: 'profile',   label: 'Profile',    Icon: User,           desc: 'Name, avatar & preferences' },
+    { id: 'settings',  label: 'Settings',   Icon: Settings,       desc: 'Wallet & app settings' },
+    { id: 'search',    label: 'Search',     Icon: Search,         desc: 'Find anything in NAN' },
+    { id: 'favorites', label: 'Saved',      Icon: Bookmark,       desc: 'Your bookmarked items' },
   ]},
   { title: 'Help & Info', items: [
-    { id: 'support',   label: 'Support',    Icon: MessageSquare,  desc: 'Get help from our team' },
-    { id: 'faq',       label: 'FAQ',        Icon: HelpCircle,     desc: 'Common questions answered' },
-    { id: 'about',     label: 'About NAN',  Icon: Info,           desc: 'Platform info & contact' },
+    { id: 'support',     label: 'Support',     Icon: MessageSquare, desc: 'Get help from our team' },
+    { id: 'faq',         label: 'FAQ',         Icon: HelpCircle,    desc: 'Common questions answered' },
+    { id: 'feedback',    label: 'Feedback',    Icon: Star,          desc: 'Rate your experience' },
+    { id: 'suggestions', label: 'Suggestions', Icon: Lightbulb,     desc: 'Share an idea' },
+    { id: 'about',       label: 'About NAN',   Icon: Info,          desc: 'Platform info & contact' },
   ]},
 ]
 
