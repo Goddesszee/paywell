@@ -143,10 +143,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       {/* ── Main content ── */}
       <main style={{
         flex:1, overflowY:'auto', overflowX:'hidden',
-        paddingTop:'max(12px,env(safe-area-inset-top))',
+        paddingTop:10,
         paddingLeft:'max(14px,env(safe-area-inset-left))',
         paddingRight:'max(14px,env(safe-area-inset-right))',
-        paddingBottom:'max(72px,calc(env(safe-area-inset-bottom) + 62px))',
+        paddingBottom:60,
         scrollbarWidth:'none', WebkitOverflowScrolling:'touch',
         msOverflowStyle:'none',
       }}>
@@ -157,41 +157,40 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <nav style={{
         flexShrink:0, zIndex:100,
         background: C.isDark ? 'rgba(8,9,11,0.98)' : 'rgba(255,255,255,0.98)',
-        backdropFilter:'blur(24px)', WebkitBackdropFilter:'blur(24px)',
+        backdropFilter:'blur(20px)', WebkitBackdropFilter:'blur(20px)',
         borderTop:`1px solid ${C.bdr}`,
-        paddingTop:5,
-        paddingBottom:'max(8px,env(safe-area-inset-bottom))',
-        paddingLeft:'max(4px,env(safe-area-inset-left))',
-        paddingRight:'max(4px,env(safe-area-inset-right))',
+        paddingTop:4,
+        paddingBottom:'max(4px,env(safe-area-inset-bottom))',
+        paddingLeft:'max(0px,env(safe-area-inset-left))',
+        paddingRight:'max(0px,env(safe-area-inset-right))',
         transition:'background 0.25s',
       }}>
-        <div style={{ display:'flex', maxWidth:520, margin:'0 auto' }}>
+        <div style={{ display:'flex', maxWidth:480, margin:'0 auto' }}>
           {NAV_ITEMS.map(({ id, label, Icon }) => {
             const isActive = navActive(id)
             return (
               <button key={id} onClick={() => go(id)} aria-label={label} style={{
-                flex:1, minHeight:44, display:'flex', flexDirection:'column',
+                flex:1, height:46, display:'flex', flexDirection:'column',
                 alignItems:'center', justifyContent:'center', gap:2,
-                padding:'4px 2px 5px', border:'none', background:'transparent',
-                cursor:'pointer', transition:'all 0.12s', borderRadius:8,
+                padding:'3px 2px 4px', border:'none', background:'transparent',
+                cursor:'pointer', transition:'color 0.12s',
                 fontFamily:F, WebkitTapHighlightColor:'transparent', position:'relative',
               }}>
-                <Icon size={19} color={isActive?C.blue:C.t3} strokeWidth={isActive?2.3:1.8} />
-                <span style={{ fontSize:10, fontWeight:isActive?700:400, color:isActive?C.blue:C.t3, lineHeight:1 }}>{label}</span>
-                {isActive && <span style={{ position:'absolute', bottom:0, left:'50%', transform:'translateX(-50%)', width:16, height:2, borderRadius:2, background:C.blue }} />}
+                <Icon size={18} color={isActive?C.blue:C.t3} strokeWidth={isActive?2.2:1.7} />
+                <span style={{ fontSize:9, fontWeight:isActive?700:400, color:isActive?C.blue:C.t3, lineHeight:1 }}>{label}</span>
+                {isActive && <span style={{ position:'absolute', top:0, left:'50%', transform:'translateX(-50%)', width:18, height:2, borderRadius:2, background:C.blue }} />}
               </button>
             )
           })}
-          {/* Menu button in nav bar */}
           <button onClick={() => setDrawerOpen(v => !v)} aria-label="More" style={{
-            flex:1, minHeight:44, display:'flex', flexDirection:'column',
+            flex:1, height:46, display:'flex', flexDirection:'column',
             alignItems:'center', justifyContent:'center', gap:2,
-            padding:'4px 2px 5px', border:'none', background:'transparent',
-            cursor:'pointer', transition:'all 0.12s', borderRadius:8,
+            padding:'3px 2px 4px', border:'none', background:'transparent',
+            cursor:'pointer', transition:'color 0.12s',
             fontFamily:F, WebkitTapHighlightColor:'transparent',
           }}>
-            <Menu size={19} color={drawerOpen ? C.blue : C.t3} strokeWidth={drawerOpen ? 2.3 : 1.8} />
-            <span style={{ fontSize:10, fontWeight:drawerOpen?700:400, color:drawerOpen?C.blue:C.t3, lineHeight:1 }}>More</span>
+            <Menu size={18} color={drawerOpen?C.blue:C.t3} strokeWidth={drawerOpen?2.2:1.7} />
+            <span style={{ fontSize:9, fontWeight:drawerOpen?700:400, color:drawerOpen?C.blue:C.t3, lineHeight:1 }}>More</span>
           </button>
         </div>
       </nav>
