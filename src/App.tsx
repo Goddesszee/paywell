@@ -24,6 +24,7 @@ import { SuggestionsPage } from './components/pages/SuggestionsPage'
 import { ProfilePage } from './components/pages/ProfilePage'
 import { SearchPage } from './components/pages/SearchPage'
 import { FavoritesPage } from './components/pages/FavoritesPage'
+import { NamePage } from './components/pages/NamePage'
 
 export default function App() {
   const { activeView } = useAppStore()
@@ -32,6 +33,7 @@ export default function App() {
   if (activeView === 'landing') return <LandingPage />
   if (activeView === 'login') return <LoginPage />
   if (activeView === 'onboarding') return <OnboardingPage />
+  if (activeView === 'name') return <NamePage />
   if (activeView === 'admin') return <AdminDashboard />
 
   // App pages — inside the shell
