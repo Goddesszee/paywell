@@ -4,7 +4,7 @@ import { erc20Abi } from 'viem'
 import {
   Eye, EyeOff, Plus, Send, ArrowLeftRight,
   Bot, Activity as ActivityIcon,
-  ArrowUpRight, ArrowDownLeft, ChevronRight,
+  ArrowUpRight, ArrowDownLeft, ChevronRight, ArrowDownToLine,
 } from 'lucide-react'
 import { useAppStore, ActivityItem } from '../../store/appStore'
 import { getUsdc } from '../../onchain-facts'
@@ -63,19 +63,21 @@ function PrimaryAction({ Icon, label, primary, onClick, C }: {
     <button onClick={onClick} style={{
       display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
       background: 'none', border: 'none', cursor: 'pointer', fontFamily: F,
-      WebkitTapHighlightColor: 'transparent', flex: 1, padding: '4px 0',
+      WebkitTapHighlightColor: 'transparent', flex: 1, padding: '4px 2px',
+      minWidth: 0,
     }}>
       <div style={{
-        width: 56, height: 56, borderRadius: 18,
+        width: 58, height: 58, borderRadius: 20,
         background: primary ? BLUE : C.surf2,
-        border: primary ? 'none' : `1px solid ${C.bdr}`,
+        border: primary ? 'none' : `1.5px solid ${C.bdr}`,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        boxShadow: primary ? '0 6px 20px rgba(0,102,255,0.35)' : 'none',
-        transition: 'all 0.15s',
+        boxShadow: primary ? '0 8px 24px rgba(0,102,255,0.40)' : 'none',
+        transition: 'transform 0.12s, box-shadow 0.12s',
+        flexShrink: 0,
       }}>
-        <Icon size={22} color={primary ? '#fff' : C.t2} strokeWidth={2} />
+        <Icon size={23} color={primary ? '#fff' : C.t2} strokeWidth={2} />
       </div>
-      <span style={{ fontSize: 12, fontWeight: 600, color: C.t2 }}>{label}</span>
+      <span style={{ fontSize: 12, fontWeight: 600, color: C.t2, whiteSpace: 'nowrap' }}>{label}</span>
     </button>
   )
 }
@@ -85,14 +87,14 @@ function QuickTile({ emoji, label, onClick, C }: {
 }) {
   return (
     <button onClick={onClick} style={{
-      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end',
-      gap: 10, padding: '20px 8px 14px',
+      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+      gap: 10, padding: '18px 8px 16px', minHeight: 96,
       background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 18,
       cursor: 'pointer', fontFamily: F, WebkitTapHighlightColor: 'transparent',
-      transition: 'all 0.15s', flex: 1,
+      transition: 'all 0.15s', flex: 1, minWidth: 0,
     }}>
-      <span style={{ fontSize: 32, lineHeight: 1 }}>{emoji}</span>
-      <span style={{ fontSize: 12, fontWeight: 600, color: C.t2 }}>{label}</span>
+      <span style={{ fontSize: 30, lineHeight: 1 }}>{emoji}</span>
+      <span style={{ fontSize: 12, fontWeight: 600, color: C.t2, whiteSpace: 'nowrap' }}>{label}</span>
     </button>
   )
 }
@@ -130,19 +132,19 @@ export function HomePage() {
   const recent = activity.slice(0, 5)
 
   return (
-    <div style={{ maxWidth: 480, margin: '0 auto', fontFamily: F, paddingBottom: 32 }}>
+    <div style={{ maxWidth: 520, margin: '0 auto', fontFamily: F, paddingBottom: 24 }}>
 
       {/* ── Greeting row ── */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        marginBottom: 24,
+        marginBottom: 20, gap: 12,
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
           <button
             onClick={() => setActiveView('profile')}
             style={{
               width: 44, height: 44, borderRadius: '50%',
-              background: C.surf2, border: `1px solid ${C.bdr}`,
+              background: C.surf2, border: `2px solid ${C.bdr}`,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               cursor: 'pointer', overflow: 'hidden', flexShrink: 0,
               WebkitTapHighlightColor: 'transparent',
@@ -154,9 +156,9 @@ export function HomePage() {
                 </span>
             }
           </button>
-          <div>
+          <div style={{ minWidth: 0 }}>
             <div style={{ fontSize: 11, color: C.t3, fontWeight: 500 }}>Good {timeOfDay}</div>
-            <div style={{ fontSize: 17, fontWeight: 700, color: C.text, letterSpacing: '-0.02em', lineHeight: 1.2 }}>
+            <div style={{ fontSize: 17, fontWeight: 700, color: C.text, letterSpacing: '-0.02em', lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               Hi, {firstName}
             </div>
           </div>
@@ -165,13 +167,14 @@ export function HomePage() {
         <button
           onClick={() => setActiveView('onramp')}
           style={{
-            display: 'flex', alignItems: 'center', gap: 7,
-            padding: '10px 18px', borderRadius: 14,
+            display: 'flex', alignItems: 'center', gap: 6,
+            padding: '10px 16px', borderRadius: 14, flexShrink: 0,
             background: BLUE, border: 'none',
             color: '#fff', fontSize: 13, fontWeight: 700,
             cursor: 'pointer', fontFamily: F,
             boxShadow: '0 4px 16px rgba(0,102,255,0.4)',
             WebkitTapHighlightColor: 'transparent',
+            whiteSpace: 'nowrap',
           }}
         >
           <Plus size={15} strokeWidth={2.5} />
@@ -209,27 +212,28 @@ export function HomePage() {
         )}
       </div>
 
-      {/* ── Account cards (USDC) ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 28 }}>
+      {/* ── Account cards ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 24 }}>
         {/* USDC card */}
         <div style={{
           background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 20,
-          padding: '18px 16px 14px',
+          padding: '16px 14px 14px', minWidth: 0,
         }}>
-          <div style={{ marginBottom: 14 }}>
-            <span style={{ fontSize: 22 }}>🇺🇸</span>
+          <div style={{ marginBottom: 12 }}>
+            <span style={{ fontSize: 24 }}>🇺🇸</span>
           </div>
-          <div style={{ fontSize: 20, fontWeight: 800, color: C.text, fontFamily: MONO, letterSpacing: '-0.02em', marginBottom: 12 }}>
+          <div style={{ fontSize: 18, fontWeight: 800, color: C.text, fontFamily: MONO, letterSpacing: '-0.02em', marginBottom: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {hidden ? '••••' : `$${formatted}`}
           </div>
           <button
             onClick={() => setActiveView('wallet')}
             style={{
-              display: 'flex', alignItems: 'center', gap: 5,
-              fontSize: 12, fontWeight: 600, color: C.t2,
+              display: 'flex', alignItems: 'center', gap: 4,
+              fontSize: 11, fontWeight: 600, color: C.t2,
               background: C.surf2, border: `1px solid ${C.bdr}`,
-              borderRadius: 8, padding: '6px 10px', cursor: 'pointer',
+              borderRadius: 8, padding: '7px 10px', cursor: 'pointer',
               fontFamily: F, WebkitTapHighlightColor: 'transparent',
+              width: '100%', justifyContent: 'center',
             }}>
             <span>🏛</span> USDC Wallet
           </button>
@@ -238,36 +242,37 @@ export function HomePage() {
         {/* Agent budget card */}
         <div style={{
           background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 20,
-          padding: '18px 16px 14px',
+          padding: '16px 14px 14px', minWidth: 0,
         }}>
-          <div style={{ marginBottom: 14 }}>
-            <span style={{ fontSize: 22 }}>🤖</span>
+          <div style={{ marginBottom: 12 }}>
+            <span style={{ fontSize: 24 }}>🤖</span>
           </div>
-          <div style={{ fontSize: 20, fontWeight: 800, color: C.text, fontFamily: MONO, letterSpacing: '-0.02em', marginBottom: 12 }}>
+          <div style={{ fontSize: 18, fontWeight: 800, color: C.text, fontFamily: MONO, letterSpacing: '-0.02em', marginBottom: 12 }}>
             {hidden ? '••••' : '$0.00'}
           </div>
           <button
             onClick={() => setActiveView('agent')}
             style={{
-              display: 'flex', alignItems: 'center', gap: 5,
-              fontSize: 12, fontWeight: 600, color: C.t2,
+              display: 'flex', alignItems: 'center', gap: 4,
+              fontSize: 11, fontWeight: 600, color: C.t2,
               background: C.surf2, border: `1px solid ${C.bdr}`,
-              borderRadius: 8, padding: '6px 10px', cursor: 'pointer',
+              borderRadius: 8, padding: '7px 10px', cursor: 'pointer',
               fontFamily: F, WebkitTapHighlightColor: 'transparent',
+              width: '100%', justifyContent: 'center',
             }}>
             <span>🏛</span> Agent Budget
           </button>
         </div>
       </div>
 
-      {/* ── Primary actions: Add Money / Send / Convert ── */}
+      {/* ── Primary actions: Send / Receive / Convert ── */}
       <div style={{
         display: 'flex', justifyContent: 'space-around',
         marginBottom: 32,
       }}>
-        <PrimaryAction Icon={Plus}           label="Add money" primary onClick={() => setActiveView('onramp')}  C={C} />
-        <PrimaryAction Icon={Send}           label="Send"               onClick={() => setActiveView('send')}    C={C} />
-        <PrimaryAction Icon={ArrowLeftRight} label="Convert"            onClick={() => setActiveView('swap')}    C={C} />
+        <PrimaryAction Icon={Send}            label="Send"    primary onClick={() => setActiveView('send')}    C={C} />
+        <PrimaryAction Icon={ArrowDownToLine} label="Receive"         onClick={() => setActiveView('receive')} C={C} />
+        <PrimaryAction Icon={ArrowLeftRight}  label="Convert"         onClick={() => setActiveView('swap')}    C={C} />
       </div>
 
       {/* ── Quick actions ── */}

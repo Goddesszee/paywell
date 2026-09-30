@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react'
 import {
   Home, Wallet, Activity, Menu, X,
   ArrowLeftRight, ArrowUpDown, Settings, ChevronRight,
-  CreditCard, Droplet, Layers, Repeat, Bot, Shield,
+  Droplet, Layers, Repeat, Bot, Shield,
   MessageSquare, HelpCircle, Info, User, Search, Bookmark,
   Star, Lightbulb
 } from 'lucide-react'
@@ -22,7 +22,6 @@ const NAV_ITEMS = [
 
 const DRAWER_SECTIONS = [
   { title: 'Finance', items: [
-    { id: 'onramp',    label: 'Buy USDC',  Icon: CreditCard,     desc: 'Card, Apple Pay, bank' },
     { id: 'swap',      label: 'Swap',      Icon: ArrowUpDown,    desc: 'Exchange tokens' },
     { id: 'bridge',    label: 'Bridge',    Icon: ArrowLeftRight, desc: 'Move USDC across chains' },
     { id: 'gateway',   label: 'Gateway',   Icon: Layers,         desc: 'Unified cross-chain balance' },
@@ -85,11 +84,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* ── Top bar ── */}
       <header style={{
-        height:54, flexShrink:0, zIndex:60,
+        height:56, flexShrink:0, zIndex:60,
         display:'flex', alignItems:'center', justifyContent:'space-between',
         paddingLeft:'max(16px,env(safe-area-inset-left))',
         paddingRight:'max(16px,env(safe-area-inset-right))',
-        background: C.isDark ? 'rgba(8,9,11,0.97)' : 'rgba(255,255,255,0.97)',
+        background: C.isDark ? 'rgba(8,9,11,0.98)' : 'rgba(255,255,255,0.98)',
         backdropFilter:'blur(20px)', WebkitBackdropFilter:'blur(20px)',
         borderBottom:`1px solid ${C.bdr}`,
         transition:'background 0.25s, border-color 0.25s',
@@ -166,20 +165,44 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </div>
 
       {/* ── Main content ── */}
-      <main style={{ flex:1, overflowY:'auto', overflowX:'hidden', padding:'16px', paddingLeft:'max(16px,env(safe-area-inset-left))', paddingRight:'max(16px,env(safe-area-inset-right))', paddingBottom:96, scrollbarWidth:'none', WebkitOverflowScrolling:'touch' }}>
+      <main style={{
+        flex:1, overflowY:'auto', overflowX:'hidden',
+        paddingTop:16,
+        paddingLeft:'max(16px,env(safe-area-inset-left))',
+        paddingRight:'max(16px,env(safe-area-inset-right))',
+        paddingBottom:'max(96px,calc(env(safe-area-inset-bottom) + 80px))',
+        scrollbarWidth:'none', WebkitOverflowScrolling:'touch',
+        msOverflowStyle:'none',
+      }}>
         {children}
       </main>
 
       {/* ── Bottom nav ── */}
-      <nav style={{ flexShrink:0, zIndex:100, background: C.isDark ? 'rgba(8,9,11,0.97)' : 'rgba(255,255,255,0.97)', backdropFilter:'blur(24px)', WebkitBackdropFilter:'blur(24px)', borderTop:`1px solid ${C.bdr}`, paddingTop:6, paddingBottom:'max(10px,env(safe-area-inset-bottom))', paddingLeft:'max(4px,env(safe-area-inset-left))', paddingRight:'max(4px,env(safe-area-inset-right))', transition:'background 0.25s' }}>
+      <nav style={{
+        flexShrink:0, zIndex:100,
+        background: C.isDark ? 'rgba(8,9,11,0.98)' : 'rgba(255,255,255,0.98)',
+        backdropFilter:'blur(24px)', WebkitBackdropFilter:'blur(24px)',
+        borderTop:`1px solid ${C.bdr}`,
+        paddingTop:8,
+        paddingBottom:'max(12px,env(safe-area-inset-bottom))',
+        paddingLeft:'max(8px,env(safe-area-inset-left))',
+        paddingRight:'max(8px,env(safe-area-inset-right))',
+        transition:'background 0.25s',
+      }}>
         <div style={{ display:'flex', maxWidth:480, margin:'0 auto' }}>
           {NAV_ITEMS.map(({ id, label, Icon }) => {
             const isActive = navActive(id)
             return (
-              <button key={id} onClick={() => go(id)} aria-label={label} style={{ flex:1, minHeight:50, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:3, padding:'4px 4px 6px', border:'none', background:'transparent', cursor:'pointer', transition:'all 0.15s', borderRadius:8, fontFamily:F, WebkitTapHighlightColor:'transparent', position:'relative' }}>
-                <Icon size={21} color={isActive?C.blue:C.t3} strokeWidth={isActive?2.2:1.8} />
-                <span style={{ fontSize:10, fontWeight:isActive?600:400, color:isActive?C.blue:C.t3, letterSpacing:'0.01em', lineHeight:1 }}>{label}</span>
-                {isActive && <span style={{ position:'absolute', bottom:'max(8px,env(safe-area-inset-bottom))', width:3, height:3, borderRadius:'50%', background:C.blue }} />}
+              <button key={id} onClick={() => go(id)} aria-label={label} style={{
+                flex:1, minHeight:52, display:'flex', flexDirection:'column',
+                alignItems:'center', justifyContent:'center', gap:4,
+                padding:'6px 4px 4px', border:'none', background:'transparent',
+                cursor:'pointer', transition:'all 0.15s', borderRadius:10,
+                fontFamily:F, WebkitTapHighlightColor:'transparent', position:'relative',
+              }}>
+                <Icon size={22} color={isActive?C.blue:C.t3} strokeWidth={isActive?2.2:1.8} />
+                <span style={{ fontSize:11, fontWeight:isActive?700:400, color:isActive?C.blue:C.t3, letterSpacing:'0.01em', lineHeight:1 }}>{label}</span>
+                {isActive && <span style={{ position:'absolute', bottom:0, width:20, height:2, borderRadius:2, background:C.blue }} />}
               </button>
             )
           })}
