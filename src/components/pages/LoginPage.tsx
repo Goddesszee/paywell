@@ -34,7 +34,7 @@ export function LoginPage() {
       if (token && emailParam) {
         window.location.hash = ''
         setAuth({ email: emailParam, sessionToken: token, walletAddress: '', walletId: '' })
-        setActiveView(onboarding.completed && profile.displayName ? 'home' : 'name')
+        setActiveView(profile.displayName ? 'home' : 'name')
       }
     }
   }, [onboarding.completed, profile.displayName, setAuth, setActiveView])
@@ -42,7 +42,7 @@ export function LoginPage() {
   useEffect(() => {
     if (isConnected && address) {
       setAuth({ email: '', sessionToken: 'wallet', walletAddress: address, walletId: address })
-      setActiveView(onboarding.completed && profile.displayName ? 'home' : 'name')
+      setActiveView(profile.displayName ? 'home' : 'name')
     }
   }, [isConnected, address, onboarding.completed, profile.displayName, setAuth, setActiveView, setOnboarding])
 
@@ -72,7 +72,7 @@ export function LoginPage() {
       const data = await res.json() as { success?: boolean; sessionToken?: string }
       if (!res.ok || !data.success) throw new Error('Invalid code')
       setAuth({ email, sessionToken: data.sessionToken ?? 'email-auth', walletAddress: '', walletId: '' })
-      setActiveView(onboarding.completed && profile.displayName ? 'home' : 'name')
+      setActiveView(profile.displayName ? 'home' : 'name')
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Invalid code')
     } finally { setLoading(false) }

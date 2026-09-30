@@ -128,7 +128,7 @@ export function LandingPage() {
         {/* CTAs */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           <button
-            onClick={() => setActiveView('onboarding')}
+            onClick={() => setActiveView('login')}
             style={{
               width: '100%', height: 54,
               background: '#0066FF', color: '#fff',
