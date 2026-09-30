@@ -166,6 +166,95 @@ app.post('/api/otp', async (req, res) => {
   }
 })
 
+// ── Circle wallet — device token for social login ─────────────────────────────
+app.post('/api/wallet/device-token', async (req, res) => {
+  const { deviceId } = req.body as { deviceId: string }
+  if (!deviceId) { res.status(400).json({ error: 'deviceId required' }); return }
+
+  const apiKey = process.env.CIRCLE_USER_CONTROLLED_API_KEY || process.env.CIRCLE_DEVELOPER_CONTROLLED_API_KEY
+  if (!apiKey) {
+    // dev mock — return placeholder tokens so the UI doesn't hard-error
+    res.json({ deviceToken: `mock-dt-${deviceId.slice(0, 8)}`, deviceEncryptionKey: `mock-dk-${deviceId.slice(0, 8)}` })
+    return
+  }
+  try {
+    const { initiateUserControlledWalletsClient } = await import('@circle-fin/user-controlled-wallets')
+    const client   = initiateUserControlledWalletsClient({ apiKey })
+    const response = await client.createDeviceTokenForSocialLogin({ deviceId })
+    const { deviceToken, deviceEncryptionKey } = response.data ?? {}
+    res.json({ deviceToken, deviceEncryptionKey })
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : 'Circle API error' })
+  }
+})
+
+// ── Circle wallet — request email OTP ─────────────────────────────────────────
+app.post('/api/wallet/request-otp', async (req, res) => {
+  const { deviceId, email } = req.body as { deviceId: string; email: string }
+  if (!deviceId || !email) { res.status(400).json({ error: 'deviceId and email required' }); return }
+
+  const apiKey = process.env.CIRCLE_USER_CONTROLLED_API_KEY || process.env.CIRCLE_DEVELOPER_CONTROLLED_API_KEY
+  if (!apiKey) {
+    res.status(500).json({ error: 'CIRCLE_USER_CONTROLLED_API_KEY not configured' })
+    return
+  }
+  try {
+    const { initiateUserControlledWalletsClient } = await import('@circle-fin/user-controlled-wallets')
+    const client   = initiateUserControlledWalletsClient({ apiKey })
+    const response = await client.createDeviceTokenForEmailLogin({ deviceId, email })
+    const { deviceToken, deviceEncryptionKey, otpToken } = response.data ?? {}
+    res.json({ deviceToken, deviceEncryptionKey, otpToken })
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : 'Circle API error' })
+  }
+})
+
+// ── Circle wallet — initialize user / create wallet challenge ─────────────────
+app.post('/api/wallet/initialize', async (req, res) => {
+  const { userToken } = req.body as { userToken: string }
+  if (!userToken) { res.status(400).json({ error: 'userToken required' }); return }
+
+  const apiKey = process.env.CIRCLE_USER_CONTROLLED_API_KEY || process.env.CIRCLE_DEVELOPER_CONTROLLED_API_KEY
+  if (!apiKey) {
+    res.status(500).json({ error: 'CIRCLE_USER_CONTROLLED_API_KEY not configured' })
+    return
+  }
+  try {
+    const { initiateUserControlledWalletsClient, Blockchain } = await import('@circle-fin/user-controlled-wallets')
+    const client   = initiateUserControlledWalletsClient({ apiKey })
+    const response = await client.createUserPinWithWallets({
+      userToken,
+      blockchains: [Blockchain.ArcTestnet],
+      accountType: 'SCA',
+    })
+    res.json({ challengeId: response.data?.challengeId })
+  } catch (e) {
+    const code = (e as { response?: { data?: { code?: number } } })?.response?.data?.code
+    if (code === 155106) { res.json({ code: 155106, message: 'User already initialized' }); return }
+    res.status(500).json({ error: e instanceof Error ? e.message : 'Circle API error' })
+  }
+})
+
+// ── Circle wallet — list wallets ───────────────────────────────────────────────
+app.get('/api/wallet/wallets', async (req, res) => {
+  const userToken = req.headers['x-user-token'] as string | undefined
+  if (!userToken) { res.status(401).json({ error: 'x-user-token header required' }); return }
+
+  const apiKey = process.env.CIRCLE_USER_CONTROLLED_API_KEY || process.env.CIRCLE_DEVELOPER_CONTROLLED_API_KEY
+  if (!apiKey) {
+    res.status(500).json({ error: 'CIRCLE_USER_CONTROLLED_API_KEY not configured' })
+    return
+  }
+  try {
+    const { initiateUserControlledWalletsClient } = await import('@circle-fin/user-controlled-wallets')
+    const client   = initiateUserControlledWalletsClient({ apiKey })
+    const response = await client.listWallets({ userToken })
+    res.json({ wallets: response.data?.wallets ?? [] })
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : 'Circle API error' })
+  }
+})
+
 // ── Circle wallets ─────────────────────────────────────────────────────────────
 app.post('/api/circle-wallets', async (req, res) => {
   try {
