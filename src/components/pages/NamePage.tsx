@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { ArrowRight } from 'lucide-react'
+import { ArrowRight, ArrowLeft } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
 
 const F = "'Inter', -apple-system, sans-serif"
@@ -32,6 +32,14 @@ export function NamePage() {
       alignItems: 'center', justifyContent: 'center',
       padding: '24px',
     }}>
+      {/* Back */}
+      <button
+        onClick={() => setActiveView('login')}
+        style={{ position: 'absolute', top: 20, left: 20, background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.5)', display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, fontFamily: F, padding: 4 }}
+      >
+        <ArrowLeft size={16} /> Back
+      </button>
+
       {/* NAN logo */}
       <div style={{ marginBottom: 36, display: 'flex', alignItems: 'center', gap: 8 }}>
         <div style={{ width: 36, height: 36, borderRadius: 10, background: BLUE, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

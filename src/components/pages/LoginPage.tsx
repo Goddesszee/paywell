@@ -17,7 +17,7 @@ type LoginMode = 'choose' | 'email' | 'otp'
 
 export function LoginPage() {
   const { address, isConnected } = useAccount()
-  const { setAuth, setOnboarding, onboarding, setActiveView } = useAppStore()
+  const { setAuth, setOnboarding, onboarding, setActiveView, profile } = useAppStore()
   const [mode, setMode] = useState<LoginMode>('choose')
   const [email, setEmail] = useState('')
   const [otp, setOtp] = useState('')
@@ -34,17 +34,17 @@ export function LoginPage() {
       if (token && emailParam) {
         window.location.hash = ''
         setAuth({ email: emailParam, sessionToken: token, walletAddress: '', walletId: '' })
-        setActiveView(onboarding.completed ? 'home' : 'onboarding')
+        setActiveView(onboarding.completed && profile.displayName ? 'home' : 'name')
       }
     }
-  }, [onboarding.completed, setAuth, setActiveView])
+  }, [onboarding.completed, profile.displayName, setAuth, setActiveView])
 
   useEffect(() => {
     if (isConnected && address) {
       setAuth({ email: '', sessionToken: 'wallet', walletAddress: address, walletId: address })
-      setActiveView(onboarding.completed ? 'home' : 'onboarding')
+      setActiveView(onboarding.completed && profile.displayName ? 'home' : 'name')
     }
-  }, [isConnected, address, onboarding.completed, setAuth, setActiveView, setOnboarding])
+  }, [isConnected, address, onboarding.completed, profile.displayName, setAuth, setActiveView, setOnboarding])
 
   const sendOtp = async () => {
     if (!email.trim()) return
@@ -72,7 +72,7 @@ export function LoginPage() {
       const data = await res.json() as { success?: boolean; sessionToken?: string }
       if (!res.ok || !data.success) throw new Error('Invalid code')
       setAuth({ email, sessionToken: data.sessionToken ?? 'email-auth', walletAddress: '', walletId: '' })
-      setActiveView(onboarding.completed ? 'home' : 'onboarding')
+      setActiveView(onboarding.completed && profile.displayName ? 'home' : 'name')
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Invalid code')
     } finally { setLoading(false) }

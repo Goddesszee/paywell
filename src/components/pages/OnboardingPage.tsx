@@ -28,7 +28,7 @@ function fmt(addr?: string) { return addr ? addr.slice(0,6)+'…'+addr.slice(-4)
 
 export function OnboardingPage() {
   const { address, isConnected } = useAccount()
-  const { setOnboarding, agentPermissions, setAgentPermissions, setActiveView } = useAppStore()
+  const { setOnboarding, agentPermissions, setAgentPermissions, setActiveView, profile } = useAppStore()
   const [step, setStep] = useState<'connect'|'usecases'|'agent'|'limits'>('connect')
   const [selected, setSelected] = useState<string[]>([])
   const [dailyLimit, setDailyLimit] = useState(String(agentPermissions.dailyLimit))
@@ -39,7 +39,7 @@ export function OnboardingPage() {
 
   const finish = () => {
     setOnboarding({ completed: true, useCases: selected, agentConfigured: step === 'limits' })
-    setActiveView('home')
+    setActiveView(profile.displayName ? 'home' : 'name')
   }
 
   const prevConn = React.useRef(false)

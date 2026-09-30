@@ -17,7 +17,7 @@ const SLIDES = [
 ]
 
 export function LandingPage() {
-  const { setActiveView, profile } = useAppStore()
+  const setActiveView = useAppStore(s => s.setActiveView)
   const [slide, setSlide] = useState(0)
   const [fading, setFading] = useState(false)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -128,7 +128,7 @@ export function LandingPage() {
         {/* CTAs */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           <button
-            onClick={() => setActiveView('name')}
+            onClick={() => setActiveView('onboarding')}
             style={{
               width: '100%', height: 54,
               background: '#0066FF', color: '#fff',
@@ -142,7 +142,7 @@ export function LandingPage() {
             Get started <ArrowRight size={18} />
           </button>
           <button
-            onClick={() => setActiveView(profile.displayName ? 'home' : 'name')}
+            onClick={() => setActiveView('login')}
             style={{
               width: '100%', height: 50,
               background: 'rgba(255,255,255,0.08)',
