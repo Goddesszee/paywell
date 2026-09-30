@@ -143,7 +143,7 @@ export function DashboardPage() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, gap: 16 }}>
         <h1 style={{ fontSize: 28, fontWeight: 800, color: C.text, letterSpacing: '-0.04em', margin: 0 }}>Dashboard</h1>
         <button
-          onClick={() => setShowReceive(true)}
+          onClick={() => setActiveView('onramp')}
           style={{
             display: 'flex', alignItems: 'center', gap: 7,
             padding: '11px 22px', borderRadius: 50,
