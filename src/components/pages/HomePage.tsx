@@ -79,23 +79,6 @@ function ActionBtn({ Icon, label, primary, onClick, C }: {
   )
 }
 
-function QuickTile({ emoji, label, onClick, C }: {
-  emoji: string; label: string; onClick: () => void; C: NanTheme
-}) {
-  return (
-    <button onClick={onClick} style={{
-      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-      gap: 7, padding: '14px 6px 12px', minHeight: 76,
-      background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 14,
-      cursor: 'pointer', fontFamily: F, WebkitTapHighlightColor: 'transparent',
-      flex: 1, minWidth: 0,
-    }}>
-      <span style={{ fontSize: 24, lineHeight: 1 }}>{emoji}</span>
-      <span style={{ fontSize: 11, fontWeight: 600, color: C.t2, whiteSpace: 'nowrap' }}>{label}</span>
-    </button>
-  )
-}
-
 // ── main ──────────────────────────────────────────────────────────────────────
 
 export function HomePage() {
@@ -239,14 +222,63 @@ export function HomePage() {
         <ActionBtn Icon={ArrowLeftRight}  label="Convert"         onClick={() => setActiveView('swap')}    C={C} />
       </div>
 
-      {/* ── Quick actions ── */}
+      {/* ── AI Agent CTA ── */}
       <div style={{ marginBottom: 14 }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 10 }}>Quick action</div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8 }}>
-          <QuickTile emoji="🤖" label="Agents"   onClick={() => setActiveView('agent')}  C={C} />
-          <QuickTile emoji="⚡" label="Payments" onClick={() => setActiveView('wallet')} C={C} />
-          <QuickTile emoji="🎁" label="Rewards"  onClick={() => setActiveView('faucet')} C={C} />
-        </div>
+        <button
+          onClick={() => setActiveView('agent')}
+          style={{
+            width: '100%',
+            padding: '18px 20px',
+            borderRadius: 20,
+            border: '1px solid rgba(0,102,255,0.25)',
+            background: 'linear-gradient(135deg, rgba(0,102,255,0.15) 0%, rgba(0,102,255,0.06) 100%)',
+            cursor: 'pointer',
+            fontFamily: F,
+            WebkitTapHighlightColor: 'transparent',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 14,
+            boxShadow: '0 4px 24px rgba(0,102,255,0.12)',
+            position: 'relative',
+            overflow: 'hidden',
+          }}
+        >
+          {/* glow orb */}
+          <div style={{
+            position: 'absolute', top: -20, right: -20,
+            width: 100, height: 100, borderRadius: '50%',
+            background: 'rgba(0,102,255,0.18)',
+            filter: 'blur(28px)',
+            pointerEvents: 'none',
+          }} />
+          {/* icon */}
+          <div style={{
+            width: 48, height: 48, borderRadius: 16, flexShrink: 0,
+            background: BLUE,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: '0 4px 16px rgba(0,102,255,0.45)',
+          }}>
+            <Bot size={24} color="#fff" strokeWidth={1.8} />
+          </div>
+          {/* text */}
+          <div style={{ textAlign: 'left', flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 15, fontWeight: 800, color: C.text, letterSpacing: '-0.02em', marginBottom: 3 }}>
+              NAN Agent
+            </div>
+            <div style={{ fontSize: 12, color: C.t2, lineHeight: 1.4 }}>
+              Shop, pay & manage finances with AI
+            </div>
+          </div>
+          {/* arrow */}
+          <div style={{
+            width: 30, height: 30, borderRadius: 10, flexShrink: 0,
+            background: 'rgba(0,102,255,0.15)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <ChevronRight size={16} color={BLUE} strokeWidth={2.5} />
+          </div>
+        </button>
       </div>
 
       {/* ── Recent activity ── */}
