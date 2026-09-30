@@ -1,8 +1,7 @@
 import React, { useState, useRef } from 'react'
 import {
   Copy, ArrowUpRight, ArrowDownLeft, Check, ExternalLink,
-  AlertCircle, X, ChevronRight, Wallet, Share2, Download,
-  Twitter, MessageCircle, Send as SendIcon, Link, Activity,
+  AlertCircle, X, ChevronRight, Wallet, Share2, Activity,
 } from 'lucide-react'
 import { ConnectKitButton } from 'connectkit'
 import { QRCodeSVG } from 'qrcode.react'
@@ -13,6 +12,7 @@ import { Card } from '../ui/Card'
 import { Button } from '../ui/Button'
 import { Input, Textarea } from '../ui/Input'
 import { Badge } from '../ui/Badge'
+// Download, Twitter, MessageCircle, SendIcon, Link removed (old receive view)
 import { useAppStore, ActivityItem } from '../../store/appStore'
 import { formatAddress, formatUSDC, parseOnchainError } from '../../utils/format'
 import { getUsdc, requireChain, buildTxExplorerUrl } from '@/onchain-facts'
@@ -551,230 +551,109 @@ function Row({ label, value, mono = false }: { label: string; value: string; mon
 }
 
 function ReceiveView({ address, onBack }: { address: string; onBack: () => void }) {
-  const [tab, setTab] = useState<'address' | 'request'>('address')
-  const [addrCopied, setAddrCopied] = useState(false)
-  const [linkCopied, setLinkCopied] = useState(false)
-  const [requestAmount, setRequestAmount] = useState('')
-  const [requestNote, setRequestNote] = useState('')
+  const [copied, setCopied] = useState(false)
   const qrRef = useRef<HTMLDivElement>(null)
-
-  // ── Payment request URL (real web link, not deep link) ──
-  const APP_URL = typeof window !== 'undefined' ? window.location.origin : 'https://nan-puce.vercel.app'
-  const requestLink = requestAmount
-    ? `${APP_URL}/?pay=${address}&amount=${requestAmount}${requestNote ? `&note=${encodeURIComponent(requestNote)}` : ''}`
-    : `${APP_URL}/?pay=${address}`
-
-  // QR value — for address tab: just the address; for request tab: the full link
-  const qrValue = tab === 'request' && requestAmount ? requestLink : address
+  const shortAddr = `${address.slice(0, 8)}...${address.slice(-6)}`
 
   const copyAddress = () => {
     void navigator.clipboard.writeText(address)
-    setAddrCopied(true)
-    setTimeout(() => setAddrCopied(false), 2000)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
     toast.success('Address copied')
   }
 
-  const copyLink = () => {
-    void navigator.clipboard.writeText(requestLink)
-    setLinkCopied(true)
-    setTimeout(() => setLinkCopied(false), 2000)
-    toast.success('Payment link copied')
-  }
-
   const nativeShare = () => {
-    const text = tab === 'request' && requestAmount
-      ? `Pay me ${formatUSDC(parseFloat(requestAmount))} USDC${requestNote ? ` for ${requestNote}` : ''} on NAN`
-      : `Send me USDC on NAN`
-    void navigator.share?.({ title: 'NAN Payment Request', text, url: qrValue })
-  }
-
-  const shareToTwitter = () => {
-    const text = tab === 'request' && requestAmount
-      ? `Pay me ${formatUSDC(parseFloat(requestAmount))} USDC${requestNote ? ` for ${requestNote}` : ''} on NAN 🔒`
-      : `Send me USDC via NAN`
-    window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(qrValue)}`, '_blank')
-  }
-
-  const shareToWhatsApp = () => {
-    const text = tab === 'request' && requestAmount
-      ? `Pay me ${formatUSDC(parseFloat(requestAmount))} USDC${requestNote ? ` for ${requestNote}` : ''} on NAN: ${qrValue}`
-      : `Send me USDC on NAN: ${qrValue}`
-    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank')
-  }
-
-  const shareTelegram = () => {
-    const text = tab === 'request' && requestAmount
-      ? `Pay me ${formatUSDC(parseFloat(requestAmount))} USDC${requestNote ? ` for ${requestNote}` : ''} on NAN`
-      : `Send me USDC on NAN`
-    window.open(`https://t.me/share/url?url=${encodeURIComponent(qrValue)}&text=${encodeURIComponent(text)}`, '_blank')
-  }
-
-  const downloadQR = () => {
-    const svg = qrRef.current?.querySelector('svg')
-    if (!svg) return
-    const canvas = document.createElement('canvas')
-    const size = 400
-    canvas.width = size; canvas.height = size
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
-    const xml = new XMLSerializer().serializeToString(svg)
-    const img = new Image()
-    img.onload = () => {
-      ctx.fillStyle = '#111111'
-      ctx.fillRect(0, 0, size, size)
-      ctx.drawImage(img, 0, 0, size, size)
-      const a = document.createElement('a')
-      a.download = `nan-${tab === 'request' ? 'request' : 'address'}-qr.png`
-      a.href = canvas.toDataURL('image/png')
-      a.click()
-    }
-    img.src = `data:image/svg+xml;base64,${btoa(xml)}`
+    void navigator.share?.({
+      title: 'My NAN Wallet',
+      text: `Send me USDC on Arc Testnet: ${address}`,
+      url: window.location.href,
+    })
   }
 
   return (
-    <div className="max-w-lg mx-auto px-4 py-6 space-y-4 pb-28 lg:pb-8">
+    <div style={{
+      minHeight: 'calc(100vh - 60px)',
+      display: 'flex', flexDirection: 'column',
+      maxWidth: 480, margin: '0 auto',
+      padding: '20px 20px 32px',
+      fontFamily: SANS,
+    }}>
       {/* Header */}
-      <div className="flex items-center gap-3">
-        <button onClick={onBack} className="w-9 h-9 flex items-center justify-center rounded-xl hover:nan-surface-fix text-nan">
-          <X size={18} />
+      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 32 }}>
+        <button onClick={onBack} style={{
+          background: 'none', border: 'none', cursor: 'pointer',
+          padding: 4, WebkitTapHighlightColor: 'transparent',
+        }}>
+          <X size={22} color="var(--nan-text)" />
         </button>
-        <h1 className="text-xl font-bold text-nan" style={{ fontFamily: SANS }}>Receive USDC</h1>
+        <h1 style={{ fontSize: 22, fontWeight: 800, color: 'var(--nan-text)', marginLeft: 12, letterSpacing: '-0.02em' }}>
+          Receive
+        </h1>
       </div>
 
-      {/* Tab switcher */}
-      <div style={{ display: 'flex', background: 'var(--nan-surface)', borderRadius: 12, padding: 3, gap: 2 }}>
-        {(['address', 'request'] as const).map(t => (
-          <button key={t} onClick={() => setTab(t)} style={{
-            flex: 1, padding: '8px 0', borderRadius: 9, border: 'none', cursor: 'pointer',
-            fontFamily: SANS, fontSize: 13, fontWeight: tab === t ? 700 : 500,
-            background: tab === t ? '#0066FF' : 'transparent',
-            color: '#ffffff',
-            boxShadow: tab === t ? '0 1px 4px rgba(0,0,0,0.08)' : 'none',
-            transition: 'all 0.15s',
-            textTransform: 'capitalize',
-          }}>
-            {t === 'address' ? 'My Address' : 'Payment Request'}
-          </button>
-        ))}
-      </div>
-
-      {/* QR card */}
-      <Card padding="lg" className="text-center">
-        {/* QR code */}
-        <div ref={qrRef} style={{ width: 200, height: 200, margin: '0 auto 16px', padding: 16, background: 'var(--nan-surface2)', borderRadius: 16, border: '1px solid var(--nan-bdr)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      {/* QR code — large, centered */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+        <div ref={qrRef} style={{
+          width: 260, height: 260,
+          background: 'var(--nan-surface)',
+          borderRadius: 24,
+          padding: 20,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          boxShadow: '0 8px 40px rgba(0,0,0,0.3)',
+        }}>
           <QRCodeSVG
-            value={qrValue}
-            size={176}
-            bgColor="var(--nan-surface2, #111111)"
+            value={address}
+            size={220}
+            bgColor="transparent"
             fgColor="#ffffff"
             level="M"
-            imageSettings={{
-              src: '/favicon.ico',
-              height: 28,
-              width: 28,
-              excavate: true,
-            }}
           />
         </div>
 
-        {/* Address display */}
-        <p className="text-xs text-nan3 font-medium mb-1">
-          {tab === 'address' ? 'Wallet address' : 'Scan to pay'}
-        </p>
-        <p className="text-xs font-mono text-nan break-all px-2 mb-1 leading-relaxed">{address}</p>
-        {tab === 'request' && requestAmount && (
-          <p className="text-sm font-bold text-nan mb-1">{formatUSDC(parseFloat(requestAmount))} USDC{requestNote ? ` · ${requestNote}` : ''}</p>
-        )}
-
-        {/* Action buttons */}
-        <div className="flex gap-2 mt-4">
-          <Button fullWidth variant="secondary" onClick={copyAddress} icon={addrCopied ? <Check size={15} /> : <Copy size={15} />}>
-            {addrCopied ? 'Copied' : 'Copy Address'}
-          </Button>
-          <Button fullWidth variant="secondary" onClick={downloadQR} icon={<Download size={15} />}>
-            Save QR
-          </Button>
-        </div>
-      </Card>
-
-      {/* Payment request form */}
-      {tab === 'request' && (
-        <Card padding="md">
-          <p className="text-sm font-bold text-nan mb-3">Request details</p>
-          <div className="space-y-3">
-            <Input
-              label="Amount (USDC)"
-              placeholder="25.00"
-              type="number"
-              value={requestAmount}
-              onChange={(e) => setRequestAmount(e.target.value)}
-              suffix={<span className="text-xs font-bold text-nan2">USDC</span>}
-            />
-            <Input
-              label="Description (optional)"
-              placeholder="What's this for? e.g. Rent, Invoice #123"
-              value={requestNote}
-              onChange={(e) => setRequestNote(e.target.value)}
-            />
+        {/* Network + address */}
+        <div style={{ marginTop: 28, textAlign: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 4 }}>
+            <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--nan-text)' }}>Arc Testnet</span>
+            <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--nan-text3)', display: 'inline-block' }} />
+            <span style={{ fontSize: 16, fontWeight: 500, color: 'var(--nan-text3)', fontFamily: 'JetBrains Mono, monospace' }}>{shortAddr}</span>
           </div>
-        </Card>
-      )}
-
-      {/* Share panel — always shown, richer when request is filled */}
-      <Card padding="md">
-        <p className="text-sm font-bold text-nan mb-3">
-          {tab === 'request' && requestAmount ? `Share payment request · ${formatUSDC(parseFloat(requestAmount))} USDC` : 'Share your address'}
-        </p>
-
-        {/* Link preview */}
-        <div style={{ background: 'var(--nan-surface)', borderRadius: 10, padding: '10px 12px', marginBottom: 12 }}>
-          <p className="text-xs text-nan2 mb-1 font-medium">Payment link</p>
-          <p style={{ fontSize: 11, fontFamily: 'monospace', color: 'var(--nan-text)', wordBreak: 'break-all', lineHeight: 1.4 }}>
-            {tab === 'request' && requestAmount ? requestLink : `${APP_URL}/?pay=${address}`}
-          </p>
+          <p style={{ fontSize: 12, color: 'var(--nan-text3)' }}>Only send USDC on Arc Testnet to this address</p>
         </div>
+      </div>
 
-        {/* Copy link button */}
+      {/* Bottom buttons */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 32 }}>
         <button
-          onClick={copyLink}
+          onClick={copyAddress}
           style={{
-            width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-            height: 42, borderRadius: 10, border: '1px solid rgba(255,255,255,0.12)',
-            background: '#0066FF', cursor: 'pointer', fontFamily: SANS, fontSize: 13, fontWeight: 600, color: '#ffffff',
-            marginBottom: 10, transition: 'background 0.15s',
+            width: '100%', height: 54, borderRadius: 100,
+            background: copied ? '#00C853' : '#0066FF',
+            border: 'none', cursor: 'pointer',
+            fontSize: 16, fontWeight: 700, color: '#fff',
+            fontFamily: SANS, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            transition: 'background 0.2s',
+            WebkitTapHighlightColor: 'transparent',
           }}
         >
-          {linkCopied ? <Check size={15} /> : <Link size={15} />}
-          {linkCopied ? 'Link copied!' : 'Copy link'}
+          {copied ? <Check size={18} /> : <Copy size={18} />}
+          {copied ? 'Copied!' : 'Copy Address'}
         </button>
-
-        {/* Social share buttons */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
-          {[
-            { label: 'Twitter', icon: <Twitter size={16} />, action: shareToTwitter },
-            { label: 'WhatsApp', icon: <MessageCircle size={16} />, action: shareToWhatsApp },
-            { label: 'Telegram', icon: <SendIcon size={16} />, action: shareTelegram },
-            { label: 'More', icon: <Share2 size={16} />, action: nativeShare },
-          ].map(({ label, icon, action }) => (
-            <button
-              key={label}
-              onClick={action}
-              style={{
-                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                gap: 5, padding: '10px 4px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.08)',
-                background: 'var(--nan-surface)', cursor: 'pointer', fontFamily: SANS, fontSize: 10, fontWeight: 600, color: 'var(--nan-text)',
-              }}
-            >
-              {icon}
-              {label}
-            </button>
-          ))}
-        </div>
-
-        <p style={{ fontSize: 11, color: 'var(--nan-text2)', textAlign: 'center', marginTop: 10 }}>
-          Anyone with this link can send you USDC on Arc Testnet
-        </p>
-      </Card>
+        <button
+          onClick={nativeShare}
+          style={{
+            width: '100%', height: 54, borderRadius: 100,
+            background: 'var(--nan-surface)',
+            border: '1px solid var(--nan-bdr)',
+            cursor: 'pointer',
+            fontSize: 16, fontWeight: 700, color: 'var(--nan-text)',
+            fontFamily: SANS, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            WebkitTapHighlightColor: 'transparent',
+          }}
+        >
+          <Share2 size={18} />
+          Share
+        </button>
+      </div>
     </div>
   )
 }
