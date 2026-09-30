@@ -4,17 +4,6 @@
   "installCommand": "bun install",
   "framework": "vite",
   "ignoreCommand": "git diff --quiet HEAD^ HEAD -- . ':(exclude)nan-react'",
-  "functions": {
-    "api/chat.ts":           { "memory": 1024 },
-    "api/faucet.ts":         { "memory": 1024 },
-    "api/listings.ts":       { "memory": 1024 },
-    "api/marketplace.ts":    { "memory": 1024 },
-    "api/misc.ts":           { "memory": 1024 },
-    "api/onramp-session.ts": { "memory": 1024 },
-    "api/otp.ts":            { "memory": 1024 },
-    "api/wallet.ts":         { "memory": 1024 },
-    "api/wallets.ts":        { "memory": 1024 }
-  },
   "rewrites": [
     { "source": "/api/otp",            "destination": "/api/otp" },
     { "source": "/api/chat",           "destination": "/api/chat" },
