@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react'
 import { useAccount, useReadContract } from 'wagmi'
 import { erc20Abi } from 'viem'
-import { Eye, EyeOff, ArrowUpRight, ArrowDownLeft } from 'lucide-react'
+import { Eye, EyeOff, ArrowUpRight, ArrowDownLeft, X, Copy, Check, Share2 } from 'lucide-react'
+import { QRCodeSVG } from 'qrcode.react'
+import { toast } from 'sonner'
 import { useAppStore } from '../../store/appStore'
 import { getUsdc } from '../../onchain-facts'
 import { Amount, usdcDecimalsFor } from '../../onchain-money'
@@ -77,6 +79,16 @@ export function DashboardPage() {
   const { setActiveView, activity } = useAppStore()
   const [hidden, setHidden] = useState(false)
   const [period, setPeriod] = useState<PerfPeriod>('24H')
+  const [showReceive, setShowReceive] = useState(false)
+  const [copied, setCopied] = useState(false)
+
+  const copyAddress = () => {
+    if (!address) return
+    void navigator.clipboard.writeText(address)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+    toast.success('Address copied')
+  }
 
   const usdcFact = getUsdc(ARC)
   const { data: rawBalance, isLoading } = useReadContract({
@@ -131,7 +143,7 @@ export function DashboardPage() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, gap: 16 }}>
         <h1 style={{ fontSize: 28, fontWeight: 800, color: C.text, letterSpacing: '-0.04em', margin: 0 }}>Dashboard</h1>
         <button
-          onClick={() => setActiveView('onramp')}
+          onClick={() => setShowReceive(true)}
           style={{
             display: 'flex', alignItems: 'center', gap: 7,
             padding: '11px 22px', borderRadius: 50,
@@ -175,7 +187,7 @@ export function DashboardPage() {
           {/* Deposit / Withdraw */}
           <div style={{ display: 'flex', gap: 10, flexShrink: 0, alignItems: 'center', marginTop: 8 }}>
             <button
-              onClick={() => setActiveView('onramp')}
+              onClick={() => setShowReceive(true)}
               style={{
                 display: 'flex', alignItems: 'center', gap: 6,
                 padding: '10px 22px', borderRadius: 10,
@@ -298,6 +310,97 @@ export function DashboardPage() {
           })
         )}
       </div>
+
+      {/* ── Receive / Deposit modal ── */}
+      {showReceive && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 1000,
+          background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(6px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: 24,
+        }} onClick={() => setShowReceive(false)}>
+          <div style={{
+            background: C.isDark ? '#0E1014' : '#fff',
+            borderRadius: 24, padding: '32px 28px',
+            width: '100%', maxWidth: 420,
+            display: 'flex', flexDirection: 'column', alignItems: 'center',
+            boxShadow: '0 24px 80px rgba(0,0,0,0.5)',
+            position: 'relative',
+          }} onClick={e => e.stopPropagation()}>
+
+            {/* Close */}
+            <button onClick={() => setShowReceive(false)} style={{
+              position: 'absolute', top: 16, right: 16,
+              background: C.surf2, border: 'none', cursor: 'pointer',
+              width: 32, height: 32, borderRadius: '50%',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <X size={16} color={C.t2} />
+            </button>
+
+            {/* Title */}
+            <h2 style={{ fontSize: 22, fontWeight: 800, color: C.text, letterSpacing: '-0.03em', marginBottom: 28, alignSelf: 'flex-start' }}>
+              Receive
+            </h2>
+
+            {/* QR */}
+            <div style={{
+              width: 240, height: 240,
+              background: C.surf2, borderRadius: 20, padding: 16,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.25)',
+              marginBottom: 24,
+            }}>
+              {address ? (
+                <QRCodeSVG
+                  value={address}
+                  size={208}
+                  bgColor="transparent"
+                  fgColor={C.isDark ? '#ffffff' : '#000000'}
+                  level="M"
+                />
+              ) : (
+                <div style={{ fontSize: 13, color: C.t3, textAlign: 'center' }}>Connect wallet to show QR</div>
+              )}
+            </div>
+
+            {/* Network + address */}
+            <div style={{ textAlign: 'center', marginBottom: 28 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 4 }}>
+                <span style={{ fontSize: 16, fontWeight: 700, color: C.text }}>Arc Testnet</span>
+                <span style={{ width: 5, height: 5, borderRadius: '50%', background: C.t3, display: 'inline-block' }} />
+                <span style={{ fontSize: 14, color: C.t3, fontFamily: MONO }}>
+                  {address ? `${address.slice(0,8)}...${address.slice(-6)}` : '—'}
+                </span>
+              </div>
+              <p style={{ fontSize: 12, color: C.t3 }}>Only send USDC on Arc Testnet to this address</p>
+            </div>
+
+            {/* Buttons */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, width: '100%' }}>
+              <button onClick={copyAddress} style={{
+                width: '100%', height: 52, borderRadius: 100,
+                background: copied ? '#00C853' : BLUE,
+                border: 'none', cursor: 'pointer',
+                fontSize: 15, fontWeight: 700, color: '#fff', fontFamily: F,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                transition: 'background 0.2s',
+              }}>
+                {copied ? <Check size={17} /> : <Copy size={17} />}
+                {copied ? 'Copied!' : 'Copy Address'}
+              </button>
+              <button onClick={() => navigator.share?.({ title: 'My NAN Wallet', text: `Send me USDC: ${address}`, url: window.location.href })} style={{
+                width: '100%', height: 52, borderRadius: 100,
+                background: C.surf2, border: `1px solid ${C.bdr}`,
+                cursor: 'pointer', fontSize: 15, fontWeight: 700, color: C.text, fontFamily: F,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              }}>
+                <Share2 size={17} /> Share
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
