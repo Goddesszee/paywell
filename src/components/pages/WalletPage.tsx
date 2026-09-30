@@ -4,6 +4,7 @@ import {
   AlertCircle, X, ChevronRight, Wallet, Share2, Download,
   Twitter, MessageCircle, Send as SendIcon, Link
 } from 'lucide-react'
+import { ConnectKitButton } from 'connectkit'
 import { QRCodeSVG } from 'qrcode.react'
 import { useWriteContract, useWaitForTransactionReceipt, useSwitchChain, useAccount, useReadContract } from 'wagmi'
 import { erc20Abi, isAddress } from 'viem'
@@ -59,14 +60,17 @@ export function WalletPage({ initialSubView = 'main' }: { initialSubView?: Walle
 
   if (!address) {
     return (
-      <div className="max-w-lg mx-auto px-4 py-12 text-center">
-        <div className="w-16 h-16 rounded-full nan-surface-fix flex items-center justify-center mx-auto mb-4">
-          <Wallet size={28} className="text-nan3" />
+      <div style={{ maxWidth: 400, margin: '0 auto', padding: '48px 24px', textAlign: 'center', fontFamily: SANS }}>
+        <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'var(--nan-surface)', border: '1px solid var(--nan-bdr)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+          <Wallet size={28} color="var(--nan-text3)" />
         </div>
-        <h2 className="text-xl font-bold text-nan mb-2" style={{ fontFamily: SANS }}>
-          Connect a wallet
+        <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--nan-text)', marginBottom: 8, letterSpacing: '-0.02em' }}>
+          Connect your wallet
         </h2>
-        <p className="text-sm text-nan2">Connect your wallet to view your balance and send USDC.</p>
+        <p style={{ fontSize: 14, color: 'var(--nan-text2)', marginBottom: 28, lineHeight: 1.5 }}>
+          Connect a wallet to view your balance, send and receive USDC.
+        </p>
+        <ConnectKitButton />
       </div>
     )
   }

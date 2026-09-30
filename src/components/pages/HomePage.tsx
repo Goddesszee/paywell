@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { useAccount, useReadContract } from 'wagmi'
+import { ConnectKitButton } from 'connectkit'
 import { erc20Abi } from 'viem'
 import {
   Eye, EyeOff, Plus, Send, ArrowLeftRight,
@@ -192,8 +193,8 @@ export function HomePage() {
         )}
 
         {!isConnected && (
-          <div style={{ fontSize: 11, color: C.t3, marginTop: 4 }}>
-            Connect wallet to see live balance
+          <div style={{ marginTop: 10 }}>
+            <ConnectKitButton />
           </div>
         )}
       </div>
