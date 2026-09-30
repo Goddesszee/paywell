@@ -25,6 +25,7 @@ import { ProfilePage } from './components/pages/ProfilePage'
 import { SearchPage } from './components/pages/SearchPage'
 import { FavoritesPage } from './components/pages/FavoritesPage'
 import { NamePage } from './components/pages/NamePage'
+import { DashboardPage } from './components/pages/DashboardPage'
 
 export default function App() {
   const { activeView } = useAppStore()
@@ -40,6 +41,7 @@ export default function App() {
   return (
     <AppShell>
       {activeView === 'home' && <HomePage />}
+      {activeView === 'dashboard' && <DashboardPage />}
       {activeView === 'wallet' && <WalletPage />}
       {activeView === 'send' && <WalletPage initialSubView="send" />}
       {activeView === 'receive' && <WalletPage initialSubView="receive" />}

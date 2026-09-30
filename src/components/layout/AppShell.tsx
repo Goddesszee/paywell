@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react'
 import {
-  Home, Activity, Menu, X,
+  Home, Activity, Menu, X, LayoutDashboard,
   ArrowLeftRight, ArrowUpDown, Settings, ChevronRight,
   Droplet, Layers, Repeat, Bot, Shield,
   MessageSquare, HelpCircle, Info, User, Search, Bookmark,
@@ -24,9 +24,10 @@ const NAV_ITEMS = [
 // ── Sidebar sections (desktop + mobile drawer) ────────────────────────────────
 const SIDEBAR_SECTIONS = [
   { title: 'Main', items: [
-    { id: 'home',     label: 'Home',     Icon: Home,          desc: 'Your dashboard' },
-    { id: 'wallet',   label: 'Wallet',   Icon: Wallet,        desc: 'Balances & transfers' },
-    { id: 'activity', label: 'Activity', Icon: Activity,      desc: 'Transaction history' },
+    { id: 'home',      label: 'Home',      Icon: Home,             desc: 'Overview' },
+    { id: 'dashboard', label: 'Dashboard', Icon: LayoutDashboard,  desc: 'Portfolio & performance' },
+    { id: 'wallet',    label: 'Wallet',    Icon: Wallet,           desc: 'Balances & transfers' },
+    { id: 'activity',  label: 'Activity',  Icon: Activity,         desc: 'Transaction history' },
   ]},
   { title: 'Finance', items: [
     { id: 'bridge',   label: 'Bridge',   Icon: ArrowLeftRight, desc: 'Move USDC across chains' },
