@@ -953,6 +953,67 @@ sessionStore.set = function(key: string, value: { email: string; walletAddress: 
   return sessionStore
 }
 
+// ── Google OAuth (dev server) ─────────────────────────────────────────────────
+// In production the Netlify function at netlify/functions/auth-google-callback.ts
+// handles /api/auth/google/callback. The routes below mirror that behaviour for
+// the local dev server so the same Google login flow works in both environments.
+
+app.get('/api/auth/google', (req, res) => {
+  const clientId = process.env.VITE_GOOGLE_CLIENT_ID
+  if (!clientId) {
+    // No client-id configured — redirect back with a mock session so devs can
+    // still exercise the auth flow without a real Google project.
+    const mockToken = Buffer.from(JSON.stringify({ email: 'demo@google.com', name: 'Demo User', exp: Date.now() + 86400000 })).toString('base64')
+    const appUrl = `http://localhost:${PORT === 3001 ? 5173 : PORT}/#google-auth=${encodeURIComponent(mockToken)}&email=${encodeURIComponent('demo@google.com')}&name=${encodeURIComponent('Demo User')}`
+    res.redirect(appUrl)
+    return
+  }
+  const redirectUri = `${req.protocol}://${req.headers.host}/api/auth/google/callback`
+  const params = new URLSearchParams({
+    client_id: clientId,
+    redirect_uri: redirectUri,
+    response_type: 'code',
+    scope: 'openid email profile',
+    prompt: 'select_account',
+  })
+  res.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params}`)
+})
+
+app.get('/api/auth/google/callback', async (req, res) => {
+  const code = req.query.code as string | undefined
+  const clientId = process.env.VITE_GOOGLE_CLIENT_ID
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET
+  const redirectUri = `${req.protocol}://${req.headers.host}/api/auth/google/callback`
+  const appBase = `http://localhost:5173`
+
+  if (!code || !clientId || !clientSecret) {
+    res.redirect(`${appBase}/#google-error=missing_config`)
+    return
+  }
+
+  try {
+    const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ code, client_id: clientId, client_secret: clientSecret, redirect_uri: redirectUri, grant_type: 'authorization_code' }),
+    })
+    const tokens = await tokenRes.json() as { id_token?: string; access_token?: string; error?: string }
+    if (tokens.error || !tokens.access_token) throw new Error(tokens.error ?? 'No access_token')
+
+    const userRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+      headers: { Authorization: `Bearer ${tokens.access_token}` },
+    })
+    const user = await userRes.json() as { email?: string; name?: string; picture?: string }
+
+    const sessionToken = Buffer.from(JSON.stringify({ email: user.email, name: user.name, exp: Date.now() + 86400000 })).toString('base64')
+    const appUrl = `${appBase}/#google-auth=${encodeURIComponent(sessionToken)}&email=${encodeURIComponent(user.email ?? '')}&name=${encodeURIComponent(user.name ?? '')}`
+    res.redirect(appUrl)
+  } catch (e) {
+    console.error('Google callback error:', e)
+    res.redirect(`${appBase}/#google-error=${encodeURIComponent(e instanceof Error ? e.message : 'auth_error')}`)
+  }
+})
+
 // ── start ──────────────────────────────────────────────────────────────────────
 app.listen(PORT, () => {
   console.log(`Paywell API running on port ${PORT}`)
