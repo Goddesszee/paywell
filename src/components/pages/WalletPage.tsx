@@ -14,6 +14,7 @@ import { Input, Textarea } from '../ui/Input'
 import { Badge } from '../ui/Badge'
 import { useAppStore, ActivityItem } from '../../store/appStore'
 import { formatAddress, formatUSDC, parseOnchainError } from '../../utils/format'
+import { TokenLogo } from '../ui/TokenLogo'
 import { getUsdc, requireChain, buildTxExplorerUrl } from '@/onchain-facts'
 import { Amount, usdcDecimalsFor } from '@/onchain-money'
 
@@ -22,8 +23,8 @@ const SANS = 'Inter, -apple-system, sans-serif'
 
 // ── Supported send tokens ─────────────────────────────────────────────────────
 const SEND_TOKENS = [
-  { symbol: 'USDC',  label: 'USD Coin',  address: '0x3600000000000000000000000000000000000000' as `0x${string}`, decimals: 6,  flag: '🇺🇸', color: '#2775CA' },
-  { symbol: 'EURC',  label: 'Euro Coin', address: '0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a' as `0x${string}`, decimals: 6,  flag: '🇪🇺', color: '#0099CC' },
+  { symbol: 'USDC', label: 'USD Coin',  address: '0x3600000000000000000000000000000000000000' as `0x${string}`, decimals: 6, color: '#2775CA' },
+  { symbol: 'EURC', label: 'Euro Coin', address: '0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a' as `0x${string}`, decimals: 6, color: '#0099CC' },
 ] as const
 type SendToken = typeof SEND_TOKENS[number]
 
@@ -211,18 +212,16 @@ export function WalletPage({ initialSubView = 'main' }: { initialSubView?: Walle
           Assets
         </div>
         {[
-          { flag: '🇺🇸', name: 'USD Coin', symbol: 'USDC', balance: balance ?? '0.00', color: '#2775CA' },
-          { flag: '🇪🇺', name: 'Euro Coin', symbol: 'EURC', balance: '0.00', color: '#0099CC' },
-          { flag: '🇳🇬', name: 'Nigerian Naira', symbol: 'NGN', balance: '0.00', color: '#00A651' },
+          { name: 'USD Coin',  symbol: 'USDC', balance: balance ?? '0.00', color: '#2775CA' },
+          { name: 'Euro Coin', symbol: 'EURC', balance: '0.00',            color: '#0099CC' },
+          { name: 'Tether',    symbol: 'USDT', balance: '0.00',            color: '#26A17B' },
         ].map((token, i) => (
           <div key={token.symbol} style={{
             display: 'flex', alignItems: 'center', gap: 12,
             padding: '12px 16px',
             borderTop: i === 0 ? 'none' : '1px solid var(--nan-bdr)',
           }}>
-            <div style={{ width: 38, height: 38, borderRadius: 12, background: 'var(--nan-surface2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0 }}>
-              {token.flag}
-            </div>
+            <TokenLogo symbol={token.symbol} size={38} radius={12} />
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--nan-text)', marginBottom: 2 }}>{token.name}</div>
               <div style={{ fontSize: 11, fontWeight: 600, color: token.color }}>{token.symbol}</div>
@@ -722,7 +721,7 @@ function SendFlow({
                   border: `1.5px solid ${selectedToken.symbol === tok.symbol ? 'rgba(0,102,255,0.4)' : 'var(--nan-bdr)'}`,
                   cursor: 'pointer', fontFamily: SANS,
                 }}>
-                  <span style={{ fontSize: 16 }}>{tok.flag}</span>
+                  <TokenLogo symbol={tok.symbol} size={20} radius={6} />
                   <span style={{ fontSize: 14, fontWeight: 700, color: selectedToken.symbol === tok.symbol ? '#0066FF' : 'var(--nan-text)' }}>{tok.symbol}</span>
                 </button>
               ))}
@@ -835,7 +834,7 @@ function SendFlow({
         <div style={{ background: 'var(--nan-surface)', border: '1px solid var(--nan-bdr)', borderRadius: 16, padding: '20px' }}>
           <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--nan-text)', marginBottom: 16 }}>Review transaction</div>
           {[
-            { label: 'Token', value: `${selectedToken.flag} ${selectedToken.symbol}` },
+            { label: 'Token', value: selectedToken.symbol },
             { label: 'Recipient', value: formatAddress(recipient) },
             { label: 'Amount', value: `${formatUSDC(parseFloat(amount || '0'))} ${selectedToken.symbol}` },
             { label: 'Network', value: 'Arc Testnet' },

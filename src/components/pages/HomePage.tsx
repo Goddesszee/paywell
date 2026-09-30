@@ -10,6 +10,7 @@ import {
 import { useAppStore, ActivityItem } from '../../store/appStore'
 import { getUsdc } from '../../onchain-facts'
 import { useNanTheme, NanTheme } from '../../hooks/useNanTheme'
+import { TokenLogo } from '../ui/TokenLogo'
 
 const F    = "'Inter', -apple-system, sans-serif"
 const MONO = "'JetBrains Mono', 'SF Mono', Menlo, monospace"
@@ -201,11 +202,11 @@ export function HomePage() {
         scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch',
       }}>
         {[
-          { flag: '🇺🇸', label: 'USDC',    symbol: '$',  value: formatted,     view: 'wallet',  accent: '#0066FF' },
-          { flag: '🇪🇺', label: 'EURC',    symbol: '€',  value: eurcFormatted, view: 'swap',    accent: '#0099CC' },
-          { flag: '🇳🇬', label: 'NGN',     symbol: '₦',  value: '0.00',    view: 'wallet',  accent: '#00A651' },
-          { flag: '🇨🇦', label: 'CAD',     symbol: 'C$', value: '0.00',    view: 'wallet',  accent: '#FF0000' },
-          { flag: '🎁',  label: 'Rewards', symbol: '',   value: '0 pts',   view: 'faucet',  accent: '#FF9500' },
+          { token: 'USDC',  label: 'USDC',    symbol: '$',  value: formatted,     view: 'wallet', accent: '#2775CA' },
+          { token: 'EURC',  label: 'EURC',    symbol: '€',  value: eurcFormatted, view: 'swap',   accent: '#0099CC' },
+          { token: 'USDT',  label: 'USDT',    symbol: '$',  value: '0.00',        view: 'swap',   accent: '#26A17B' },
+          { token: 'WETH',  label: 'WETH',    symbol: '',   value: '0.00',        view: 'swap',   accent: '#627EEA' },
+          { token: 'WBTC',  label: 'WBTC',    symbol: '',   value: '0.00',        view: 'swap',   accent: '#F7931A' },
         ].map(card => (
           <button
             key={card.label}
@@ -217,7 +218,9 @@ export function HomePage() {
               WebkitTapHighlightColor: 'transparent', textAlign: 'left',
             }}
           >
-            <div style={{ marginBottom: 7 }}><span style={{ fontSize: 20 }}>{card.flag}</span></div>
+            <div style={{ marginBottom: 7 }}>
+              <TokenLogo symbol={card.token} size={28} radius={8} />
+            </div>
             <div style={{ fontSize: 15, fontWeight: 800, color: C.text, fontFamily: MONO, letterSpacing: '-0.02em', marginBottom: 6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {hidden ? '••••' : `${card.symbol}${card.value}`}
             </div>
