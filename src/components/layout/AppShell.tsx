@@ -143,7 +143,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const navActive = (id: string) => activeView === id
 
   const go = (id: string) => {
-    if (id === 'home') { setActiveView('landing'); setDrawerOpen(false); return }
+    if (id === 'home' && isDesktop) { setActiveView('landing'); setDrawerOpen(false); return }
     setActiveView(id); setDrawerOpen(false)
   }
 
