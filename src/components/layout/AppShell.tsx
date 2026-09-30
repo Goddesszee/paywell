@@ -75,7 +75,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const go = (id: string) => { setActiveView(id); setDrawerOpen(false) }
 
   return (
-    <div style={{ position:'fixed', inset:0, display:'flex', flexDirection:'column', background:C.bg, fontFamily:F, overflow:'hidden', transition:'background 0.25s' }}>
+    <div style={{ position:'fixed', inset:0, height:'100dvh', display:'flex', flexDirection:'column', background:C.bg, fontFamily:F, overflow:'hidden', transition:'background 0.25s' }}>
 
       {adminToast && (
         <div style={{ position:'fixed', top:16, left:'50%', transform:'translateX(-50%)', background:C.blue, color:'#fff', padding:'7px 18px', borderRadius:20, fontSize:12, fontWeight:600, zIndex:300, pointerEvents:'none' }}>
@@ -160,9 +160,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         backdropFilter:'blur(20px)', WebkitBackdropFilter:'blur(20px)',
         borderTop:`1px solid ${C.bdr}`,
         paddingTop:4,
-        paddingBottom:'max(4px,env(safe-area-inset-bottom))',
-        paddingLeft:'max(0px,env(safe-area-inset-left))',
-        paddingRight:'max(0px,env(safe-area-inset-right))',
+        paddingBottom:0,
+        paddingLeft:0,
+        paddingRight:0,
         transition:'background 0.25s',
       }}>
         <div style={{ display:'flex', maxWidth:480, margin:'0 auto' }}>
@@ -170,9 +170,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             const isActive = navActive(id)
             return (
               <button key={id} onClick={() => go(id)} aria-label={label} style={{
-                flex:1, height:46, display:'flex', flexDirection:'column',
+                flex:1, display:'flex', flexDirection:'column',
                 alignItems:'center', justifyContent:'center', gap:2,
-                padding:'3px 2px 4px', border:'none', background:'transparent',
+                padding:'4px 2px', paddingBottom:'max(6px,env(safe-area-inset-bottom))',
+                minHeight:46, border:'none', background:'transparent',
                 cursor:'pointer', transition:'color 0.12s',
                 fontFamily:F, WebkitTapHighlightColor:'transparent', position:'relative',
               }}>
@@ -183,9 +184,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             )
           })}
           <button onClick={() => setDrawerOpen(v => !v)} aria-label="More" style={{
-            flex:1, height:46, display:'flex', flexDirection:'column',
+            flex:1, display:'flex', flexDirection:'column',
             alignItems:'center', justifyContent:'center', gap:2,
-            padding:'3px 2px 4px', border:'none', background:'transparent',
+            padding:'4px 2px', paddingBottom:'max(6px,env(safe-area-inset-bottom))',
+            minHeight:46, border:'none', background:'transparent',
             cursor:'pointer', transition:'color 0.12s',
             fontFamily:F, WebkitTapHighlightColor:'transparent',
           }}>
