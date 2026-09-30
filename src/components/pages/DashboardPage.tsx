@@ -125,7 +125,7 @@ export function DashboardPage() {
   }
 
   return (
-    <div style={{ fontFamily: F }}>
+    <div style={{ fontFamily: F, padding: '28px 32px 48px', minHeight: '100%' }}>
 
       {/* ── Header row ── */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24, gap: 16 }}>

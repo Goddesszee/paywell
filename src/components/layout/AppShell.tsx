@@ -138,7 +138,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const navActive = (id: string) => activeView === id
 
-  const go = (id: string) => { setActiveView(id); setDrawerOpen(false) }
+  const go = (id: string) => {
+    if (id === 'home') { setActiveView('landing'); setDrawerOpen(false); return }
+    setActiveView(id); setDrawerOpen(false)
+  }
 
   // ── Desktop layout ───────────────────────────────────────────────────────
   if (isDesktop) {
@@ -161,7 +164,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           zIndex: 200,
         }}>
           <div style={{ fontSize: 13, fontWeight: 600, color: C.t2, textTransform: 'capitalize' }}>
-            {activeView === 'home' ? 'Dashboard' : activeView.charAt(0).toUpperCase() + activeView.slice(1)}
+            {activeView.charAt(0).toUpperCase() + activeView.slice(1)}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <NotificationBell color={C.t2} />
@@ -215,18 +218,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </div>
           </nav>
 
-          {/* ── Main content ── */}
+          {/* ── Main content — full width ── */}
           <main style={{
             flex: 1,
             marginLeft: SIDEBAR_W,
             overflowY: 'auto', overflowX: 'hidden',
-            padding: '24px 0 48px',
+            padding: '0',
             scrollbarWidth: 'thin',
             scrollbarColor: `${C.bdr} transparent`,
           }}>
-            <div style={{ maxWidth: 680, margin: '0 auto', padding: '0 28px' }}>
-              {children}
-            </div>
+            {children}
           </main>
         </div>
       </div>
