@@ -12,14 +12,34 @@ import { Card } from '../ui/Card'
 import { Button } from '../ui/Button'
 import { Input, Textarea } from '../ui/Input'
 import { Badge } from '../ui/Badge'
-// Download, Twitter, MessageCircle, SendIcon, Link removed (old receive view)
 import { useAppStore, ActivityItem } from '../../store/appStore'
 import { formatAddress, formatUSDC, parseOnchainError } from '../../utils/format'
 import { getUsdc, requireChain, buildTxExplorerUrl } from '@/onchain-facts'
-import { parseAmount, Amount, usdcDecimalsFor } from '@/onchain-money'
+import { Amount, usdcDecimalsFor } from '@/onchain-money'
 
 const ARC_TESTNET_ID = 5042002
 const SANS = 'Inter, -apple-system, sans-serif'
+
+// ── Supported send tokens ─────────────────────────────────────────────────────
+const SEND_TOKENS = [
+  { symbol: 'USDC',  label: 'USD Coin',  address: '0x3600000000000000000000000000000000000000' as `0x${string}`, decimals: 6,  flag: '🇺🇸', color: '#2775CA' },
+  { symbol: 'EURC',  label: 'Euro Coin', address: '0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a' as `0x${string}`, decimals: 6,  flag: '🇪🇺', color: '#0099CC' },
+] as const
+type SendToken = typeof SEND_TOKENS[number]
+
+function useTokenBalance(tokenAddress: `0x${string}`, decimals: number, address: string) {
+  const { data: rawBalance, isLoading, refetch } = useReadContract({
+    address: tokenAddress,
+    abi: erc20Abi,
+    functionName: 'balanceOf',
+    args: address ? [address as `0x${string}`] : undefined,
+    chainId: ARC_TESTNET_ID,
+    query: { enabled: !!address },
+  })
+  const rawNum = rawBalance !== undefined ? Number(rawBalance) / 10 ** decimals : 0
+  const balance = rawBalance !== undefined ? (Number(rawBalance) / 10 ** decimals).toFixed(2) : null
+  return { balance, rawNum, isLoading, refetch }
+}
 
 function useWalletBalance(address: string) {
   const usdcFact = getUsdc(ARC_TESTNET_ID)
@@ -78,7 +98,6 @@ export function WalletPage({ initialSubView = 'main' }: { initialSubView?: Walle
   if (subView === 'send' || subView === 'send_confirm' || subView === 'send_success') {
     return (
       <SendFlow
-        balance={rawNum}
         address={address}
         chainId={chainId}
         onBack={() => setSubView('main')}
@@ -281,14 +300,12 @@ function useIsDesktop() {
 }
 
 function SendFlow({
-  balance,
   address: _address,
   chainId,
   onBack,
   onSuccess,
   addActivity,
 }: {
-  balance: number
   address: string
   chainId?: number
   onBack: () => void
@@ -296,13 +313,13 @@ function SendFlow({
   addActivity: (item: Omit<ActivityItem, 'id' | 'timestamp'>) => void
 }) {
   const isDesktop = useIsDesktop()
-  const [step, setStep] = useState<SendStep>('amount')
+  const [step, setStep] = useState<SendStep>('recipient')
+  const [selectedToken, setSelectedToken] = useState<SendToken>(SEND_TOKENS[0])
   const [recipient, setRecipient] = useState('')
   const [amount, setAmount] = useState('')
   const [note, setNote] = useState('')
   const [recipientError, setRecipientError] = useState('')
   const [amountError, setAmountError] = useState('')
-
   const recipientRef = React.useRef(recipient)
   const amountRef = React.useRef(amount)
   const noteRef = React.useRef(note)
@@ -311,7 +328,7 @@ function SendFlow({
   React.useEffect(() => { noteRef.current = note }, [note])
 
   const { switchChain } = useSwitchChain()
-  const usdcFact = getUsdc(ARC_TESTNET_ID)
+  const { rawNum } = useTokenBalance(selectedToken.address, selectedToken.decimals, _address)
   const { writeContract, data: txHash, isPending, error: writeError, reset } = useWriteContract()
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash: txHash })
   const isWrongChain = chainId !== undefined && chainId !== ARC_TESTNET_ID
@@ -321,14 +338,14 @@ function SendFlow({
       setStep('success')
       addActivity({
         type: 'sent',
-        description: noteRef.current || 'Sent USDC',
+        description: noteRef.current || `Sent ${selectedToken.symbol}`,
         amount: parseFloat(amountRef.current),
         sign: '-',
         status: 'confirmed',
         counterparty: formatAddress(recipientRef.current),
         txHash,
       })
-      toast.success(`Sent ${amountRef.current} USDC successfully`)
+      toast.success(`Sent ${amountRef.current} ${selectedToken.symbol} successfully`)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSuccess, txHash])
@@ -359,20 +376,19 @@ function SendFlow({
   const validateAmount = () => {
     const n = parseFloat(amount)
     if (!amount || isNaN(n) || n <= 0) { setAmountError('Enter a valid amount'); return false }
-    if (n > balance) { setAmountError(`Insufficient balance. You have ${formatUSDC(balance)} USDC`); return false }
+    if (n > rawNum) { setAmountError(`Insufficient balance. You have ${formatUSDC(rawNum)} ${selectedToken.symbol}`); return false }
     setAmountError('')
     return true
   }
 
   const handleSend = () => {
-    if (!usdcFact) return
     if (isWrongChain) { switchChain({ chainId: ARC_TESTNET_ID }); return }
-    const parsed = parseAmount(ARC_TESTNET_ID, amount)
+    const rawAmount = BigInt(Math.round(parseFloat(amount) * 10 ** selectedToken.decimals))
     writeContract({
-      address: usdcFact.address as `0x${string}`,
+      address: selectedToken.address,
       abi: erc20Abi,
       functionName: 'transfer',
-      args: [recipient as `0x${string}`, parsed.raw],
+      args: [recipient as `0x${string}`, rawAmount],
       chainId: ARC_TESTNET_ID,
     })
   }
@@ -406,14 +422,14 @@ function SendFlow({
           </div>
           <h2 style={{ fontSize: 26, fontWeight: 800, color: 'var(--nan-text)', letterSpacing: '-0.03em', marginBottom: 6 }}>Sent!</h2>
           <p style={{ fontSize: 14, color: 'var(--nan-text2)', marginBottom: 28 }}>
-            {formatUSDC(parseFloat(amount))} USDC sent to {formatAddress(recipient)}
+            {formatUSDC(parseFloat(amount))} {selectedToken.symbol} sent to {formatAddress(recipient)}
           </p>
           <div style={{
             background: 'var(--nan-surface)', border: '1px solid var(--nan-bdr)',
             borderRadius: 16, padding: '16px 20px', marginBottom: 24, textAlign: 'left',
           }}>
             {[
-              { label: 'Amount', value: `${formatUSDC(parseFloat(amount))} USDC` },
+              { label: 'Amount', value: `${formatUSDC(parseFloat(amount))} ${selectedToken.symbol}` },
               { label: 'To', value: formatAddress(recipient) },
               { label: 'Network', value: 'Arc Testnet' },
               { label: 'Fee', value: '~0.00 USDC' },
@@ -468,7 +484,7 @@ function SendFlow({
   // ── DESKTOP layout ─────────────────────────────────────────────────────────
   if (isDesktop) {
     const numVal = parseFloat(amount) || 0
-    const canProceedAmount = amount !== '' && numVal > 0 && numVal <= balance
+    const canProceedAmount = amount !== '' && numVal > 0 && numVal <= rawNum
     const KEYS = ['1','2','3','4','5','6','7','8','9','.','0','backspace']
 
     return (
@@ -500,14 +516,14 @@ function SendFlow({
             <div style={{ textAlign: 'center', marginBottom: 8 }}>
               <div style={{ fontSize: 56, fontWeight: 800, color: amount ? 'var(--nan-text)' : 'rgba(255,255,255,0.2)', letterSpacing: '-0.04em', fontFamily: 'JetBrains Mono, monospace', lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
                 <span>{amount || '0'}</span>
-                <span style={{ fontSize: 28, color: 'rgba(255,255,255,0.3)', fontWeight: 600 }}>USDC</span>
+                <span style={{ fontSize: 28, color: 'rgba(255,255,255,0.3)', fontWeight: 600 }}>{selectedToken.symbol}</span>
               </div>
               <div style={{ marginTop: 10, display: 'inline-flex', alignItems: 'center', gap: 6, background: 'var(--nan-surface2)', borderRadius: 100, padding: '5px 14px' }}>
                 <span style={{ fontSize: 13, color: 'var(--nan-text2)' }}>$ {(numVal).toFixed(2)}</span>
               </div>
             </div>
             <div style={{ textAlign: 'center', fontSize: 13, color: 'var(--nan-text3)', marginBottom: 20 }}>
-              {formatUSDC(balance)} USDC available
+              {formatUSDC(rawNum)} {selectedToken.symbol} available
             </div>
             {amountError && <p style={{ fontSize: 12, color: '#FF3B3B', textAlign: 'center', marginBottom: 8 }}>{amountError}</p>}
 
@@ -516,7 +532,7 @@ function SendFlow({
               {['25%', '50%', '75%', 'Max'].map((lbl) => (
                 <button key={lbl} onClick={() => {
                   const pct = lbl === 'Max' ? 1 : parseFloat(lbl) / 100
-                  setAmount((balance * pct).toFixed(6).replace(/\.?0+$/, ''))
+                  setAmount((rawNum * pct).toFixed(6).replace(/\.?0+$/, ''))
                   setAmountError('')
                 }} style={{
                   height: 44, borderRadius: 12,
@@ -599,7 +615,7 @@ function SendFlow({
                 borderRadius: 24, padding: '20px 24px',
               }}>
                 {[
-                  { label: 'Sending', value: amount ? `${formatUSDC(numVal)} USDC` : '—' },
+                  { label: 'Sending', value: amount ? `${formatUSDC(numVal)} ${selectedToken.symbol}` : '—' },
                   { label: 'To', value: recipient ? formatAddress(recipient) : '—' },
                   { label: 'Fee', value: '~0.00 USDC' },
                 ].map(({ label, value }) => (
@@ -655,133 +671,215 @@ function SendFlow({
     )
   }
 
-  // ── MOBILE layout (unchanged) ──────────────────────────────────────────────
+  // ── MOBILE layout ─────────────────────────────────────────────────────────
   return (
-    <div style={{ minHeight: 'calc(100vh - 120px)', display: 'flex', flexDirection: 'column' }}>
-    <div className="max-w-lg mx-auto px-4 py-6 space-y-4 pb-28 lg:pb-8" style={{ flex: 1 }}>
-      <div className="flex items-center gap-3">
+    <div style={{ maxWidth: 480, margin: '0 auto', padding: '16px 16px 100px', fontFamily: SANS }}>
+
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
         <button
           onClick={displayStep === 'recipient' ? onBack : () => setStep(
             displayStep === 'review' ? 'note' : displayStep === 'note' ? 'amount' : 'recipient'
           )}
-          className="w-9 h-9 flex items-center justify-center rounded-xl hover:nan-surface-fix text-nan transition-colors"
+          style={{ width: 36, height: 36, borderRadius: 10, background: 'var(--nan-surface)', border: '1px solid var(--nan-bdr)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}
         >
-          <X size={18} />
+          <X size={16} color="var(--nan-text)" />
         </button>
         <div>
-          <h1 className="text-xl font-bold text-nan" style={{ fontFamily: SANS }}>Send USDC</h1>
-          <p className="text-xs text-nan2">
+          <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--nan-text)', letterSpacing: '-0.02em' }}>
+            Send {selectedToken.symbol}
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--nan-text3)', marginTop: 1 }}>
             {displayStep === 'recipient' && 'Step 1 of 4 — Recipient'}
             {displayStep === 'amount' && 'Step 2 of 4 — Amount'}
-            {displayStep === 'note' && 'Step 3 of 4 — Note (optional)'}
+            {displayStep === 'note' && 'Step 3 of 4 — Note'}
             {displayStep === 'review' && 'Step 4 of 4 — Review'}
             {displayStep === 'error' && 'Transaction failed'}
-          </p>
+          </div>
         </div>
       </div>
 
       {isWrongChain && (
-        <div className="flex items-center gap-2 nan-surface-fix border border-white/10 rounded-xl px-3 py-2.5">
-          <AlertCircle size={15} className="text-nan flex-shrink-0" />
-          <p className="text-sm text-nan font-medium flex-1">Switch to Arc Testnet to send USDC.</p>
-          <Button size="sm" variant="secondary" onClick={() => switchChain({ chainId: ARC_TESTNET_ID })}>Switch</Button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(255,59,59,0.08)', border: '1px solid rgba(255,59,59,0.2)', borderRadius: 12, padding: '10px 14px', marginBottom: 14 }}>
+          <AlertCircle size={14} color="#FF3B3B" />
+          <span style={{ fontSize: 13, color: '#FF3B3B', flex: 1 }}>Switch to Arc Testnet first.</span>
+          <button onClick={() => switchChain({ chainId: ARC_TESTNET_ID })} style={{ fontSize: 12, fontWeight: 700, color: '#FF3B3B', background: 'none', border: 'none', cursor: 'pointer' }}>Switch</button>
         </div>
       )}
 
-      {(displayStep === 'recipient' || displayStep === 'amount') && (
-        <Card padding="lg">
-          <Input
-            label="Recipient address"
+      {/* ── Step: recipient ── */}
+      {displayStep === 'recipient' && (
+        <div style={{ background: 'var(--nan-surface)', border: '1px solid var(--nan-bdr)', borderRadius: 16, padding: '20px' }}>
+          {/* Token selector */}
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--nan-text3)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 8 }}>Token</div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              {SEND_TOKENS.map(tok => (
+                <button key={tok.symbol} onClick={() => setSelectedToken(tok)} style={{
+                  flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                  padding: '10px 12px', borderRadius: 12,
+                  background: selectedToken.symbol === tok.symbol ? 'rgba(0,102,255,0.12)' : 'var(--nan-surface2)',
+                  border: `1.5px solid ${selectedToken.symbol === tok.symbol ? 'rgba(0,102,255,0.4)' : 'var(--nan-bdr)'}`,
+                  cursor: 'pointer', fontFamily: SANS,
+                }}>
+                  <span style={{ fontSize: 16 }}>{tok.flag}</span>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: selectedToken.symbol === tok.symbol ? '#0066FF' : 'var(--nan-text)' }}>{tok.symbol}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Recipient */}
+          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--nan-text3)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 8 }}>Recipient Address</div>
+          <input
+            type="text"
             placeholder="0x..."
             value={recipient}
-            onChange={(e) => setRecipient(e.target.value)}
-            error={recipientError}
+            onChange={e => { setRecipient(e.target.value); setRecipientError('') }}
             autoFocus
+            style={{
+              width: '100%', padding: '14px 16px', borderRadius: 12, boxSizing: 'border-box',
+              background: 'var(--nan-surface2)', border: `1.5px solid ${recipientError ? '#FF3B3B' : 'var(--nan-bdr)'}`,
+              color: 'var(--nan-text)', fontSize: 14, fontFamily: 'JetBrains Mono, monospace', outline: 'none',
+            }}
           />
-          <div className="mt-4">
-            <Button fullWidth onClick={() => { if (validateRecipient()) setStep('amount') }} iconRight={<ChevronRight size={16} />}>
-              Continue
-            </Button>
-          </div>
-        </Card>
-      )}
-
-      {displayStep === 'amount' && (
-        <Card padding="lg">
-          <Input
-            label="Amount"
-            placeholder="0.00"
-            type="number"
-            min="0"
-            step="0.01"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            error={amountError}
-            suffix={<span className="text-xs font-bold text-nan2">USDC</span>}
-            autoFocus
-          />
-          <div className="mt-2 flex items-center justify-between text-xs text-nan2">
-            <span>Available: <span className="font-semibold text-nan tabular-nums">{formatUSDC(balance)} USDC</span></span>
-            <button onClick={() => setAmount(balance.toFixed(6))} className="font-semibold underline underline-offset-2">Max</button>
-          </div>
-          <div className="flex gap-2 mt-3">
-            {[5, 10, 25, 50].map((v) => (
-              <button key={v} onClick={() => setAmount(v.toString())} disabled={v > balance}
-                className="flex-1 h-9 text-sm font-semibold rounded-xl nan-surface-fix hover:nan-surface2-fix text-nan disabled:opacity-40 transition-colors">
-                {v}
-              </button>
-            ))}
-          </div>
-          <div className="mt-4">
-            <Button fullWidth onClick={() => { if (validateAmount()) setStep('note') }} iconRight={<ChevronRight size={16} />}>
-              Continue
-            </Button>
-          </div>
-        </Card>
-      )}
-
-      {displayStep === 'note' && (
-        <Card padding="lg">
-          <Textarea label="Add a note (optional)" placeholder="What's this payment for?" value={note} onChange={(e) => setNote(e.target.value)} rows={3} />
-          <div className="mt-4">
-            <Button fullWidth onClick={() => setStep('review')} iconRight={<ChevronRight size={16} />}>Review</Button>
-          </div>
-        </Card>
-      )}
-
-      {displayStep === 'review' && (
-        <Card padding="lg">
-          <h2 className="text-base font-bold text-nan mb-4">Review transaction</h2>
-          <div className="space-y-3 mb-6">
-            <Row label="Recipient" value={formatAddress(recipient)} mono />
-            <Row label="Amount" value={`${formatUSDC(parseFloat(amount || '0'))} USDC`} mono />
-            <Row label="Network" value="Arc Testnet" />
-            {note && <Row label="Note" value={note} />}
-            <div className="pt-2 border-t border-white/5">
-              <Row label="Fee" value="~0.00 USDC (gas-free)" />
-            </div>
-          </div>
-          <Button fullWidth onClick={handleSend} loading={isPending || isConfirming} disabled={isWrongChain} size="lg">
-            {isWrongChain ? 'Switch Network First' : 'Confirm & Send'}
-          </Button>
-        </Card>
-      )}
-
-      {displayStep === 'error' && (
-        <div className="space-y-3">
-          <Card padding="md">
-            <div className="flex items-start gap-2 text-nan">
-              <AlertCircle size={16} className="flex-shrink-0 mt-0.5" />
-              <div>
-                <p className="text-sm font-semibold">Transaction failed</p>
-                <p className="text-xs mt-1 text-nan2">{parseOnchainError(writeError)}</p>
-              </div>
-            </div>
-          </Card>
-          <Button fullWidth variant="secondary" onClick={() => { reset(); setStep('review') }}>Try again</Button>
+          {recipientError && <p style={{ fontSize: 12, color: '#FF3B3B', marginTop: 6 }}>{recipientError}</p>}
+          <button
+            onClick={() => { if (validateRecipient()) setStep('amount') }}
+            style={{
+              width: '100%', height: 50, borderRadius: 12, marginTop: 16,
+              background: '#0066FF', border: 'none', color: '#fff',
+              fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: SANS,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+            }}
+          >Continue <ChevronRight size={16} /></button>
         </div>
       )}
-    </div>
+
+      {/* ── Step: amount ── */}
+      {displayStep === 'amount' && (
+        <div style={{ background: 'var(--nan-surface)', border: '1px solid var(--nan-bdr)', borderRadius: 16, padding: '20px' }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--nan-text3)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 8 }}>Amount</div>
+          <div style={{ position: 'relative' }}>
+            <input
+              type="number"
+              inputMode="decimal"
+              placeholder="0.00"
+              value={amount}
+              onChange={e => { setAmount(e.target.value); setAmountError('') }}
+              autoFocus
+              style={{
+                width: '100%', padding: '14px 72px 14px 16px', borderRadius: 12, boxSizing: 'border-box',
+                background: 'var(--nan-surface2)', border: `1.5px solid ${amountError ? '#FF3B3B' : 'var(--nan-bdr)'}`,
+                color: 'var(--nan-text)', fontSize: 22, fontWeight: 700, fontFamily: 'JetBrains Mono, monospace', outline: 'none',
+              }}
+            />
+            <span style={{ position: 'absolute', right: 16, top: '50%', transform: 'translateY(-50%)', fontSize: 13, fontWeight: 700, color: 'var(--nan-text3)' }}>
+              {selectedToken.symbol}
+            </span>
+          </div>
+          {amountError && <p style={{ fontSize: 12, color: '#FF3B3B', marginTop: 6 }}>{amountError}</p>}
+
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 10, marginBottom: 12 }}>
+            <span style={{ fontSize: 13, color: 'var(--nan-text3)' }}>
+              Available: <strong style={{ color: 'var(--nan-text)' }}>{formatUSDC(rawNum)} {selectedToken.symbol}</strong>
+            </span>
+            <button onClick={() => { setAmount(rawNum.toFixed(6)); setAmountError('') }}
+              style={{ fontSize: 13, fontWeight: 700, color: '#0066FF', background: 'none', border: 'none', cursor: 'pointer', fontFamily: SANS }}>
+              MAX
+            </button>
+          </div>
+
+          <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+            {['20%', '50%', '75%'].map(pct => (
+              <button key={pct} onClick={() => {
+                const p = parseFloat(pct) / 100
+                setAmount((rawNum * p).toFixed(6).replace(/\.?0+$/, ''))
+                setAmountError('')
+              }} style={{
+                flex: 1, height: 40, borderRadius: 10,
+                background: 'var(--nan-surface2)', border: '1px solid var(--nan-bdr)',
+                color: 'var(--nan-text)', fontSize: 13, fontWeight: 700,
+                cursor: 'pointer', fontFamily: SANS,
+              }}>{pct}</button>
+            ))}
+          </div>
+
+          <button
+            onClick={() => { if (validateAmount()) setStep('note') }}
+            style={{
+              width: '100%', height: 50, borderRadius: 12,
+              background: '#0066FF', border: 'none', color: '#fff',
+              fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: SANS,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+            }}
+          >Continue <ChevronRight size={16} /></button>
+        </div>
+      )}
+
+      {/* ── Step: note ── */}
+      {displayStep === 'note' && (
+        <div style={{ background: 'var(--nan-surface)', border: '1px solid var(--nan-bdr)', borderRadius: 16, padding: '20px' }}>
+          <Textarea label="Add a note (optional)" placeholder="What's this payment for?" value={note} onChange={(e) => setNote(e.target.value)} rows={3} />
+          <button onClick={() => setStep('review')} style={{
+            width: '100%', height: 50, borderRadius: 12, marginTop: 16,
+            background: '#0066FF', border: 'none', color: '#fff',
+            fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: SANS,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+          }}>Review <ChevronRight size={16} /></button>
+        </div>
+      )}
+
+      {/* ── Step: review ── */}
+      {displayStep === 'review' && (
+        <div style={{ background: 'var(--nan-surface)', border: '1px solid var(--nan-bdr)', borderRadius: 16, padding: '20px' }}>
+          <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--nan-text)', marginBottom: 16 }}>Review transaction</div>
+          {[
+            { label: 'Token', value: `${selectedToken.flag} ${selectedToken.symbol}` },
+            { label: 'Recipient', value: formatAddress(recipient) },
+            { label: 'Amount', value: `${formatUSDC(parseFloat(amount || '0'))} ${selectedToken.symbol}` },
+            { label: 'Network', value: 'Arc Testnet' },
+            ...(note ? [{ label: 'Note', value: note }] : []),
+            { label: 'Fee', value: '~0.00 (gas-free)' },
+          ].map(({ label, value }) => (
+            <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--nan-bdr)' }}>
+              <span style={{ fontSize: 13, color: 'var(--nan-text2)' }}>{label}</span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--nan-text)', fontFamily: label === 'Recipient' || label === 'Amount' ? 'JetBrains Mono, monospace' : SANS }}>{value}</span>
+            </div>
+          ))}
+          <button
+            onClick={handleSend}
+            disabled={isPending || isConfirming || isWrongChain}
+            style={{
+              width: '100%', height: 50, borderRadius: 12, marginTop: 16,
+              background: isPending || isConfirming ? 'var(--nan-surface2)' : '#0066FF',
+              border: 'none', color: isPending || isConfirming ? 'var(--nan-text3)' : '#fff',
+              fontSize: 15, fontWeight: 700, cursor: isPending || isConfirming ? 'not-allowed' : 'pointer', fontFamily: SANS,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            }}
+          >
+            {isPending ? 'Confirm in wallet…' : isConfirming ? 'Confirming…' : isWrongChain ? 'Switch Network First' : 'Confirm & Send'}
+          </button>
+        </div>
+      )}
+
+      {/* ── Step: error ── */}
+      {displayStep === 'error' && (
+        <div style={{ background: 'rgba(255,59,59,0.08)', border: '1px solid rgba(255,59,59,0.2)', borderRadius: 16, padding: '16px 20px', marginBottom: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+            <AlertCircle size={16} color="#FF3B3B" style={{ flexShrink: 0, marginTop: 1 }} />
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: '#FF3B3B', marginBottom: 4 }}>Transaction failed</div>
+              <div style={{ fontSize: 12, color: '#FF3B3B' }}>{parseOnchainError(writeError)}</div>
+            </div>
+          </div>
+          <button onClick={() => { reset(); setStep('review') }} style={{
+            width: '100%', height: 44, borderRadius: 10, marginTop: 12,
+            background: 'var(--nan-surface)', border: '1px solid var(--nan-bdr)', color: 'var(--nan-text)',
+            fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: SANS,
+          }}>Try again</button>
+        </div>
+      )}
     </div>
   )
 }
