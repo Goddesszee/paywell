@@ -1,4 +1,3 @@
-import { useNanTheme } from '../../hooks/useNanTheme'
 import React, { useState, useRef } from 'react'
 import {
   Copy, ArrowUpRight, ArrowDownLeft, Check, ExternalLink,

@@ -1,12 +1,14 @@
 import React, { useState, useRef } from 'react'
 import {
   Home, Wallet, Activity, Menu, X,
-  ArrowLeftRight, ArrowUpDown, Zap, Settings, ChevronRight,
-  CreditCard, Droplet, Layers, Repeat, Bot
+  ArrowLeftRight, ArrowUpDown, Settings, ChevronRight,
+  CreditCard, Droplet, Layers, Repeat, Bot, Shield,
+  MessageSquare, HelpCircle, Info
 } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
 import { useAccount } from 'wagmi'
 import { useNanTheme } from '../../hooks/useNanTheme'
+import { NotificationBell } from '../ui/NotificationBell'
 
 const F = "'Inter',-apple-system,sans-serif"
 const ADMIN_ADDRESS = (import.meta.env.VITE_ADMIN_ADDRESS as string ?? '').toLowerCase()
@@ -20,17 +22,23 @@ const NAV_ITEMS = [
 const DRAWER_SECTIONS = [
   { title: 'Finance', items: [
     { id: 'onramp',    label: 'Buy USDC',  Icon: CreditCard,     desc: 'Card, Apple Pay, bank' },
-    { id: 'faucet',    label: 'Faucet',    Icon: Droplet,        desc: 'Free testnet USDC' },
     { id: 'swap',      label: 'Swap',      Icon: ArrowUpDown,    desc: 'Exchange tokens' },
     { id: 'bridge',    label: 'Bridge',    Icon: ArrowLeftRight, desc: 'Move USDC across chains' },
     { id: 'gateway',   label: 'Gateway',   Icon: Layers,         desc: 'Unified cross-chain balance' },
+    { id: 'faucet',    label: 'Faucet',    Icon: Droplet,        desc: 'Free testnet USDC' },
   ]},
   { title: 'Automation', items: [
-    { id: 'agent',     label: 'AI Agent',  Icon: Bot,            desc: 'Autonomous payments' },
-    { id: 'recurring', label: 'Recurring', Icon: Repeat,         desc: 'Scheduled payments' },
+    { id: 'agent',     label: 'AI Agents',       Icon: Bot,     desc: 'Create and manage agents' },
+    { id: 'agent',     label: 'Agent Spending',   Icon: Shield,  desc: 'Budgets & permissions' },
+    { id: 'recurring', label: 'Recurring',        Icon: Repeat,  desc: 'Scheduled payments' },
   ]},
   { title: 'Account', items: [
-    { id: 'settings',  label: 'Settings',  Icon: Settings,       desc: 'Wallet & preferences' },
+    { id: 'settings',  label: 'Settings',   Icon: Settings,       desc: 'Wallet & preferences' },
+  ]},
+  { title: 'Help & Info', items: [
+    { id: 'support',   label: 'Support',    Icon: MessageSquare,  desc: 'Get help from our team' },
+    { id: 'faq',       label: 'FAQ',        Icon: HelpCircle,     desc: 'Common questions answered' },
+    { id: 'about',     label: 'About NAN',  Icon: Info,           desc: 'Platform info & contact' },
   ]},
 ]
 
@@ -94,6 +102,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <span style={{ width:5, height:5, borderRadius:'50%', background:C.blue, display:'inline-block' }} />
             Arc Testnet
           </div>
+          <NotificationBell color={C.t2} />
           <button onClick={() => setDrawerOpen(v => !v)} aria-label="Menu" style={{ width:34, height:34, borderRadius:8, background:drawerOpen?C.blue:C.surf2, border:`1px solid ${drawerOpen?C.blue:C.bdr2}`, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', transition:'all 0.15s' }}>
             {drawerOpen ? <X size={15} color="#fff" /> : <Menu size={15} color={C.t2} />}
           </button>

@@ -15,6 +15,15 @@ import { FaucetPage } from './components/pages/FaucetPage'
 import { AdminDashboard } from './components/pages/AdminDashboard'
 import { GatewayPage } from './components/pages/GatewayPage'
 import { RecurringPage } from './components/pages/RecurringPage'
+import { NotificationsPage } from './components/pages/NotificationsPage'
+import { SupportPage } from './components/pages/SupportPage'
+import { FAQPage } from './components/pages/FAQPage'
+import { AboutPage } from './components/pages/AboutPage'
+import { FeedbackPage } from './components/pages/FeedbackPage'
+import { SuggestionsPage } from './components/pages/SuggestionsPage'
+import { ProfilePage } from './components/pages/ProfilePage'
+import { SearchPage } from './components/pages/SearchPage'
+import { FavoritesPage } from './components/pages/FavoritesPage'
 
 export default function App() {
   const { activeView } = useAppStore()
@@ -42,6 +51,15 @@ export default function App() {
       {activeView === 'help' && <SettingsPage />}
       {activeView === 'gateway' && <GatewayPage />}
       {activeView === 'recurring' && <RecurringPage />}
+      {activeView === 'notifications' && <NotificationsPage />}
+      {activeView === 'support' && <SupportPage />}
+      {activeView === 'faq' && <FAQPage />}
+      {activeView === 'about' && <AboutPage />}
+      {activeView === 'feedback' && <FeedbackPage />}
+      {activeView === 'suggestions' && <SuggestionsPage />}
+      {activeView === 'profile' && <ProfilePage />}
+      {activeView === 'search' && <SearchPage />}
+      {activeView === 'favorites' && <FavoritesPage />}
     </AppShell>
   )
 }

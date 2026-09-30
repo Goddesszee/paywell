@@ -1,6 +1,5 @@
-import { useNanTheme } from '../../hooks/useNanTheme'
 import React, { useState } from 'react'
-import { Wallet, Bot, Shield, HelpCircle, ExternalLink, ChevronRight, LogOut, Save, Sun, Moon } from 'lucide-react'
+import { Wallet, Bot, Shield, HelpCircle, ExternalLink, ChevronRight, LogOut, Save, Sun, Moon, User, Bell, Star, Lightbulb, MessageSquare, Bookmark } from 'lucide-react'
 import { useAccount, useDisconnect } from 'wagmi'
 import { ConnectKitButton } from 'connectkit'
 import { useAppStore } from '../../store/appStore'
@@ -52,8 +51,8 @@ function RowItem({
         cursor: onClick ? 'pointer' : 'default',
         transition: onClick ? 'background 0.12s' : 'none',
       }}
-      onMouseEnter={e => { if (onClick) (e.currentTarget as HTMLDivElement).style.background = 'var(--nan-surface2)' }}
-      onMouseLeave={e => { if (onClick) (e.currentTarget as HTMLDivElement).style.background = 'transparent' }}
+      onMouseEnter={e => { if (onClick) (e.currentTarget).style.background = 'var(--nan-surface2)' }}
+      onMouseLeave={e => { if (onClick) (e.currentTarget).style.background = 'transparent' }}
     >
       <div style={{ width:32, height:32, borderRadius:8, background:danger?'rgba(255,59,59,0.10)':SURF2, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
         {React.cloneElement(icon as React.ReactElement, { size:16, color: danger ? RED : T2 })}
@@ -94,7 +93,22 @@ export function SettingsPage() {
   return (
     <div style={{ maxWidth:480, margin:'0 auto', fontFamily:F, paddingBottom:80 }}>
       <h1 style={{ fontSize:22, fontWeight:700, letterSpacing:'-0.025em', color:TEXT, marginBottom:2 }}>Settings</h1>
-      <p style={{ fontSize:13, color:T3, marginBottom:4 }}>NAN · Arc Testnet · Circle USDC</p>
+      <p style={{ fontSize:13, color:T3, marginBottom:16 }}>NAN · Arc Testnet · Circle USDC</p>
+
+      {/* Profile shortcut */}
+      <CardBlock>
+        <RowItem icon={<User />} label="Your Profile" sub="Photo, name, bio, saved items" onClick={() => setActiveView('profile')} />
+        <RowItem icon={<Bell />} label="Notifications" sub="Manage alerts and preferences" onClick={() => setActiveView('profile')} noBorder />
+      </CardBlock>
+
+      <SectionLabel>Help</SectionLabel>
+      <CardBlock>
+        <RowItem icon={<MessageSquare />} label="Customer Support" sub="Get help from our team" onClick={() => setActiveView('support')} />
+        <RowItem icon={<HelpCircle />} label="FAQ" sub="Common questions answered" onClick={() => setActiveView('faq')} />
+        <RowItem icon={<Star />} label="Leave Feedback" sub="Rate your experience" onClick={() => setActiveView('feedback')} />
+        <RowItem icon={<Lightbulb />} label="Suggestion Box" sub="Share ideas to improve NAN" onClick={() => setActiveView('suggestions')} />
+        <RowItem icon={<Bookmark />} label="Saved Items" sub="Your bookmarked content" onClick={() => setActiveView('favorites')} noBorder />
+      </CardBlock>
 
       {!isConnected && (
         <div style={{ background:SURF, border:`1px solid ${BDR}`, borderRadius:14, padding:'16px', marginTop:16 }}>

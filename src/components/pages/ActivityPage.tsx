@@ -1,13 +1,10 @@
-import { useNanTheme } from '../../hooks/useNanTheme'
 import React, { useState } from 'react'
 import { ArrowUpRight, ArrowDownLeft, Bot, Filter, Search, CheckCircle2, Clock, XCircle } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
 
 const F    = "'Inter', -apple-system, sans-serif"
 const MONO = "'JetBrains Mono', Menlo, monospace"
-const BG   = 'var(--nan-bg)'
 const SURF = 'var(--nan-surface)'
-const SURF2= 'var(--nan-surface2)'
 const BDR  = 'var(--nan-bdr)'
 const BLUE = '#0066FF'
 const TEXT = 'var(--nan-text)'
@@ -33,7 +30,6 @@ function StatusIcon({ status }: { status: string }) {
 }
 
 export function ActivityPage() {
-  const C = useNanTheme()
   const { activity } = useAppStore()
   const [activeFilter, setActiveFilter] = useState<Filter>('all')
   const [search, setSearch] = useState('')
@@ -47,8 +43,8 @@ export function ActivityPage() {
   ]
 
   const filtered = activity.filter(item => {
-    if (activeFilter === 'sent') return item.type === 'send'
-    if (activeFilter === 'received') return item.type === 'receive'
+    if (activeFilter === 'sent') return item.type === 'sent'
+    if (activeFilter === 'received') return item.type === 'received'
     if (activeFilter === 'agent') return item.agentInitiated
     if (activeFilter === 'purchase') return item.type === 'purchase'
     return true

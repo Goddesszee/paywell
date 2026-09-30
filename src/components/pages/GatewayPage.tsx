@@ -8,7 +8,6 @@ import { usdcDecimalsFor } from '@/onchain-money'
 
 const F    = "'Inter', -apple-system, sans-serif"
 const MONO = "'JetBrains Mono', Menlo, monospace"
-const BG   = 'var(--nan-bg)'
 const SURF = 'var(--nan-surface)'
 const SURF2= 'var(--nan-surface2)'
 const BDR  = 'var(--nan-bdr)'
@@ -28,7 +27,7 @@ export function GatewayPage() {
   const { data: rawWalletBalance, isLoading, refetch } = useReadContract({
     address: usdcFact?.address as `0x${string}`,
     abi: erc20Abi, functionName: 'balanceOf',
-    args: address ? [address as `0x${string}`] : undefined,
+    args: address ? [address] : undefined,
     chainId: ARC, query: { enabled: !!address && !!usdcFact },
   })
   const decimals = usdcDecimalsFor(ARC)
@@ -125,18 +124,21 @@ function DepositTab({ address, walletBalance, onSuccess }: { address?: string; w
 
   useEffect(() => {
     if (approveSuccess && parsed > 0n && usdcFact) {
+      // eslint-disable-next-line react/set-state-in-effect
       setPhase('depositing')
       deposit({ address: usdcFact.address as `0x${string}`, abi: erc20Abi, functionName: 'transfer', args: [GATEWAY_WALLET, parsed], chainId: ARC })
     }
   }, [approveSuccess]) // eslint-disable-line
 
   useEffect(() => {
+    // eslint-disable-next-line react/set-state-in-effect
     if (depositSuccess) { setPhase('done'); toast.success(`Deposited ${amount} USDC to Gateway`); setTimeout(onSuccess, 1500) }
   }, [depositSuccess]) // eslint-disable-line
 
   useEffect(() => {
+    // eslint-disable-next-line react/set-state-in-effect
     if (approveError || depositError) { setPhase('error'); setErrMsg('Transaction rejected or failed.') }
-  }, [approveError, depositError])
+  }, [approveError, depositError]) // eslint-disable-line
 
   const handleDeposit = async () => {
     if (!address || !usdcFact || !amount || parseFloat(amount) <= 0) return

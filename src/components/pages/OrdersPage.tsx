@@ -197,7 +197,7 @@ function OrderDetail({
 
   const isActive     = order.status === 'active'
   const isDisputed   = order.status === 'disputed'
-  const isCompleted  = order.status === 'completed'
+  const _isCompleted = order.status === 'completed'
   const canConfirm   = isActive && order.deliveryStage === 'delivered'
   const canDispute   = isActive && !isDisputed
   const canRefund    = (isActive || isDisputed) && !order.refundStatus

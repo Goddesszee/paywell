@@ -31,7 +31,7 @@ if (x402Enabled) {
 }
 
 // Helper: apply gateway.require only when x402 is enabled
-function paywall(price: string): express.RequestHandler {
+function _paywall(price: string): express.RequestHandler {
   if (gateway) return gateway.require(price)
   return (_req, _res, next) => next()
 }
@@ -268,7 +268,7 @@ app.get('/api/activity-feed', (req, res) => {
     }
     const activities = activityStore.get(wallet) ?? []
     res.json({ success: true, activities })
-  } catch (e) {
+  } catch (_e) {
     res.status(500).json({ success: false, error: 'Server error' })
   }
 })
@@ -345,7 +345,7 @@ app.post('/api/marketplace/order', (req, res) => {
       status: 'complete',
       createdAt: new Date().toISOString(),
     })
-  } catch (e) {
+  } catch (_e) {
     res.status(500).json({ success: false, error: 'Server error' })
   }
 })
@@ -480,6 +480,478 @@ const PRODUCTS = [
   { id: 'standing-mat-11', name: 'Anti-Fatigue Standing Mat', price: 32, merchant: 'DeskLife', merchantId: 'desklife', category: 'home', description: '3/4" thick PU foam, bevelled edges, easy-clean surface.', image: '', rating: 4.4, reviewCount: 208, inStock: true, tags: ['mat', 'standing desk', 'ergonomic'] },
   { id: 'whey-12', name: 'Whey Protein — Chocolate', price: 28, merchant: 'NutriCore', merchantId: 'nutricore', category: 'food', description: '25g protein per serving, 30 servings, low sugar.', image: '', rating: 4.6, reviewCount: 741, inStock: true, tags: ['protein', 'fitness', 'food'] },
 ]
+
+// ── Support tickets ────────────────────────────────────────────────────────────
+
+interface SupportMessage {
+  id: string
+  author: 'customer' | 'admin'
+  content: string
+  timestamp: string
+}
+
+interface SupportTicket {
+  id: string
+  userEmail: string
+  subject: string
+  status: 'open' | 'in_progress' | 'resolved'
+  messages: SupportMessage[]
+  createdAt: string
+  updatedAt: string
+  hasUnreadAdmin: boolean   // customer has unread admin replies
+  hasUnreadCustomer: boolean // admin has unread customer messages
+}
+
+const supportStore = new Map<string, SupportTicket>() // ticketId -> ticket
+
+function getTicketsByEmail(email: string): SupportTicket[] {
+  return [...supportStore.values()].filter(t => t.userEmail === email).sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+}
+
+// Create ticket
+app.post('/api/support/tickets', (req, res) => {
+  const session = requireSession(req, res)
+  if (!session) return
+  const { subject, message } = req.body as { subject: string; message: string }
+  if (!subject || !message) { res.status(400).json({ success: false, error: 'subject and message required' }); return }
+  const id = `TKT-${Date.now().toString(36).toUpperCase()}`
+  const now = new Date().toISOString()
+  const ticket: SupportTicket = {
+    id, userEmail: session.email, subject, status: 'open',
+    messages: [{ id: `msg-${Date.now()}`, author: 'customer', content: message, timestamp: now }],
+    createdAt: now, updatedAt: now, hasUnreadAdmin: false, hasUnreadCustomer: true,
+  }
+  supportStore.set(id, ticket)
+  // Create notification for customer (ticket created confirmation)
+  addNotification(session.email, {
+    type: 'support',
+    title: 'Support request received',
+    body: `Your request "${subject}" has been submitted. We'll get back to you shortly.`,
+    ticketId: id,
+  })
+  res.json({ success: true, ticket })
+})
+
+// Get tickets for current user
+app.get('/api/support/tickets', (req, res) => {
+  const session = requireSession(req, res)
+  if (!session) return
+  res.json({ success: true, tickets: getTicketsByEmail(session.email) })
+})
+
+// Get single ticket
+app.get('/api/support/tickets/:id', (req, res) => {
+  const session = requireSession(req, res)
+  if (!session) return
+  const ticket = supportStore.get(req.params.id)
+  if (!ticket) { res.status(404).json({ success: false, error: 'Not found' }); return }
+  if (ticket.userEmail !== session.email) { res.status(403).json({ success: false, error: 'Forbidden' }); return }
+  // Mark customer as having read admin messages
+  ticket.hasUnreadAdmin = false
+  res.json({ success: true, ticket })
+})
+
+// Customer reply
+app.post('/api/support/tickets/:id/reply', (req, res) => {
+  const session = requireSession(req, res)
+  if (!session) return
+  const ticket = supportStore.get(req.params.id)
+  if (!ticket) { res.status(404).json({ success: false, error: 'Not found' }); return }
+  if (ticket.userEmail !== session.email) { res.status(403).json({ success: false, error: 'Forbidden' }); return }
+  const { message } = req.body as { message: string }
+  if (!message) { res.status(400).json({ success: false, error: 'message required' }); return }
+  const now = new Date().toISOString()
+  ticket.messages.push({ id: `msg-${Date.now()}`, author: 'customer', content: message, timestamp: now })
+  ticket.updatedAt = now
+  if (ticket.status === 'resolved') ticket.status = 'open'
+  ticket.hasUnreadCustomer = true
+  res.json({ success: true, ticket })
+})
+
+// ── Admin support endpoints ────────────────────────────────────────────────────
+
+// Get all tickets (admin)
+app.get('/api/admin/support/tickets', (_req, res) => {
+  const all = [...supportStore.values()].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+  res.json({ success: true, tickets: all })
+})
+
+// Admin reply + status change
+app.post('/api/admin/support/tickets/:id/reply', (req, res) => {
+  const ticket = supportStore.get(req.params.id)
+  if (!ticket) { res.status(404).json({ success: false, error: 'Not found' }); return }
+  const { message, status } = req.body as { message?: string; status?: SupportTicket['status'] }
+  const now = new Date().toISOString()
+  if (message) {
+    ticket.messages.push({ id: `msg-${Date.now()}`, author: 'admin', content: message, timestamp: now })
+    ticket.hasUnreadAdmin = true
+    ticket.hasUnreadCustomer = false
+    // Notify the customer
+    addNotification(ticket.userEmail, {
+      type: 'support_reply',
+      title: 'Support response received',
+      body: `An admin has replied to your request "${ticket.subject}".`,
+      ticketId: ticket.id,
+    })
+  }
+  if (status) ticket.status = status
+  ticket.updatedAt = now
+  res.json({ success: true, ticket })
+})
+
+// Mark ticket unread for admin (after reading)
+app.post('/api/admin/support/tickets/:id/read', (_req, res) => {
+  const ticket = supportStore.get(_req.params.id)
+  if (ticket) ticket.hasUnreadCustomer = false
+  res.json({ success: true })
+})
+
+// ── Notifications ──────────────────────────────────────────────────────────────
+
+interface AppNotification {
+  id: string
+  userEmail: string
+  type: 'support' | 'support_reply' | 'system' | 'payment'
+  title: string
+  body: string
+  read: boolean
+  createdAt: string
+  ticketId?: string
+}
+
+const notificationStore = new Map<string, AppNotification[]>() // email -> notifications
+
+function addNotification(email: string, n: Omit<AppNotification, 'id' | 'userEmail' | 'read' | 'createdAt'>) {
+  const list = notificationStore.get(email) ?? []
+  list.unshift({
+    ...n,
+    id: `notif-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    userEmail: email,
+    read: false,
+    createdAt: new Date().toISOString(),
+  })
+  notificationStore.set(email, list.slice(0, 100))
+}
+
+app.get('/api/notifications', (req, res) => {
+  const session = requireSession(req, res)
+  if (!session) return
+  const list = notificationStore.get(session.email) ?? []
+  res.json({ success: true, notifications: list })
+})
+
+app.post('/api/notifications/read', (req, res) => {
+  const session = requireSession(req, res)
+  if (!session) return
+  const { id, all } = req.body as { id?: string; all?: boolean }
+  const list = notificationStore.get(session.email) ?? []
+  if (all) {
+    notificationStore.set(session.email, list.map(n => ({ ...n, read: true })))
+  } else if (id) {
+    notificationStore.set(session.email, list.map(n => n.id === id ? { ...n, read: true } : n))
+  }
+  res.json({ success: true })
+})
+
+// ── FAQs ───────────────────────────────────────────────────────────────────────
+
+interface FaqItem {
+  id: string
+  category: string
+  question: string
+  answer: string
+  order: number
+}
+
+const faqStore: FaqItem[] = [
+  { id: 'faq-1', category: 'Getting Started', question: 'What is NAN?', answer: 'NAN is an AI-powered financial platform that lets you give AI agents USDC budgets and permission rules so they can make payments on your behalf. You stay in control — agents only spend what you allow.', order: 0 },
+  { id: 'faq-2', category: 'Getting Started', question: 'How do I create an account?', answer: 'Sign in with your email address. NAN uses a secure one-time password (OTP) sent to your inbox — no password required. Once verified, your account is ready instantly.', order: 1 },
+  { id: 'faq-3', category: 'Getting Started', question: 'What blockchain does NAN use?', answer: 'NAN runs on Arc Testnet, where USDC is the native gas token. This means every transaction costs USDC, with stable and predictable fees.', order: 2 },
+  { id: 'faq-4', category: 'Payments & Wallet', question: 'How do I get USDC?', answer: 'You can get free testnet USDC from the Faucet page. For real USDC, use the Buy section to onramp from your bank or card via Circle.', order: 3 },
+  { id: 'faq-5', category: 'Payments & Wallet', question: 'How do I send USDC?', answer: 'Go to Wallet → Send. Enter the recipient wallet address and the amount you want to send. Review and confirm the transaction.', order: 4 },
+  { id: 'faq-6', category: 'Payments & Wallet', question: 'Can I bridge USDC to other chains?', answer: 'Yes. The Bridge section lets you move USDC between Arc, Ethereum, Base, and Arbitrum using Circle\'s CCTP v2 protocol.', order: 5 },
+  { id: 'faq-7', category: 'AI Agents', question: 'What can AI agents do?', answer: 'NAN agents can search for products, make purchases, send payments, and execute scheduled transactions — all within the spending limits and category rules you set.', order: 6 },
+  { id: 'faq-8', category: 'AI Agents', question: 'How do I control what my agent spends?', answer: 'In the Agents section, you can set a daily spending limit, per-transaction limit, allowed categories, and whether to require your approval before each purchase.', order: 7 },
+  { id: 'faq-9', category: 'AI Agents', question: 'Can I pause my agent?', answer: 'Yes. You can pause or revoke an agent\'s spending permissions at any time from the Agents or Settings page. The agent cannot spend USDC while paused.', order: 8 },
+  { id: 'faq-10', category: 'Security & Privacy', question: 'Is my wallet safe?', answer: 'NAN uses industry-standard secure wallet infrastructure. You always control your funds — agents only have access to what you explicitly authorize.', order: 9 },
+  { id: 'faq-11', category: 'Security & Privacy', question: 'Who has access to my account?', answer: 'Only you. NAN never stores private keys. Authentication uses email OTP. Agents only act within the permissions you grant them.', order: 10 },
+  { id: 'faq-12', category: 'Support', question: 'How do I contact support?', answer: 'Open the Support section from the menu and submit a request. Our team typically responds within 24 hours.', order: 11 },
+]
+
+app.get('/api/faqs', (_req, res) => {
+  res.json({ success: true, faqs: faqStore.sort((a, b) => a.order - b.order) })
+})
+
+app.post('/api/admin/faqs', (req, res) => {
+  const { action, faq, id } = req.body as {
+    action: 'create' | 'update' | 'delete' | 'reorder'
+    faq?: Partial<FaqItem>
+    id?: string
+  }
+  if (action === 'create' && faq) {
+    const newFaq: FaqItem = {
+      id: `faq-${Date.now()}`,
+      category: faq.category ?? 'General',
+      question: faq.question ?? '',
+      answer: faq.answer ?? '',
+      order: faqStore.length,
+    }
+    faqStore.push(newFaq)
+    res.json({ success: true, faqs: faqStore })
+  } else if (action === 'update' && id && faq) {
+    const idx = faqStore.findIndex(f => f.id === id)
+    if (idx === -1) { res.status(404).json({ success: false, error: 'Not found' }); return }
+    faqStore[idx] = { ...faqStore[idx], ...faq, id }
+    res.json({ success: true, faqs: faqStore })
+  } else if (action === 'delete' && id) {
+    const idx = faqStore.findIndex(f => f.id === id)
+    if (idx !== -1) faqStore.splice(idx, 1)
+    res.json({ success: true, faqs: faqStore })
+  } else {
+    res.status(400).json({ success: false, error: 'Invalid action' })
+  }
+})
+
+// ── About Nan ──────────────────────────────────────────────────────────────────
+
+interface AboutContent {
+  headline: string
+  tagline: string
+  body: string
+  mission: string
+  contact: string
+  updatedAt: string
+}
+
+let aboutContent: AboutContent = {
+  headline: 'NAN — The Agent-First Financial Platform',
+  tagline: 'Give AI agents money and permissions. Stay in control.',
+  body: `NAN is a next-generation financial platform built for the age of autonomous AI agents. We believe the future of money is not about managing transactions yourself — it's about giving intelligent agents the right budgets, the right permissions, and the right context to act on your behalf.
+
+NAN is built on Arc Testnet, where USDC is the native gas token. Every payment, every trade, every transfer happens with stable, predictable fees and sub-second finality.
+
+Our platform lets you create AI agents, allocate USDC budgets, define spending rules by category, and approve or auto-approve transactions — all from a clean, minimal interface designed for both mobile and desktop.`,
+  mission: 'Our mission is to make autonomous AI-powered finance accessible, secure, and genuinely useful for everyone.',
+  contact: 'For support, open a ticket via the Support section. For business inquiries, email hello@nan.finance.',
+  updatedAt: new Date().toISOString(),
+}
+
+app.get('/api/about', (_req, res) => {
+  res.json({ success: true, about: aboutContent })
+})
+
+app.post('/api/admin/about', (req, res) => {
+  const update = req.body as Partial<AboutContent>
+  aboutContent = { ...aboutContent, ...update, updatedAt: new Date().toISOString() }
+  res.json({ success: true, about: aboutContent })
+})
+
+// ── Feedback ───────────────────────────────────────────────────────────────────
+
+interface FeedbackEntry {
+  id: string
+  userEmail: string
+  rating: number          // 1-5
+  comment: string
+  category: string        // 'general' | 'payments' | 'agents' | 'support' | 'other'
+  reviewed: boolean
+  createdAt: string
+}
+const feedbackStore: FeedbackEntry[] = []
+
+app.post('/api/feedback', (req, res) => {
+  const session = requireSession(req, res)
+  if (!session) return
+  const { rating, comment = '', category = 'general' } = req.body as { rating: number; comment?: string; category?: string }
+  if (!rating || rating < 1 || rating > 5) { res.status(400).json({ success: false, error: 'rating 1-5 required' }); return }
+  const entry: FeedbackEntry = {
+    id: `fb-${genToken(8)}`,
+    userEmail: session.email,
+    rating: Math.round(rating),
+    comment: String(comment).slice(0, 1000),
+    category,
+    reviewed: false,
+    createdAt: new Date().toISOString(),
+  }
+  feedbackStore.unshift(entry)
+  res.json({ success: true, id: entry.id })
+})
+
+app.get('/api/admin/feedback', (_req, res) => {
+  const avg = feedbackStore.length
+    ? feedbackStore.reduce((s, f) => s + f.rating, 0) / feedbackStore.length
+    : 0
+  res.json({ success: true, feedback: feedbackStore, averageRating: Math.round(avg * 10) / 10, total: feedbackStore.length })
+})
+
+app.post('/api/admin/feedback/:id/review', (req, res) => {
+  const entry = feedbackStore.find(f => f.id === req.params.id)
+  if (!entry) { res.status(404).json({ success: false, error: 'Not found' }); return }
+  entry.reviewed = true
+  res.json({ success: true })
+})
+
+// ── Suggestions ─────────────────────────────────────────────────────────────────
+
+type SuggestionStatus = 'new' | 'reviewing' | 'planned' | 'implemented' | 'closed'
+
+interface SuggestionEntry {
+  id: string
+  userEmail: string
+  title: string
+  description: string
+  category: string
+  status: SuggestionStatus
+  adminNote: string
+  createdAt: string
+  updatedAt: string
+}
+const suggestionStore: SuggestionEntry[] = []
+
+app.post('/api/suggestions', (req, res) => {
+  const session = requireSession(req, res)
+  if (!session) return
+  const { title, description = '', category = 'general' } = req.body as { title: string; description?: string; category?: string }
+  if (!title?.trim()) { res.status(400).json({ success: false, error: 'title required' }); return }
+  const entry: SuggestionEntry = {
+    id: `sug-${genToken(8)}`,
+    userEmail: session.email,
+    title: String(title).slice(0, 200),
+    description: String(description).slice(0, 2000),
+    category,
+    status: 'new',
+    adminNote: '',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  }
+  suggestionStore.unshift(entry)
+  res.json({ success: true, id: entry.id })
+})
+
+app.get('/api/suggestions', (req, res) => {
+  const session = requireSession(req, res)
+  if (!session) return
+  const mine = suggestionStore.filter(s => s.userEmail === session.email)
+  res.json({ success: true, suggestions: mine })
+})
+
+app.get('/api/admin/suggestions', (_req, res) => {
+  res.json({ success: true, suggestions: suggestionStore })
+})
+
+app.patch('/api/admin/suggestions/:id', (req, res) => {
+  const entry = suggestionStore.find(s => s.id === req.params.id)
+  if (!entry) { res.status(404).json({ success: false, error: 'Not found' }); return }
+  const { status, adminNote } = req.body as { status?: SuggestionStatus; adminNote?: string }
+  if (status) entry.status = status
+  if (adminNote !== undefined) entry.adminNote = String(adminNote).slice(0, 1000)
+  entry.updatedAt = new Date().toISOString()
+  res.json({ success: true, suggestion: entry })
+})
+
+// ── Admin audit log ────────────────────────────────────────────────────────────
+
+interface AuditEntry {
+  id: string
+  action: string
+  actor: string          // 'admin' | email
+  detail: string
+  recordId?: string
+  createdAt: string
+}
+export const auditLog: AuditEntry[] = []
+
+export function appendAudit(action: string, actor: string, detail: string, recordId?: string) {
+  auditLog.unshift({
+    id: `aud-${genToken(6)}`,
+    action, actor, detail, recordId,
+    createdAt: new Date().toISOString(),
+  })
+  if (auditLog.length > 500) auditLog.length = 500
+}
+
+app.get('/api/admin/audit', (_req, res) => {
+  res.json({ success: true, log: auditLog.slice(0, 200) })
+})
+
+// ── Session / login activity (per user) ────────────────────────────────────────
+
+const loginHistory = new Map<string, Array<{ ts: string; ip: string; agent: string }>>()
+
+// Login history entries are recorded when a session is created (see sessionStore.set proxy below)
+
+app.get('/api/account/sessions', (req, res) => {
+  const session = requireSession(req, res)
+  if (!session) return
+  const history = loginHistory.get(session.email) ?? []
+  res.json({ success: true, sessions: history })
+})
+
+// ── Profile update ────────────────────────────────────────────────────────────
+
+const profileStore = new Map<string, { displayName: string; bio: string; avatarUrl: string; notifPrefs: { supportReplies: boolean; systemUpdates: boolean; payments: boolean } }>()
+
+app.get('/api/account/profile', (req, res) => {
+  const session = requireSession(req, res)
+  if (!session) return
+  const profile = profileStore.get(session.email) ?? { displayName: '', bio: '', avatarUrl: '', notifPrefs: { supportReplies: true, systemUpdates: true, payments: true } }
+  res.json({ success: true, profile, email: session.email, walletAddress: session.walletAddress })
+})
+
+app.patch('/api/account/profile', (req, res) => {
+  const session = requireSession(req, res)
+  if (!session) return
+  const existing = profileStore.get(session.email) ?? { displayName: '', bio: '', avatarUrl: '', notifPrefs: { supportReplies: true, systemUpdates: true, payments: true } }
+  const { displayName, bio, avatarUrl, notifPrefs } = req.body as { displayName?: string; bio?: string; avatarUrl?: string; notifPrefs?: typeof existing.notifPrefs }
+  const updated = {
+    ...existing,
+    ...(displayName !== undefined ? { displayName: String(displayName).slice(0, 60) } : {}),
+    ...(bio !== undefined ? { bio: String(bio).slice(0, 300) } : {}),
+    ...(avatarUrl !== undefined ? { avatarUrl: String(avatarUrl).slice(0, 500) } : {}),
+    ...(notifPrefs ? { notifPrefs: { ...existing.notifPrefs, ...notifPrefs } } : {}),
+  }
+  profileStore.set(session.email, updated)
+  res.json({ success: true, profile: updated })
+})
+
+// ── Analytics summary (admin) ─────────────────────────────────────────────────
+
+app.get('/api/admin/analytics', (_req, res) => {
+  const totalSessions = sessionStore.size
+  const totalFeedback = feedbackStore.length
+  const avgRating = feedbackStore.length
+    ? Math.round((feedbackStore.reduce((s, f) => s + f.rating, 0) / feedbackStore.length) * 10) / 10
+    : 0
+  const totalSuggestions = suggestionStore.length
+  const openSuggestions = suggestionStore.filter(s => s.status === 'new' || s.status === 'reviewing').length
+  res.json({
+    success: true,
+    totalUsers: totalSessions,
+    totalFeedback,
+    avgRating,
+    totalSuggestions,
+    openSuggestions,
+    auditEntries: auditLog.length,
+  })
+})
+
+// Patch the OTP verify handler to record login history
+// (done by wrapping the existing sessionStore.set call — we proxy via a helper here)
+const _origSet = sessionStore.set.bind(sessionStore)
+sessionStore.set = function(key: string, value: { email: string; walletAddress: string; walletId: string; createdAt: number }) {
+  _origSet(key, value)
+  const list = loginHistory.get(value.email) ?? []
+  // Only record if this is a brand-new session (not an overwrite)
+  if (!list.find(l => l.ts === new Date(value.createdAt).toISOString())) {
+    list.unshift({
+      ts: new Date().toISOString(),
+      ip: 'recorded-on-verify',
+      agent: 'browser',
+    })
+    loginHistory.set(value.email, list.slice(0, 20))
+  }
+  return sessionStore
+}
 
 // ── start ──────────────────────────────────────────────────────────────────────
 app.listen(PORT, () => {

@@ -18,7 +18,7 @@ export function CircleEmailLogin({ onSuccess }: Props) {
   const [deviceId, setDeviceId] = useState('')
   const [email, setEmail] = useState('')
   const [otpTokens, setOtpTokens] = useState<OtpTokens | null>(null)
-  const [loginResult, setLoginResult] = useState<LoginResult | null>(null)
+  const [_loginResult, setLoginResult] = useState<LoginResult | null>(null)
   const [step, setStep] = useState<Step>('email')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)

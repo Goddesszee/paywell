@@ -1,4 +1,3 @@
-import { useNanTheme } from '../../hooks/useNanTheme'
 import React, { useState, useEffect, useCallback } from 'react'
 import { useAccount, useChainId, useSwitchChain } from 'wagmi'
 import { AppKit } from '@circle-fin/app-kit'
@@ -65,7 +64,6 @@ const INITIAL_STEPS: StepState[] = [
 interface LiveFee { bps: number; label: string; fetched: boolean }
 
 export function BridgePage() {
-  const C = useNanTheme()
   const { connector, isConnected } = useAccount()
   const chainId = useChainId()
   const { switchChainAsync } = useSwitchChain()
@@ -114,6 +112,7 @@ export function BridgePage() {
     }
   }, [fromChain.cctpDomain, toChain.cctpDomain])
 
+  // eslint-disable-next-line react/set-state-in-effect
   useEffect(() => { void fetchLiveFee() }, [fetchLiveFee])
 
   const updateStep = (name: StepName, patch: Partial<StepState>) =>

@@ -22,7 +22,7 @@ const METHODS = [
 
 export function OnrampPage() {
   const { address, isConnected } = useAccount()
-  const setActiveView = useAppStore(s => s.setActiveView)
+  const _setActiveView = useAppStore(s => s.setActiveView)
   const [amount, setAmount] = useState(100)
   const [custom, setCustom] = useState('100')
   const [method, setMethod] = useState('Debit')

@@ -111,7 +111,7 @@ export function PaymentRequestPage({ params }: { params: PaymentParams }) {
       address: usdcFact.address as `0x${string}`,
       abi: erc20Abi,
       functionName: 'transfer',
-      args: [params.to as `0x${string}`, parsed.raw],
+      args: [params.to, parsed.raw],
       chainId: ARC_TESTNET_ID,
     })
   }
@@ -182,7 +182,7 @@ export function PaymentRequestPage({ params }: { params: PaymentParams }) {
     <FullPage>
       {/* NAN wordmark */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 28 }}>
-        <span style={{ fontSize: 18, fontWeight: 800, color: 'var(--nan-text)'>NAN</span>
+        <span style={{ fontSize: 18, fontWeight: 800, color: 'var(--nan-text)' }}>NAN</span>
         <span style={{ fontSize: 11, color: TEXT3, background: SURFACE, padding: '3px 10px', borderRadius: 20, fontWeight: 600 }}>Arc Testnet</span>
       </div>
 
@@ -359,8 +359,7 @@ function FullPage({ children }: { children: React.ReactNode }) {
 // Auto-detect payment link params and export a hook
 export function usePaymentRequestParams(): PaymentParams | null {
   const [params, setParams] = useState<PaymentParams | null>(null)
-  useEffect(() => {
-    setParams(parsePaymentParams())
-  }, [])
+  // eslint-disable-next-line react/set-state-in-effect
+  useEffect(() => { setParams(parsePaymentParams()) }, [])
   return params
 }

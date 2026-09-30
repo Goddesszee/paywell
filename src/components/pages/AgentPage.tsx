@@ -1,4 +1,3 @@
-import { useNanTheme } from '../../hooks/useNanTheme'
 import React, { useState, useRef, useEffect } from 'react'
 import {
   Bot, Send, X, Check, Zap, Shield, ShoppingBag,
@@ -95,12 +94,11 @@ function simulateAgentResponse(
 }
 
 export function AgentPage() {
-  const C = useNanTheme()
   const [tab, setTab] = useState<AgentTab>('chat')
 
-  const TABS: { id: AgentTab; label: string; highlight?: boolean }[] = [
+  const TABS: { id: AgentTab; label: string }[] = [
     { id: 'chat',        label: 'Chat' },
-    { id: 'x402',        label: 'x402 ●', highlight: true },
+    { id: 'x402',        label: 'x402 ●' },
     { id: 'permissions', label: 'Limits' },
     { id: 'history',     label: 'History' },
   ]
@@ -122,7 +120,6 @@ export function AgentPage() {
       <div style={{ display:'flex', background:SURFACE, borderRadius:12, padding:3, marginBottom:16, gap:2 }}>
         {TABS.map(t => {
           const isActive = tab === t.id
-          const isX402 = t.id === 'x402'
           return (
           <button key={t.id} onClick={() => setTab(t.id)} style={{
             flex:1, padding:'7px 4px', border:'none', borderRadius:9, cursor:'pointer',
@@ -343,7 +340,7 @@ function X402Tab() {
   const [services, setServices] = useState<X402Service[]>([])
   const [showAdd, setShowAdd] = useState(false)
 
-  const useService = async (svc: MarketplaceService) => {
+  const callService = async (svc: MarketplaceService) => {
     if (!address || !chainId || !svc.price) return
     const usdc = getUsdc(chainId)
     if (!usdc) return
@@ -355,7 +352,7 @@ function X402Tab() {
         address: usdc.address as `0x${string}`,
         abi: USDC_TRANSFER_ABI,
         functionName: 'transfer',
-        args: [address as `0x${string}`, parseUnits(String(priceNum.toFixed(6)), usdc.decimals)],
+        args: [address, parseUnits(String(priceNum.toFixed(6)), usdc.decimals)],
       })
       setPaidId(svc.id)
       setTimeout(() => setPaidId(null), 3000)
@@ -603,7 +600,7 @@ function X402Tab() {
                     <span style={{ fontSize:12, fontWeight:700, color:BLACK }}>{svc.price} USDC</span>
                     <span style={{ fontSize:10, color:TEXT3 }}>per call</span>
                     <button
-                      onClick={() => void useService(svc)}
+                      onClick={() => void callService(svc)}
                       disabled={payingId === svc.id || !address}
                       style={{ marginLeft:'auto', height:28, padding:'0 12px', background: paidId===svc.id ? SURFACE : BLACK, color: paidId===svc.id ? BLACK : WHITE, border:`1px solid ${paidId===svc.id ? BDR : BLUE}`, borderRadius:8, fontSize:11, fontWeight:700, cursor:'pointer', display:'flex', alignItems:'center', gap:5, fontFamily:F, opacity: payingId===svc.id ? 0.6 : 1 }}>
                       {payingId===svc.id ? <Loader2 size={11} style={{animation:'spin 1s linear infinite'}} /> : paidId===svc.id ? <><Check size={11} /> Paid</> : <>Use service</>}

@@ -233,6 +233,64 @@ interface AppState {
 
   theme: 'dark' | 'light'
   setTheme: (t: 'dark' | 'light') => void
+
+  // ── Notifications ──────────────────────────────────────────────────────────
+  notifications: AppNotification[]
+  unreadCount: number
+  setNotifications: (n: AppNotification[]) => void
+  markNotificationRead: (id: string) => void
+  markAllNotificationsRead: () => void
+  fetchNotifications: () => Promise<void>
+
+  // ── Favorites / Saved Items ────────────────────────────────────────────────
+  favorites: FavoriteItem[]
+  addFavorite: (item: Omit<FavoriteItem, 'id' | 'savedAt'>) => void
+  removeFavorite: (id: string) => void
+  isFavorite: (refId: string) => boolean
+
+  // ── Search history ──────────────────────────────────────────────────────────
+  recentSearches: string[]
+  addSearch: (query: string) => void
+  clearSearches: () => void
+
+  // ── User profile ────────────────────────────────────────────────────────────
+  profile: UserProfile
+  setProfile: (p: Partial<UserProfile>) => void
+}
+
+// ── Favorite type ────────────────────────────────────────────────────────────
+export interface FavoriteItem {
+  id: string
+  refId: string           // product id, FAQ id, etc.
+  type: 'product' | 'faq' | 'page'
+  title: string
+  subtitle?: string
+  href?: string           // view to navigate to
+  savedAt: string
+}
+
+// ── User profile (local, synced with /api/account/profile) ──────────────────
+export interface UserProfile {
+  displayName: string
+  bio: string
+  avatarUrl: string
+  notifPrefs: {
+    supportReplies: boolean
+    systemUpdates: boolean
+    payments: boolean
+  }
+}
+
+// ── Notification type (mirrors server) ────────────────────────────────────────
+export interface AppNotification {
+  id: string
+  userEmail: string
+  type: 'support' | 'support_reply' | 'system' | 'payment'
+  title: string
+  body: string
+  read: boolean
+  createdAt: string
+  ticketId?: string
 }
 
 export const useAppStore = create<AppState>()(
@@ -539,6 +597,88 @@ export const useAppStore = create<AppState>()(
         document.documentElement.setAttribute('data-theme', t)
         set({ theme: t })
       },
+
+      // ── Notifications ────────────────────────────────────────────────────────
+      notifications: [],
+      unreadCount: 0,
+      setNotifications: (notifications) =>
+        set({ notifications, unreadCount: notifications.filter(n => !n.read).length }),
+      markNotificationRead: (id) =>
+        set((s) => {
+          const notifications = s.notifications.map(n => n.id === id ? { ...n, read: true } : n)
+          const auth = s.auth
+          if (auth?.sessionToken) {
+            fetch('/api/notifications/read', {
+              method: 'POST',
+              headers: { 'content-type': 'application/json', authorization: `Bearer ${auth.sessionToken}` },
+              body: JSON.stringify({ id }),
+            }).catch(() => {})
+          }
+          return { notifications, unreadCount: notifications.filter(n => !n.read).length }
+        }),
+      markAllNotificationsRead: () =>
+        set((s) => {
+          const notifications = s.notifications.map(n => ({ ...n, read: true }))
+          const auth = s.auth
+          if (auth?.sessionToken) {
+            fetch('/api/notifications/read', {
+              method: 'POST',
+              headers: { 'content-type': 'application/json', authorization: `Bearer ${auth.sessionToken}` },
+              body: JSON.stringify({ all: true }),
+            }).catch(() => {})
+          }
+          return { notifications, unreadCount: 0 }
+        }),
+      fetchNotifications: async () => {
+        const auth = get().auth
+        if (!auth?.sessionToken) return
+        try {
+          const res = await fetch('/api/notifications', {
+            headers: { authorization: `Bearer ${auth.sessionToken}` },
+          })
+          if (!res.ok) return
+          const data = await res.json() as { notifications: AppNotification[] }
+          set({ notifications: data.notifications, unreadCount: data.notifications.filter(n => !n.read).length })
+        } catch {
+          // ignore network errors silently
+        }
+      },
+
+      // ── Favorites ────────────────────────────────────────────────────────────
+      favorites: [],
+      addFavorite: (item) =>
+        set((s) => {
+          if (s.favorites.some(f => f.refId === item.refId)) return s
+          return {
+            favorites: [
+              { ...item, id: `fav-${Date.now()}`, savedAt: new Date().toISOString() },
+              ...s.favorites,
+            ],
+          }
+        }),
+      removeFavorite: (id) => set((s) => ({ favorites: s.favorites.filter(f => f.id !== id) })),
+      isFavorite: (refId) => get().favorites.some(f => f.refId === refId),
+
+      // ── Search history ────────────────────────────────────────────────────────
+      recentSearches: [],
+      addSearch: (query) => {
+        const q = query.trim()
+        if (!q) return
+        set((s) => {
+          const filtered = s.recentSearches.filter(r => r !== q)
+          return { recentSearches: [q, ...filtered].slice(0, 10) }
+        })
+      },
+      clearSearches: () => set({ recentSearches: [] }),
+
+      // ── Profile ───────────────────────────────────────────────────────────────
+      profile: {
+        displayName: '',
+        bio: '',
+        avatarUrl: '',
+        notifPrefs: { supportReplies: true, systemUpdates: true, payments: true },
+      },
+      setProfile: (p) => set((s) => ({ profile: { ...s.profile, ...p } })),
     }),
     {
       name: 'paywell-state-v2',
@@ -553,6 +693,9 @@ export const useAppStore = create<AppState>()(
         orders: s.orders,
         offers: s.offers,
         feeRevenue: s.feeRevenue,
+        favorites: s.favorites,
+        recentSearches: s.recentSearches,
+        profile: s.profile,
       }),
       merge: (persisted, current) => {
         const p = persisted as Partial<AppState>
@@ -577,6 +720,9 @@ export const useAppStore = create<AppState>()(
             ...f,
             timestamp: new Date(f.timestamp),
           })),
+          favorites: p.favorites ?? current.favorites ?? [],
+          recentSearches: p.recentSearches ?? current.recentSearches ?? [],
+          profile: p.profile ?? current.profile ?? current.profile,
         }
       },
     }

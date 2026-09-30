@@ -20,6 +20,7 @@
         "@types/express": "^5.0.6",
         "@types/nodemailer": "^8.0.2",
         "@types/uuid": "^11.0.0",
+        "@upstash/redis": "^1.39.0",
         "@vercel/node": "^15.0.0",
         "@web3icons/react": "^4.0.0",
         "@x402/core": "^2.27.0",
@@ -855,6 +856,8 @@
     "@typescript/typescript-win32-arm64": ["@typescript/typescript-win32-arm64@7.0.2", "", { "os": "win32", "cpu": "arm64" }, "sha512-Gyl1Vy6OsWesLzmq+EP0Fb7b4Nid5232AvcA2SFcdYreldpNtYFFofPjnt62y9hQy7VTaZp65ICJjuAQRaVcIQ=="],
 
     "@typescript/typescript-win32-x64": ["@typescript/typescript-win32-x64@7.0.2", "", { "os": "win32", "cpu": "x64" }, "sha512-0BQ3HkAHHlKLSp1qRvf3SUhGpGsDuhB/jgFw75guyqbxJqEaS0Cw/VFO8i2nHglJUzQCRtMMR/IBAKE3ETMC4g=="],
+
+    "@upstash/redis": ["@upstash/redis@1.39.0", "", { "dependencies": { "uncrypto": "^0.1.3" } }, "sha512-VwkpYTdxSfjSulQS5h16NHtg/1UEheBfvez2AeGKinAujOoGXhXCcohQRzsQ/d2g/XzbjzTVGhG8Ds8uOI0Mxg=="],
 
     "@vercel/build-utils": ["@vercel/build-utils@14.12.0", "", { "dependencies": { "cjs-module-lexer": "1.2.3", "es-module-lexer": "1.5.0" } }, "sha512-/LTrYIttP+UKpgT4K0mSXHLxC9W4c+f0Yt5acBooV27wZ9QUmTiVgp5Vh0NIqo7q3frlzJnTbrS9h2TORTd8xQ=="],
 

@@ -1,4 +1,3 @@
-import { useNanTheme } from '../../hooks/useNanTheme'
 import React, { useState } from 'react'
 import { ConnectKitButton } from 'connectkit'
 import { useAccount } from 'wagmi'

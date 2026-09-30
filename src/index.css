@@ -1,4 +1,60 @@
 @import './nan-design-system.css';
+
+/* ── NAN global animations & utilities ── */
+@keyframes nan-shimmer {
+  0%   { background-position: -400px 0 }
+  100% { background-position:  400px 0 }
+}
+@keyframes nan-fadeIn {
+  from { opacity: 0; transform: translateY(6px) }
+  to   { opacity: 1; transform: translateY(0) }
+}
+@keyframes nan-slideUp {
+  from { opacity: 0; transform: translateY(24px) }
+  to   { opacity: 1; transform: translateY(0) }
+}
+@keyframes nan-pulse {
+  0%, 100% { opacity: 1 }
+  50%       { opacity: 0.4 }
+}
+@keyframes nan-spin {
+  to { transform: rotate(360deg) }
+}
+
+.nan-skeleton {
+  background: linear-gradient(90deg, var(--nan-surface2) 25%, var(--nan-surface3) 50%, var(--nan-surface2) 75%);
+  background-size: 800px 100%;
+  animation: nan-shimmer 1.4s ease infinite;
+  border-radius: 8px;
+}
+.nan-fadeIn  { animation: nan-fadeIn  0.22s ease both }
+.nan-slideUp { animation: nan-slideUp 0.22s ease both }
+
+/* ── Accessibility improvements ── */
+:focus-visible {
+  outline: 2px solid var(--nan-blue);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+button:focus-visible, a:focus-visible {
+  outline: 2px solid var(--nan-blue);
+  outline-offset: 2px;
+}
+
+/* ── Mobile touch improvements ── */
+input, textarea, select {
+  -webkit-appearance: none;
+  touch-action: manipulation;
+}
+button {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ── Scrollbar hide ── */
+.nan-scroll { scrollbar-width: none; -ms-overflow-style: none; }
+.nan-scroll::-webkit-scrollbar { display: none; }
+
 /* â”€â”€ NAN Wallet â€” style.css â€” Relay v2 â”€â”€ */
 :root{
   --bg:#111111;--surface:#1a1a1a;--card:#1a1a1a;--card2:#222222;

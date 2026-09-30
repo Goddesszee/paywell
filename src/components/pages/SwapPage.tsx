@@ -1,4 +1,3 @@
-import { useNanTheme } from '../../hooks/useNanTheme'
 import React, { useState } from 'react'
 import { useAccount, useChainId, useSwitchChain } from 'wagmi'
 import { AppKit } from '@circle-fin/app-kit'
@@ -11,7 +10,7 @@ import { swapFee, SWAP_FEE_BPS, bpsToPercent, FEE_WALLET } from '../../lib/fees'
 const appKit = new AppKit()
 const F = "'Inter',-apple-system,sans-serif"
 const MONO = "'JetBrains Mono',Menlo,monospace"
-const BG   = 'var(--nan-bg)'; const SURF = 'var(--nan-surface)'; const SURF2= 'var(--nan-surface2)'
+const SURF = 'var(--nan-surface)'; const SURF2= 'var(--nan-surface2)'
 const BDR  = 'var(--nan-bdr)'; const BDR2 = 'var(--nan-bdr2)'
 const BLUE = '#0066FF'; const TEXT = 'var(--nan-text)'; const T2   = 'var(--nan-text2)'; const T3   = 'var(--nan-text3)'
 const GREEN = '#00C853'; const RED = '#FF3B3B'
@@ -40,7 +39,6 @@ function Row({ label, value, mono, accent }: { label:string; value:string; mono?
 }
 
 export function SwapPage() {
-  const C = useNanTheme()
   const { connector, isConnected, address } = useAccount()
   const chainId = useChainId()
   const { switchChainAsync } = useSwitchChain()
@@ -212,8 +210,8 @@ export function SwapPage() {
           <button onClick={() => { setEstimate(null); setPhase('idle') }} style={{ flex:1,height:52,background:SURF,border:`1px solid ${BDR}`,borderRadius:12,fontSize:14,fontWeight:600,color:TEXT,cursor:'pointer',fontFamily:F,display:'flex',alignItems:'center',justifyContent:'center',gap:6 }}>
             <RefreshCw size={14} /> New quote
           </button>
-          <button onClick={() => void executeSwap()} disabled={phase==='swapping'} style={{ flex:2,height:52,background:BLUE,border:'none',borderRadius:12,fontSize:15,fontWeight:700,color:'#fff',cursor:'pointer',fontFamily:F }}>
-            {phase==='swapping' ? <span style={{ display:'flex',alignItems:'center',justifyContent:'center',gap:8 }}><Loader size={16} style={{ animation:'spin 1s linear infinite' }} />Swapping…</span> : `Swap ${amountIn} ${tokenIn} → ${tokenOut}`}
+          <button onClick={() => void executeSwap()} disabled={(phase as string)==='swapping'} style={{ flex:2,height:52,background:BLUE,border:'none',borderRadius:12,fontSize:15,fontWeight:700,color:'#fff',cursor:'pointer',fontFamily:F }}>
+            {(phase as string)==='swapping' ? <span style={{ display:'flex',alignItems:'center',justifyContent:'center',gap:8 }}><Loader size={16} style={{ animation:'spin 1s linear infinite' }} />Swapping…</span> : `Swap ${amountIn} ${tokenIn} → ${tokenOut}`}
           </button>
         </div>
       ) : (
