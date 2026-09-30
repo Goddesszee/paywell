@@ -16,6 +16,7 @@ const F    = "'Inter', -apple-system, sans-serif"
 const MONO = "'JetBrains Mono', 'SF Mono', Menlo, monospace"
 const ARC  = 5042002
 const BLUE = '#0066FF'
+const EURC_ADDRESS = '0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a' as const
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -96,8 +97,20 @@ export function HomePage() {
     query: { enabled: !!address && !!usdcFact },
   })
 
-  const formatted = rawBalance !== undefined
+  const { data: rawEurc } = useReadContract({
+    address: EURC_ADDRESS,
+    abi: erc20Abi,
+    functionName: 'balanceOf',
+    args: address ? [address] : undefined,
+    chainId: ARC,
+    query: { enabled: !!address },
+  })
+
+  const formatted     = rawBalance !== undefined
     ? Amount.fromRaw(rawBalance, usdcDecimalsFor(ARC)).toFixed(2)
+    : '0.00'
+  const eurcFormatted = rawEurc !== undefined
+    ? (Number(rawEurc) / 1e6).toFixed(2)
     : '0.00'
 
   const [hidden, setHidden] = useState(false)
@@ -190,8 +203,8 @@ export function HomePage() {
         scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch',
       }}>
         {[
-          { flag: '🇺🇸', label: 'USDC',    symbol: '$',  value: formatted, view: 'wallet',  accent: '#0066FF' },
-          { flag: '🇪🇺', label: 'EURC',    symbol: '€',  value: '0.00',    view: 'wallet',  accent: '#0099CC' },
+          { flag: '🇺🇸', label: 'USDC',    symbol: '$',  value: formatted,     view: 'wallet',  accent: '#0066FF' },
+          { flag: '🇪🇺', label: 'EURC',    symbol: '€',  value: eurcFormatted, view: 'swap',    accent: '#0099CC' },
           { flag: '🇳🇬', label: 'NGN',     symbol: '₦',  value: '0.00',    view: 'wallet',  accent: '#00A651' },
           { flag: '🇨🇦', label: 'CAD',     symbol: 'C$', value: '0.00',    view: 'wallet',  accent: '#FF0000' },
           { flag: '🎁',  label: 'Rewards', symbol: '',   value: '0 pts',   view: 'faucet',  accent: '#FF9500' },
