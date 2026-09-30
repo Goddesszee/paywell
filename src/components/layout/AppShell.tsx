@@ -4,7 +4,7 @@ import {
   ArrowLeftRight, ArrowUpDown, Settings, ChevronRight,
   Droplet, Layers, Repeat, Bot, Shield,
   MessageSquare, HelpCircle, Info, User, Search, Bookmark,
-  Star, Lightbulb, Wallet,
+  Star, Lightbulb,
 } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
 import { useAccount } from 'wagmi'
@@ -26,7 +26,6 @@ const SIDEBAR_SECTIONS = [
   { title: 'Main', items: [
     { id: 'home',      label: 'Home',      Icon: Home,             desc: 'Overview' },
     { id: 'dashboard', label: 'Dashboard', Icon: LayoutDashboard,  desc: 'Portfolio & performance' },
-    { id: 'wallet',    label: 'Wallet',    Icon: Wallet,           desc: 'Balances & transfers' },
     { id: 'activity',  label: 'Activity',  Icon: Activity,         desc: 'Transaction history' },
   ]},
   { title: 'Finance', items: [
