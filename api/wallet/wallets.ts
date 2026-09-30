@@ -4,7 +4,7 @@ import { initiateUserControlledWalletsClient } from '@circle-fin/user-controlled
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
 
-  const apiKey = process.env.CIRCLE_USER_CONTROLLED_API_KEY || process.env.CIRCLE_DEVELOPER_CONTROLLED_API_KEY
+  const apiKey = process.env.CIRCLE_USER_CONTROLLED_API_KEY || process.env.CIRCLE_API_KEY || process.env.CIRCLE_DEVELOPER_CONTROLLED_API_KEY
   if (!apiKey) return res.status(500).json({ error: 'CIRCLE_USER_CONTROLLED_API_KEY not configured' })
 
   const userToken = req.headers['x-user-token'] as string
