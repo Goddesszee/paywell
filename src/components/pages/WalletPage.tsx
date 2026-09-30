@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react'
 import {
   Copy, ArrowUpRight, ArrowDownLeft, Check, ExternalLink,
   AlertCircle, X, ChevronRight, Wallet, Share2, Download,
-  Twitter, MessageCircle, Send as SendIcon, Link
+  Twitter, MessageCircle, Send as SendIcon, Link, Activity,
 } from 'lucide-react'
 import { ConnectKitButton } from 'connectkit'
 import { QRCodeSVG } from 'qrcode.react'
@@ -44,7 +44,7 @@ type WalletSubView = 'main' | 'send' | 'send_confirm' | 'send_success' | 'receiv
 
 export function WalletPage({ initialSubView = 'main' }: { initialSubView?: WalletSubView }) {
   const [subView, setSubView] = useState<WalletSubView>(initialSubView)
-  const { agentPermissions, addActivity } = useAppStore()
+  const { agentPermissions, addActivity, activity } = useAppStore()
   const { address, chainId } = useAccount()
   const [copied, setCopied] = useState(false)
   const chain = requireChain(ARC_TESTNET_ID)
@@ -185,6 +185,80 @@ export function WalletPage({ initialSubView = 'main' }: { initialSubView?: Walle
           </a>
         </div>
       </Card>
+
+      {/* Token list */}
+      <div style={{ background: 'var(--nan-surface)', border: '1px solid var(--nan-bdr)', borderRadius: 16, overflow: 'hidden' }}>
+        <div style={{ padding: '12px 16px 8px', fontSize: 12, fontWeight: 700, color: 'var(--nan-text3)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+          Assets
+        </div>
+        {[
+          { flag: '🇺🇸', name: 'USD Coin', symbol: 'USDC', balance: balance ?? '0.00', color: '#2775CA' },
+          { flag: '🇪🇺', name: 'Euro Coin', symbol: 'EURC', balance: '0.00', color: '#0099CC' },
+          { flag: '🇳🇬', name: 'Nigerian Naira', symbol: 'NGN', balance: '0.00', color: '#00A651' },
+        ].map((token, i) => (
+          <div key={token.symbol} style={{
+            display: 'flex', alignItems: 'center', gap: 12,
+            padding: '12px 16px',
+            borderTop: i === 0 ? 'none' : '1px solid var(--nan-bdr)',
+          }}>
+            <div style={{ width: 38, height: 38, borderRadius: 12, background: 'var(--nan-surface2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0 }}>
+              {token.flag}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--nan-text)', marginBottom: 2 }}>{token.name}</div>
+              <div style={{ fontSize: 11, fontWeight: 600, color: token.color }}>{token.symbol}</div>
+            </div>
+            <div style={{ textAlign: 'right', flexShrink: 0 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--nan-text)', fontFamily: 'JetBrains Mono, monospace' }}>{token.balance}</div>
+              <div style={{ fontSize: 11, color: 'var(--nan-text3)' }}>{token.symbol}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Recent transactions */}
+      <div style={{ background: 'var(--nan-surface)', border: '1px solid var(--nan-bdr)', borderRadius: 16, overflow: 'hidden' }}>
+        <div style={{ padding: '12px 16px 8px', fontSize: 12, fontWeight: 700, color: 'var(--nan-text3)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+          Recent Transactions
+        </div>
+        {activity.length === 0 ? (
+          <div style={{ padding: '24px 16px', textAlign: 'center' }}>
+            <div style={{ width: 36, height: 36, borderRadius: 10, background: 'var(--nan-surface2)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 8px' }}>
+              <Activity size={16} color="var(--nan-text3)" />
+            </div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--nan-text)', marginBottom: 3 }}>No transactions yet</div>
+            <div style={{ fontSize: 11, color: 'var(--nan-text3)' }}>Send or receive USDC to get started</div>
+          </div>
+        ) : (
+          activity.slice(0, 5).map((item, i) => {
+            const isIn = item.sign === '+'
+            return (
+              <div key={item.id} style={{
+                display: 'flex', alignItems: 'center', gap: 12,
+                padding: '12px 16px',
+                borderTop: i === 0 ? 'none' : '1px solid var(--nan-bdr)',
+              }}>
+                <div style={{
+                  width: 36, height: 36, borderRadius: 10, flexShrink: 0,
+                  background: isIn ? 'rgba(0,200,83,0.10)' : 'rgba(255,59,59,0.10)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  {isIn
+                    ? <ArrowDownLeft size={15} color="#00C853" />
+                    : <ArrowUpRight size={15} color="#FF3B3B" />}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--nan-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.description}</div>
+                  <div style={{ fontSize: 11, color: 'var(--nan-text3)', marginTop: 1 }}>{item.counterparty || new Date(item.timestamp).toLocaleDateString('en', { month: 'short', day: 'numeric' })}</div>
+                </div>
+                <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 13, fontWeight: 700, color: isIn ? '#00C853' : '#FF3B3B', flexShrink: 0 }}>
+                  {item.sign}{item.amount}
+                </span>
+              </div>
+            )
+          })
+        )}
+      </div>
     </div>
   )
 }
@@ -338,7 +412,8 @@ function SendFlow({
   }
 
   return (
-    <div className="max-w-lg mx-auto px-4 py-6 space-y-4 pb-28 lg:pb-8">
+    <div style={{ minHeight: 'calc(100vh - 120px)', display: 'flex', flexDirection: 'column' }}>
+    <div className="max-w-lg mx-auto px-4 py-6 space-y-4 pb-28 lg:pb-8" style={{ flex: 1 }}>
       <div className="flex items-center gap-3">
         <button
           onClick={displayStep === 'recipient' ? onBack : () => setStep(
@@ -461,6 +536,7 @@ function SendFlow({
           <Button fullWidth variant="secondary" onClick={() => { reset(); setStep('review') }}>Try again</Button>
         </div>
       )}
+    </div>
     </div>
   )
 }
