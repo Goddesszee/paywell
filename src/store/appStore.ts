@@ -128,9 +128,24 @@ export interface AgentPermissions {
   enabled: boolean
   dailyLimit: number
   perTxLimit: number
+  perServiceLimit: number       // max spend per individual service call
   allowedCategories: string[]
   requireApproval: boolean
   autoApproveUnder: number
+  requireApprovalAbove: number  // always require approval above this amount
+}
+
+export interface AgentExecutionLog {
+  id: string
+  taskId: string
+  userRequest: string
+  serviceId?: string
+  serviceName?: string
+  status: 'complete' | 'blocked' | 'error' | 'awaiting_approval'
+  cost: number
+  result?: string
+  error?: string
+  timestamp: Date
 }
 
 export interface AgentMessage {
@@ -197,6 +212,9 @@ interface AppState {
   approveAgentPurchase: (msgId: string) => void
   rejectAgentPurchase: (msgId: string) => void
   resetDailyUsage: () => void
+  agentExecutionLog: AgentExecutionLog[]
+  addExecutionLog: (entry: Omit<AgentExecutionLog, 'id' | 'timestamp'>) => void
+  clearExecutionLog: () => void
 
   cart: CartItem[]
   addToCart: (product: Product) => void
@@ -329,9 +347,11 @@ export const useAppStore = create<AppState>()(
         enabled: true,
         dailyLimit: 20,
         perTxLimit: 10,
+        perServiceLimit: 5,
         allowedCategories: ['tech', 'digital', 'home'],
         requireApproval: false,
-        autoApproveUnder: 10,
+        autoApproveUnder: 1,
+        requireApprovalAbove: 5,
       },
       setAgentPermissions: (update) =>
         set((s) => ({ agentPermissions: { ...s.agentPermissions, ...update } })),
@@ -399,6 +419,20 @@ export const useAppStore = create<AppState>()(
           ),
         })),
       resetDailyUsage: () => set({ agentDailyUsed: 0 }),
+
+      agentExecutionLog: [],
+      addExecutionLog: (entry) =>
+        set((s) => ({
+          agentExecutionLog: [
+            {
+              ...entry,
+              id: `exec-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+              timestamp: new Date(),
+            },
+            ...s.agentExecutionLog,
+          ].slice(0, 100), // keep last 100
+        })),
+      clearExecutionLog: () => set({ agentExecutionLog: [] }),
 
       pendingListings: [],
       submitListing: async (listing) => {
@@ -687,6 +721,7 @@ export const useAppStore = create<AppState>()(
         agentPermissions: s.agentPermissions,
         agentDailyUsed: s.agentDailyUsed,
         agentMessages: s.agentMessages,
+        agentExecutionLog: s.agentExecutionLog,
         activity: s.activity,
         cart: s.cart,
         pendingListings: s.pendingListings,
@@ -709,6 +744,10 @@ export const useAppStore = create<AppState>()(
           agentMessages: (p.agentMessages ?? current.agentMessages).map((m) => ({
             ...m,
             timestamp: new Date(m.timestamp),
+          })),
+          agentExecutionLog: (p.agentExecutionLog ?? current.agentExecutionLog ?? []).map((e) => ({
+            ...e,
+            timestamp: new Date(e.timestamp),
           })),
           pendingListings: (p.pendingListings ?? current.pendingListings).map((l) => ({
             ...l,

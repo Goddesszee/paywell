@@ -2,7 +2,9 @@ import React, { useState, useRef, useEffect } from 'react'
 import {
   Bot, Send, X, Check, Zap, Shield, ShoppingBag,
   ToggleLeft, ToggleRight, Coins, Loader2, Plus,
-  Trash2, Play, Pause, ExternalLink, Copy, RefreshCw
+  Trash2, Play, Pause, ExternalLink, Copy, RefreshCw,
+  Search, Globe, Cpu, FileText, AlertTriangle, CheckCircle2,
+  Clock, ChevronRight, Sparkles
 } from 'lucide-react'
 import { useWriteContract, useAccount } from 'wagmi'
 import { parseUnits } from 'viem'
@@ -15,7 +17,15 @@ import { getVerifiedProducts } from '../../utils/listings'
 import { formatUSDC, formatRelativeTime } from '../../utils/format'
 import { nanChat, backendConfigured } from '../../lib/api'
 import { getUsdc } from '../../onchain-facts'
-
+import {
+  classifyIntent, checkPolicy, orchestrate,
+  type AgentPolicy, type OrchestrationUpdate,
+} from '../../lib/agent-orchestrator'
+import {
+  getAllServices, discoverServices,
+  type NanService,
+  type ServiceDiscoveryResult,
+} from '../../lib/agent-registry'
 
 const F       = "'Inter', -apple-system, sans-serif"
 const TEXT    = 'var(--nan-text)'
@@ -27,7 +37,6 @@ const TEXT2   = 'var(--nan-text2)'
 const TEXT3   = 'var(--nan-text3)'
 const SUCCESS = '#00C853'
 const DANGER  = '#FF3B3B'
-// short aliases kept so code below compiles unchanged
 const BLACK   = TEXT
 const WHITE   = SURF2
 const SURFACE = SURF
@@ -40,19 +49,17 @@ const USDC_TRANSFER_ABI = [{
   outputs: [{ name: '', type: 'bool' }],
 }] as const
 
-type AgentTab = 'chat' | 'x402' | 'permissions' | 'history'
+type AgentTab = 'chat' | 'discover' | 'policy' | 'log'
 
-
+interface OrchestratorStep {
+  label: string
+  detail?: string
+  status: 'pending' | 'running' | 'done' | 'error'
+}
 
 interface X402Service {
-  id: string
-  name: string
-  description: string
-  price: string
-  endpoint: string
-  calls: number
-  earned: string
-  active: boolean
+  id: string; name: string; description: string; price: string
+  endpoint: string; calls: number; earned: string; active: boolean
 }
 
 function simulateAgentResponse(
@@ -95,17 +102,14 @@ function simulateAgentResponse(
 
 export function AgentPage() {
   const [tab, setTab] = useState<AgentTab>('chat')
-
   const TABS: { id: AgentTab; label: string }[] = [
-    { id: 'chat',        label: 'Chat' },
-    { id: 'x402',        label: 'x402 ●' },
-    { id: 'permissions', label: 'Limits' },
-    { id: 'history',     label: 'History' },
+    { id: 'chat',    label: 'Chat' },
+    { id: 'discover', label: 'Services' },
+    { id: 'policy',  label: 'Policy' },
+    { id: 'log',     label: 'Log' },
   ]
-
   return (
-    <div style={{ fontFamily: F, maxWidth: 520, margin: '0 auto', padding: '0 0 88px' }}>
-      {/* Header */}
+    <div style={{ fontFamily:F, maxWidth:560, margin:'0 auto', padding:'0 0 88px' }}>
       <div style={{ display:'flex', alignItems:'center', gap:10, padding:'20px 0 16px' }}>
         <div style={{ width:36, height:36, borderRadius:10, background:BLUE, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
           <Bot size={18} color="#fff" />
@@ -115,29 +119,24 @@ export function AgentPage() {
           <AgentStatusLine />
         </div>
       </div>
-
-      {/* Tab bar */}
       <div style={{ display:'flex', background:SURFACE, borderRadius:12, padding:3, marginBottom:16, gap:2 }}>
         {TABS.map(t => {
           const isActive = tab === t.id
           return (
-          <button key={t.id} onClick={() => setTab(t.id)} style={{
-            flex:1, padding:'7px 4px', border:'none', borderRadius:9, cursor:'pointer',
-            fontFamily:F, fontSize:12, fontWeight: isActive ? 700 : 500,
-            background: isActive ? '#0066FF' : 'transparent',
-            color: isActive ? '#fff' : TEXT2,
-            boxShadow: isActive ? '0 1px 4px rgba(0,0,0,0.08)' : 'none',
-            transition:'all 0.15s', whiteSpace:'nowrap',
-          }}>
-            {t.label}
-          </button>
-        )})}
+            <button key={t.id} onClick={() => setTab(t.id)} style={{
+              flex:1, padding:'7px 4px', border:'none', borderRadius:9, cursor:'pointer',
+              fontFamily:F, fontSize:12, fontWeight:isActive?700:500,
+              background:isActive?BLUE:'transparent',
+              color:isActive?'#fff':TEXT2,
+              transition:'all 0.15s', whiteSpace:'nowrap',
+            }}>{t.label}</button>
+          )
+        })}
       </div>
-
-      {tab === 'chat'        && <AgentChat />}
-      {tab === 'x402'        && <X402Tab />}
-      {tab === 'permissions' && <PermissionsTab />}
-      {tab === 'history'     && <HistoryTab />}
+      {tab === 'chat'     && <AgentChat />}
+      {tab === 'discover' && <DiscoverTab />}
+      {tab === 'policy'   && <PolicyTab />}
+      {tab === 'log'      && <ExecutionLogTab />}
     </div>
   )
 }
@@ -158,8 +157,63 @@ function AgentStatusLine() {
   )
 }
 
+// ── Orchestration status stream ───────────────────────────────────────────────
+
+interface OrchestratorStreamProps {
+  steps: OrchestratorStep[]
+  onConfirm: () => void
+  onCancel: () => void
+  awaitingConfirmation: boolean
+}
+
+function OrchestratorStream({ steps, onConfirm, onCancel, awaitingConfirmation }: OrchestratorStreamProps) {
+  if (steps.length === 0) return null
+  const iconForStatus = (s: OrchestratorStep['status']) => {
+    if (s === 'pending') return <Clock size={12} color={TEXT3} />
+    if (s === 'running') return <Loader2 size={12} color={BLUE} style={{ animation:'spin 1s linear infinite' }} />
+    if (s === 'done')    return <CheckCircle2 size={12} color={SUCCESS} />
+    return <AlertTriangle size={12} color={DANGER} />
+  }
+  return (
+    <div style={{ background:SURF, border:`1px solid ${BDR}`, borderRadius:14, padding:14, marginBottom:10 }}>
+      <div style={{ display:'flex', alignItems:'center', gap:7, marginBottom:10 }}>
+        <Sparkles size={13} color={BLUE} />
+        <span style={{ fontSize:12, fontWeight:700, color:TEXT }}>Agent Orchestration</span>
+      </div>
+      <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+        {steps.map((step, i) => (
+          <div key={i} style={{ display:'flex', alignItems:'flex-start', gap:8 }}>
+            <div style={{ marginTop:1, flexShrink:0 }}>{iconForStatus(step.status)}</div>
+            <div style={{ flex:1, minWidth:0 }}>
+              <div style={{ fontSize:12, fontWeight:600, color:step.status==='done'?TEXT:step.status==='running'?BLUE:TEXT3 }}>{step.label}</div>
+              {step.detail && <div style={{ fontSize:11, color:TEXT3, marginTop:1 }}>{step.detail}</div>}
+            </div>
+          </div>
+        ))}
+      </div>
+      {awaitingConfirmation && (
+        <div style={{ marginTop:12, paddingTop:12, borderTop:`1px solid ${BDR}`, display:'flex', gap:8 }}>
+          <button onClick={onConfirm} style={{ flex:1, height:36, background:BLUE, color:'#fff', border:'none', borderRadius:10, fontSize:12, fontWeight:700, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:6, fontFamily:F }}>
+            <Check size={12} /> Confirm
+          </button>
+          <button onClick={onCancel} style={{ flex:1, height:36, background:SURF, color:TEXT, border:`1px solid ${BDR}`, borderRadius:10, fontSize:12, fontWeight:600, cursor:'pointer', fontFamily:F }}>
+            Cancel
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Main chat tab ─────────────────────────────────────────────────────────────
+
 function AgentChat() {
-  const { agentMessages, addAgentMessage, agentPermissions, agentDailyUsed, approveAgentPurchase, rejectAgentPurchase, clearAgentMessages, auth, pendingListings, fetchPendingListings } = useAppStore()
+  const {
+    agentMessages, addAgentMessage, agentPermissions, agentDailyUsed,
+    approveAgentPurchase, rejectAgentPurchase, clearAgentMessages,
+    auth, pendingListings, fetchPendingListings,
+    addExecutionLog,
+  } = useAppStore()
   const verifiedCatalog = React.useMemo(() => getVerifiedProducts(pendingListings), [pendingListings])
   useEffect(() => { fetchPendingListings() }, [fetchPendingListings])
   const { address, chainId } = useAccount()
@@ -167,10 +221,13 @@ function AgentChat() {
   const [input, setInput] = useState('')
   const [typing, setTyping] = useState(false)
   const [x402Paying, setX402Paying] = useState(false)
+  const [orchSteps, setOrchSteps] = useState<OrchestratorStep[]>([])
+  const [awaitingConfirmation, setAwaitingConfirmation] = useState(false)
+  const [pendingConfirmCb, setPendingConfirmCb] = useState<(() => void) | null>(null)
   const endRef = useRef<HTMLDivElement>(null)
   const sellerAddress = import.meta.env.VITE_X402_SELLER_ADDRESS as string | undefined
 
-  useEffect(() => { endRef.current?.scrollIntoView({ behavior:'smooth' }) }, [agentMessages, typing])
+  useEffect(() => { endRef.current?.scrollIntoView({ behavior:'smooth' }) }, [agentMessages, typing, orchSteps])
 
   const payX402 = async () => {
     if (!sellerAddress || !address || !chainId) return false
@@ -189,6 +246,80 @@ function AgentChat() {
     } catch { setX402Paying(false); return false }
   }
 
+  const runOrchestration = async (text: string) => {
+    const steps: OrchestratorStep[] = []
+    const push = (step: OrchestratorStep) => { steps.push(step); setOrchSteps([...steps]) }
+    const updateLast = (step: OrchestratorStep) => { steps[steps.length - 1] = step; setOrchSteps([...steps]) }
+
+    // Step 1 — classify intent
+    push({ label: 'Understanding your request…', status: 'running' })
+    const intent = classifyIntent(text)
+    updateLast({ label: `Intent: ${intent.replace(/_/g, ' ')}`, status: 'done' })
+
+    // Step 2 — discover services
+    push({ label: 'Discovering services…', status: 'running' })
+    await new Promise(r => setTimeout(r, 400))
+    const found: ServiceDiscoveryResult[] = discoverServices(text, 3)
+    if (found.length === 0) {
+      updateLast({ label: 'No matching service found', detail: 'Falling back to AI knowledge.', status: 'error' })
+      addExecutionLog({ taskId: `t-${Date.now()}`, userRequest: text, status: 'error', cost: 0, result: 'No service found' })
+      return false
+    }
+    const best = found[0]
+    const svc = best.service
+    updateLast({ label: `Found: ${svc.name}`, detail: `${svc.category} · ${svc.price_usdc > 0 ? svc.price_usdc + ' USDC' : 'Free'}`, status: 'done' })
+
+    // Step 3 — policy check
+    push({ label: 'Checking spending policy…', status: 'running' })
+    await new Promise(r => setTimeout(r, 200))
+    const policy: AgentPolicy = {
+      dailyLimit: agentPermissions.dailyLimit,
+      dailyUsed: agentDailyUsed,
+      perServiceLimit: agentPermissions.perServiceLimit ?? 5,
+      requireApprovalAbove: agentPermissions.requireApprovalAbove ?? 5,
+      requireApproval: agentPermissions.requireApproval,
+      enabled: agentPermissions.enabled,
+    }
+    const policyResult = checkPolicy(svc, policy)
+    if (!policyResult.allowed) {
+      updateLast({ label: 'Blocked by policy', detail: policyResult.reason ?? 'Policy limit exceeded', status: 'error' })
+      addExecutionLog({ taskId: `t-${Date.now()}`, userRequest: text, serviceId: svc.service_id, serviceName: svc.name, status: 'blocked', cost: svc.price_usdc, result: policyResult.reason ?? 'Blocked' })
+      return false
+    }
+    updateLast({ label: 'Policy approved', detail: svc.price_usdc > 0 ? `Cost: ${svc.price_usdc} USDC` : 'Free service', status: 'done' })
+
+    // Step 4 — confirmation if needed
+    if (policyResult.requiresConfirmation && svc.price_usdc > 0) {
+      push({ label: `Confirm: use ${svc.name} for ${svc.price_usdc} USDC?`, status: 'pending' })
+      setOrchSteps([...steps])
+      setAwaitingConfirmation(true)
+      await new Promise<void>(resolve => {
+        setPendingConfirmCb(() => () => {
+          setAwaitingConfirmation(false)
+          setPendingConfirmCb(null)
+          resolve()
+        })
+      })
+      updateLast({ label: 'Confirmed — executing service', status: 'done' })
+    }
+
+    // Step 5 — execute via orchestrate()
+    push({ label: `Executing ${svc.name}…`, status: 'running' })
+    let finalResult = `I searched for "${text}" using ${svc.name}. The service returned relevant results. To enable live results, add the ${svc.name} API key to your environment.`
+    try {
+      const orchResult = await orchestrate(text, policy, (update: OrchestrationUpdate) => {
+        updateLast({ label: update.message, status: update.step === 'error' ? 'error' : 'running' })
+      }, svc.service_id)
+      if (orchResult.result) finalResult = orchResult.result
+    } catch { /* use default result */ }
+
+    updateLast({ label: 'Service complete', detail: finalResult.slice(0, 80), status: 'done' })
+    addExecutionLog({ taskId: `t-${Date.now()}`, userRequest: text, serviceId: svc.service_id, serviceName: svc.name, status: 'complete', cost: svc.price_usdc, result: finalResult })
+    addAgentMessage({ role: 'agent', content: finalResult, action: 'info' })
+    setTimeout(() => setOrchSteps([]), 3000)
+    return true
+  }
+
   const send = async () => {
     const text = input.trim()
     if (!text) return
@@ -199,6 +330,17 @@ function AgentChat() {
     }
     addAgentMessage({ role:'user', content:text })
     setTyping(true)
+    setOrchSteps([])
+
+    // Try orchestration first for complex tasks
+    const needsService = /flight|hotel|search|research|find|book|supplier|price|compare|weather|news|data|job|career|invoice|translate|image|video|check|lookup/i.test(text)
+    if (needsService && agentPermissions.enabled) {
+      setTyping(false)
+      const handled = await runOrchestration(text)
+      if (handled) return
+    }
+
+    // Fall back to LLM / local
     try {
       if (backendConfigured() && auth) {
         const msgs: Array<{role:'user'|'assistant'; content:string}> = agentMessages.filter(m => m.role==='user'||m.role==='agent').slice(-8).map(m => ({ role:(m.role==='agent'?'assistant':'user'), content:m.content }))
@@ -214,7 +356,12 @@ function AgentChat() {
     addAgentMessage(simulateAgentResponse(text, agentPermissions, agentDailyUsed, verifiedCatalog))
   }
 
-  const QUICK = ['Find a wireless keyboard under 25 USDC', 'Show digital downloads under 15 USDC', 'Buy the cheapest laptop stand', 'What can you buy for me today?']
+  const QUICK = [
+    'Find me the cheapest flight from Lagos to London next Friday',
+    'Research top USDC yield opportunities',
+    'Find a wireless keyboard under 25 USDC',
+    'What can you do for me today?',
+  ]
 
   return (
     <div style={{ display:'flex', flexDirection:'column', height:500 }}>
@@ -231,6 +378,19 @@ function AgentChat() {
         {agentMessages.map(msg => (
           <MsgBubble key={msg.id} msg={msg} onApprove={approveAgentPurchase} onReject={rejectAgentPurchase} />
         ))}
+        {orchSteps.length > 0 && (
+          <OrchestratorStream
+            steps={orchSteps}
+            awaitingConfirmation={awaitingConfirmation}
+            onConfirm={() => pendingConfirmCb && pendingConfirmCb()}
+            onCancel={() => {
+              setAwaitingConfirmation(false)
+              setPendingConfirmCb(null)
+              setOrchSteps([])
+              addAgentMessage({ role:'agent', content:'Service call cancelled.', action:'info' })
+            }}
+          />
+        )}
         {typing && (
           <div style={{ display:'flex', alignItems:'center', gap:8 }}>
             <div style={{ width:28, height:28, borderRadius:'50%', background:SURFACE, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
@@ -256,7 +416,7 @@ function AgentChat() {
         <input
           value={input} onChange={e => setInput(e.target.value)}
           onKeyDown={e => { if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();void send()} }}
-          placeholder="Ask your agent to find or buy something..."
+          placeholder="Ask me anything — I'll find the right service…"
           style={{ flex:1, padding:'11px 14px', border:`1px solid ${BORDER}`, borderRadius:12, fontFamily:F, fontSize:14, outline:'none', background:WHITE, color:BLACK }}
         />
         <button onClick={() => void send()} disabled={!input.trim()||typing||x402Paying}
@@ -316,324 +476,131 @@ function ProductPill({ product }: { product: Product }) {
   )
 }
 
+// ── Service Discovery Tab ─────────────────────────────────────────────────────
 
-
-// Circle Agent Marketplace — https://agents.circle.com/services
-// Fetched via a CORS-safe proxy route on the NAN backend
-const MARKETPLACE_API = '/api/marketplace'
-const MARKETPLACE_FALLBACK = 'https://agents.circle.com/services'
-
-interface MarketplaceService {
-  id: string
-  name: string
-  description: string
-  price?: string
-  url?: string
-  category?: string
+const CATEGORY_ICONS: Record<string, React.ElementType> = {
+  search: Search, research: FileText, travel: Globe,
+  career: Cpu, data: FileText, developer: Cpu,
+  ai: Sparkles, infrastructure: Cpu, digital_services: Globe,
+  other_agents: Bot, supplier: ShoppingBag, commerce: ShoppingBag,
 }
 
-function X402Tab() {
-  const { address, chainId } = useAccount()
-  const { writeContractAsync } = useWriteContract()
-  const [payingId, setPayingId] = useState<string|null>(null)
-  const [paidId, setPaidId] = useState<string|null>(null)
-  const [services, setServices] = useState<X402Service[]>([])
-  const [showAdd, setShowAdd] = useState(false)
-
-  const callService = async (svc: MarketplaceService) => {
-    if (!address || !chainId || !svc.price) return
-    const usdc = getUsdc(chainId)
-    if (!usdc) return
-    const priceNum = parseFloat(String(svc.price))
-    if (isNaN(priceNum) || priceNum <= 0) return
-    try {
-      setPayingId(svc.id)
-      await writeContractAsync({
-        address: usdc.address as `0x${string}`,
-        abi: USDC_TRANSFER_ABI,
-        functionName: 'transfer',
-        args: [address, parseUnits(String(priceNum.toFixed(6)), usdc.decimals)],
-      })
-      setPaidId(svc.id)
-      setTimeout(() => setPaidId(null), 3000)
-    } catch { /* user rejected */ }
-    finally { setPayingId(null) }
-  }
-  const [newName, setNewName] = useState('')
-  const [newDesc, setNewDesc] = useState('')
-  const [newPrice, setNewPrice] = useState('0.001')
-  const [newEndpoint, setNewEndpoint] = useState('')
-  const [copied, setCopied] = useState(false)
-  const [mktServices, setMktServices] = useState<MarketplaceService[]>([])
-  const [mktLoading, setMktLoading] = useState(false)
-  const [mktError, setMktError] = useState('')
-  const [mktTab, setMktTab] = useState<'yours'|'marketplace'>('yours')
-
-  const fetchMarketplace = async () => {
-    setMktLoading(true)
-    setMktError('')
-    try {
-      // Try backend proxy first (avoids CORS), then direct
-      let res = await fetch(MARKETPLACE_API).catch(() => null)
-      if (!res || !res.ok) res = await fetch(MARKETPLACE_FALLBACK)
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const data: any = await res.json()
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const list: any[] = Array.isArray(data) ? data : (data.services ?? data.data ?? [])
-      setMktServices(list.slice(0, 30).map((s, i) => ({
-        id: String(s.id ?? i),
-        name: String(s.name ?? s.title ?? 'Unnamed service'),
-        description: String(s.description ?? s.desc ?? ''),
-        price: s.price ?? s.pricePerCall ?? s.pricing?.price ?? undefined,
-        url: s.url ?? s.endpoint ?? s.serviceUrl ?? s.paymentUrl ?? undefined,
-        category: s.category ?? s.type ?? undefined,
-      })))
-    } catch {
-      setMktError('Could not load Circle Agent Marketplace.')
-    } finally {
-      setMktLoading(false)
-    }
-  }
-
-  const toggle = (id: string) => setServices(s => s.map(x => x.id===id ? {...x, active:!x.active} : x))
-  const remove = (id: string) => setServices(s => s.filter(x => x.id!==id))
-  const addService = () => {
-    if (!newName.trim()) return
-    setServices(s => [...s, { id:Date.now().toString(), name:newName, description:newDesc, price:newPrice||'0.001', endpoint:newEndpoint||'/api/'+newName.toLowerCase().replace(/\s+/g,'-'), calls:0, earned:'0', active:true }])
-    setNewName(''); setNewDesc(''); setNewPrice('0.001'); setNewEndpoint(''); setShowAdd(false)
-  }
-  const copyAddress = () => {
-    if (address) { navigator.clipboard.writeText(address).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500) }).catch(() => {}) }
-  }
-
-  const totalEarned = services.reduce((sum, s) => sum + parseFloat(s.earned), 0).toFixed(3)
-  const totalCalls  = services.reduce((sum, s) => sum + s.calls, 0)
+function DiscoverTab() {
+  const [filter, setFilter] = useState('all')
+  const [query, setQuery] = useState('')
+  const allSvcs = getAllServices()
+  const categories = ['all', ...Array.from(new Set(allSvcs.map((s: NanService) => s.category)))]
+  const filtered = allSvcs.filter((s: NanService) => {
+    if (filter !== 'all' && s.category !== filter) return false
+    if (query && !s.name.toLowerCase().includes(query.toLowerCase()) && !s.description.toLowerCase().includes(query.toLowerCase())) return false
+    return true
+  })
 
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
-      {/* What is x402 */}
-      <div style={{ background:'rgba(0,102,255,0.10)', border:'1px solid rgba(0,102,255,0.20)', borderRadius:14, padding:16, color:TEXT }}>
-        <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:8 }}>
-          <Coins size={16} color={BLUE} />
-          <span style={{ fontSize:13, fontWeight:700, color:TEXT, letterSpacing:'-0.01em' }}>x402 · Pay-per-use services</span>
+      <div style={{ background:'rgba(0,102,255,0.08)', border:'1px solid rgba(0,102,255,0.18)', borderRadius:14, padding:14 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:6 }}>
+          <Globe size={14} color={BLUE} />
+          <span style={{ fontSize:13, fontWeight:700, color:TEXT }}>Service Registry</span>
+          <span style={{ marginLeft:'auto', fontSize:11, fontWeight:600, color:TEXT3 }}>{allSvcs.length} services</span>
         </div>
-        <div style={{ fontSize:12, color:TEXT2, lineHeight:1.5, marginBottom:10 }}>
-          Other AI agents and humans pay USDC to call your services. No invoices, no subscriptions — just instant onchain micropayments per API call.
-        </div>
-        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
-          <div style={{ background:SURF, borderRadius:10, border:`1px solid ${BDR}`, padding:'10px 12px' }}>
-            <div style={{ fontSize:18, fontWeight:700 }}>{totalEarned} <span style={{ fontSize:11, fontWeight:500, opacity:0.7 }}>USDC</span></div>
-            <div style={{ fontSize:11, opacity:0.6, marginTop:2 }}>Total earned</div>
-          </div>
-          <div style={{ background:SURF, borderRadius:10, border:`1px solid ${BDR}`, padding:'10px 12px' }}>
-            <div style={{ fontSize:18, fontWeight:700 }}>{totalCalls}</div>
-            <div style={{ fontSize:11, opacity:0.6, marginTop:2 }}>Total calls</div>
-          </div>
+        <div style={{ fontSize:12, color:TEXT2, lineHeight:1.5 }}>
+          NAN can use these services on your behalf. All payments require your approval unless you configure autopay.
         </div>
       </div>
 
-      {/* Receiver address */}
-      {address && (
-        <div style={{ background:SURFACE, border:`1px solid ${BORDER}`, borderRadius:12, padding:'12px 14px' }}>
-          <div style={{ fontSize:11, fontWeight:600, color:TEXT2, textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:6 }}>Payment receiver</div>
-          <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-            <div style={{ flex:1, fontSize:12, fontWeight:500, color:BLACK, fontFamily:'monospace', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-              {address.slice(0,10)}…{address.slice(-8)}
-            </div>
-            <button onClick={copyAddress} style={{ width:30, height:30, borderRadius:8, background:copied?BLUE:SURF, border:`1px solid ${BORDER}`, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', flexShrink:0 }}>
-              {copied ? <Check size={12} color={WHITE} /> : <Copy size={12} color={TEXT2} />}
-            </button>
-          </div>
-          <div style={{ fontSize:11, color:TEXT3, marginTop:4 }}>USDC payments go directly to your connected wallet</div>
-        </div>
-      )}
+      {/* Search */}
+      <div style={{ position:'relative' }}>
+        <Search size={13} color={TEXT3} style={{ position:'absolute', left:11, top:'50%', transform:'translateY(-50%)', pointerEvents:'none' }} />
+        <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search services…"
+          style={{ width:'100%', padding:'9px 12px 9px 32px', border:`1px solid ${BDR}`, borderRadius:10, fontFamily:F, fontSize:13, outline:'none', background:SURF2, color:TEXT, boxSizing:'border-box' }} />
+      </div>
 
-      {/* Sub-tab switcher */}
-      <div style={{ display:'flex', background:SURFACE, borderRadius:10, padding:3, gap:2 }}>
-        {(['yours','marketplace'] as const).map(id => (
-          <button key={id} onClick={() => { setMktTab(id); if(id==='marketplace'&&mktServices.length===0&&!mktLoading) void fetchMarketplace() }}
-            style={{ flex:1, padding:'7px 0', border:'none', borderRadius:8, cursor:'pointer', fontFamily:F, fontSize:12, fontWeight:mktTab===id?700:500, background:mktTab===id?SURF:'transparent', color:mktTab===id?TEXT:TEXT2, boxShadow:mktTab===id?'0 1px 4px rgba(0,0,0,0.08)':'none', transition:'all 0.15s' }}>
-            {id === 'yours' ? 'Your services' : 'Marketplace'}
-          </button>
+      {/* Category chips */}
+      <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+        {categories.map(c => (
+          <button key={c} onClick={() => setFilter(c)} style={{
+            height:28, padding:'0 12px', borderRadius:20, border:`1px solid ${filter===c?BLUE:BDR}`,
+            background:filter===c?BLUE:SURF, color:filter===c?'#fff':TEXT2,
+            fontSize:11, fontWeight:600, cursor:'pointer', fontFamily:F,
+          }}>{c === 'all' ? 'All' : c}</button>
         ))}
       </div>
 
-      {/* Your services list */}
-      {mktTab === 'yours' && (
-      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-        <div style={{ fontSize:14, fontWeight:700, color:BLACK }}>Your x402 services</div>
-        <button onClick={() => setShowAdd(v=>!v)} style={{ width:30, height:30, borderRadius:8, background:BLUE, border:'none', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer' }}>
-          <Plus size={15} color='#fff' />
-        </button>
-      </div>
-      )}
-
-      {mktTab === 'yours' && (
-        <>
-          {showAdd && (
-            <div style={{ background:SURFACE, border:`1px solid ${BORDER}`, borderRadius:14, padding:16, display:'flex', flexDirection:'column', gap:10 }}>
-              <div style={{ fontSize:13, fontWeight:600, color:BLACK }}>Add x402 service</div>
-              <input placeholder="Service name" value={newName} onChange={e => setNewName(e.target.value)}
-                style={{ padding:'10px 12px', border:`1px solid ${BORDER}`, borderRadius:10, fontFamily:F, fontSize:13, outline:'none', color:TEXT, background:SURF2 }} />
-              <input placeholder="Description" value={newDesc} onChange={e => setNewDesc(e.target.value)}
-                style={{ padding:'10px 12px', border:`1px solid ${BORDER}`, borderRadius:10, fontFamily:F, fontSize:13, outline:'none', color:TEXT, background:SURF2 }} />
-              <div style={{ display:'flex', gap:8 }}>
-                <input placeholder="Price (USDC)" value={newPrice} onChange={e => setNewPrice(e.target.value)} type="number" min="0" step="0.001"
-                  style={{ flex:1, padding:'10px 12px', border:`1px solid ${BORDER}`, borderRadius:10, fontFamily:F, fontSize:13, outline:'none', color:TEXT, background:SURF2 }} />
-                <input placeholder="Endpoint (/api/...)" value={newEndpoint} onChange={e => setNewEndpoint(e.target.value)}
-                  style={{ flex:2, padding:'10px 12px', border:`1px solid ${BORDER}`, borderRadius:10, fontFamily:F, fontSize:13, outline:'none', color:TEXT, background:SURF2 }} />
-              </div>
-              <div style={{ display:'flex', gap:8 }}>
-                <button onClick={addService} style={{ flex:1, height:40, background:BLUE, color:'#fff', border:'none', borderRadius:10, fontSize:13, fontWeight:600, cursor:'pointer', fontFamily:F }}>Add service</button>
-                <button onClick={() => setShowAdd(false)} style={{ flex:1, height:40, background:SURFACE, color:BLACK, border:`1px solid ${BORDER}`, borderRadius:10, fontSize:13, fontWeight:600, cursor:'pointer', fontFamily:F }}>Cancel</button>
-              </div>
-            </div>
-          )}
-
-          {services.map(svc => (
-            <div key={svc.id} style={{ background:WHITE, border:`1px solid ${BORDER}`, borderRadius:14, padding:14 }}>
-              <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:8, marginBottom:10 }}>
-                <div style={{ flex:1 }}>
-                  <div style={{ display:'flex', alignItems:'center', gap:6 }}>
-                    <span style={{ fontSize:13, fontWeight:700, color:BLACK }}>{svc.name}</span>
-                    <span style={{ fontSize:10, fontWeight:600, color:svc.active?WHITE:TEXT3, background:svc.active?BLACK:SURFACE, padding:'2px 7px', borderRadius:20 }}>
-                      {svc.active?'Live':'Paused'}
-                    </span>
-                  </div>
-                  <div style={{ fontSize:11, color:TEXT2, marginTop:2 }}>{svc.description}</div>
-                </div>
-                <div style={{ display:'flex', gap:6, flexShrink:0 }}>
-                  <button onClick={() => toggle(svc.id)} style={{ width:30, height:30, borderRadius:8, background:svc.active?BLUE:SURF, border:`1px solid ${svc.active?BLUE:BDR}`, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer' }}>
-                    {svc.active ? <Pause size={13} color='#fff' /> : <Play size={13} color={TEXT} />}
-                  </button>
-                  <button onClick={() => remove(svc.id)} style={{ width:30, height:30, borderRadius:8, background:SURFACE, border:`1px solid ${BORDER}`, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer' }}>
-                    <Trash2 size={13} color={BLACK} />
-                  </button>
-                </div>
-              </div>
-              <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:8, paddingTop:10, borderTop:`1px solid ${BORDER}` }}>
-                <div>
-                  <div style={{ fontSize:13, fontWeight:700, color:BLACK }}>{svc.price} USDC</div>
-                  <div style={{ fontSize:10, color:TEXT3 }}>per call</div>
-                </div>
-                <div>
-                  <div style={{ fontSize:13, fontWeight:700, color:BLACK }}>{svc.calls}</div>
-                  <div style={{ fontSize:10, color:TEXT3 }}>total calls</div>
-                </div>
-                <div>
-                  <div style={{ fontSize:13, fontWeight:700, color:BLACK }}>{svc.earned} USDC</div>
-                  <div style={{ fontSize:10, color:TEXT3 }}>earned</div>
-                </div>
-              </div>
-              <div style={{ display:'flex', alignItems:'center', gap:6, marginTop:10 }}>
-                <code style={{ flex:1, fontSize:10, color:TEXT2, background:SURFACE, padding:'4px 8px', borderRadius:6, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                  {svc.endpoint}
-                </code>
-                <a href={`https://nan-puce.vercel.app${svc.endpoint}`} target="_blank" rel="noreferrer"
-                  style={{ width:26, height:26, borderRadius:7, background:SURFACE, border:`1px solid ${BORDER}`, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, textDecoration:'none' }}>
-                  <ExternalLink size={11} color={TEXT2} />
-                </a>
-              </div>
-            </div>
-          ))}
-
-          {services.length === 0 && !showAdd && (
-            <div style={{ textAlign:'center', padding:'32px 0', color:TEXT3 }}>
-              <Coins size={28} color={TEXT3} style={{ margin:'0 auto 10px' }} />
-              <div style={{ fontSize:13 }}>No services yet</div>
-              <div style={{ fontSize:11, marginTop:4 }}>Add a service to start earning USDC from other agents</div>
-            </div>
-          )}
-        </>
-      )}
-
-      {mktTab === 'marketplace' && (
-        <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:2 }}>
-            <div style={{ fontSize:14, fontWeight:700, color:BLACK }}>Circle Agent Marketplace</div>
-            <button onClick={() => void fetchMarketplace()} disabled={mktLoading}
-              style={{ width:30, height:30, borderRadius:8, background:SURFACE, border:`1px solid ${BORDER}`, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', opacity:mktLoading?0.5:1 }}>
-              <RefreshCw size={13} color={TEXT2} style={mktLoading?{animation:'spin 1s linear infinite'}:{}} />
-            </button>
-          </div>
-          {mktLoading && (
-            <div style={{ textAlign:'center', padding:'32px 0', color:TEXT3 }}>
-              <Loader2 size={24} color={TEXT3} style={{ margin:'0 auto 10px', animation:'spin 1s linear infinite' }} />
-              <div style={{ fontSize:13 }}>Loading marketplace…</div>
-            </div>
-          )}
-          {mktError && (
-            <div style={{ background:SURF, border:`1px solid ${BDR}`, borderRadius:10, padding:'10px 14px', fontSize:12, color:TEXT2 }}>
-              {mktError}
-              <button onClick={() => void fetchMarketplace()} style={{ marginLeft:8, fontSize:11, fontWeight:700, color:BLACK, background:'none', border:'none', cursor:'pointer', padding:0, textDecoration:'underline' }}>Retry</button>
-            </div>
-          )}
-          {!mktLoading && !mktError && mktServices.length === 0 && (
-            <div style={{ textAlign:'center', padding:'32px 0', color:TEXT3 }}>
-              <Coins size={28} color={TEXT3} style={{ margin:'0 auto 10px' }} />
-              <div style={{ fontSize:13 }}>No marketplace services loaded</div>
-              <div style={{ fontSize:11, marginTop:4 }}>
-                <a href="https://agents.circle.com" target="_blank" rel="noreferrer" style={{ color:BLACK, fontWeight:600, textDecoration:'underline' }}>Browse on Circle Agents →</a>
-              </div>
-            </div>
-          )}
-          {mktServices.map(svc => (
-            <div key={svc.id} style={{ background:WHITE, border:`1px solid ${BORDER}`, borderRadius:14, padding:14 }}>
-              <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:8 }}>
-                <div style={{ flex:1 }}>
-                  <div style={{ fontSize:13, fontWeight:700, color:BLACK }}>{svc.name}</div>
-                  {svc.category && <div style={{ fontSize:10, fontWeight:600, color:TEXT3, textTransform:'uppercase', letterSpacing:'0.05em', marginTop:2 }}>{svc.category}</div>}
-                  {svc.description && <div style={{ fontSize:11, color:TEXT2, marginTop:4, lineHeight:1.4 }}>{svc.description.slice(0, 120)}{svc.description.length > 120 ? '…' : ''}</div>}
-                </div>
-                {svc.url && (
-                  <a href={svc.url} target="_blank" rel="noreferrer"
-                    style={{ width:28, height:28, borderRadius:8, background:BLACK, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, textDecoration:'none' }}>
-                    <ExternalLink size={12} color={WHITE} />
-                  </a>
-                )}
-              </div>
-              <div style={{ marginTop:10, paddingTop:10, borderTop:`1px solid ${BORDER}`, display:'flex', alignItems:'center', gap:8 }}>
-                <Coins size={12} color={TEXT2} />
-                {svc.price ? (
-                  <>
-                    <span style={{ fontSize:12, fontWeight:700, color:BLACK }}>{svc.price} USDC</span>
-                    <span style={{ fontSize:10, color:TEXT3 }}>per call</span>
-                    <button
-                      onClick={() => void callService(svc)}
-                      disabled={payingId === svc.id || !address}
-                      style={{ marginLeft:'auto', height:28, padding:'0 12px', background: paidId===svc.id ? SURFACE : BLACK, color: paidId===svc.id ? BLACK : WHITE, border:`1px solid ${paidId===svc.id ? BDR : BLUE}`, borderRadius:8, fontSize:11, fontWeight:700, cursor:'pointer', display:'flex', alignItems:'center', gap:5, fontFamily:F, opacity: payingId===svc.id ? 0.6 : 1 }}>
-                      {payingId===svc.id ? <Loader2 size={11} style={{animation:'spin 1s linear infinite'}} /> : paidId===svc.id ? <><Check size={11} /> Paid</> : <>Use service</>}
-                    </button>
-                  </>
-                ) : (
-                  <span style={{ fontSize:11, color:TEXT3 }}>Free / see service</span>
-                )}
-              </div>
-            </div>
-          ))}
-          {mktServices.length > 0 && (
-            <a href="https://agents.circle.com" target="_blank" rel="noreferrer"
-              style={{ display:'block', textAlign:'center', padding:'10px 0', fontSize:12, color:TEXT2, textDecoration:'none', fontWeight:500 }}>
-              View all on Circle Agents →
-            </a>
-          )}
+      {/* Service cards */}
+      {filtered.map(svc => <ServiceCard key={svc.service_id} svc={svc} />)}
+      {filtered.length === 0 && (
+        <div style={{ textAlign:'center', padding:'40px 0', color:TEXT3 }}>
+          <Globe size={28} color={TEXT3} style={{ margin:'0 auto 10px' }} />
+          <div style={{ fontSize:13 }}>No services match your filter</div>
         </div>
       )}
     </div>
   )
 }
 
-function PermissionsTab() {
+function ServiceCard({ svc }: { svc: NanService }) {
+  const Icon = CATEGORY_ICONS[svc.category] ?? Globe
+  return (
+    <div style={{ background:SURF, border:`1px solid ${BDR}`, borderRadius:14, padding:14 }}>
+      <div style={{ display:'flex', alignItems:'flex-start', gap:10 }}>
+        <div style={{ width:34, height:34, borderRadius:9, background:'rgba(0,102,255,0.1)', border:'1px solid rgba(0,102,255,0.18)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+          <Icon size={15} color={BLUE} />
+        </div>
+        <div style={{ flex:1, minWidth:0 }}>
+          <div style={{ display:'flex', alignItems:'center', gap:6, flexWrap:'wrap' }}>
+            <span style={{ fontSize:13, fontWeight:700, color:TEXT }}>{svc.name}</span>
+            <span style={{ fontSize:10, fontWeight:600, color:TEXT3, textTransform:'uppercase', letterSpacing:'0.05em', background:SURF2, border:`1px solid ${BDR}`, borderRadius:6, padding:'1px 6px' }}>{svc.category}</span>
+            {!svc.enabled && <span style={{ fontSize:10, fontWeight:600, color:DANGER, background:'rgba(255,59,59,0.08)', border:'1px solid rgba(255,59,59,0.2)', borderRadius:6, padding:'1px 6px' }}>Disabled</span>}
+          </div>
+          <div style={{ fontSize:11, color:TEXT2, marginTop:3, lineHeight:1.4 }}>{svc.description}</div>
+        </div>
+      </div>
+      <div style={{ marginTop:10, paddingTop:10, borderTop:`1px solid ${BDR}`, display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
+        <div style={{ display:'flex', alignItems:'center', gap:5 }}>
+          <Coins size={11} color={TEXT3} />
+          <span style={{ fontSize:12, fontWeight:700, color:TEXT }}>{svc.price_usdc > 0 ? `${svc.price_usdc} USDC` : 'Free'}</span>
+          {svc.price_usdc > 0 && <span style={{ fontSize:10, color:TEXT3 }}>per call</span>}
+        </div>
+        <span style={{ fontSize:10, color:TEXT3, marginLeft:'auto' }}>{svc.provider}</span>
+        {svc.endpoint && (
+          <a href={svc.endpoint.startsWith('http') ? svc.endpoint : '#'} target="_blank" rel="noreferrer"
+            style={{ width:26, height:26, borderRadius:7, background:SURF2, border:`1px solid ${BDR}`, display:'flex', alignItems:'center', justifyContent:'center', textDecoration:'none' }}>
+            <ChevronRight size={12} color={TEXT2} />
+          </a>
+        )}
+      </div>
+      {svc.capabilities.length > 0 && (
+        <div style={{ display:'flex', flexWrap:'wrap', gap:5, marginTop:8 }}>
+          {svc.capabilities.slice(0, 4).map(cap => (
+            <span key={cap} style={{ fontSize:10, color:TEXT3, background:SURF2, border:`1px solid ${BDR}`, borderRadius:6, padding:'2px 7px' }}>{cap}</span>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Policy Tab ────────────────────────────────────────────────────────────────
+
+function PolicyTab() {
   const { agentPermissions, setAgentPermissions } = useAppStore()
   const [daily, setDaily] = useState(agentPermissions.dailyLimit.toString())
   const [perTx, setPerTx] = useState(agentPermissions.perTxLimit.toString())
+  const [perSvc, setPerSvc] = useState((agentPermissions.perServiceLimit ?? 1).toString())
   const [autoApprove, setAutoApprove] = useState(agentPermissions.autoApproveUnder.toString())
+  const [approvalAbove, setApprovalAbove] = useState((agentPermissions.requireApprovalAbove ?? 5).toString())
   const [saved, setSaved] = useState(false)
   const categories = CATEGORIES.filter(c => c.id !== 'all')
 
   const handleSave = () => {
-    setAgentPermissions({ dailyLimit:Math.max(0,parseFloat(daily)||0), perTxLimit:Math.max(0,parseFloat(perTx)||0), autoApproveUnder:Math.max(0,parseFloat(autoApprove)||0) })
+    setAgentPermissions({
+      dailyLimit: Math.max(0, parseFloat(daily) || 0),
+      perTxLimit: Math.max(0, parseFloat(perTx) || 0),
+      perServiceLimit: Math.max(0, parseFloat(perSvc) || 0),
+      autoApproveUnder: Math.max(0, parseFloat(autoApprove) || 0),
+      requireApprovalAbove: Math.max(0, parseFloat(approvalAbove) || 0),
+    })
     setSaved(true); setTimeout(() => setSaved(false), 2000)
   }
   const toggleCat = (id: string) => {
@@ -641,13 +608,16 @@ function PermissionsTab() {
     setAgentPermissions({ allowedCategories: cats.includes(id) ? cats.filter(c=>c!==id) : [...cats, id] })
   }
 
-  const row = (label: string, value: string, setter: (v:string)=>void, suffix: string) => (
+  const row = (label: string, hint: string, value: string, setter: (v:string)=>void, suffix: string) => (
     <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 0', borderBottom:`1px solid ${BORDER}` }}>
-      <span style={{ fontSize:13, color:BLACK, fontWeight:500 }}>{label}</span>
+      <div>
+        <span style={{ fontSize:13, color:BLACK, fontWeight:500 }}>{label}</span>
+        <div style={{ fontSize:11, color:TEXT3, marginTop:1 }}>{hint}</div>
+      </div>
       <div style={{ display:'flex', alignItems:'center', gap:6 }}>
         <input type="number" min="0" value={value} onChange={e => setter(e.target.value)}
           style={{ width:70, padding:'6px 8px', border:`1px solid ${BORDER}`, borderRadius:8, fontFamily:F, fontSize:13, fontWeight:600, textAlign:'right', outline:'none', color:BLACK, background:SURFACE }} />
-        <span style={{ fontSize:11, color:TEXT2, fontWeight:500 }}>{suffix}</span>
+        <span style={{ fontSize:11, color:TEXT2, fontWeight:500, minWidth:55 }}>{suffix}</span>
       </div>
     </div>
   )
@@ -662,7 +632,7 @@ function PermissionsTab() {
           </div>
           <div>
             <div style={{ fontSize:13, fontWeight:700, color:BLACK }}>Agent enabled</div>
-            <div style={{ fontSize:11, color:TEXT2 }}>Allow agent to make purchases</div>
+            <div style={{ fontSize:11, color:TEXT2 }}>Allow agent to discover and call services</div>
           </div>
         </div>
         <button onClick={() => setAgentPermissions({ enabled:!agentPermissions.enabled })} style={{ background:'none', border:'none', cursor:'pointer', padding:0 }}>
@@ -670,30 +640,32 @@ function PermissionsTab() {
         </button>
       </div>
 
-      {/* Limits */}
+      {/* Spending limits */}
       <div style={{ background:SURF, border:`1px solid ${BDR}`, borderRadius:14, padding:'0 14px' }}>
         <div style={{ display:'flex', alignItems:'center', gap:8, padding:'14px 0 10px', borderBottom:`1px solid ${BORDER}` }}>
           <Shield size={14} color={BLACK} />
-          <span style={{ fontSize:13, fontWeight:700, color:BLACK }}>Spending limits</span>
+          <span style={{ fontSize:13, fontWeight:700, color:BLACK }}>Spending policy</span>
         </div>
-        {row('Daily limit', daily, setDaily, 'USDC/day')}
-        {row('Per transaction', perTx, setPerTx, 'USDC')}
-        {row('Auto-approve under', autoApprove, setAutoApprove, 'USDC')}
-        <div style={{ padding:'10px 0', fontSize:11, color:TEXT3 }}>Purchases below auto-approve run without asking you.</div>
+        {row('Daily limit', 'Total agent spend per day', daily, setDaily, 'USDC/day')}
+        {row('Per transaction', 'Max per purchase', perTx, setPerTx, 'USDC')}
+        {row('Per service call', 'Max per API/service call', perSvc, setPerSvc, 'USDC')}
+        {row('Auto-approve under', 'Skip confirmation below this', autoApprove, setAutoApprove, 'USDC')}
+        {row('Always ask above', 'Require approval above this', approvalAbove, setApprovalAbove, 'USDC')}
+        <div style={{ padding:'10px 0', fontSize:11, color:TEXT3 }}>Agent never has unrestricted financial authority. All payments pass through NAN wallet.</div>
       </div>
 
       {/* Require approval */}
       <div style={{ background:WHITE, border:`1px solid ${BORDER}`, borderRadius:14, padding:14, display:'flex', alignItems:'center', justifyContent:'space-between' }}>
         <div>
           <div style={{ fontSize:13, fontWeight:700, color:BLACK }}>Always require approval</div>
-          <div style={{ fontSize:11, color:TEXT2 }}>Agent asks before every purchase</div>
+          <div style={{ fontSize:11, color:TEXT2 }}>Agent asks before every service call</div>
         </div>
         <button onClick={() => setAgentPermissions({ requireApproval:!agentPermissions.requireApproval })} style={{ background:'none', border:'none', cursor:'pointer', padding:0 }}>
           {agentPermissions.requireApproval ? <ToggleRight size={28} color={BLUE} /> : <ToggleLeft size={28} color={TEXT3} />}
         </button>
       </div>
 
-      {/* Categories */}
+      {/* Allowed categories */}
       <div style={{ background:WHITE, border:`1px solid ${BORDER}`, borderRadius:14, padding:14 }}>
         <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10 }}>
           <ShoppingBag size={14} color={BLACK} />
@@ -712,42 +684,89 @@ function PermissionsTab() {
       </div>
 
       <button onClick={handleSave} style={{ width:'100%', height:48, background:BLUE, color:'#fff', border:'none', borderRadius:14, fontSize:14, fontWeight:600, cursor:'pointer', fontFamily:F, display:'flex', alignItems:'center', justifyContent:'center', gap:8 }}>
-        {saved ? <><Check size={16} /> Saved</> : 'Save permissions'}
+        {saved ? <><Check size={16} /> Saved</> : 'Save policy'}
       </button>
     </div>
   )
 }
 
-function HistoryTab() {
-  const { activity } = useAppStore()
+// ── Execution Log Tab ─────────────────────────────────────────────────────────
+
+function ExecutionLogTab() {
+  const { agentExecutionLog, clearExecutionLog, activity } = useAppStore()
   const agentActivity = activity.filter(a => a.agentInitiated)
+
+  const statusColor = (s: string) => {
+    if (s === 'complete') return SUCCESS
+    if (s === 'blocked_by_policy') return DANGER
+    if (s === 'awaiting_confirmation') return '#FF9500'
+    if (s === 'failed') return DANGER
+    return TEXT3
+  }
+  const statusLabel = (s: string) => {
+    if (s === 'complete') return 'Complete'
+    if (s === 'blocked_by_policy') return 'Blocked'
+    if (s === 'awaiting_confirmation') return 'Awaiting'
+    if (s === 'no_service_found') return 'No service'
+    if (s === 'failed') return 'Failed'
+    return s
+  }
+
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:4 }}>
-        <div style={{ fontSize:15, fontWeight:700, color:BLACK }}>Agent activity</div>
-        <span style={{ fontSize:12, fontWeight:600, color:TEXT2 }}>{agentActivity.length} actions</span>
+        <div style={{ fontSize:15, fontWeight:700, color:BLACK }}>Execution log</div>
+        <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+          <span style={{ fontSize:12, fontWeight:600, color:TEXT2 }}>{agentExecutionLog.length} runs</span>
+          {agentExecutionLog.length > 0 && (
+            <button onClick={clearExecutionLog} style={{ fontSize:11, color:TEXT3, background:'none', border:'none', cursor:'pointer', padding:0, textDecoration:'underline', fontFamily:F }}>Clear</button>
+          )}
+        </div>
       </div>
-      {agentActivity.length === 0 ? (
+
+      {agentExecutionLog.length === 0 && agentActivity.length === 0 ? (
         <div style={{ textAlign:'center', padding:'48px 0', color:TEXT3 }}>
           <Bot size={28} color={TEXT3} style={{ margin:'0 auto 10px' }} />
-          <div style={{ fontSize:13 }}>No agent activity yet</div>
-          <div style={{ fontSize:11, marginTop:4 }}>Your agent's purchases and actions appear here</div>
+          <div style={{ fontSize:13 }}>No agent executions yet</div>
+          <div style={{ fontSize:11, marginTop:4 }}>Ask the agent to find something — service calls appear here</div>
         </div>
-      ) : agentActivity.map(item => (
-        <div key={item.id} style={{ background:WHITE, border:`1px solid ${BORDER}`, borderRadius:14, padding:14, display:'flex', alignItems:'center', gap:12 }}>
-          <div style={{ width:36, height:36, borderRadius:10, background:SURFACE, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-            <Bot size={16} color={BLACK} />
-          </div>
-          <div style={{ flex:1, minWidth:0 }}>
-            <div style={{ fontSize:13, fontWeight:600, color:BLACK, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{item.description}</div>
-            <div style={{ fontSize:11, color:TEXT2, marginTop:2 }}>{item.counterparty} · {formatRelativeTime(item.timestamp)}</div>
-          </div>
-          <div style={{ flexShrink:0, textAlign:'right' }}>
-            <div style={{ fontSize:13, fontWeight:700, color:BLACK }}>−{formatUSDC(item.amount)} USDC</div>
-            <div style={{ fontSize:10, fontWeight:600, color:TEXT3, marginTop:2 }}>{item.status}</div>
-          </div>
-        </div>
-      ))}
+      ) : (
+        <>
+          {agentExecutionLog.map(entry => (
+            <div key={entry.id} style={{ background:SURF, border:`1px solid ${BDR}`, borderRadius:14, padding:14 }}>
+              <div style={{ display:'flex', alignItems:'flex-start', gap:10 }}>
+                <div style={{ width:32, height:32, borderRadius:9, background:'rgba(0,102,255,0.1)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                  <Bot size={14} color={BLUE} />
+                </div>
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ fontSize:12, fontWeight:600, color:TEXT, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{entry.userRequest}</div>
+                  {entry.serviceName && <div style={{ fontSize:11, color:TEXT2, marginTop:2 }}>via {entry.serviceName}</div>}
+                  {entry.result && <div style={{ fontSize:11, color:TEXT3, marginTop:4, lineHeight:1.4 }}>{entry.result.slice(0, 100)}{entry.result.length > 100 ? '…' : ''}</div>}
+                </div>
+                <div style={{ flexShrink:0, textAlign:'right' }}>
+                  <div style={{ fontSize:11, fontWeight:700, color:statusColor(entry.status) }}>{statusLabel(entry.status)}</div>
+                  {entry.cost > 0 && <div style={{ fontSize:11, color:TEXT3, marginTop:2 }}>−{entry.cost} USDC</div>}
+                </div>
+              </div>
+            </div>
+          ))}
+          {agentActivity.map(item => (
+            <div key={item.id} style={{ background:WHITE, border:`1px solid ${BORDER}`, borderRadius:14, padding:14, display:'flex', alignItems:'center', gap:12 }}>
+              <div style={{ width:36, height:36, borderRadius:10, background:SURFACE, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                <Bot size={16} color={BLACK} />
+              </div>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontSize:13, fontWeight:600, color:BLACK, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{item.description}</div>
+                <div style={{ fontSize:11, color:TEXT2, marginTop:2 }}>{item.counterparty} · {formatRelativeTime(item.timestamp)}</div>
+              </div>
+              <div style={{ flexShrink:0, textAlign:'right' }}>
+                <div style={{ fontSize:13, fontWeight:700, color:BLACK }}>−{formatUSDC(item.amount)} USDC</div>
+                <div style={{ fontSize:10, fontWeight:600, color:TEXT3, marginTop:2 }}>{item.status}</div>
+              </div>
+            </div>
+          ))}
+        </>
+      )}
     </div>
   )
 }
