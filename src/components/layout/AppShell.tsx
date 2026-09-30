@@ -156,13 +156,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       {/* ── Bottom nav ── */}
       <nav style={{
         flexShrink:0, zIndex:100,
-        background: C.isDark ? 'rgba(8,9,11,0.98)' : 'rgba(255,255,255,0.98)',
-        backdropFilter:'blur(20px)', WebkitBackdropFilter:'blur(20px)',
+        background: C.isDark ? '#08090B' : '#FFFFFF',
         borderTop:`1px solid ${C.bdr}`,
-        paddingTop:4,
-        paddingBottom:0,
-        paddingLeft:0,
-        paddingRight:0,
+        paddingBottom:'env(safe-area-inset-bottom,0px)',
         transition:'background 0.25s',
       }}>
         <div style={{ display:'flex', maxWidth:480, margin:'0 auto' }}>
@@ -172,7 +168,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <button key={id} onClick={() => go(id)} aria-label={label} style={{
                 flex:1, display:'flex', flexDirection:'column',
                 alignItems:'center', justifyContent:'center', gap:2,
-                padding:'4px 2px', paddingBottom:'max(6px,env(safe-area-inset-bottom))',
+                padding:'6px 2px 7px',
                 minHeight:46, border:'none', background:'transparent',
                 cursor:'pointer', transition:'color 0.12s',
                 fontFamily:F, WebkitTapHighlightColor:'transparent', position:'relative',
@@ -186,7 +182,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <button onClick={() => setDrawerOpen(v => !v)} aria-label="More" style={{
             flex:1, display:'flex', flexDirection:'column',
             alignItems:'center', justifyContent:'center', gap:2,
-            padding:'4px 2px', paddingBottom:'max(6px,env(safe-area-inset-bottom))',
+            padding:'6px 2px 7px',
             minHeight:46, border:'none', background:'transparent',
             cursor:'pointer', transition:'color 0.12s',
             fontFamily:F, WebkitTapHighlightColor:'transparent',
