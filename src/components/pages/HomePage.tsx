@@ -9,7 +9,6 @@ import {
 } from 'lucide-react'
 import { useAppStore, ActivityItem } from '../../store/appStore'
 import { getUsdc } from '../../onchain-facts'
-import { Amount, usdcDecimalsFor } from '../../onchain-money'
 import { useNanTheme, NanTheme } from '../../hooks/useNanTheme'
 
 const F    = "'Inter', -apple-system, sans-serif"
@@ -106,12 +105,11 @@ export function HomePage() {
     query: { enabled: !!address },
   })
 
-  const formatted     = rawBalance !== undefined
-    ? Amount.fromRaw(rawBalance, usdcDecimalsFor(ARC)).toFixed(2)
-    : '0.00'
-  const eurcFormatted = rawEurc !== undefined
-    ? (Number(rawEurc) / 1e6).toFixed(2)
-    : '0.00'
+  const usdcNum       = rawBalance !== undefined ? Number(rawBalance) / 1e6 : 0
+  const eurcNum       = rawEurc    !== undefined ? Number(rawEurc)    / 1e6 : 0
+  const totalNum      = usdcNum + eurcNum
+  const formatted     = totalNum.toFixed(2)
+  const eurcFormatted = eurcNum.toFixed(2)
 
   const [hidden, setHidden] = useState(false)
 

@@ -277,26 +277,33 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </div>
         <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', WebkitOverflowScrolling: 'touch', padding: '8px 10px', paddingBottom: 'max(100px,calc(env(safe-area-inset-bottom) + 80px))', scrollbarWidth: 'none' }}>
-          {SIDEBAR_SECTIONS.map(section => (
-            <div key={section.title} style={{ marginBottom: 8 }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: C.t3, textTransform: 'uppercase', letterSpacing: '0.09em', padding: '12px 8px 5px' }}>{section.title}</div>
-              {section.items.map(({ id, label, Icon, desc }) => {
-                const isActive = activeView === id
-                return (
-                  <button key={`${id}-${label}`} onClick={() => go(id)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 11, padding: '9px 10px', borderRadius: 10, border: `1px solid ${isActive ? C.blueBd : 'transparent'}`, background: isActive ? C.blueDim : 'transparent', cursor: 'pointer', transition: 'all 0.12s', fontFamily: F, marginBottom: 2, WebkitTapHighlightColor: 'transparent' }}>
-                    <div style={{ width: 32, height: 32, borderRadius: 8, flexShrink: 0, background: isActive ? 'rgba(0,102,255,0.18)' : C.surf2, border: `1px solid ${isActive ? C.blueBd : C.bdr}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <Icon size={15} color={isActive ? C.blue : C.t2} />
-                    </div>
-                    <div style={{ flex: 1, textAlign: 'left', minWidth: 0 }}>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: isActive ? C.blue : C.text, lineHeight: 1.2 }}>{label}</div>
-                      <div style={{ fontSize: 11, color: C.t3, marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{desc}</div>
-                    </div>
-                    <ChevronRight size={12} color={isActive ? C.blueBd : C.t3} />
-                  </button>
-                )
-              })}
-            </div>
-          ))}
+          {SIDEBAR_SECTIONS.map(section => {
+            // Mobile-only: hide Dashboard and Swap (Convert is on home, Swap is in Finance section)
+            const mobileItems = section.items.filter(
+              item => !(item.id === 'dashboard') && !(item.id === 'swap')
+            )
+            if (mobileItems.length === 0) return null
+            return (
+              <div key={section.title} style={{ marginBottom: 8 }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: C.t3, textTransform: 'uppercase', letterSpacing: '0.09em', padding: '12px 8px 5px' }}>{section.title}</div>
+                {mobileItems.map(({ id, label, Icon, desc }) => {
+                  const isActive = activeView === id
+                  return (
+                    <button key={`${id}-${label}`} onClick={() => go(id)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 11, padding: '9px 10px', borderRadius: 10, border: `1px solid ${isActive ? C.blueBd : 'transparent'}`, background: isActive ? C.blueDim : 'transparent', cursor: 'pointer', transition: 'all 0.12s', fontFamily: F, marginBottom: 2, WebkitTapHighlightColor: 'transparent' }}>
+                      <div style={{ width: 32, height: 32, borderRadius: 8, flexShrink: 0, background: isActive ? 'rgba(0,102,255,0.18)' : C.surf2, border: `1px solid ${isActive ? C.blueBd : C.bdr}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Icon size={15} color={isActive ? C.blue : C.t2} />
+                      </div>
+                      <div style={{ flex: 1, textAlign: 'left', minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: isActive ? C.blue : C.text, lineHeight: 1.2 }}>{label}</div>
+                        <div style={{ fontSize: 11, color: C.t3, marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{desc}</div>
+                      </div>
+                      <ChevronRight size={12} color={isActive ? C.blueBd : C.t3} />
+                    </button>
+                  )
+                })}
+              </div>
+            )
+          })}
         </div>
       </div>
 
