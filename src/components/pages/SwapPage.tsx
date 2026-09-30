@@ -1,62 +1,119 @@
 import React, { useState } from 'react'
 import { useAccount, useChainId, useSwitchChain } from 'wagmi'
-import { AppKit } from '@circle-fin/app-kit'
+import { AppKit, type SwapEstimate } from '@circle-fin/app-kit'
 import { createViemAdapterFromProvider } from '@circle-fin/adapter-viem-v2'
 import type { EIP1193Provider } from 'viem'
-import { ArrowUpDown, Loader, CheckCircle, ExternalLink, RefreshCw, AlertCircle } from 'lucide-react'
+import { ArrowDown, Settings, ChevronDown, CheckCircle, ExternalLink, RefreshCw, AlertCircle } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
 import { swapFee, SWAP_FEE_BPS, bpsToPercent, FEE_WALLET } from '../../lib/fees'
+import { useNanTheme } from '../../hooks/useNanTheme'
 
 const appKit = new AppKit()
-const F = "'Inter',-apple-system,sans-serif"
-const MONO = "'JetBrains Mono',Menlo,monospace"
-const SURF = 'var(--nan-surface)'; const SURF2= 'var(--nan-surface2)'
-const BDR  = 'var(--nan-bdr)'; const BDR2 = 'var(--nan-bdr2)'
-const BLUE = '#0066FF'; const TEXT = 'var(--nan-text)'; const T2   = 'var(--nan-text2)'; const T3   = 'var(--nan-text3)'
-const GREEN = '#00C853'; const RED = '#FF3B3B'
 
-const TOKENS = ['USDC','EURC','USDT','PYUSD','WETH','WBTC'] as const
+const CHAIN_ID = 5042002
+const CHAIN_KEY = 'Arc_Testnet'
+
+const TOKENS = ['USDC', 'EURC', 'USDT', 'PYUSD', 'WETH', 'WBTC'] as const
 type Token = typeof TOKENS[number]
-const CHAIN = 'Arc_Testnet'; const CHAIN_ID = 5042002
-type Phase = 'idle'|'estimating'|'reviewed'|'swapping'|'done'|'error'
-interface Estimate { estimatedOutput:{amount:string;token:string}; fees:Array<{type:string;amount:string;token:string}> }
 
-function TokenBadge({ token, onChange, exclude }: { token: Token; onChange:(t:Token)=>void; exclude:Token }) {
-  return (
-    <select value={token} onChange={e => onChange(e.target.value as Token)} style={{ padding:'8px 12px', border:`1px solid ${BDR2}`, borderRadius:10, background:SURF2, color:TEXT, fontSize:14, fontWeight:700, fontFamily:F, cursor:'pointer', outline:'none', appearance:'none', WebkitAppearance:'none', minWidth:88 }}>
-      {TOKENS.filter(t => t !== exclude).map(t => <option key={t} value={t}>{t}</option>)}
-    </select>
-  )
+type Phase = 'idle' | 'estimating' | 'reviewed' | 'swapping' | 'done' | 'error'
+
+interface ReviewedSwap {
+  estimate: SwapEstimate
+  tokenIn: Token
+  tokenOut: Token
+  amountIn: string
+  account: string | undefined
 }
 
-function Row({ label, value, mono, accent }: { label:string; value:string; mono?:boolean; accent?:boolean }) {
+// ── Token icon pill ───────────────────────────────────────────────────────────
+function TokenPill({
+  token,
+  onChange,
+  exclude,
+  c,
+}: {
+  token: Token
+  onChange: (t: Token) => void
+  exclude: Token
+  c: ReturnType<typeof useNanTheme>
+}) {
+  const [open, setOpen] = useState(false)
+  const available = TOKENS.filter(t => t !== exclude)
   return (
-    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'7px 0', borderBottom:`1px solid ${BDR}` }}>
-      <span style={{ fontSize:12, color:T2, fontFamily:F }}>{label}</span>
-      <span style={{ fontSize:12, fontWeight:600, color:accent?BLUE:TEXT, fontFamily:mono?MONO:F }}>{value}</span>
+    <div style={{ position: 'relative' }}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 7,
+          padding: '8px 12px 8px 10px',
+          background: c.surf2, border: `1px solid ${c.bdr2}`,
+          borderRadius: 100, cursor: 'pointer',
+          fontFamily: 'var(--nan-font)', transition: 'all 0.15s',
+        }}
+      >
+        <span style={{ fontSize: 14, fontWeight: 700, color: c.text }}>{token}</span>
+        <ChevronDown size={13} color={c.t2} />
+      </button>
+      {open && (
+        <>
+          <div
+            style={{ position: 'fixed', inset: 0, zIndex: 40 }}
+            onClick={() => setOpen(false)}
+          />
+          <div style={{
+            position: 'absolute', top: 'calc(100% + 6px)', right: 0, zIndex: 50,
+            background: c.surf2, border: `1px solid ${c.bdr2}`,
+            borderRadius: 12, overflow: 'hidden', minWidth: 130,
+            boxShadow: c.isDark ? '0 8px 32px rgba(0,0,0,0.6)' : '0 8px 24px rgba(0,0,0,0.12)',
+          }}>
+            {available.map(t => (
+              <button
+                key={t}
+                onClick={() => { onChange(t); setOpen(false) }}
+                style={{
+                  display: 'block', width: '100%', padding: '10px 14px',
+                  textAlign: 'left', border: 'none', cursor: 'pointer',
+                  background: t === token ? c.blueDim : 'transparent',
+                  color: t === token ? c.blue : c.text,
+                  fontFamily: 'var(--nan-font)', fontSize: 14, fontWeight: 600,
+                  transition: 'background 0.1s',
+                }}
+              >
+                {t}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   )
 }
 
+// ── Main component ────────────────────────────────────────────────────────────
 export function SwapPage() {
+  const c = useNanTheme()
   const { connector, isConnected, address } = useAccount()
   const chainId = useChainId()
   const { switchChainAsync } = useSwitchChain()
   const addActivity = useAppStore(s => s.addActivity)
   const recordFee = useAppStore(s => s.recordFee)
 
-  const [tokenIn, setTokenIn]   = useState<Token>('USDT')
-  const [tokenOut, setTokenOut] = useState<Token>('USDC')
+  const [tab, setTab] = useState<'swap' | 'buy'>('swap')
+  const [tokenIn, setTokenIn] = useState<Token>('USDC')
+  const [tokenOut, setTokenOut] = useState<Token>('EURC')
   const [amountIn, setAmountIn] = useState('')
-  const [estimate, setEstimate] = useState<Estimate|null>(null)
-  const [reviewedAddress, setReviewedAddress] = useState<string|undefined>()
-  const [phase, setPhase]   = useState<Phase>('idle')
+  const [reviewed, setReviewed] = useState<ReviewedSwap | null>(null)
+  const [phase, setPhase] = useState<Phase>('idle')
   const [errMsg, setErrMsg] = useState('')
   const [txHash, setTxHash] = useState('')
   const [explorerUrl, setExplorerUrl] = useState('')
 
   const sameToken = tokenIn === tokenOut
-  const canReview = isConnected && amountIn && parseFloat(amountIn) > 0 && !sameToken
+  // Arc: USDC ↔ EURC is fine; but USDC ↔ NATIVE is a no-op — block same-asset pairs
+  const canReview = isConnected && !!amountIn && parseFloat(amountIn) > 0 && !sameToken
+
+  const addrShort = address ? `${address.slice(0, 4)}…${address.slice(-4)}` : ''
 
   const getAdapter = async () => {
     if (!connector) throw new Error('Wallet not connected')
@@ -67,164 +124,397 @@ export function SwapPage() {
 
   const reviewSwap = async () => {
     if (!canReview) return
-    setPhase('estimating'); setErrMsg('')
+    setPhase('estimating')
+    setErrMsg('')
     try {
       const adapter = await getAdapter()
-      const est = await appKit.estimateSwap({ from:{adapter,chain:CHAIN}, tokenIn, tokenOut, amountIn, config:{slippageBps:100} })
-      setEstimate(est as unknown as Estimate); setReviewedAddress(address); setPhase('reviewed')
-    } catch(e:unknown) { setPhase('error'); setErrMsg(e instanceof Error?e.message:'Estimation failed.') }
+      const estimate = await appKit.estimateSwap({
+        from: { adapter, chain: CHAIN_KEY },
+        tokenIn,
+        tokenOut,
+        amountIn,
+        config: { slippageBps: 100 },
+      })
+      setReviewed({ estimate, tokenIn, tokenOut, amountIn, account: address })
+      setPhase('reviewed')
+    } catch (e: unknown) {
+      setPhase('error')
+      setErrMsg(e instanceof Error ? e.message : 'Estimation failed.')
+    }
   }
 
   const executeSwap = async () => {
-    if (!estimate || address !== reviewedAddress) { setPhase('error'); setErrMsg('Wallet changed since estimate. Get a new quote.'); return }
-    setPhase('swapping'); setErrMsg('')
+    if (!reviewed) return
+    if (address !== reviewed.account) {
+      setPhase('error')
+      setErrMsg('Wallet changed since estimate. Get a new quote.')
+      return
+    }
+    setPhase('swapping')
+    setErrMsg('')
     try {
       const adapter = await getAdapter()
-      const result = await appKit.swap({ from:{adapter,chain:CHAIN}, tokenIn, tokenOut, amountIn, config:{slippageBps:100} })
-      const resultHash = (result as {txHash?:string}).txHash
-      setTxHash(resultHash ?? ''); setExplorerUrl((result as {explorerUrl?:string}).explorerUrl ?? '')
+      const result = await appKit.swap({
+        from: { adapter, chain: CHAIN_KEY },
+        tokenIn: reviewed.tokenIn,
+        tokenOut: reviewed.tokenOut,
+        amountIn: reviewed.amountIn,
+        config: { slippageBps: 100 },
+      })
+      const rHash = (result as { txHash?: string }).txHash ?? ''
+      const rUrl = (result as { explorerUrl?: string }).explorerUrl ?? ''
+      setTxHash(rHash)
+      setExplorerUrl(rUrl)
       setPhase('done')
-      const gross = parseFloat(amountIn); const fee = swapFee(gross)
-      addActivity({ type:'swap', description:`Swap ${tokenIn} → ${tokenOut}`, amount:gross, sign:'-', status:'confirmed', counterparty:tokenOut, txHash:resultHash })
-      if (fee > 0) recordFee({ source:'swap', grossAmount:gross, feeAmount:fee, feeWallet:FEE_WALLET, txHash:resultHash, description:`Swap ${tokenIn} → ${tokenOut}` })
-    } catch(e:unknown) { setPhase('error'); setErrMsg(e instanceof Error?e.message:'Swap failed.') }
+
+      const gross = parseFloat(reviewed.amountIn)
+      const fee = swapFee(gross)
+      addActivity({
+        type: 'swap',
+        description: `Swap ${reviewed.tokenIn} → ${reviewed.tokenOut}`,
+        amount: gross,
+        sign: '-',
+        status: 'confirmed',
+        counterparty: reviewed.tokenOut,
+        txHash: rHash,
+      })
+      if (fee > 0) {
+        recordFee({
+          source: 'swap',
+          grossAmount: gross,
+          feeAmount: fee,
+          feeWallet: FEE_WALLET,
+          txHash: rHash,
+          description: `Swap ${reviewed.tokenIn} → ${reviewed.tokenOut}`,
+        })
+      }
+    } catch (e: unknown) {
+      setPhase('error')
+      setErrMsg(e instanceof Error ? e.message : 'Swap failed.')
+    }
   }
 
-  const flipTokens = () => { setTokenIn(tokenOut); setTokenOut(tokenIn); setEstimate(null); setPhase('idle') }
-  const reset = () => { setAmountIn(''); setEstimate(null); setPhase('idle'); setErrMsg(''); setTxHash('') }
+  const flipTokens = () => {
+    setTokenIn(tokenOut)
+    setTokenOut(tokenIn)
+    setReviewed(null)
+    setPhase('idle')
+  }
 
-  if (!isConnected) return (
-    <div style={{ padding:'48px 24px', textAlign:'center', fontFamily:F }}>
-      <div style={{ width:52,height:52,borderRadius:14,background:SURF,border:`1px solid ${BDR}`,display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 14px' }}>
-        <ArrowUpDown size={22} color={T3} />
-      </div>
-      <div style={{ fontSize:16,fontWeight:700,color:TEXT,marginBottom:6 }}>Connect wallet to swap</div>
-      <div style={{ fontSize:13,color:T2 }}>Connect your wallet to exchange tokens.</div>
-    </div>
-  )
+  const reset = () => {
+    setAmountIn('')
+    setReviewed(null)
+    setPhase('idle')
+    setErrMsg('')
+    setTxHash('')
+  }
 
+  const clearQuote = () => {
+    setReviewed(null)
+    setPhase('idle')
+  }
+
+  const estimatedOut = reviewed?.estimate?.estimatedOutput
+
+  // ── Success screen ────────────────────────────────────────────────────────
   if (phase === 'done') return (
-    <div style={{ maxWidth:480,margin:'0 auto',fontFamily:F,padding:'0 0 80px' }}>
-      <div style={{ textAlign:'center',padding:'48px 20px 32px' }}>
-        <div style={{ width:64,height:64,borderRadius:'50%',background:'rgba(0,200,83,0.10)',border:'1px solid rgba(0,200,83,0.25)',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 16px' }}>
-          <CheckCircle size={28} color={GREEN} />
+    <div style={{ maxWidth: 480, margin: '0 auto', padding: '0 0 100px', fontFamily: 'var(--nan-font)' }}>
+      <div style={{ textAlign: 'center', padding: '56px 24px 32px' }}>
+        <div className="nan-check-circle" style={{ margin: '0 auto 18px' }}>
+          <CheckCircle size={28} color={c.green} />
         </div>
-        <div style={{ fontSize:22,fontWeight:700,color:TEXT,marginBottom:6,letterSpacing:'-0.025em' }}>Swap complete</div>
-        <div style={{ fontSize:14,color:T2,marginBottom:28 }}>Your tokens have been exchanged.</div>
+        <div style={{ fontSize: 22, fontWeight: 700, color: c.text, letterSpacing: '-0.025em', marginBottom: 6 }}>
+          Swap complete
+        </div>
+        <div style={{ fontSize: 14, color: c.t2, marginBottom: 28 }}>
+          Your tokens have been exchanged.
+        </div>
         {txHash && (
-          <a href={explorerUrl||`https://testnet.arcscan.app/tx/${txHash}`} target="_blank" rel="noreferrer" style={{ display:'inline-flex',alignItems:'center',gap:6,fontSize:13,color:BLUE,textDecoration:'none',background:'rgba(0,102,255,0.08)',border:'1px solid rgba(0,102,255,0.20)',borderRadius:8,padding:'8px 14px',marginBottom:28 }}>
-            {txHash.slice(0,14)}… <ExternalLink size={13} />
+          <a
+            href={explorerUrl || `https://explorer.testnet.arc.io/tx/${txHash}`}
+            target="_blank" rel="noreferrer"
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              fontSize: 13, color: c.blue, textDecoration: 'none',
+              background: c.blueDim, border: `1px solid ${c.blueBd}`,
+              borderRadius: 8, padding: '8px 14px', marginBottom: 28,
+            }}
+          >
+            {txHash.slice(0, 14)}… <ExternalLink size={12} />
           </a>
         )}
-        <button onClick={reset} style={{ width:'100%',height:52,background:BLUE,color:'#fff',border:'none',borderRadius:12,fontSize:15,fontWeight:700,cursor:'pointer',fontFamily:F }}>Swap again</button>
+        <button
+          onClick={reset}
+          className="nan-btn nan-btn-primary nan-btn-full"
+          style={{ borderRadius: 14 }}
+        >
+          Swap again
+        </button>
       </div>
     </div>
   )
 
+  // ── Main swap UI ──────────────────────────────────────────────────────────
   return (
-    <div style={{ maxWidth:480,margin:'0 auto',fontFamily:F,padding:'0 0 80px' }}>
+    <div style={{ maxWidth: 480, margin: '0 auto', padding: '0 0 100px', fontFamily: 'var(--nan-font)' }}>
 
-      {/* Header */}
-      <div style={{ display:'flex',alignItems:'center',gap:12,padding:'20px 0 22px' }}>
-        <div style={{ width:38,height:38,borderRadius:10,background:'rgba(0,102,255,0.10)',border:'1px solid rgba(0,102,255,0.20)',display:'flex',alignItems:'center',justifyContent:'center' }}>
-          <ArrowUpDown size={18} color={BLUE} />
+      {/* ── Tab bar + settings ── */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 0 16px' }}>
+        <div style={{ display: 'flex', background: c.surf, border: `1px solid ${c.bdr}`, borderRadius: 10, padding: 3, gap: 2 }}>
+          {(['swap', 'buy'] as const).map(t => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              style={{
+                padding: '7px 18px', borderRadius: 7, border: 'none', cursor: 'pointer',
+                background: tab === t ? (c.isDark ? c.surf2 : '#fff') : 'transparent',
+                color: tab === t ? c.text : c.t2,
+                fontFamily: 'var(--nan-font)', fontSize: 14,
+                fontWeight: tab === t ? 700 : 500,
+                boxShadow: tab === t ? (c.isDark ? 'none' : '0 1px 4px rgba(0,0,0,0.10)') : 'none',
+                transition: 'all 0.15s',
+              }}
+            >
+              {t.charAt(0).toUpperCase() + t.slice(1)}
+            </button>
+          ))}
         </div>
-        <div>
-          <div style={{ fontSize:18,fontWeight:700,color:TEXT,letterSpacing:'-0.02em' }}>Swap</div>
-          <div style={{ fontSize:12,color:T3 }}>Exchange tokens · Routed by LiFi</div>
-        </div>
+        <button
+          style={{
+            width: 36, height: 36, borderRadius: 9, border: `1px solid ${c.bdr}`,
+            background: c.surf, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer', transition: 'all 0.15s',
+          }}
+        >
+          <Settings size={15} color={c.t2} />
+        </button>
       </div>
 
-      {/* Swap card */}
-      <div style={{ background:SURF,border:`1px solid ${BDR}`,borderRadius:16,overflow:'hidden',marginBottom:12 }}>
-
-        {/* You pay */}
-        <div style={{ padding:'18px 16px 14px' }}>
-          <div style={{ fontSize:11,fontWeight:600,color:T3,textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:10 }}>You pay</div>
-          <div style={{ display:'flex',alignItems:'center',gap:12 }}>
-            <input type="number" min="0" step="0.01" placeholder="0.00" value={amountIn}
-              onChange={e => { setAmountIn(e.target.value); setEstimate(null); setPhase('idle') }}
-              disabled={phase==='swapping'}
-              style={{ flex:1,fontSize:32,fontWeight:700,color:TEXT,border:'none',outline:'none',background:'transparent',fontFamily:F,minWidth:0 }} />
-            <TokenBadge token={tokenIn} onChange={t=>{setTokenIn(t);setEstimate(null);setPhase('idle')}} exclude={tokenOut} />
+      {/* ── Sell panel ── */}
+      <div style={{
+        background: c.surf, border: `1px solid ${c.bdr}`,
+        borderRadius: 16, overflow: 'hidden', marginBottom: 2,
+      }}>
+        <div style={{ padding: '16px 16px 12px' }}>
+          {/* Label + wallet */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: c.t2 }}>Sell</span>
+            {isConnected && (
+              <span style={{ fontSize: 12, color: c.t3, display: 'flex', alignItems: 'center', gap: 4 }}>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: c.blue, display: 'inline-block' }} />
+                {addrShort}
+              </span>
+            )}
           </div>
-          {/* Quick amounts */}
-          <div style={{ display:'flex',gap:6,marginTop:12 }}>
-            {['1','5','10','25','50'].map(v => (
-              <button key={v} onClick={() => { setAmountIn(v); setEstimate(null); setPhase('idle') }}
-                style={{ flex:1,padding:'6px 0',border:`1px solid ${amountIn===v?BLUE:BDR}`,borderRadius:7,background:amountIn===v?'rgba(0,102,255,0.12)':SURF2,color:amountIn===v?BLUE:T2,fontSize:12,fontWeight:600,cursor:'pointer',fontFamily:F,transition:'all 0.12s' }}>
+
+          {/* Amount + token */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <input
+              type="text"
+              inputMode="decimal"
+              placeholder="0"
+              value={amountIn}
+              onChange={e => {
+                const v = e.target.value.replace(/[^0-9.]/g, '')
+                if (v === '' || /^\d*\.?\d*$/.test(v)) {
+                  setAmountIn(v)
+                  setReviewed(null)
+                  setPhase('idle')
+                }
+              }}
+              disabled={phase === 'swapping'}
+              style={{
+                flex: 1, fontSize: 36, fontWeight: 700, color: c.text,
+                border: 'none', outline: 'none', background: 'transparent',
+                fontFamily: 'var(--nan-mono)', minWidth: 0,
+                fontVariantNumeric: 'tabular-nums',
+              }}
+            />
+            <TokenPill token={tokenIn} onChange={t => { setTokenIn(t); setReviewed(null); setPhase('idle') }} exclude={tokenOut} c={c} />
+          </div>
+
+          {/* USD value + balance */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
+            <span style={{ fontSize: 13, color: c.t3 }}>
+              {amountIn && parseFloat(amountIn) > 0 ? `$${parseFloat(amountIn).toFixed(2)}` : '$0.00'}
+            </span>
+            {isConnected && (
+              <span style={{ fontSize: 12, color: c.t3 }}>Balance: —</span>
+            )}
+          </div>
+
+          {/* Quick % chips */}
+          <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
+            {['20%', '50%', 'MAX'].map(v => (
+              <button
+                key={v}
+                style={{
+                  flex: 1, padding: '6px 0', border: `1px solid ${c.bdr2}`,
+                  borderRadius: 7, background: c.surf2, color: c.t2,
+                  fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                  fontFamily: 'var(--nan-font)', transition: 'all 0.12s',
+                }}
+              >
                 {v}
               </button>
             ))}
           </div>
         </div>
+      </div>
 
-        {/* Flip divider */}
-        <div style={{ position:'relative',height:1,background:BDR,display:'flex',justifyContent:'center' }}>
-          <button onClick={flipTokens} style={{ position:'absolute',top:-18,width:36,height:36,borderRadius:'50%',border:`1px solid ${BDR2}`,background:SURF2,display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',transition:'all 0.15s',zIndex:1 }}>
-            <ArrowUpDown size={14} color={T2} />
-          </button>
-        </div>
+      {/* ── Flip button ── */}
+      <div style={{ display: 'flex', justifyContent: 'center', margin: '-1px 0', zIndex: 2, position: 'relative' }}>
+        <button
+          onClick={flipTokens}
+          style={{
+            width: 36, height: 36, borderRadius: 10,
+            border: `1px solid ${c.bdr2}`, background: c.surf2,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer', transition: 'all 0.15s',
+            boxShadow: c.isDark ? '0 2px 8px rgba(0,0,0,0.4)' : '0 2px 8px rgba(0,0,0,0.08)',
+          }}
+        >
+          <ArrowDown size={15} color={c.t2} />
+        </button>
+      </div>
 
-        {/* You receive */}
-        <div style={{ padding:'22px 16px 18px',background:SURF2 }}>
-          <div style={{ fontSize:11,fontWeight:600,color:T3,textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:10 }}>You receive (est.)</div>
-          <div style={{ display:'flex',alignItems:'center',gap:12 }}>
-            <div style={{ flex:1,fontSize:32,fontWeight:700,color:estimate?GREEN:T3,fontFamily:MONO }}>
-              {estimate ? estimate.estimatedOutput.amount : '—'}
+      {/* ── Buy panel ── */}
+      <div style={{
+        background: c.surf, border: `1px solid ${c.bdr}`,
+        borderRadius: 16, overflow: 'hidden', marginTop: 2, marginBottom: 10,
+      }}>
+        <div style={{ padding: '16px 16px 18px' }}>
+          {/* Label + wallet */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: c.t2 }}>Buy</span>
+            {isConnected && (
+              <span style={{ fontSize: 12, color: c.t3, display: 'flex', alignItems: 'center', gap: 4 }}>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: c.blue, display: 'inline-block' }} />
+                {addrShort}
+              </span>
+            )}
+          </div>
+
+          {/* Amount + token */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{
+              flex: 1, fontSize: 36, fontWeight: 700,
+              color: estimatedOut ? c.green : c.t3,
+              fontFamily: 'var(--nan-mono)', minWidth: 0,
+              fontVariantNumeric: 'tabular-nums',
+            }}>
+              {phase === 'estimating'
+                ? <span className="nan-skel" style={{ display: 'inline-block', width: 80, height: 36, borderRadius: 8 }} />
+                : estimatedOut ? estimatedOut.amount : '0'}
             </div>
-            <TokenBadge token={tokenOut} onChange={t=>{setTokenOut(t);setEstimate(null);setPhase('idle')}} exclude={tokenIn} />
+            <TokenPill token={tokenOut} onChange={t => { setTokenOut(t); setReviewed(null); setPhase('idle') }} exclude={tokenIn} c={c} />
+          </div>
+
+          {/* USD + balance */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
+            <span style={{ fontSize: 13, color: c.t3 }}>$0.00</span>
+            {isConnected && (
+              <span style={{ fontSize: 12, color: c.t3 }}>Balance: —</span>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Warnings */}
+      {/* ── Warning: same token ── */}
       {sameToken && (
-        <div style={{ display:'flex',alignItems:'center',gap:8,background:'rgba(240,165,0,0.08)',border:'1px solid rgba(240,165,0,0.20)',borderRadius:10,padding:'10px 14px',marginBottom:12,fontSize:13,color:'#F0A500' }}>
-          <AlertCircle size={15} /> Same token selected — choose different tokens.
+        <div className="nan-warn-box" style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+          <AlertCircle size={14} />
+          <span>Choose different tokens to swap.</span>
         </div>
       )}
 
-      {/* Estimate panel */}
-      {estimate && (
-        <div style={{ background:SURF,border:`1px solid ${BDR}`,borderRadius:12,padding:'14px 16px',marginBottom:12 }}>
-          <Row label="Estimated output" value={`${estimate.estimatedOutput.amount} ${estimate.estimatedOutput.token}`} />
-          <Row label="Slippage tolerance" value="1%" />
-          <Row label={`NAN fee (${bpsToPercent(SWAP_FEE_BPS)})`} value={`${swapFee(parseFloat(amountIn)||0).toFixed(4)} ${tokenIn}`} />
-          {estimate.fees.map((f,i) => <Row key={i} label={`${f.type} fee`} value={`${f.amount} ${f.token}`} />)}
-          <div style={{ paddingTop:8,fontSize:11,color:T3 }}>⚠ Routed via LiFi aggregator.</div>
+      {/* ── Quote details ── */}
+      {reviewed && phase === 'reviewed' && (
+        <div className="nan-card" style={{ marginBottom: 10 }}>
+          <div className="nan-card-inner">
+            {[
+              ['Estimated output', `${estimatedOut?.amount ?? '—'} ${estimatedOut?.token ?? tokenOut}`],
+              ['Slippage tolerance', '1%'],
+              [`NAN fee (${bpsToPercent(SWAP_FEE_BPS)})`, `${swapFee(parseFloat(reviewed.amountIn) || 0).toFixed(4)} ${reviewed.tokenIn}`],
+              ...(reviewed.estimate.fees?.map(f => [`${f.type} fee`, `${f.amount} ${f.token}`]) ?? []),
+            ].map(([label, value]) => (
+              <div key={label} style={{
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                padding: '7px 0', borderBottom: `1px solid ${c.bdr}`,
+              }}>
+                <span style={{ fontSize: 12, color: c.t2 }}>{label}</span>
+                <span style={{ fontSize: 12, fontWeight: 600, color: c.text }}>{value}</span>
+              </div>
+            ))}
+            <div style={{ paddingTop: 8, fontSize: 11, color: c.t3 }}>
+              Routed via LiFi aggregator. Amounts may vary at execution.
+            </div>
+          </div>
         </div>
       )}
 
-      {/* Error */}
-      {phase==='error' && errMsg && (
-        <div style={{ display:'flex',alignItems:'flex-start',gap:8,background:'rgba(255,59,59,0.08)',border:'1px solid rgba(255,59,59,0.20)',borderRadius:10,padding:'12px 14px',marginBottom:12 }}>
-          <AlertCircle size={15} color={RED} style={{ flexShrink:0,marginTop:1 }} />
-          <span style={{ fontSize:13,color:RED }}>{errMsg}</span>
+      {/* ── Error ── */}
+      {phase === 'error' && errMsg && (
+        <div className="nan-error-box" style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 10 }}>
+          <AlertCircle size={14} style={{ flexShrink: 0, marginTop: 1 }} />
+          <span>{errMsg}</span>
         </div>
       )}
 
-      {/* CTAs */}
-      {phase==='reviewed' ? (
-        <div style={{ display:'flex',gap:10 }}>
-          <button onClick={() => { setEstimate(null); setPhase('idle') }} style={{ flex:1,height:52,background:SURF,border:`1px solid ${BDR}`,borderRadius:12,fontSize:14,fontWeight:600,color:TEXT,cursor:'pointer',fontFamily:F,display:'flex',alignItems:'center',justifyContent:'center',gap:6 }}>
+      {/* ── CTA ── */}
+      {phase === 'reviewed' ? (
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button
+            onClick={clearQuote}
+            className="nan-btn nan-btn-ghost"
+            style={{ flex: 1, height: 54, borderRadius: 14, gap: 6 }}
+          >
             <RefreshCw size={14} /> New quote
           </button>
-          <button onClick={() => void executeSwap()} disabled={(phase as string)==='swapping'} style={{ flex:2,height:52,background:BLUE,border:'none',borderRadius:12,fontSize:15,fontWeight:700,color:'#fff',cursor:'pointer',fontFamily:F }}>
-            {(phase as string)==='swapping' ? <span style={{ display:'flex',alignItems:'center',justifyContent:'center',gap:8 }}><Loader size={16} style={{ animation:'spin 1s linear infinite' }} />Swapping…</span> : `Swap ${amountIn} ${tokenIn} → ${tokenOut}`}
+          <button
+            onClick={() => void executeSwap()}
+            disabled={phase !== 'reviewed'}
+            className="nan-btn nan-btn-primary"
+            style={{ flex: 2, height: 54, borderRadius: 14 }}
+          >
+            Swap {reviewed?.amountIn} {reviewed?.tokenIn} → {reviewed?.tokenOut}
           </button>
         </div>
       ) : (
-        <button onClick={() => void reviewSwap()} disabled={!canReview||phase==='estimating'||phase==='swapping'} style={{ width:'100%',height:52,background:canReview?BLUE:SURF,border:`1px solid ${canReview?BLUE:BDR}`,borderRadius:12,fontSize:15,fontWeight:700,color:canReview?'#fff':T3,cursor:canReview?'pointer':'not-allowed',fontFamily:F,display:'flex',alignItems:'center',justifyContent:'center',gap:8,transition:'all 0.15s' }}>
-          {phase==='estimating' ? <><Loader size={16} style={{ animation:'spin 1s linear infinite' }} /> Getting quote…</> : 'Get quote'}
+        <button
+          onClick={() => void reviewSwap()}
+          disabled={!canReview || phase === 'estimating' || phase === 'swapping'}
+          className="nan-btn nan-btn-full"
+          style={{
+            height: 54, borderRadius: 14,
+            background: canReview ? c.blue : c.surf2,
+            color: canReview ? '#fff' : c.t3,
+            border: `1px solid ${canReview ? c.blue : c.bdr}`,
+            fontSize: 15, fontWeight: 700,
+            cursor: canReview ? 'pointer' : 'not-allowed',
+            transition: 'all 0.15s',
+          }}
+        >
+          {phase === 'estimating' ? (
+            <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+              <span className="nan-spinner" />
+              Getting quote…
+            </span>
+          ) : phase === 'swapping' ? (
+            <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+              <span className="nan-spinner" />
+              Swapping…
+            </span>
+          ) : !isConnected ? 'Connect wallet to swap'
+            : !amountIn || parseFloat(amountIn) === 0 ? 'Enter an amount'
+            : sameToken ? 'Select different tokens'
+            : 'Get quote'}
         </button>
       )}
 
-      <div style={{ marginTop:14,fontSize:11,color:T3,textAlign:'center' }}>
-        Powered by Circle App Kit · Swaps routed via LiFi
+      <div style={{ marginTop: 14, fontSize: 11, color: c.t3, textAlign: 'center' }}>
+        Powered by Circle App Kit · Routed via LiFi · 1% slippage
       </div>
-
-      <style>{`@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
     </div>
   )
 }
