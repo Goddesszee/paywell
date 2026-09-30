@@ -50,7 +50,7 @@ export function CircleGoogleLogin({ onBack, onSuccess }: Props) {
   // ── load wallets and finish auth ────────────────────────────────────────────
   const finishAuth = useCallback(async (userToken: string) => {
     try {
-      const res  = await fetch('/api/wallet/wallets', { headers: { 'x-user-token': userToken } })
+      const res  = await fetch('/api/wallet', { headers: { 'x-user-token': userToken } })
       const data = await res.json() as { wallets?: { address: string; id: string }[] }
       const wallet = data.wallets?.[0]
       const addr   = wallet?.address ?? ''
@@ -83,10 +83,10 @@ export function CircleGoogleLogin({ onBack, onSuccess }: Props) {
       void (async () => {
         setLoading(true)
         try {
-          const res  = await fetch('/api/wallet/initialize', {
+          const res  = await fetch('/api/wallet', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ userToken: r.userToken }),
+            body: JSON.stringify({ action: 'initialize', userToken: r.userToken }),
           })
           const data = await res.json() as { challengeId?: string; code?: number; error?: string }
 
@@ -151,10 +151,10 @@ export function CircleGoogleLogin({ onBack, onSuccess }: Props) {
       if (!deviceId) throw new Error('SDK not ready — please try again in a moment.')
 
       // create device token for social login
-      const res  = await fetch('/api/wallet/device-token', {
+      const res  = await fetch('/api/wallet', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ deviceId }),
+        body: JSON.stringify({ action: 'device-token', deviceId }),
       })
       const data = await res.json() as { deviceToken?: string; deviceEncryptionKey?: string; error?: string }
       if (data.error || !data.deviceToken) throw new Error(data.error ?? 'Could not create device token')

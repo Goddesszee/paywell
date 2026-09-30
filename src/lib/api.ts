@@ -128,7 +128,7 @@ export async function sendUsdc(
 export async function getActivity(walletAddress: string, sessionToken?: string): Promise<TxRecord[]> {
   try {
     const data = await apiGet<{ activities?: TxRecord[]; transactions?: TxRecord[] }>(
-      `/api/activity-feed?wallet=${walletAddress}`, sessionToken,
+      `/api/misc?route=activity-feed&address=${walletAddress}`, sessionToken,
     )
     return data.activities ?? data.transactions ?? []
   } catch {

@@ -51,7 +51,7 @@ export function CircleEmailLogin({ onBack, onSuccess }: Props) {
   // ── load wallets and finish auth ────────────────────────────────────────────
   const finishAuth = useCallback(async (userToken: string) => {
     try {
-      const res  = await fetch('/api/wallet/wallets', { headers: { 'x-user-token': userToken } })
+      const res  = await fetch('/api/wallet', { headers: { 'x-user-token': userToken } })
       const data = await res.json() as { wallets?: { address: string }[] }
       const addr = data.wallets?.[0]?.address ?? ''
       setAuth({ email, sessionToken: userToken, userToken, circleWalletAddress: addr, walletAddress: addr, walletId: addr })
@@ -80,10 +80,10 @@ export function CircleEmailLogin({ onBack, onSuccess }: Props) {
         setLoading(true)
         try {
           // initialize user / get wallet challenge
-          const res  = await fetch('/api/wallet/initialize', {
+          const res  = await fetch('/api/wallet', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ userToken: r.userToken }),
+            body: JSON.stringify({ action: 'initialize', userToken: r.userToken }),
           })
           const data = await res.json() as { challengeId?: string; code?: number; error?: string }
 
@@ -132,10 +132,10 @@ export function CircleEmailLogin({ onBack, onSuccess }: Props) {
     if (!email.trim() || !deviceId) return
     setLoading(true); setError('')
     try {
-      const res  = await fetch('/api/wallet/request-otp', {
+      const res  = await fetch('/api/wallet', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ deviceId, email: email.trim() }),
+        body: JSON.stringify({ action: 'request-otp', deviceId, email: email.trim() }),
       })
       const data = await res.json() as OtpTokens & { error?: string }
       if (data.error) throw new Error(data.error)
