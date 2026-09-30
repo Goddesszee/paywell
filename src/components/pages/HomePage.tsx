@@ -132,12 +132,12 @@ export function HomePage() {
   const recent = activity.slice(0, 5)
 
   return (
-    <div style={{ maxWidth: 520, margin: '0 auto', fontFamily: F, paddingBottom: 24 }}>
+    <div style={{ maxWidth: 520, margin: '0 auto', fontFamily: F, paddingBottom: 16 }}>
 
       {/* ── Greeting row ── */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        marginBottom: 20, gap: 12,
+        marginBottom: 14, gap: 12,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
           <button
@@ -183,7 +183,7 @@ export function HomePage() {
       </div>
 
       {/* ── Total Balance ── */}
-      <div style={{ marginBottom: 20 }}>
+      <div style={{ marginBottom: 14 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
           <span style={{ fontSize: 13, color: C.t3, fontWeight: 500 }}>Total Balance</span>
           <button
@@ -213,7 +213,7 @@ export function HomePage() {
       </div>
 
       {/* ── Account cards ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 24 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
         {/* USDC card */}
         <div style={{
           background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 20,
@@ -268,7 +268,7 @@ export function HomePage() {
       {/* ── Primary actions: Send / Receive / Convert ── */}
       <div style={{
         display: 'flex', justifyContent: 'space-around',
-        marginBottom: 32,
+        marginBottom: 20,
       }}>
         <PrimaryAction Icon={Send}            label="Send"    primary onClick={() => setActiveView('send')}    C={C} />
         <PrimaryAction Icon={ArrowDownToLine} label="Receive"         onClick={() => setActiveView('receive')} C={C} />
@@ -276,7 +276,7 @@ export function HomePage() {
       </div>
 
       {/* ── Quick actions ── */}
-      <div style={{ marginBottom: 28 }}>
+      <div style={{ marginBottom: 18 }}>
         <div style={{ fontSize: 16, fontWeight: 700, color: C.text, letterSpacing: '-0.01em', marginBottom: 14 }}>
           Quick action
         </div>
