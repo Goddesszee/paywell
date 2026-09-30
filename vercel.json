@@ -4,18 +4,27 @@
   "installCommand": "bun install",
   "framework": "vite",
   "ignoreCommand": "git diff --quiet HEAD^ HEAD -- . ':(exclude)nan-react'",
+  "functions": {
+    "api/chat.ts":           { "memory": 1024 },
+    "api/faucet.ts":         { "memory": 1024 },
+    "api/listings.ts":       { "memory": 1024 },
+    "api/marketplace.ts":    { "memory": 1024 },
+    "api/misc.ts":           { "memory": 1024 },
+    "api/onramp-session.ts": { "memory": 1024 },
+    "api/otp.ts":            { "memory": 1024 },
+    "api/wallet.ts":         { "memory": 1024 },
+    "api/wallets.ts":        { "memory": 1024 }
+  },
   "rewrites": [
-    { "source": "/api/otp", "destination": "/api/otp" },
-    { "source": "/api/chat", "destination": "/api/chat" },
-    { "source": "/api/activity-feed", "destination": "/api/activity-feed" },
-    { "source": "/api/marketplace", "destination": "/api/marketplace" },
+    { "source": "/api/otp",            "destination": "/api/otp" },
+    { "source": "/api/chat",           "destination": "/api/chat" },
+    { "source": "/api/misc",           "destination": "/api/misc" },
+    { "source": "/api/marketplace",    "destination": "/api/marketplace" },
     { "source": "/api/onramp-session", "destination": "/api/onramp-session" },
-    { "source": "/api/faucet", "destination": "/api/faucet" },
-    { "source": "/api/listings", "destination": "/api/listings" },
-    { "source": "/api/wallets", "destination": "/api/wallets" },
-    { "source": "/api/wallet/request-otp", "destination": "/api/wallet/request-otp" },
-    { "source": "/api/wallet/initialize", "destination": "/api/wallet/initialize" },
-    { "source": "/api/wallet/wallets", "destination": "/api/wallet/wallets" },
-    { "source": "/(.*)", "destination": "/index.html" }
+    { "source": "/api/faucet",         "destination": "/api/faucet" },
+    { "source": "/api/listings",       "destination": "/api/listings" },
+    { "source": "/api/wallets",        "destination": "/api/wallets" },
+    { "source": "/api/wallet",         "destination": "/api/wallet" },
+    { "source": "/(.*)",               "destination": "/index.html" }
   ]
 }
