@@ -99,7 +99,7 @@ export function DashboardPage() {
     if (activity.length === 0) { setSparkPoints([]); return }
     let running = numVal
     const pts = [running]
-    const sorted = [...activity].sort((a, b) => b.timestamp - a.timestamp).slice(0, 20)
+    const sorted = [...activity].sort((a, b) => Number(b.timestamp) - Number(a.timestamp)).slice(0, 20)
     sorted.forEach(tx => {
       const amt = typeof tx.amount === 'number' ? tx.amount : parseFloat(String(tx.amount))
       running = running - (tx.sign === '+' ? amt : -amt)
