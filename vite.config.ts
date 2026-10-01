@@ -59,9 +59,8 @@ export default defineConfig({
           // UI-only libs with no React hooks
           if (id.includes('framer-motion') || id.includes('lucide-react') ||
               id.includes('sonner') || id.includes('qrcode.react')) return 'vendor-ui'
-          // viem: no React hooks, safe to split
-          if (id.includes('/viem/') || id.includes('/node_modules/viem')) return 'vendor-viem'
-          // Everything else in node_modules that could touch React goes into one chunk
+          // Everything else in node_modules goes into one chunk —
+          // viem must be co-located with its callers to avoid circular init errors
           if (id.includes('node_modules')) return 'vendor-react'
         },
       },
