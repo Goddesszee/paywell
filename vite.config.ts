@@ -14,8 +14,12 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+      // Force ALL packages (including @circle-fin/w3s-pw-web-sdk which bundles its own React)
+      // to use the exact same React instance — prevents "Invalid hook call" / duplicate React crash
+      'react': path.resolve(__dirname, 'node_modules/react'),
+      'react-dom': path.resolve(__dirname, 'node_modules/react-dom'),
     },
-    dedupe: ['react', 'react-dom'],
+    dedupe: ['react', 'react-dom', 'react/jsx-runtime'],
   },
   optimizeDeps: {
     include: [
