@@ -64,11 +64,11 @@ export function LandingPage() {
           backgroundImage: `url(${cur.img})`,
           backgroundSize: 'cover', backgroundPosition: 'center top',
           opacity: fading ? 0 : 1, transition: 'opacity 0.3s ease',
-          filter: 'brightness(0.45) saturate(0.7)',
         }} />
+        {/* gradient only at bottom so text stays readable */}
         <div style={{
           position: 'absolute', inset: 0,
-          background: 'linear-gradient(180deg,rgba(0,0,0,0.55) 0%,rgba(0,0,0,0.1) 30%,rgba(0,0,0,0.2) 55%,rgba(0,0,0,0.75) 75%,rgba(0,0,0,0.97) 100%)',
+          background: 'linear-gradient(180deg, transparent 40%, rgba(0,0,0,0.85) 75%, #000 100%)',
         }} />
         {/* top bar */}
         <div style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 24px' }}>
@@ -107,37 +107,21 @@ export function LandingPage() {
 
   // ── DESKTOP — full-bleed dark bg, photo contained on right, text overlays left
   return (
-    <div style={{ position: 'fixed', inset: 0, fontFamily: F, overflow: 'hidden', background: '#08090E' }}>
+    <div style={{ position: 'fixed', inset: 0, fontFamily: F, overflow: 'hidden', background: '#000' }}>
 
-      {/* Photo — right half, contained so full person is visible */}
-      <div style={{
-        position: 'absolute',
-        right: 0, top: 0, bottom: 0,
-        width: '55%', height: '100%',
-        opacity: fading ? 0 : 1, transition: 'opacity 0.3s ease',
-        pointerEvents: 'none',
-      }}>
-        <img
-          src={cur.img}
-          alt=""
-          style={{
-            width: '100%', height: '100%',
-            objectFit: 'contain', objectPosition: 'right center',
-            display: 'block',
-            filter: 'brightness(0.45) saturate(0.7)',
-          }}
-        />
-        {/* left-edge fade into black */}
-        <div style={{
-          position: 'absolute', inset: 0,
-          background: 'linear-gradient(90deg, #000 0%, rgba(0,0,0,0.7) 20%, rgba(0,0,0,0.2) 50%, transparent 75%)',
-        }} />
-        {/* top + bottom vignette */}
-        <div style={{
-          position: 'absolute', inset: 0,
-          background: 'linear-gradient(180deg, rgba(0,0,0,0.5) 0%, transparent 25%, transparent 70%, rgba(0,0,0,0.6) 100%)',
-        }} />
-      </div>
+      {/* Photo — right side, sitting on the dark background */}
+      <img
+        src={cur.img}
+        alt=""
+        style={{
+          position: 'absolute',
+          right: 0, top: 0, bottom: 0,
+          width: '52%', height: '100%',
+          objectFit: 'contain', objectPosition: 'right center',
+          opacity: fading ? 0 : 1, transition: 'opacity 0.3s ease',
+          pointerEvents: 'none',
+        }}
+      />
 
       {/* Logo — top left */}
       <div style={{ position: 'absolute', top: 28, left: 56, zIndex: 20, display: 'flex', alignItems: 'center', gap: 9 }}>
