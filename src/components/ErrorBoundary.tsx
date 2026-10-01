@@ -10,6 +10,11 @@ export class ErrorBoundary extends Component<Props, State> {
     return { error }
   }
 
+  componentDidCatch(error: Error, info: { componentStack: string }) {
+    // Log to console so Vercel/hosting logs capture the real crash reason
+    console.error('[ErrorBoundary] caught:', error.message, info.componentStack)
+  }
+
   render() {
     if (this.state.error) {
       return (
@@ -18,8 +23,11 @@ export class ErrorBoundary extends Component<Props, State> {
             <span className="text-2xl">⚠️</span>
           </div>
           <h2 className="text-lg font-bold text-white mb-2">Something went wrong</h2>
-          <p className="text-sm text-[#8A8F9E] mb-6 max-w-xs">
-            {this.state.error.message || 'An unexpected error occurred on this page.'}
+          <p className="text-sm text-[#8A8F9E] mb-3 max-w-xs">
+            {this.state.error.message || 'An unexpected error occurred.'}
+          </p>
+          <p className="text-xs text-[#50556A] mb-6 max-w-xs font-mono break-all">
+            {this.state.error.stack?.split('\n')[1]?.trim() ?? ''}
           </p>
           <button
             onClick={() => this.setState({ error: null })}
