@@ -22,7 +22,7 @@ export default defineConfig({
       'react-dom': path.resolve(__dirname, 'node_modules/react-dom'),
       'react/jsx-runtime': path.resolve(__dirname, 'node_modules/react/jsx-runtime'),
     },
-    dedupe: ['react', 'react-dom', 'react/jsx-runtime', 'react-dom/client'],
+    dedupe: ['react', 'react-dom', 'react/jsx-runtime', 'react-dom/client', 'zustand'],
   },
   optimizeDeps: {
     // Pre-bundle everything against the single React instance so Rollup
@@ -44,6 +44,7 @@ export default defineConfig({
       'sonner',
       'clsx',
       'tailwind-merge',
+      'zustand',
       // Circle kits — pre-bundle so they share the same React singleton
       '@circle-fin/app-kit',
       '@circle-fin/adapter-viem-v2',
