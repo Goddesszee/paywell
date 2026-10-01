@@ -64,10 +64,11 @@ export function LandingPage() {
           backgroundImage: `url(${cur.img})`,
           backgroundSize: 'cover', backgroundPosition: 'center top',
           opacity: fading ? 0 : 1, transition: 'opacity 0.3s ease',
+          filter: 'brightness(0.45) saturate(0.7)',
         }} />
         <div style={{
           position: 'absolute', inset: 0,
-          background: 'linear-gradient(180deg,rgba(8,9,11,0.75) 0%,rgba(8,9,11,0.05) 30%,rgba(8,9,11,0.15) 50%,rgba(8,9,11,0.72) 70%,rgba(8,9,11,0.97) 100%)',
+          background: 'linear-gradient(180deg,rgba(0,0,0,0.55) 0%,rgba(0,0,0,0.1) 30%,rgba(0,0,0,0.2) 55%,rgba(0,0,0,0.75) 75%,rgba(0,0,0,0.97) 100%)',
         }} />
         {/* top bar */}
         <div style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 24px' }}>
@@ -123,19 +124,18 @@ export function LandingPage() {
             width: '100%', height: '100%',
             objectFit: 'contain', objectPosition: 'right center',
             display: 'block',
-            /* desaturate slightly so colours read as black-background-native */
-            filter: 'brightness(0.92) saturate(0.88)',
+            filter: 'brightness(0.45) saturate(0.7)',
           }}
         />
-        {/* left-edge fade into pure black */}
+        {/* left-edge fade into black */}
         <div style={{
           position: 'absolute', inset: 0,
-          background: 'linear-gradient(90deg, #000 0%, rgba(0,0,0,0.55) 18%, rgba(0,0,0,0.10) 40%, transparent 65%)',
+          background: 'linear-gradient(90deg, #000 0%, rgba(0,0,0,0.7) 20%, rgba(0,0,0,0.2) 50%, transparent 75%)',
         }} />
-        {/* bottom-edge fade */}
+        {/* top + bottom vignette */}
         <div style={{
           position: 'absolute', inset: 0,
-          background: 'linear-gradient(180deg, transparent 60%, rgba(0,0,0,0.45) 100%)',
+          background: 'linear-gradient(180deg, rgba(0,0,0,0.5) 0%, transparent 25%, transparent 70%, rgba(0,0,0,0.6) 100%)',
         }} />
       </div>
 
