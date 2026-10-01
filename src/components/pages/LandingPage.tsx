@@ -108,26 +108,36 @@ export function LandingPage() {
   return (
     <div style={{ position: 'fixed', inset: 0, fontFamily: F, overflow: 'hidden', background: '#08090E' }}>
 
-      {/* Photo — right half, contained so full person shows */}
-      <img
-        src={cur.img}
-        alt=""
-        style={{
-          position: 'absolute',
-          right: 0, top: 0, bottom: 0,
-          width: '58%', height: '100%',
-          objectFit: 'contain', objectPosition: 'right center',
-          opacity: fading ? 0 : 1, transition: 'opacity 0.3s ease',
-          pointerEvents: 'none',
-        }}
-      />
-
-      {/* Gradient: dark on left fading to transparent so photo bleeds in */}
+      {/* Photo — right half, contained so full person is visible */}
       <div style={{
-        position: 'absolute', inset: 0,
-        background: 'linear-gradient(90deg, #08090E 38%, rgba(8,9,14,0.80) 55%, rgba(8,9,14,0.10) 75%, transparent 100%)',
+        position: 'absolute',
+        right: 0, top: 0, bottom: 0,
+        width: '55%', height: '100%',
+        opacity: fading ? 0 : 1, transition: 'opacity 0.3s ease',
         pointerEvents: 'none',
-      }} />
+      }}>
+        <img
+          src={cur.img}
+          alt=""
+          style={{
+            width: '100%', height: '100%',
+            objectFit: 'contain', objectPosition: 'right center',
+            display: 'block',
+            /* desaturate slightly so colours read as black-background-native */
+            filter: 'brightness(0.92) saturate(0.88)',
+          }}
+        />
+        {/* left-edge fade into pure black */}
+        <div style={{
+          position: 'absolute', inset: 0,
+          background: 'linear-gradient(90deg, #000 0%, rgba(0,0,0,0.55) 18%, rgba(0,0,0,0.10) 40%, transparent 65%)',
+        }} />
+        {/* bottom-edge fade */}
+        <div style={{
+          position: 'absolute', inset: 0,
+          background: 'linear-gradient(180deg, transparent 60%, rgba(0,0,0,0.45) 100%)',
+        }} />
+      </div>
 
       {/* Logo — top left */}
       <div style={{ position: 'absolute', top: 28, left: 56, zIndex: 20, display: 'flex', alignItems: 'center', gap: 9 }}>
