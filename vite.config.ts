@@ -54,13 +54,11 @@ export default defineConfig({
         // pulls in and which each bundle their own React — goes into
         // vendor-react so there is exactly ONE React module instance.
         manualChunks(id) {
-          // w3s-pw-web-sdk: has Node deps, keep isolated
+          // w3s-pw-web-sdk: Node deps (firebase/dotenv/jsonwebtoken), no React — safe to isolate
           if (id.includes('@circle-fin/w3s-pw-web-sdk')) return 'vendor-w3s'
-          // UI-only libs with no React hooks
-          if (id.includes('framer-motion') || id.includes('lucide-react') ||
-              id.includes('sonner') || id.includes('qrcode.react')) return 'vendor-ui'
-          // Everything else in node_modules goes into one chunk —
-          // viem must be co-located with its callers to avoid circular init errors
+          // Every other node_module (React, viem, wagmi, connectkit, framer-motion,
+          // @reown/*, @walletconnect/*, Circle kits, zustand, sonner, lucide-react…)
+          // goes into ONE chunk so there is exactly one module instance of everything.
           if (id.includes('node_modules')) return 'vendor-react'
         },
       },
