@@ -28,6 +28,7 @@ import { FavoritesPage } from './components/pages/FavoritesPage'
 import { NamePage } from './components/pages/NamePage'
 import { DashboardPage } from './components/pages/DashboardPage'
 
+
 export default function App() {
   const { activeView } = useAppStore()
 

@@ -1,6 +1,6 @@
-import React, { useRef, useState } from 'react'
+import React, { useRef, useState, useEffect } from 'react'
 import { useAccount } from 'wagmi'
-import { ShoppingCart, CreditCard, Building2, Smartphone, AlertCircle, Check } from 'lucide-react'
+import { ShoppingCart, CreditCard, Building2, Smartphone, AlertCircle, Check, X } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
 
 const F     = "'Inter', -apple-system, sans-serif"
@@ -20,6 +20,14 @@ const METHODS = [
   { id:'BankTransfer', label:'Bank Transfer', Icon: Building2 },
 ]
 
+// Lifecycle event types from Circle onramp widget postMessage
+type OnrampEvent =
+  | { event: 'INITIALIZATION_SUCCESS' }
+  | { event: 'INITIALIZATION_ERROR'; code: string }
+  | { event: 'DEPOSIT_SUBMITTED'; payload: { amount: string; tokenSymbol: string; paymentMethod: string } }
+  | { event: 'DEPOSIT_SETTLED'; payload: { amount: string; tokenSymbol: string } }
+  | { event: 'DEPOSIT_NOT_COMPLETED'; code: string }
+
 export function OnrampPage() {
   const { address, isConnected } = useAccount()
   const _setActiveView = useAppStore(s => s.setActiveView)
@@ -28,29 +36,115 @@ export function OnrampPage() {
   const [method, setMethod] = useState('Debit')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [launched, setLaunched] = useState(false)
-  const containerRef = useRef<HTMLDivElement>(null)
+  const [phase, setPhase] = useState<'idle' | 'widget' | 'submitted' | 'settled'>('idle')
+  const [depositInfo, setDepositInfo] = useState<{ amount: string; token: string } | null>(null)
+  const iframeContainerRef = useRef<HTMLDivElement>(null)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const onrampKitRef = useRef<any>(null)
 
   const setAmt = (v: number) => { setAmount(v); setCustom(String(v)) }
   const onCustom = (v: string) => { setCustom(v); const n = parseFloat(v); if (!isNaN(n) && n > 0) setAmount(n) }
+
+  // Clean up onramp widget on unmount
+  useEffect(() => {
+    return () => {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+      if (onrampKitRef.current?.unmount) {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+        try { onrampKitRef.current.unmount() } catch { /* ignore */ }
+      }
+    }
+  }, [])
+
+  // Listen for Circle widget postMessage lifecycle events
+  useEffect(() => {
+    const handleMessage = (e: MessageEvent) => {
+      // Accept messages from Circle onramp origins
+      if (!e.origin.includes('arc.io') && !e.origin.includes('circle.com')) return
+      const data = e.data as OnrampEvent
+      if (!data?.event) return
+      if (data.event === 'DEPOSIT_SUBMITTED') {
+        const p = (data).payload
+        setDepositInfo({ amount: p.amount, token: p.tokenSymbol })
+        setPhase('submitted')
+      }
+      if (data.event === 'DEPOSIT_SETTLED') {
+        const p = (data).payload
+        setDepositInfo({ amount: p.amount, token: p.tokenSymbol })
+        setPhase('settled')
+      }
+      if (data.event === 'DEPOSIT_NOT_COMPLETED') {
+        const d = data
+        if (d.code !== 'CANCELED_BY_CUSTOMER') {
+          setError(`Onramp ended: ${d.code}`)
+        }
+        setPhase('idle')
+      }
+      if (data.event === 'INITIALIZATION_ERROR') {
+        const d = data
+        setError(`Widget failed to initialise: ${d.code}`)
+        setPhase('idle')
+      }
+    }
+    window.addEventListener('message', handleMessage)
+    return () => window.removeEventListener('message', handleMessage)
+  }, [])
 
   const handleBuy = async () => {
     if (!isConnected || !address) { setError('Connect your wallet first'); return }
     setLoading(true); setError(null)
     try {
-      const res = await fetch('/api/onramp-session', { method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({ appUserId:address, destinationAddress:address, amount:String(amount), paymentMethod:method, blockchain:'ARC-TESTNET' }) })
+      const res = await fetch('/api/onramp-session', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ appUserId: address, destinationAddress: address, amount: String(amount), paymentMethod: method, blockchain: 'ARC-TESTNET' }),
+      })
       if (!res.ok) {
-        if (res.status === 503) { setError('Add CIRCLE_API_KEY to Vercel environment variables to activate onramp'); return }
-        const err = await res.json().catch(() => ({ message:`HTTP ${res.status}` }))
+        if (res.status === 503) { setError('Add CIRCLE_STABLECOIN_KIT_API_KEY to environment variables to activate onramp'); return }
+        const err = await res.json().catch(() => ({ message: `HTTP ${res.status}` }))
         throw new Error((err as { message?: string }).message ?? `HTTP ${res.status}`)
       }
       const session = await res.json() as Record<string, unknown>
       const widgetUrl = session.widgetUrl as string | undefined
+
       if (!widgetUrl) throw new Error('No widget URL returned from Circle')
-      window.open(widgetUrl, '_blank', 'noopener,noreferrer')
-      setLaunched(true)
+
+      // Mount the iframe in-page when we have a widgetUrl and a container.
+      // If the widgetUrl embeds a sessionToken, the widget postMessages lifecycle
+      // events (DEPOSIT_SUBMITTED, DEPOSIT_SETTLED) back to this page — the
+      // window.addEventListener('message') handler above catches them.
+      if (widgetUrl && iframeContainerRef.current) {
+        const container = iframeContainerRef.current
+        // Clear any old iframe
+        container.innerHTML = ''
+        const iframe = document.createElement('iframe')
+        iframe.src = widgetUrl
+        iframe.allow = 'camera; microphone; payment'
+        iframe.style.cssText = 'width:100%;height:100%;border:none;border-radius:16px;'
+        container.appendChild(iframe)
+        onrampKitRef.current = {
+          unmount: () => { container.innerHTML = '' },
+        }
+        setPhase('widget')
+      } else if (widgetUrl) {
+        // No container yet — open popup fallback
+        window.open(widgetUrl, '_blank', 'noopener,noreferrer')
+        setPhase('submitted')
+      } else {
+        throw new Error('No widget URL returned from Circle')
+      }
     } catch (e) { setError(e instanceof Error ? e.message : 'Failed to launch onramp') }
     finally { setLoading(false) }
+  }
+
+  const handleClose = () => {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+    if (onrampKitRef.current?.unmount) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+      try { onrampKitRef.current.unmount() } catch { /* ignore */ }
+      onrampKitRef.current = null
+    }
+    setPhase('idle')
   }
 
   return (
@@ -116,19 +210,50 @@ export function OnrampPage() {
         </div>
       )}
 
-      <div ref={containerRef} style={{ display:'none' }} />
+      {/* In-page iframe container — shown when widget is mounted */}
+      {phase === 'widget' && (
+        <div style={{ position:'relative', marginBottom:20 }}>
+          <button onClick={handleClose} style={{ position:'absolute', top:8, right:8, zIndex:10, background:SURF, border:`1px solid ${BDR}`, borderRadius:8, width:30, height:30, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer' }}>
+            <X size={14} color={T2} />
+          </button>
+          <div
+            ref={iframeContainerRef}
+            style={{ width:'100%', minHeight:560, borderRadius:16, overflow:'hidden', border:`1px solid ${BDR}`, background:SURF2 }}
+          />
+        </div>
+      )}
 
-      {/* Post-launch */}
-      {launched ? (
+      {/* Not yet in widget mode — show the iframe mount target for later */}
+      {phase === 'idle' && (
+        <div ref={iframeContainerRef} style={{ display:'none' }} />
+      )}
+
+      {/* Settled confirmation */}
+      {phase === 'settled' && (
         <div style={{ textAlign:'center', padding:'28px 16px', background:SURF, borderRadius:16, marginBottom:20, border:`1px solid rgba(0,200,83,0.20)` }}>
           <div style={{ width:48, height:48, borderRadius:'50%', background:'rgba(0,200,83,0.12)', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 12px' }}>
             <Check size={22} color="#00C853" />
           </div>
+          <p style={{ fontWeight:700, fontSize:16, color:TEXT, marginBottom:6 }}>Deposit Settled</p>
+          {depositInfo && <p style={{ fontSize:13, color:T2, marginBottom:8 }}>{depositInfo.amount} {depositInfo.token} is on its way to your wallet.</p>}
+          <p style={{ fontSize:12, color:T3, marginBottom:20, lineHeight:1.5 }}>USDC will arrive on Arc Testnet shortly.</p>
+          <button onClick={() => { setPhase('idle'); setDepositInfo(null) }} style={{ padding:'11px 24px', borderRadius:12, background:BLUE, color:'#fff', border:'none', cursor:'pointer', fontSize:14, fontWeight:600, fontFamily:F }}>Buy more USDC</button>
+        </div>
+      )}
+
+      {/* Submitted (popup path) confirmation */}
+      {phase === 'submitted' && (
+        <div style={{ textAlign:'center', padding:'28px 16px', background:SURF, borderRadius:16, marginBottom:20, border:`1px solid rgba(0,102,255,0.15)` }}>
+          <div style={{ width:48, height:48, borderRadius:'50%', background:'rgba(0,102,255,0.10)', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 12px' }}>
+            <ShoppingCart size={22} color={BLUE} />
+          </div>
           <p style={{ fontWeight:700, fontSize:16, color:TEXT, marginBottom:6 }}>Circle Onramp Opened</p>
           <p style={{ fontSize:13, color:T2, marginBottom:20, lineHeight:1.5 }}>Complete your purchase in the new tab. USDC will arrive in your wallet on Arc Testnet.</p>
-          <button onClick={() => setLaunched(false)} style={{ padding:'11px 24px', borderRadius:12, background:BLUE, color:'#fff', border:'none', cursor:'pointer', fontSize:14, fontWeight:600, fontFamily:F }}>Buy more USDC</button>
+          <button onClick={() => setPhase('idle')} style={{ padding:'11px 24px', borderRadius:12, background:BLUE, color:'#fff', border:'none', cursor:'pointer', fontSize:14, fontWeight:600, fontFamily:F }}>Buy more USDC</button>
         </div>
-      ) : (
+      )}
+
+      {phase === 'idle' && (
         <button onClick={() => { void handleBuy() }} disabled={loading || !isConnected} style={{ width:'100%', height:54, borderRadius:14, background:loading||!isConnected?SURF:BLUE, color:loading||!isConnected?T2:'#fff', border:'none', cursor:loading||!isConnected?'not-allowed':'pointer', fontSize:15, fontWeight:700, fontFamily:F, display:'flex', alignItems:'center', justifyContent:'center', gap:8, transition:'all 0.15s' }}>
           {loading ? 'Loading…' : `Buy $${amount} USDC →`}
         </button>

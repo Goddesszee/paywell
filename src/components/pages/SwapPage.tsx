@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useRef } from 'react'
 import { useAccount, useChainId, useSwitchChain, useReadContract, useBalance } from 'wagmi'
-import type { SwapEstimate } from '@circle-fin/app-kit'
+import type { SwapEstimate, SwapStatusResult } from '@circle-fin/app-kit'
 import { erc20Abi, type EIP1193Provider } from 'viem'
 import { ArrowDown, Settings, CheckCircle, ExternalLink, RefreshCw, AlertCircle, X, Search, ArrowLeftRight } from 'lucide-react'
 import { ConnectKitButton } from 'connectkit'
@@ -246,7 +246,7 @@ export function SwapPage() {
   const [errMsg,   setErrMsg]   = useState('')
   const [txHash,   setTxHash]   = useState('')
   const [explorerUrl, setExplorerUrl] = useState('')
-  const [slippageBps, setSlippageBps] = useState(100)
+  const [slippageBps, setSlippageBps] = useState(300) // 3% — Circle SDK recommended default
 
   const [showSellModal, setShowSellModal] = useState(false)
   const [showBuyModal,  setShowBuyModal]  = useState(false)
@@ -312,8 +312,35 @@ export function SwapPage() {
         tokenIn:  reviewed.tokenIn, tokenOut: reviewed.tokenOut,
         amountIn: reviewed.amountIn, config: { slippageBps: reviewed.slippageBps },
       })
-      const rHash = (result as { txHash?: string }).txHash ?? ''
-      const rUrl  = (result as { explorerUrl?: string }).explorerUrl ?? ''
+
+      // For same-chain swaps progress.status is "DONE" immediately.
+      // For cross-chain swaps the source tx confirms with status "PENDING" — call
+      // waitForSwap() to track until the destination leg settles. Per the Circle
+      // docs: never resubmit swap() just because destination is still pending.
+      const progress = (result as { progress?: { status?: string } }).progress
+      // waitForSwap returns SwapStatusResult (different shape from SwapResult)
+      let statusResult: SwapStatusResult | null = null
+
+      if (progress?.status === 'PENDING') {
+        // Track cross-chain settlement — onProgress updates UI during the wait
+        statusResult = await kit.waitForSwap({
+          result,
+          onProgress: (snapshot: SwapStatusResult) => {
+            const sub = snapshot.progress.substatus ?? snapshot.progress.status
+            setErrMsg(`Cross-chain: ${sub}…`)
+          },
+        })
+        setErrMsg('') // Clear progress message once settled
+      }
+
+      const finalStatus = statusResult?.progress.status ?? progress?.status
+      if (finalStatus && finalStatus !== 'DONE' && finalStatus !== 'SUCCESS') {
+        throw new Error(`Swap ended with status: ${finalStatus}`)
+      }
+
+      // Prefer destination-leg tx hash for cross-chain swaps; fall back to source-leg
+      const rHash = statusResult?.source?.txHash ?? result.txHash ?? ''
+      const rUrl  = result.explorerUrl ?? ''
       setTxHash(rHash); setExplorerUrl(rUrl); setPhase('done')
       const gross = parseFloat(reviewed.amountIn)
       const fee   = swapFee(gross)
@@ -490,7 +517,7 @@ export function SwapPage() {
           className="nan-btn nan-btn-full"
           style={{ height: 54, borderRadius: 14, background: canReview ? c.blue : c.surf2, color: canReview ? '#fff' : c.t3, border: `1px solid ${canReview ? c.blue : c.bdr}`, fontSize: 15, fontWeight: 700, cursor: canReview ? 'pointer' : 'not-allowed', transition: 'all 0.15s' }}>
           {phase === 'estimating' ? <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}><span className="nan-spinner" />Getting quote…</span>
-            : phase === 'swapping' ? <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}><span className="nan-spinner" />Swapping…</span>
+            : phase === 'swapping' ? <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}><span className="nan-spinner" />{errMsg ? errMsg : 'Swapping…'}</span>
             : !isConnected ? 'Connect wallet to swap'
             : !amountIn || parseFloat(amountIn) === 0 ? 'Enter an amount'
             : arcUnsupportedPair ? 'Token not available on Arc Testnet'

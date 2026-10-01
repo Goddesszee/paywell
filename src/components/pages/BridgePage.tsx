@@ -111,6 +111,9 @@ export function BridgePage() {
   const [errMsg, setErrMsg]   = useState('')
   const [liveFee, setLiveFee] = useState<LiveFee>({ bps: 0, label: '—', fetched: false })
   const [feeLoading, setFeeLoading] = useState(false)
+  // Saved bridge result for kit.retry() — never re-run kit.bridge() from scratch after a soft error
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const lastResultRef = useRef<any>(null)
 
   const fromChain = CHAINS[fromIdx]
   const toChain   = CHAINS[toIdx]
@@ -218,6 +221,26 @@ export function BridgePage() {
       const adapter  = await createViemAdapterFromProvider({ provider })
       updateStep('approve', { status: 'active' })
 
+      // Subscribe to bridge step events so the UI updates in real-time.
+      // App Kit namespaces bridge events as "bridge.<step>".
+      // Use the wildcard overload to avoid strict generic-type mismatch on
+      // the per-action overload; narrow by event name inside the handler.
+      kit.on('*', (payload: unknown) => {
+        const p = payload as { action?: string; values?: { txHash?: string } }
+        if (p?.action === 'bridge.approve') {
+          updateStep('approve', { status: 'done' })
+          updateStep('burn', { status: 'active' })
+        } else if (p?.action === 'bridge.burn') {
+          updateStep('burn', { status: 'done', txHash: p?.values?.txHash })
+          updateStep('fetchAttestation', { status: 'active' })
+        } else if (p?.action === 'bridge.fetchAttestation') {
+          updateStep('fetchAttestation', { status: 'done' })
+          updateStep('mint', { status: 'active' })
+        } else if (p?.action === 'bridge.mint') {
+          updateStep('mint', { status: 'done', txHash: p?.values?.txHash })
+        }
+      })
+
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const result = await kit.bridge({
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -228,24 +251,75 @@ export function BridgePage() {
         ...(maxFeeUsdc > 0 ? { maxFee: BigInt(Math.round(maxFeeUsdc * 1_000_000)) } : {}),
       })
 
+      // Sync final step states from result.steps (event handler may have raced)
       for (const step of result.steps ?? []) {
         const name = step.name as StepName
-        updateStep(name, { status: step.state === 'success' ? 'done' : 'error', txHash: step.txHash, explorerUrl: step.explorerUrl })
+        updateStep(name, {
+          status: step.state === 'success' ? 'done' : step.state === 'error' ? 'error' : 'idle',
+          txHash: step.txHash,
+          explorerUrl: step.explorerUrl,
+        })
       }
 
       if (result.state === 'success') {
+        lastResultRef.current = null
+        setSteps(prev => prev.map(s => s.status === 'idle' ? { ...s, status: 'done' } : s))
         setStatus('done')
         const mintHash = result.steps?.find(s => s.name === 'mint')?.txHash
         addActivity({ type:'bridge', description:`Bridge to ${toChain.label}`, amount:gross, sign:'-', status:'confirmed', counterparty:toChain.label, txHash:mintHash })
         recordFee({ source:'bridge', grossAmount:gross, feeAmount:platformFee, feeWallet:FEE_WALLET, txHash:mintHash, description:`Bridge ${fromChain.label} → ${toChain.label}` })
       } else {
+        // Soft error — save result so kit.retry() can resume from the failed step
+        // without re-running approve/burn (which would double-spend).
+        lastResultRef.current = result
+        const failedStep = result.steps?.find(s => s.state === 'error')
+        const stepErr = failedStep?.error instanceof Error ? failedStep.error.message : typeof failedStep?.error === 'string' ? failedStep.error : ''
         setStatus('error')
-        setErrMsg('Bridge returned non-success state.')
+        setErrMsg(
+          failedStep
+            ? `Step "${failedStep.name}" failed${stepErr ? `: ${stepErr}` : ''}. Tap Retry to resume from here.`
+            : 'Bridge returned a non-success state. Tap Retry to resume.'
+        )
       }
     } catch (e: unknown) {
       setStatus('error')
       setErrMsg(e instanceof Error ? e.message : 'Bridge failed.')
       setSteps(prev => prev.map(s => s.status === 'active' ? { ...s, status:'error' } : s))
+    }
+  }
+
+  // kit.retry() resumes from the failed CCTP step — never re-run kit.bridge() from scratch
+  const handleRetry = async () => {
+    if (!lastResultRef.current || !connector || !isConnected) return
+    setStatus('bridging'); setErrMsg('')
+    try {
+      const provider = (await connector.getProvider()) as EIP1193Provider
+      const { kit, createViemAdapterFromProvider } = await getAppKit()
+      const adapter = await createViemAdapterFromProvider({ provider })
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const retryResult = await kit.retryBridge(lastResultRef.current, { from: adapter as any, to: adapter as any })
+      for (const step of retryResult.steps ?? []) {
+        const name = step.name as StepName
+        updateStep(name, {
+          status: step.state === 'success' ? 'done' : step.state === 'error' ? 'error' : 'idle',
+          txHash: step.txHash,
+        })
+      }
+      if (retryResult.state === 'success') {
+        lastResultRef.current = null
+        setSteps(prev => prev.map(s => s.status === 'idle' ? { ...s, status: 'done' } : s))
+        setStatus('done')
+        const mintHash = retryResult.steps?.find((s: { name: string; txHash?: string }) => s.name === 'mint')?.txHash
+        addActivity({ type:'bridge', description:`Bridge to ${toChain.label}`, amount:gross, sign:'-', status:'confirmed', counterparty:toChain.label, txHash:mintHash })
+        recordFee({ source:'bridge', grossAmount:gross, feeAmount:platformFee, feeWallet:FEE_WALLET, txHash:mintHash, description:`Bridge ${fromChain.label} → ${toChain.label}` })
+      } else {
+        lastResultRef.current = retryResult
+        setStatus('error')
+        setErrMsg('Retry also failed. Check steps and try again.')
+      }
+    } catch (e: unknown) {
+      setStatus('error')
+      setErrMsg(e instanceof Error ? e.message : 'Retry failed.')
     }
   }
 
@@ -395,6 +469,17 @@ export function BridgePage() {
         <button onClick={reset} style={{ width:'100%', padding:'15px 0', background:S, border:`1px solid ${B}`, borderRadius:14, fontSize:15, fontWeight:600, color:T, cursor:'pointer', fontFamily:SANS }}>
           Bridge again
         </button>
+      ) : status==='error' && lastResultRef.current ? (
+        // Soft error with a saved result — use kit.retry() to resume from the failed step,
+        // never re-run kit.bridge() from scratch (risks double-spending the burn).
+        <div style={{ display:'flex', gap:8 }}>
+          <button onClick={reset} style={{ flex:1, padding:'15px 0', background:S, border:`1px solid ${B}`, borderRadius:14, fontSize:14, fontWeight:600, color:T2, cursor:'pointer', fontFamily:SANS }}>
+            Start over
+          </button>
+          <button onClick={() => void handleRetry()} style={{ flex:2, padding:'15px 0', background:BK, border:`1px solid ${BK}`, borderRadius:14, fontSize:15, fontWeight:600, color:WH, cursor:'pointer', fontFamily:SANS, display:'flex', alignItems:'center', justifyContent:'center', gap:8 }}>
+            <CheckCircle size={16} /> Retry from failed step
+          </button>
+        </div>
       ) : (
         <button onClick={() => void handleBridge()} disabled={status==='bridging'||!amount||parseFloat(amount)<=0}
           style={{ width:'100%', padding:'15px 0', background:status==='bridging'||!amount ? S : BK,
