@@ -627,3 +627,49 @@ export const ALL_CATEGORIES: ServiceCategory[] = [
   'commerce', 'data', 'developer', 'ai', 'infrastructure',
   'digital_services', 'other_agents',
 ]
+
+// ── Circle Agent Marketplace live discovery ───────────────────────────────────
+// Fetches live service listings from the Circle Agent Marketplace.
+// Falls back to the static SERVICE_REGISTRY when the fetch fails.
+
+export interface MarketplaceService {
+  id: string
+  name: string
+  category: string
+  price_usdc: number
+  description: string
+  endpoint?: string
+  payment_methods: string[]
+  payment_address?: string
+}
+
+let _marketplaceCache: MarketplaceService[] | null = null
+let _marketplaceFetchedAt = 0
+const CACHE_TTL_MS = 5 * 60 * 1000 // 5 minutes
+
+export async function fetchLiveMarketplace(): Promise<MarketplaceService[]> {
+  const now = Date.now()
+  if (_marketplaceCache && now - _marketplaceFetchedAt < CACHE_TTL_MS) return _marketplaceCache
+
+  try {
+    const r = await fetch('/api/agent-wallet?action=marketplace', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'marketplace' }) })
+    if (!r.ok) throw new Error(`HTTP ${r.status}`)
+    const d = await r.json() as { services?: MarketplaceService[] }
+    if (d.services && Array.isArray(d.services)) {
+      _marketplaceCache = d.services
+      _marketplaceFetchedAt = now
+      return d.services
+    }
+  } catch { /* use static */ }
+
+  // Return static registry as MarketplaceService[]
+  return SERVICE_REGISTRY.map(s => ({
+    id: s.service_id,
+    name: s.name,
+    category: s.category,
+    price_usdc: s.price_usdc,
+    description: s.description,
+    endpoint: s.endpoint,
+    payment_methods: [s.payment_method],
+  }))
+}

@@ -17,6 +17,58 @@
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node'
+import { randomUUID } from 'crypto'
+
+// ── Circle Agent Wallet nanopayment ───────────────────────────────────────────
+// For paid services (cost_usdc > 0), the agent wallet autonomously sends USDC
+// to the service payment address. This is the Circle Agent Stack integration:
+// the agent has its own developer-controlled wallet and spends from it.
+
+interface NanopaymentResult {
+  paid: boolean
+  txId?: string
+  amount_usdc?: number
+  skipped_reason?: string
+}
+
+async function executeNanopayment(
+  service_id: string,
+  cost_usdc: number,
+  payment_address: string,
+  host: string,
+): Promise<NanopaymentResult> {
+  // Only pay when agent wallet is configured and cost > 0
+  if (cost_usdc <= 0) return { paid: false, skipped_reason: 'free service' }
+  if (!process.env.AGENT_WALLET_ID) return { paid: false, skipped_reason: 'AGENT_WALLET_ID not set — provision agent wallet first' }
+  if (!payment_address || !/^0x[a-fA-F0-9]{40}$/.test(payment_address)) return { paid: false, skipped_reason: 'no valid payment address for service' }
+
+  try {
+    const proto = host.includes('localhost') ? 'http' : 'https'
+    const r = await fetch(`${proto}://${host}/api/agent-wallet`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'spend',
+        recipient: payment_address,
+        amount_usdc: cost_usdc.toFixed(6),
+        service_id,
+        memo: `NAN Agent x402 payment — ${service_id} — ${randomUUID().slice(0, 8)}`,
+      }),
+    })
+    const d = await r.json() as { ok?: boolean; txId?: string; error?: string }
+    if (d.ok && d.txId) return { paid: true, txId: d.txId, amount_usdc: cost_usdc }
+    return { paid: false, skipped_reason: d.error ?? 'spend failed' }
+  } catch (e) {
+    return { paid: false, skipped_reason: e instanceof Error ? e.message : 'network error' }
+  }
+}
+
+// ── Service payment addresses (receive USDC from agent wallet) ────────────────
+const SERVICE_PAYMENT_ADDRESSES: Record<string, string> = {
+  'perplexity-research': process.env.PERPLEXITY_PAYMENT_ADDRESS ?? '',
+  'openai-completion': process.env.OPENAI_PAYMENT_ADDRESS ?? '',
+  // x402 services discovered from Circle Agent Marketplace will have their own addresses
+}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*')
@@ -35,10 +87,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: 'service_id and query required' })
   }
 
+  const host = (req.headers.host as string) ?? 'localhost:3001'
+
   try {
     let result: string
     let raw: unknown = null
     let cost_usdc = 0
+    let nanopayment: NanopaymentResult = { paid: false, skipped_reason: 'free service' }
 
     switch (service_id) {
 
@@ -222,6 +277,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // ── Perplexity research ───────────────────────────────────────────────────
       case 'perplexity-research': {
         cost_usdc = 0.002
+        // Circle Agent Stack: agent wallet pays autonomously before calling the service
+        nanopayment = await executeNanopayment('perplexity-research', cost_usdc, SERVICE_PAYMENT_ADDRESSES['perplexity-research'], host)
         const key = process.env.PERPLEXITY_API_KEY
         if (!key) { result = await fallbackResearch(query); break }
         const r = await fetch('https://api.perplexity.ai/chat/completions', {
@@ -245,6 +302,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // ── OpenAI AI tasks ───────────────────────────────────────────────────────
       case 'openai-completion': {
         cost_usdc = 0.001
+        nanopayment = await executeNanopayment('openai-completion', cost_usdc, SERVICE_PAYMENT_ADDRESSES['openai-completion'], host)
         const key = process.env.OPENAI_API_KEY
         if (!key) { result = `OpenAI not configured. Add OPENAI_API_KEY to enable AI tasks.`; break }
         const r = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -272,7 +330,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(404).json({ error: `Unknown service: ${service_id}` })
     }
 
-    return res.status(200).json({ result, raw, cost_usdc, service_id })
+    return res.status(200).json({ result, raw, cost_usdc, service_id, nanopayment })
   } catch (e) {
     console.error('agent-execute error:', e)
     return res.status(500).json({ error: e instanceof Error ? e.message : 'Execution failed', service_id })

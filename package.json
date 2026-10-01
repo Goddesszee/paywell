@@ -21,7 +21,7 @@
     "@circle-fin/adapter-circle-wallets": "^1.8.1",
     "@circle-fin/adapter-viem-v2": "^1.18.0",
     "@circle-fin/app-kit": "^1.15.1",
-    "@circle-fin/developer-controlled-wallets": "^10.8.0",
+    "@circle-fin/developer-controlled-wallets": "^10.8.1",
     "@circle-fin/modular-wallets-core": "^1.0.16",
     "@circle-fin/smart-contract-platform": "^10.8.0",
     "@circle-fin/user-controlled-wallets": "^10.8.0",

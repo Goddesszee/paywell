@@ -309,6 +309,30 @@ interface AppState {
   a2aTasks: A2ATask[]
   addA2ATask: (task: A2ATask) => void
   clearA2ATasks: () => void
+
+  // ── Circle Agent Stack ─────────────────────────────────────────────────────
+  agentWallet: AgentWalletState
+  setAgentWallet: (w: Partial<AgentWalletState>) => void
+  agentSpendLog: AgentSpendEntry[]
+  addAgentSpend: (e: AgentSpendEntry) => void
+}
+
+export interface AgentWalletState {
+  provisioned: boolean
+  address?: string
+  walletId?: string
+  balance_usdc: string
+  lastRefreshed?: string
+}
+
+export interface AgentSpendEntry {
+  id: string
+  service_id: string
+  service_name: string
+  amount_usdc: number
+  txId?: string
+  paid: boolean
+  timestamp: string
 }
 
 // ── Favorite type ────────────────────────────────────────────────────────────
@@ -789,6 +813,14 @@ export const useAppStore = create<AppState>()(
           a2aTasks: [task, ...s.a2aTasks].slice(0, 50),
         })),
       clearA2ATasks: () => set({ a2aTasks: [] }),
+
+      // ── Circle Agent Stack ─────────────────────────────────────────────────
+      agentWallet: { provisioned: false, balance_usdc: '0' },
+      setAgentWallet: (w) =>
+        set((s) => ({ agentWallet: { ...s.agentWallet, ...w } })),
+      agentSpendLog: [],
+      addAgentSpend: (e) =>
+        set((s) => ({ agentSpendLog: [e, ...s.agentSpendLog].slice(0, 200) })),
     }),
     {
       name: 'paywell-state-v2',
@@ -810,6 +842,8 @@ export const useAppStore = create<AppState>()(
         recurringTasks: s.recurringTasks,
         a2aPayments: s.a2aPayments,
         a2aTasks: s.a2aTasks,
+        agentWallet: s.agentWallet,
+        agentSpendLog: s.agentSpendLog,
       }),
       merge: (persisted, current) => {
         const p = persisted as Partial<AppState>
@@ -844,6 +878,8 @@ export const useAppStore = create<AppState>()(
           recurringTasks: p.recurringTasks ?? current.recurringTasks ?? [],
           a2aPayments: p.a2aPayments ?? current.a2aPayments ?? [],
           a2aTasks: p.a2aTasks ?? current.a2aTasks ?? [],
+          agentWallet: p.agentWallet ?? current.agentWallet ?? { provisioned: false, balance_usdc: '0' },
+          agentSpendLog: p.agentSpendLog ?? current.agentSpendLog ?? [],
         }
       },
     }
