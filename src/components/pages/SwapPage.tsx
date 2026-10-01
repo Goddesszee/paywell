@@ -219,8 +219,10 @@ export function SwapPage() {
   const c = useNanTheme()
   const { connector, isConnected, address: wagmiAddress } = useAccount()
   const auth = useAppStore(s => s.auth)
-  const isCircleUser = !wagmiAddress && !!auth?.circleWalletAddress
-  const address = wagmiAddress
+  const circleWalletAddress = auth?.circleWalletAddress as `0x${string}` | undefined
+  const isCircleUser = !wagmiAddress && !!circleWalletAddress
+  // Use wagmi address for connected wallets; fall back to Circle wallet address
+  const address = wagmiAddress ?? (isCircleUser ? circleWalletAddress : undefined)
   const chainId = useChainId()
   const { switchChainAsync } = useSwitchChain()
   const addActivity = useAppStore(s => s.addActivity)
@@ -248,8 +250,7 @@ export function SwapPage() {
   const balIn  = useTokenBalance(tokenIn,  address)
   const balOut = useTokenBalance(tokenOut, address)
 
-  // Circle user-controlled wallet address (set when logged in via Circle email/Google)
-  const circleWalletAddress = auth?.circleWalletAddress
+  // circleWalletAddress is declared above near wagmiAddress
 
   const arcNoPair = (tokenIn === 'USDC' && tokenOut === 'NATIVE') || (tokenIn === 'NATIVE' && tokenOut === 'USDC')
   const sameToken = tokenIn === tokenOut
@@ -420,8 +421,7 @@ export function SwapPage() {
           </div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
             <span style={{ fontSize: 13, color: c.t3 }}>{amountIn && parseFloat(amountIn) > 0 ? `$${parseFloat(amountIn).toFixed(2)}` : '$0.00'}</span>
-            {isConnected && <span style={{ fontSize: 12, color: c.t3 }}>Balance: {balIn}</span>}
-            {isCircleUser && <span style={{ fontSize: 12, color: c.t3 }}>Circle wallet</span>}
+            {(isConnected || isCircleUser) && <span style={{ fontSize: 12, color: c.t3 }}>Balance: {balIn}</span>}
           </div>
           {/* % chips */}
           <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
@@ -462,13 +462,8 @@ export function SwapPage() {
                 ? `~$${parseFloat(estimatedOut.amount).toFixed(2)}`
                 : '$0.00'}
             </span>
-            {isConnected && <span style={{ fontSize: 12, color: c.t3 }}>Balance: {balOut}</span>}
+            {(isConnected || isCircleUser) && <span style={{ fontSize: 12, color: c.t3 }}>Balance: {balOut}</span>}
           </div>
-          {isCircleUser && (
-            <div style={{ marginTop: 6, fontSize: 11, color: c.t3, lineHeight: 1.5 }}>
-              Swapped via your Circle wallet on the server.
-            </div>
-          )}
         </div>
       </div>
 
