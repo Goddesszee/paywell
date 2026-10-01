@@ -9,8 +9,6 @@ import { useAppStore } from '../../store/appStore'
 import { swapFee, SWAP_FEE_BPS, bpsToPercent, FEE_WALLET } from '../../lib/fees'
 import { useNanTheme } from '../../hooks/useNanTheme'
 
-const appKit = new AppKit()
-
 const CHAIN_ID  = 5042002
 const CHAIN_KEY = 'Arc_Testnet'
 
@@ -219,6 +217,10 @@ function useTokenBalance(token: Token, address: `0x${string}` | undefined) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 export function SwapPage() {
+  const appKitRef = React.useRef<AppKit | null>(null)
+  if (!appKitRef.current) appKitRef.current = new AppKit()
+  const appKit = appKitRef.current
+
   const c = useNanTheme()
   const { connector, isConnected, address: wagmiAddress } = useAccount()
   const { auth } = useAppStore(s => ({ auth: s.auth, addActivity: s.addActivity, recordFee: s.recordFee }))
