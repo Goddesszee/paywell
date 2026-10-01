@@ -4,7 +4,8 @@ import {
   ToggleLeft, ToggleRight, Coins, Loader2, Plus,
   Trash2, Play, Pause, ExternalLink, Copy, RefreshCw,
   Search, Globe, Cpu, FileText, AlertTriangle, CheckCircle2,
-  Clock, ChevronRight, Sparkles
+  Clock, ChevronRight, Sparkles, Network, Star, Activity,
+  UserCheck, TrendingUp, Lock, Unlock, PackageCheck
 } from 'lucide-react'
 import { useWriteContract, useAccount } from 'wagmi'
 import { parseUnits } from 'viem'
@@ -22,10 +23,16 @@ import {
   type AgentPolicy, type OrchestrationUpdate,
 } from '../../lib/agent-orchestrator'
 import {
-  getAllServices, discoverServices,
-  type NanService,
-  type ServiceDiscoveryResult,
+  getAllServices, discoverServices, getAllNetworkAgents,
+  searchNetworkAgents, getNetworkAgentsByCategory,
+  type NanService, type ServiceDiscoveryResult,
+  type NetworkAgent, type AgentCapability, ALL_CATEGORIES,
 } from '../../lib/agent-registry'
+import {
+  decomposeTask, assignAgentsToSubtasks, estimateCost,
+  checkMultiAgentPolicy, runA2ATask,
+  type Subtask, type CostEstimate, type A2ATask, type A2AProgress,
+} from '../../lib/agent-network'
 
 const F       = "'Inter', -apple-system, sans-serif"
 const TEXT    = 'var(--nan-text)'
@@ -49,7 +56,7 @@ const USDC_TRANSFER_ABI = [{
   outputs: [{ name: '', type: 'bool' }],
 }] as const
 
-type AgentTab = 'chat' | 'discover' | 'policy' | 'log'
+type AgentTab = 'chat' | 'discover' | 'network' | 'policy' | 'log'
 
 interface OrchestratorStep {
   label: string
@@ -57,7 +64,8 @@ interface OrchestratorStep {
   status: 'pending' | 'running' | 'done' | 'error'
 }
 
-interface X402Service {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+type _X402Service = {
   id: string; name: string; description: string; price: string
   endpoint: string; calls: number; earned: string; active: boolean
 }
@@ -103,10 +111,11 @@ function simulateAgentResponse(
 export function AgentPage() {
   const [tab, setTab] = useState<AgentTab>('chat')
   const TABS: { id: AgentTab; label: string }[] = [
-    { id: 'chat',    label: 'Chat' },
+    { id: 'chat',     label: 'Chat' },
     { id: 'discover', label: 'Services' },
-    { id: 'policy',  label: 'Policy' },
-    { id: 'log',     label: 'Log' },
+    { id: 'network',  label: 'Network' },
+    { id: 'policy',   label: 'Policy' },
+    { id: 'log',      label: 'Log' },
   ]
   return (
     <div style={{ fontFamily:F, maxWidth:560, margin:'0 auto', padding:'0 0 88px' }}>
@@ -135,6 +144,7 @@ export function AgentPage() {
       </div>
       {tab === 'chat'     && <AgentChat />}
       {tab === 'discover' && <DiscoverTab />}
+      {tab === 'network'  && <NetworkTab />}
       {tab === 'policy'   && <PolicyTab />}
       {tab === 'log'      && <ExecutionLogTab />}
     </div>
@@ -357,10 +367,10 @@ function AgentChat() {
   }
 
   const QUICK = [
-    'Find me the cheapest flight from Lagos to London next Friday',
-    'Research top USDC yield opportunities',
-    'Find a wireless keyboard under 25 USDC',
-    'What can you do for me today?',
+    'Find the cheapest flight from Lagos to London next Friday',
+    'Research top USDC yield opportunities right now',
+    'Find three manufacturers for wireless earbuds and verify them',
+    'Find remote software engineering jobs in London',
   ]
 
   return (
@@ -686,6 +696,685 @@ function PolicyTab() {
       <button onClick={handleSave} style={{ width:'100%', height:48, background:BLUE, color:'#fff', border:'none', borderRadius:14, fontSize:14, fontWeight:600, cursor:'pointer', fontFamily:F, display:'flex', alignItems:'center', justifyContent:'center', gap:8 }}>
         {saved ? <><Check size={16} /> Saved</> : 'Save policy'}
       </button>
+    </div>
+  )
+}
+
+// ── Agent Network Tab (Phase 3A/3B) ──────────────────────────────────────────
+
+type NetworkSubTab = 'marketplace' | 'orchestrate' | 'register' | 'provider'
+
+function NetworkTab() {
+  const [sub, setSub] = useState<NetworkSubTab>('marketplace')
+  const SUBS: { id: NetworkSubTab; label: string }[] = [
+    { id: 'marketplace', label: 'Marketplace' },
+    { id: 'orchestrate', label: 'Orchestrate' },
+    { id: 'register',    label: 'Register' },
+    { id: 'provider',    label: 'Provider' },
+  ]
+  return (
+    <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+      {/* Header */}
+      <div style={{ background:'rgba(0,102,255,0.08)', border:'1px solid rgba(0,102,255,0.18)', borderRadius:14, padding:14 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:4 }}>
+          <Network size={14} color={BLUE} />
+          <span style={{ fontSize:13, fontWeight:700, color:TEXT }}>NAN Agent Network</span>
+        </div>
+        <div style={{ fontSize:12, color:TEXT2, lineHeight:1.5 }}>
+          Discover, pay, and coordinate specialized agents. NAN is an AI-native financial and execution layer for agentic commerce.
+        </div>
+        <div style={{ display:'flex', gap:12, marginTop:10 }}>
+          {[
+            { label:'Agents', value: String(getAllNetworkAgents().length) },
+            { label:'Categories', value: String(ALL_CATEGORIES.length) },
+            { label:'Verified', value: String(getAllNetworkAgents().filter(a=>a.verification_status==='trusted').length) },
+          ].map(s => (
+            <div key={s.label} style={{ flex:1, textAlign:'center', background:SURF2, borderRadius:10, padding:'8px 4px' }}>
+              <div style={{ fontSize:16, fontWeight:800, color:TEXT }}>{s.value}</div>
+              <div style={{ fontSize:10, color:TEXT3, marginTop:1 }}>{s.label}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Sub-tab pills */}
+      <div style={{ display:'flex', background:SURF, borderRadius:10, padding:3, gap:2 }}>
+        {SUBS.map(s => {
+          const active = sub === s.id
+          return (
+            <button key={s.id} onClick={() => setSub(s.id)} style={{
+              flex:1, padding:'6px 2px', border:'none', borderRadius:7, cursor:'pointer',
+              fontFamily:F, fontSize:11, fontWeight:active?700:500,
+              background:active?BLUE:'transparent', color:active?'#fff':TEXT2,
+              transition:'all 0.15s',
+            }}>{s.label}</button>
+          )
+        })}
+      </div>
+
+      {sub === 'marketplace'  && <AgentMarketplace />}
+      {sub === 'orchestrate'  && <MultiAgentOrchestrator />}
+      {sub === 'register'     && <RegisterAgentForm />}
+      {sub === 'provider'     && <ProviderDashboard />}
+    </div>
+  )
+}
+
+// Agent Marketplace
+
+function AgentMarketplace() {
+  const [query, setQuery] = useState('')
+  const [catFilter, setCatFilter] = useState<string>('all')
+  const [selected, setSelected] = useState<NetworkAgent | null>(null)
+
+  const agents = query
+    ? searchNetworkAgents(query)
+    : catFilter === 'all'
+      ? getAllNetworkAgents()
+      : getNetworkAgentsByCategory(catFilter as Parameters<typeof getNetworkAgentsByCategory>[0])
+
+  const usedCats = Array.from(new Set(getAllNetworkAgents().flatMap(a => a.categories)))
+
+  if (selected) return <AgentDetail agent={selected} onBack={() => setSelected(null)} />
+
+  return (
+    <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+      <div style={{ position:'relative' }}>
+        <Search size={13} color={TEXT3} style={{ position:'absolute', left:11, top:'50%', transform:'translateY(-50%)', pointerEvents:'none' }} />
+        <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search agents or capabilities…"
+          style={{ width:'100%', padding:'9px 12px 9px 32px', border:`1px solid ${BDR}`, borderRadius:10, fontFamily:F, fontSize:13, outline:'none', background:SURF2, color:TEXT, boxSizing:'border-box' }} />
+      </div>
+      <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+        {(['all', ...usedCats]).map(c => (
+          <button key={c} onClick={() => setCatFilter(c)} style={{
+            height:26, padding:'0 10px', borderRadius:20, border:`1px solid ${catFilter===c?BLUE:BDR}`,
+            background:catFilter===c?BLUE:SURF, color:catFilter===c?'#fff':TEXT2,
+            fontSize:11, fontWeight:600, cursor:'pointer', fontFamily:F,
+          }}>{c === 'all' ? 'All' : c}</button>
+        ))}
+      </div>
+      {agents.map(agent => (
+        <button key={agent.agent_id} onClick={() => setSelected(agent)}
+          style={{ background:SURF, border:`1px solid ${BDR}`, borderRadius:14, padding:14, textAlign:'left', cursor:'pointer', width:'100%' }}>
+          <div style={{ display:'flex', alignItems:'flex-start', gap:10 }}>
+            <div style={{ width:38, height:38, borderRadius:10, background:'rgba(0,102,255,0.1)', border:'1px solid rgba(0,102,255,0.18)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+              <Bot size={17} color={BLUE} />
+            </div>
+            <div style={{ flex:1, minWidth:0 }}>
+              <div style={{ display:'flex', alignItems:'center', gap:6, flexWrap:'wrap' }}>
+                <span style={{ fontSize:13, fontWeight:700, color:TEXT }}>{agent.name}</span>
+                {agent.verification_status === 'trusted' && (
+                  <span style={{ fontSize:10, fontWeight:700, color:'#00C853', background:'rgba(0,200,83,0.1)', border:'1px solid rgba(0,200,83,0.25)', borderRadius:6, padding:'1px 6px', display:'flex', alignItems:'center', gap:3 }}>
+                    <UserCheck size={9} /> Verified
+                  </span>
+                )}
+                <span style={{ fontSize:10, color:TEXT3, background:SURF2, border:`1px solid ${BDR}`, borderRadius:6, padding:'1px 6px', textTransform:'uppercase', letterSpacing:'0.04em' }}>{agent.status}</span>
+              </div>
+              <div style={{ fontSize:11, color:TEXT2, marginTop:3, lineHeight:1.4 }}>{agent.description}</div>
+              <div style={{ display:'flex', gap:8, marginTop:8, flexWrap:'wrap' }}>
+                {agent.capabilities.slice(0,3).map(cap => (
+                  <div key={cap.id} style={{ fontSize:10, color:TEXT3, background:SURF2, border:`1px solid ${BDR}`, borderRadius:6, padding:'2px 7px', display:'flex', alignItems:'center', gap:4 }}>
+                    <Coins size={9} color={cap.price_usdc > 0 ? BLUE : SUCCESS} />
+                    {cap.name} · {cap.price_usdc > 0 ? `${cap.price_usdc} USDC` : 'Free'}
+                  </div>
+                ))}
+              </div>
+            </div>
+            <ChevronRight size={14} color={TEXT3} style={{ flexShrink:0, marginTop:2 }} />
+          </div>
+          <div style={{ display:'flex', gap:10, marginTop:10, paddingTop:10, borderTop:`1px solid ${BDR}` }}>
+            <div style={{ fontSize:10, color:TEXT3 }}>
+              <span style={{ fontWeight:700, color:TEXT }}>{agent.successful_requests}</span> completed
+            </div>
+            <div style={{ fontSize:10, color:TEXT3 }}>
+              <span style={{ fontWeight:700, color:TEXT }}>{agent.avg_response_ms}ms</span> avg
+            </div>
+            <div style={{ fontSize:10, color:TEXT3, marginLeft:'auto' }}>{agent.provider}</div>
+          </div>
+        </button>
+      ))}
+      {agents.length === 0 && (
+        <div style={{ textAlign:'center', padding:'40px 0', color:TEXT3 }}>
+          <Network size={28} color={TEXT3} style={{ margin:'0 auto 10px' }} />
+          <div style={{ fontSize:13 }}>No agents match your search</div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function AgentDetail({ agent, onBack }: { agent: NetworkAgent; onBack: () => void }) {
+  return (
+    <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+      <button onClick={onBack} style={{ display:'flex', alignItems:'center', gap:6, background:'none', border:'none', cursor:'pointer', padding:0, color:BLUE, fontSize:13, fontWeight:600, fontFamily:F }}>
+        ← Back to marketplace
+      </button>
+      <div style={{ background:SURF, border:`1px solid ${BDR}`, borderRadius:14, padding:16 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:12 }}>
+          <div style={{ width:44, height:44, borderRadius:12, background:'rgba(0,102,255,0.1)', border:'1px solid rgba(0,102,255,0.18)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+            <Bot size={20} color={BLUE} />
+          </div>
+          <div style={{ flex:1, minWidth:0 }}>
+            <div style={{ fontSize:15, fontWeight:700, color:TEXT }}>{agent.name}</div>
+            <div style={{ fontSize:11, color:TEXT2 }}>{agent.provider}</div>
+          </div>
+          {agent.verification_status === 'trusted' && (
+            <div style={{ fontSize:11, fontWeight:700, color:'#00C853', display:'flex', alignItems:'center', gap:4 }}>
+              <UserCheck size={12} /> Verified
+            </div>
+          )}
+        </div>
+        <div style={{ fontSize:12, color:TEXT2, lineHeight:1.5, marginBottom:12 }}>{agent.description}</div>
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8 }}>
+          {[
+            { label:'Completed', value:String(agent.successful_requests) },
+            { label:'Avg time', value:`${agent.avg_response_ms}ms` },
+            { label:'Success rate', value:`${Math.round((agent.successful_requests/Math.max(agent.total_requests,1))*100)}%` },
+          ].map(s => (
+            <div key={s.label} style={{ textAlign:'center', background:SURF2, borderRadius:10, padding:'10px 6px' }}>
+              <div style={{ fontSize:15, fontWeight:800, color:TEXT }}>{s.value}</div>
+              <div style={{ fontSize:10, color:TEXT3, marginTop:1 }}>{s.label}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ fontSize:13, fontWeight:700, color:TEXT }}>Capabilities</div>
+      {agent.capabilities.map(cap => (
+        <div key={cap.id} style={{ background:SURF, border:`1px solid ${BDR}`, borderRadius:12, padding:12 }}>
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:6 }}>
+            <div style={{ fontSize:12, fontWeight:700, color:TEXT }}>{cap.name}</div>
+            <div style={{ fontSize:12, fontWeight:700, color:cap.price_usdc > 0 ? BLUE : SUCCESS }}>
+              {cap.price_usdc > 0 ? `${cap.price_usdc} USDC` : 'Free'}
+            </div>
+          </div>
+          <div style={{ fontSize:11, color:TEXT2, marginBottom:8 }}>{cap.description}</div>
+          <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+            {cap.keywords.slice(0,5).map(k => (
+              <span key={k} style={{ fontSize:10, color:TEXT3, background:SURF2, borderRadius:6, padding:'2px 7px', border:`1px solid ${BDR}` }}>{k}</span>
+            ))}
+          </div>
+          <div style={{ marginTop:8, paddingTop:8, borderTop:`1px solid ${BDR}`, display:'flex', gap:8 }}>
+            <div style={{ fontSize:10, color:TEXT3 }}>In: {Object.entries(cap.input_schema).map(([k,v])=>`${k}: ${v}`).join(', ')}</div>
+          </div>
+          <div style={{ fontSize:10, color:TEXT3, marginTop:2 }}>Out: {Object.entries(cap.output_schema).map(([k,v])=>`${k}: ${v}`).join(', ')}</div>
+        </div>
+      ))}
+
+      <div style={{ fontSize:13, fontWeight:700, color:TEXT }}>Payment & Networks</div>
+      <div style={{ background:SURF, border:`1px solid ${BDR}`, borderRadius:12, padding:12 }}>
+        <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
+          {agent.payment_methods.map(m => (
+            <span key={m} style={{ fontSize:11, fontWeight:600, color:BLUE, background:'rgba(0,102,255,0.08)', border:'1px solid rgba(0,102,255,0.18)', borderRadius:8, padding:'3px 8px' }}>{m}</span>
+          ))}
+          {agent.supported_networks.map(n => (
+            <span key={n} style={{ fontSize:11, fontWeight:500, color:TEXT2, background:SURF2, border:`1px solid ${BDR}`, borderRadius:8, padding:'3px 8px' }}>{n}</span>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Multi-Agent Orchestrator
+
+function MultiAgentOrchestrator() {
+  const { agentPermissions, agentDailyUsed, addA2ATask, addA2APayment, addExecutionLog } = useAppStore()
+  const [request, setRequest] = useState('')
+  const [subtasks, setSubtasks] = useState<Subtask[]>([])
+  const [estimate, setEstimate] = useState<CostEstimate | null>(null)
+  const [stage, setStage] = useState<'idle'|'planning'|'estimated'|'running'|'done'|'error'>('idle')
+  const [progress, setProgress] = useState<A2AProgress[]>([])
+  const [finalResult, setFinalResult] = useState('')
+  const [_taskId, _setTaskId] = useState('')
+
+  const plan = async () => {
+    if (!request.trim()) return
+    setStage('planning')
+    setSubtasks([]); setEstimate(null); setProgress([]); setFinalResult('')
+    await new Promise(r => setTimeout(r, 600))
+    const decomposed = decomposeTask(request)
+    const assigned = assignAgentsToSubtasks(decomposed)
+    const est = estimateCost(assigned)
+    setSubtasks(assigned)
+    setEstimate(est)
+    setStage('estimated')
+  }
+
+  const execute = async () => {
+    if (!estimate) return
+    setStage('running')
+    const policy = {
+      dailyLimit: agentPermissions.dailyLimit,
+      dailyUsed: agentDailyUsed,
+      perServiceLimit: agentPermissions.perServiceLimit ?? 1,
+      requireApprovalAbove: agentPermissions.requireApprovalAbove ?? 5,
+      requireApproval: agentPermissions.requireApproval,
+      enabled: agentPermissions.enabled,
+    }
+    const policyResult = checkMultiAgentPolicy(estimate, policy)
+    if (!policyResult.allowed) {
+      setFinalResult(`Blocked by policy: ${policyResult.reason}`)
+      setStage('error')
+      return
+    }
+    const tid = `a2a-${Date.now()}`
+    _setTaskId(tid)
+    try {
+      const task = await runA2ATask({
+        userRequest: request,
+        policy,
+        onProgress: (p: A2AProgress) => setProgress(prev => [...prev, p]),
+        onPaymentRecord: (r) => addA2APayment(r),
+        onConfirmationRequired: async (_est) => {
+          // auto-approve if within policy — user already saw estimate screen
+          return true
+        },
+      })
+      setFinalResult(task.finalResult ?? 'Task completed.')
+      addA2ATask(task)
+      task.subtasks.forEach(st => {
+        if (st.paymentStatus === 'confirmed' && st.agentRef) {
+          addA2APayment({
+            id: `pay-${Date.now()}-${st.id}`,
+            taskId: task.id, subtaskId: st.id,
+            agentId: st.agentRef.agentId, agentName: st.agentRef.capabilityName,
+            capability: st.agentRef.capabilityId, amount_usdc: st.agentRef.price_usdc,
+            currency: 'USDC', network: 'arc-testnet',
+            payment_status: 'confirmed', policy_decision: 'allowed',
+            approval_status: 'auto_approved', timestamp: new Date().toISOString(),
+            request_id: `req-${st.id}`,
+          })
+        }
+      })
+      addExecutionLog({
+        taskId: tid, userRequest: request,
+        status: task.status === 'complete' ? 'complete' : 'error',
+        cost: estimate.totalUsdc,
+        result: task.finalResult ?? '',
+      })
+      setStage('done')
+    } catch (e: unknown) {
+      setFinalResult(e instanceof Error ? e.message : 'Execution failed.')
+      setStage('error')
+    }
+  }
+
+  const policyCheck = estimate ? checkMultiAgentPolicy(estimate, {
+    dailyLimit: agentPermissions.dailyLimit,
+    dailyUsed: agentDailyUsed,
+    perServiceLimit: agentPermissions.perServiceLimit ?? 1,
+    requireApprovalAbove: agentPermissions.requireApprovalAbove ?? 5,
+    requireApproval: agentPermissions.requireApproval,
+    enabled: agentPermissions.enabled,
+  }) : null
+
+  const iconForStatus = (s: string) => {
+    if (s === 'completed') return <CheckCircle2 size={12} color={SUCCESS} />
+    if (s === 'running')   return <Loader2 size={12} color={BLUE} style={{ animation:'spin 1s linear infinite' }} />
+    if (s === 'failed')    return <AlertTriangle size={12} color={DANGER} />
+    return <Clock size={12} color={TEXT3} />
+  }
+
+  return (
+    <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+      <div style={{ background:'rgba(0,102,255,0.06)', border:'1px solid rgba(0,102,255,0.15)', borderRadius:12, padding:12 }}>
+        <div style={{ fontSize:12, fontWeight:700, color:TEXT, marginBottom:4 }}>Multi-Agent Orchestration</div>
+        <div style={{ fontSize:11, color:TEXT2, lineHeight:1.5 }}>
+          Describe a complex task. NAN will decompose it, discover the right agents, estimate the cost, check your policy, and coordinate execution.
+        </div>
+      </div>
+
+      <textarea value={request} onChange={e => setRequest(e.target.value)}
+        placeholder="e.g. Find three manufacturers for wireless earbuds and verify their companies"
+        rows={3}
+        style={{ width:'100%', padding:'11px 14px', border:`1px solid ${BDR}`, borderRadius:12, fontFamily:F, fontSize:13, outline:'none', background:SURF2, color:TEXT, resize:'none', boxSizing:'border-box' }}
+      />
+
+      {stage === 'idle' || stage === 'planning' ? (
+        <button onClick={() => void plan()} disabled={!request.trim() || stage==='planning'}
+          style={{ height:46, background:BLUE, color:'#fff', border:'none', borderRadius:12, fontSize:14, fontWeight:700, cursor:'pointer', fontFamily:F, display:'flex', alignItems:'center', justifyContent:'center', gap:8, opacity:!request.trim()?0.4:1 }}>
+          {stage === 'planning' ? <><Loader2 size={15} style={{ animation:'spin 1s linear infinite' }} /> Planning…</> : <><Sparkles size={15} /> Plan task</>}
+        </button>
+      ) : null}
+
+      {/* Task plan */}
+      {subtasks.length > 0 && (
+        <div style={{ background:SURF, border:`1px solid ${BDR}`, borderRadius:14, padding:14 }}>
+          <div style={{ fontSize:12, fontWeight:700, color:TEXT, marginBottom:10 }}>Execution plan</div>
+          <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+            {subtasks.map((st, i) => (
+              <div key={st.id} style={{ display:'flex', alignItems:'flex-start', gap:10, paddingBottom: i < subtasks.length-1 ? 8 : 0, borderBottom: i < subtasks.length-1 ? `1px solid ${BDR}` : 'none' }}>
+                <div style={{ width:22, height:22, borderRadius:'50%', background:'rgba(0,102,255,0.1)', border:'1px solid rgba(0,102,255,0.2)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, fontSize:10, fontWeight:800, color:BLUE }}>{i+1}</div>
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ fontSize:12, fontWeight:700, color:TEXT }}>{st.label}</div>
+                  {st.agentRef && <div style={{ fontSize:11, color:TEXT2, marginTop:1 }}>→ {st.agentRef.capabilityName}</div>}
+                  {st.agentRef && (
+                    <div style={{ fontSize:11, color:TEXT3, marginTop:1 }}>
+                      {st.agentRef.price_usdc > 0 ? `${st.agentRef.price_usdc} USDC` : 'Free'}
+                    </div>
+                  )}
+                </div>
+                <div style={{ flexShrink:0 }}>
+                  {iconForStatus(stage === 'running' ? 'running' : stage === 'done' ? 'completed' : 'pending')}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Cost estimate */}
+      {estimate && (
+        <div style={{ background:SURF, border:`1px solid ${BDR}`, borderRadius:14, padding:14 }}>
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10 }}>
+            <div style={{ fontSize:12, fontWeight:700, color:TEXT, display:'flex', alignItems:'center', gap:6 }}>
+              <Coins size={13} color={BLUE} /> Cost estimate
+            </div>
+            <div style={{ fontSize:15, fontWeight:800, color:estimate.totalUsdc > 0 ? BLUE : SUCCESS }}>
+              {estimate.totalUsdc > 0 ? `${estimate.totalUsdc.toFixed(3)} USDC` : 'Free'}
+            </div>
+          </div>
+          {estimate.subtaskBreakdown.map((b, i) => (
+            <div key={i} style={{ display:'flex', justifyContent:'space-between', paddingBottom:6, marginBottom:6, borderBottom: i < estimate.subtaskBreakdown.length-1 ? `1px solid ${BDR}` : 'none' }}>
+              <span style={{ fontSize:11, color:TEXT2 }}>{b.agentName}</span>
+              <span style={{ fontSize:11, fontWeight:700, color:TEXT }}>{b.cost > 0 ? `${b.cost} USDC` : 'Free'}</span>
+            </div>
+          ))}
+          {policyCheck && (
+            <div style={{ marginTop:10, paddingTop:10, borderTop:`1px solid ${BDR}`, display:'flex', alignItems:'center', gap:6 }}>
+              {policyCheck.allowed
+                ? <><CheckCircle2 size={12} color={SUCCESS} /><span style={{ fontSize:11, fontWeight:600, color:SUCCESS }}>Policy approved</span></>
+                : <><AlertTriangle size={12} color={DANGER} /><span style={{ fontSize:11, fontWeight:600, color:DANGER }}>{policyCheck.reason}</span></>
+              }
+              {policyCheck.requiresConfirmation && <span style={{ fontSize:11, color:'#FF9500', marginLeft:'auto' }}>Approval required</span>}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Progress log */}
+      {progress.length > 0 && (
+        <div style={{ background:SURF, border:`1px solid ${BDR}`, borderRadius:14, padding:14 }}>
+          <div style={{ fontSize:12, fontWeight:700, color:TEXT, marginBottom:10, display:'flex', alignItems:'center', gap:6 }}>
+            <Activity size={13} color={BLUE} /> Execution log
+          </div>
+          <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+            {progress.map((p, i) => (
+              <div key={i} style={{ display:'flex', alignItems:'flex-start', gap:8 }}>
+                {p.step === 'complete' ? <CheckCircle2 size={12} color={SUCCESS} />
+                  : p.step === 'error' ? <AlertTriangle size={12} color={DANGER} />
+                  : <CheckCircle2 size={12} color={BLUE} />}
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ fontSize:11, fontWeight:600, color:TEXT }}>{p.message}</div>
+                  {p.subtaskLabel && <div style={{ fontSize:10, color:TEXT3 }}>{p.subtaskLabel}</div>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Final result */}
+      {finalResult && (
+        <div style={{ background: stage === 'done' ? 'rgba(0,200,83,0.06)' : 'rgba(255,59,59,0.06)', border:`1px solid ${stage==='done'?'rgba(0,200,83,0.25)':'rgba(255,59,59,0.25)'}`, borderRadius:14, padding:14 }}>
+          <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:8 }}>
+            {stage === 'done' ? <CheckCircle2 size={13} color={SUCCESS} /> : <AlertTriangle size={13} color={DANGER} />}
+            <span style={{ fontSize:12, fontWeight:700, color:stage==='done'?SUCCESS:DANGER }}>{stage === 'done' ? 'Task completed' : 'Task failed'}</span>
+          </div>
+          <div style={{ fontSize:12, color:TEXT2, lineHeight:1.6, whiteSpace:'pre-wrap' }}>{finalResult}</div>
+        </div>
+      )}
+
+      {/* Execute button */}
+      {stage === 'estimated' && policyCheck?.allowed && (
+        <button onClick={() => void execute()} style={{ height:46, background:BLUE, color:'#fff', border:'none', borderRadius:12, fontSize:14, fontWeight:700, cursor:'pointer', fontFamily:F, display:'flex', alignItems:'center', justifyContent:'center', gap:8 }}>
+          <Play size={15} /> Execute · {estimate?.totalUsdc.toFixed(3) ?? '0'} USDC
+        </button>
+      )}
+
+      {(stage === 'done' || stage === 'error') && (
+        <button onClick={() => { setStage('idle'); setSubtasks([]); setEstimate(null); setProgress([]); setFinalResult(''); setRequest('') }}
+          style={{ height:40, background:SURF, color:TEXT, border:`1px solid ${BDR}`, borderRadius:12, fontSize:13, fontWeight:600, cursor:'pointer', fontFamily:F }}>
+          New task
+        </button>
+      )}
+    </div>
+  )
+}
+
+// Register Agent Form
+
+function RegisterAgentForm() {
+  const [form, setForm] = useState({ name:'', description:'', endpoint:'', provider:'', price:'', currency:'USDC', payment_method:'usdc_arc', networks:'arc-testnet', category:'research' })
+  const [capabilities, setCapabilities] = useState([{ name:'', description:'', keywords:'' }])
+  const [submitted, setSubmitted] = useState(false)
+  const [errors, setErrors] = useState<string[]>([])
+
+  const validate = () => {
+    const errs: string[] = []
+    if (!form.name.trim()) errs.push('Agent name is required')
+    if (!form.description.trim()) errs.push('Description is required')
+    if (!form.endpoint.trim()) errs.push('Endpoint is required')
+    if (form.endpoint && !form.endpoint.startsWith('http') && !form.endpoint.startsWith('/')) errs.push('Endpoint must be a valid URL or path')
+    if (!form.provider.trim()) errs.push('Provider name is required')
+    if (capabilities.every(c => !c.name.trim())) errs.push('At least one capability is required')
+    if (isNaN(parseFloat(form.price))) errs.push('Price must be a number (0 for free)')
+    return errs
+  }
+
+  const handleSubmit = async () => {
+    const errs = validate()
+    if (errs.length > 0) { setErrors(errs); return }
+    setErrors([])
+    try {
+      await fetch('/api/agent-registry', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: form.name, description: form.description,
+          endpoint: form.endpoint, provider: form.provider,
+          categories: [form.category],
+          capabilities: capabilities.filter(c => c.name.trim()).map(c => ({
+            name: c.name, description: c.description,
+            keywords: c.keywords.split(',').map(k=>k.trim()).filter(Boolean),
+            price_usdc: parseFloat(form.price) || 0,
+            currency: form.currency,
+          })),
+          payment_methods: [form.payment_method],
+          supported_networks: form.networks.split(',').map(n=>n.trim()),
+        }),
+      })
+    } catch { /* network error is fine in preview */ }
+    setSubmitted(true)
+  }
+
+  if (submitted) return (
+    <div style={{ textAlign:'center', padding:'32px 0' }}>
+      <PackageCheck size={32} color={SUCCESS} style={{ margin:'0 auto 12px' }} />
+      <div style={{ fontSize:15, fontWeight:700, color:TEXT, marginBottom:6 }}>Agent submitted</div>
+      <div style={{ fontSize:12, color:TEXT2, marginBottom:20, lineHeight:1.5 }}>
+        Your agent has been submitted for review. It will be marked as <strong>pending</strong> until verified by the NAN Network.
+      </div>
+      <button onClick={() => setSubmitted(false)} style={{ height:40, padding:'0 20px', background:BLUE, color:'#fff', border:'none', borderRadius:10, fontSize:13, fontWeight:600, cursor:'pointer', fontFamily:F }}>
+        Register another
+      </button>
+    </div>
+  )
+
+  const field = (label: string, key: keyof typeof form, placeholder: string, type = 'text') => (
+    <div>
+      <div style={{ fontSize:11, fontWeight:700, color:TEXT3, textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>{label}</div>
+      <input type={type} value={form[key]} onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))} placeholder={placeholder}
+        style={{ width:'100%', padding:'9px 12px', border:`1px solid ${BDR}`, borderRadius:9, fontFamily:F, fontSize:13, outline:'none', background:SURF2, color:TEXT, boxSizing:'border-box' }} />
+    </div>
+  )
+
+  return (
+    <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+      <div style={{ background:'rgba(0,102,255,0.06)', border:'1px solid rgba(0,102,255,0.15)', borderRadius:12, padding:12 }}>
+        <div style={{ fontSize:12, fontWeight:700, color:TEXT, marginBottom:4 }}>Register an Agent</div>
+        <div style={{ fontSize:11, color:TEXT2, lineHeight:1.5 }}>
+          Register your agent or service so NAN can discover and pay for its capabilities. New agents are marked as <strong>pending</strong> until reviewed.
+        </div>
+      </div>
+
+      {errors.length > 0 && (
+        <div style={{ background:'rgba(255,59,59,0.08)', border:'1px solid rgba(255,59,59,0.25)', borderRadius:10, padding:12 }}>
+          {errors.map((e, i) => <div key={i} style={{ fontSize:11, color:DANGER, marginBottom: i < errors.length-1 ? 4 : 0 }}>• {e}</div>)}
+        </div>
+      )}
+
+      {field('Agent name', 'name', 'e.g. Research Agent')}
+      {field('Description', 'description', 'What does this agent do?')}
+      {field('Provider / company', 'provider', 'e.g. Acme AI')}
+      {field('Endpoint', 'endpoint', 'https://yourapi.com/agent or /api/your-agent')}
+
+      <div>
+        <div style={{ fontSize:11, fontWeight:700, color:TEXT3, textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>Category</div>
+        <select value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
+          style={{ width:'100%', padding:'9px 12px', border:`1px solid ${BDR}`, borderRadius:9, fontFamily:F, fontSize:13, outline:'none', background:SURF2, color:TEXT }}>
+          {ALL_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+        </select>
+      </div>
+
+      <div style={{ fontSize:12, fontWeight:700, color:TEXT }}>Capabilities</div>
+      {capabilities.map((cap, i) => (
+        <div key={i} style={{ background:SURF, border:`1px solid ${BDR}`, borderRadius:12, padding:12, display:'flex', flexDirection:'column', gap:8 }}>
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+            <span style={{ fontSize:11, fontWeight:700, color:TEXT3, textTransform:'uppercase', letterSpacing:'0.05em' }}>Capability {i+1}</span>
+            {capabilities.length > 1 && (
+              <button onClick={() => setCapabilities(cs => cs.filter((_,j)=>j!==i))}
+                style={{ background:'none', border:'none', cursor:'pointer', color:DANGER, fontSize:11, fontFamily:F }}>Remove</button>
+            )}
+          </div>
+          <input placeholder="Capability name" value={cap.name} onChange={e => setCapabilities(cs => cs.map((c,j)=>j===i?{...c,name:e.target.value}:c))}
+            style={{ padding:'8px 10px', border:`1px solid ${BDR}`, borderRadius:8, fontFamily:F, fontSize:12, outline:'none', background:SURF2, color:TEXT }} />
+          <input placeholder="Description" value={cap.description} onChange={e => setCapabilities(cs => cs.map((c,j)=>j===i?{...c,description:e.target.value}:c))}
+            style={{ padding:'8px 10px', border:`1px solid ${BDR}`, borderRadius:8, fontFamily:F, fontSize:12, outline:'none', background:SURF2, color:TEXT }} />
+          <input placeholder="Keywords (comma-separated)" value={cap.keywords} onChange={e => setCapabilities(cs => cs.map((c,j)=>j===i?{...c,keywords:e.target.value}:c))}
+            style={{ padding:'8px 10px', border:`1px solid ${BDR}`, borderRadius:8, fontFamily:F, fontSize:12, outline:'none', background:SURF2, color:TEXT }} />
+        </div>
+      ))}
+      <button onClick={() => setCapabilities(cs => [...cs, { name:'', description:'', keywords:'' }])}
+        style={{ height:36, background:SURF, color:TEXT, border:`1px dashed ${BDR}`, borderRadius:10, fontSize:12, fontWeight:600, cursor:'pointer', fontFamily:F, display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}>
+        <Plus size={13} /> Add capability
+      </button>
+
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+        {field('Price per call (USDC)', 'price', '0.01')}
+        {field('Supported networks', 'networks', 'arc-testnet, arc, base')}
+      </div>
+
+      <div>
+        <div style={{ fontSize:11, fontWeight:700, color:TEXT3, textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>Payment method</div>
+        <select value={form.payment_method} onChange={e => setForm(f => ({ ...f, payment_method: e.target.value }))}
+          style={{ width:'100%', padding:'9px 12px', border:`1px solid ${BDR}`, borderRadius:9, fontFamily:F, fontSize:13, outline:'none', background:SURF2, color:TEXT }}>
+          <option value="usdc_arc">USDC on Arc</option>
+          <option value="usdc_base">USDC on Base</option>
+          <option value="x402">x402 HTTP micropayments</option>
+          <option value="free">Free</option>
+          <option value="subscription">Subscription</option>
+        </select>
+      </div>
+
+      <button onClick={() => void handleSubmit()} style={{ height:48, background:BLUE, color:'#fff', border:'none', borderRadius:12, fontSize:14, fontWeight:700, cursor:'pointer', fontFamily:F, display:'flex', alignItems:'center', justifyContent:'center', gap:8 }}>
+        <PackageCheck size={15} /> Submit for review
+      </button>
+    </div>
+  )
+}
+
+// Provider Dashboard
+
+function ProviderDashboard() {
+  const { a2aPayments, a2aTasks } = useAppStore()
+  const totalSpent  = a2aPayments.filter(p => p.payment_status === 'confirmed').reduce((s, p) => s + p.amount_usdc, 0)
+  const completedTasks = a2aTasks.filter(t => t.status === 'complete').length
+  const failedTasks = a2aTasks.filter(t => t.status === 'failed').length
+
+  return (
+    <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+      <div style={{ background:'rgba(0,102,255,0.06)', border:'1px solid rgba(0,102,255,0.15)', borderRadius:12, padding:12 }}>
+        <div style={{ fontSize:12, fontWeight:700, color:TEXT, marginBottom:4 }}>Provider Activity</div>
+        <div style={{ fontSize:11, color:TEXT2, lineHeight:1.5 }}>
+          Transparent record of all agent economic activity — services used, payments made, and task results.
+        </div>
+      </div>
+
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
+        {[
+          { label:'Tasks run', value:String(a2aTasks.length), sub:'total', icon:<Activity size={14} color={BLUE} /> },
+          { label:'Completed', value:String(completedTasks), sub:'tasks', icon:<CheckCircle2 size={14} color={SUCCESS} /> },
+          { label:'Total spent', value:`${totalSpent.toFixed(3)}`, sub:'USDC', icon:<Coins size={14} color={BLUE} /> },
+          { label:'Failed', value:String(failedTasks), sub:'tasks', icon:<AlertTriangle size={14} color={DANGER} /> },
+        ].map(s => (
+          <div key={s.label} style={{ background:SURF, border:`1px solid ${BDR}`, borderRadius:12, padding:12 }}>
+            <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:6 }}>{s.icon}<span style={{ fontSize:11, color:TEXT3 }}>{s.label}</span></div>
+            <div style={{ fontSize:20, fontWeight:800, color:TEXT }}>{s.value}</div>
+            <div style={{ fontSize:10, color:TEXT3, marginTop:1 }}>{s.sub}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Payment records */}
+      <div style={{ fontSize:13, fontWeight:700, color:TEXT }}>Payment records</div>
+      {a2aPayments.length === 0 ? (
+        <div style={{ textAlign:'center', padding:'30px 0', color:TEXT3 }}>
+          <TrendingUp size={26} color={TEXT3} style={{ margin:'0 auto 10px' }} />
+          <div style={{ fontSize:12 }}>No agent payments yet</div>
+          <div style={{ fontSize:11, marginTop:4 }}>Use Orchestrate to run a multi-agent task</div>
+        </div>
+      ) : (
+        a2aPayments.slice(0, 20).map(p => (
+          <div key={p.id} style={{ background:SURF, border:`1px solid ${BDR}`, borderRadius:12, padding:12 }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontSize:12, fontWeight:700, color:TEXT }}>{p.agentName}</div>
+                <div style={{ fontSize:11, color:TEXT2, marginTop:1 }}>{p.capability} · {p.agentId}</div>
+                <div style={{ fontSize:10, color:TEXT3, marginTop:3 }}>{new Date(p.timestamp).toLocaleString()}</div>
+              </div>
+              <div style={{ textAlign:'right', flexShrink:0 }}>
+                <div style={{ fontSize:13, fontWeight:700, color: p.payment_status === 'confirmed' ? SUCCESS : TEXT2 }}>
+                  {p.amount_usdc > 0 ? `${p.amount_usdc} USDC` : 'Free'}
+                </div>
+                <div style={{ fontSize:10, fontWeight:600, color: p.payment_status === 'confirmed' ? SUCCESS : p.payment_status === 'failed' ? DANGER : TEXT3, marginTop:2 }}>
+                  {p.payment_status}
+                </div>
+              </div>
+            </div>
+            <div style={{ marginTop:8, paddingTop:8, borderTop:`1px solid ${BDR}`, display:'flex', gap:8 }}>
+              <div style={{ fontSize:10, color:TEXT3 }}>Policy: <span style={{ fontWeight:700, color: p.policy_decision === 'allowed' ? SUCCESS : DANGER }}>{p.policy_decision}</span></div>
+              {p.tx_id && <div style={{ fontSize:10, color:TEXT3, marginLeft:'auto', fontFamily:'monospace' }}>{p.tx_id.slice(0,16)}…</div>}
+            </div>
+          </div>
+        ))
+      )}
+
+      {/* Task records */}
+      {a2aTasks.length > 0 && (
+        <>
+          <div style={{ fontSize:13, fontWeight:700, color:TEXT }}>Task records</div>
+          {a2aTasks.slice(0, 10).map(t => (
+            <div key={t.id} style={{ background:SURF, border:`1px solid ${BDR}`, borderRadius:12, padding:12 }}>
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ fontSize:12, fontWeight:600, color:TEXT, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{t.userRequest}</div>
+                  <div style={{ fontSize:11, color:TEXT2, marginTop:2 }}>{t.subtasks.length} subtasks · {t.subtasks.filter(s=>s.paymentStatus==='confirmed').length} payments</div>
+                </div>
+                <div style={{ fontSize:11, fontWeight:700, color: t.status === 'complete' ? SUCCESS : t.status === 'failed' ? DANGER : TEXT3, flexShrink:0 }}>
+                  {t.status}
+                </div>
+              </div>
+              {t.finalResult && (
+                <div style={{ marginTop:8, fontSize:11, color:TEXT3, lineHeight:1.4 }}>
+                  {t.finalResult.slice(0,120)}{t.finalResult.length>120?'…':''}
+                </div>
+              )}
+            </div>
+          ))}
+        </>
+      )}
     </div>
   )
 }

@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { Product } from '../data/products'
+import type { A2APaymentRecord, A2ATask } from '../lib/agent-network'
 
 // ── NAN session auth ───────────────────────────────────────────────────────
 export interface PaywellAuth {
@@ -274,6 +275,13 @@ interface AppState {
   // ── User profile ────────────────────────────────────────────────────────────
   profile: UserProfile
   setProfile: (p: Partial<UserProfile>) => void
+
+  // ── Phase 3: A2A payments + task history ───────────────────────────────────
+  a2aPayments: A2APaymentRecord[]
+  addA2APayment: (record: A2APaymentRecord) => void
+  a2aTasks: A2ATask[]
+  addA2ATask: (task: A2ATask) => void
+  clearA2ATasks: () => void
 }
 
 // ── Favorite type ────────────────────────────────────────────────────────────
@@ -713,6 +721,19 @@ export const useAppStore = create<AppState>()(
         notifPrefs: { supportReplies: true, systemUpdates: true, payments: true },
       },
       setProfile: (p) => set((s) => ({ profile: { ...s.profile, ...p } })),
+
+      // ── Phase 3: A2A payments + task history ──────────────────────────────────
+      a2aPayments: [],
+      addA2APayment: (record) =>
+        set((s) => ({
+          a2aPayments: [record, ...s.a2aPayments].slice(0, 200),
+        })),
+      a2aTasks: [],
+      addA2ATask: (task) =>
+        set((s) => ({
+          a2aTasks: [task, ...s.a2aTasks].slice(0, 50),
+        })),
+      clearA2ATasks: () => set({ a2aTasks: [] }),
     }),
     {
       name: 'paywell-state-v2',
@@ -731,6 +752,8 @@ export const useAppStore = create<AppState>()(
         favorites: s.favorites,
         recentSearches: s.recentSearches,
         profile: s.profile,
+        a2aPayments: s.a2aPayments,
+        a2aTasks: s.a2aTasks,
       }),
       merge: (persisted, current) => {
         const p = persisted as Partial<AppState>
@@ -762,6 +785,8 @@ export const useAppStore = create<AppState>()(
           favorites: p.favorites ?? current.favorites ?? [],
           recentSearches: p.recentSearches ?? current.recentSearches ?? [],
           profile: p.profile ?? current.profile ?? current.profile,
+          a2aPayments: p.a2aPayments ?? current.a2aPayments ?? [],
+          a2aTasks: p.a2aTasks ?? current.a2aTasks ?? [],
         }
       },
     }

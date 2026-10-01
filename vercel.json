@@ -5,15 +5,16 @@
   "framework": "vite",
   "ignoreCommand": "git diff --quiet HEAD^ HEAD -- . ':(exclude)nan-react'",
   "rewrites": [
-    { "source": "/api/otp",            "destination": "/api/otp" },
-    { "source": "/api/chat",           "destination": "/api/chat" },
-    { "source": "/api/misc",           "destination": "/api/misc" },
-    { "source": "/api/marketplace",    "destination": "/api/marketplace" },
-    { "source": "/api/onramp-session", "destination": "/api/onramp-session" },
-
-    { "source": "/api/listings",       "destination": "/api/listings" },
-    { "source": "/api/wallets",        "destination": "/api/wallets" },
-    { "source": "/api/wallet",         "destination": "/api/wallet" },
-    { "source": "/(.*)",               "destination": "/index.html" }
+    { "source": "/api/otp",              "destination": "/api/otp" },
+    { "source": "/api/chat",             "destination": "/api/chat" },
+    { "source": "/api/misc",             "destination": "/api/misc" },
+    { "source": "/api/marketplace",      "destination": "/api/marketplace" },
+    { "source": "/api/onramp-session",   "destination": "/api/onramp-session" },
+    { "source": "/api/listings",         "destination": "/api/listings" },
+    { "source": "/api/wallets",          "destination": "/api/wallets" },
+    { "source": "/api/wallet",           "destination": "/api/wallet" },
+    { "source": "/api/agent-execute",    "destination": "/api/agent-execute" },
+    { "source": "/api/agent-registry",   "destination": "/api/agent-registry" },
+    { "source": "/(.*)",                 "destination": "/index.html" }
   ]
 }
