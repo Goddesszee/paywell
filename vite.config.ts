@@ -39,6 +39,10 @@ export default defineConfig({
       'sonner',
       'clsx',
       'tailwind-merge',
+      'zustand',
+      'vite-plugin-node-polyfills/shims/buffer',
+      'vite-plugin-node-polyfills/shims/global',
+      'vite-plugin-node-polyfills/shims/process',
     ],
   },
   build: {
@@ -46,18 +50,25 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: {
-          'vendor-react':          ['react', 'react-dom', 'react/jsx-runtime'],
-          'vendor-wagmi':          ['wagmi', 'viem', '@tanstack/react-query'],
-          'vendor-connectkit':     ['connectkit'],
-          'vendor-circle':         [
+          // ALL React-hook-using packages in ONE chunk.
+          // ConnectKit, wagmi, zustand, and @tanstack/react-query all call
+          // React hooks — splitting any of them into a separate chunk gives
+          // Rollup two React module nodes = error #185 (invalid hook call).
+          'vendor-react': [
+            'react', 'react-dom', 'react/jsx-runtime',
+            'connectkit',
+            'wagmi', '@tanstack/react-query',
+            'zustand',
             '@circle-fin/app-kit',
             '@circle-fin/adapter-viem-v2',
             '@circle-fin/modular-wallets-core',
-          ],
-          'vendor-circle-wallets': [
             '@circle-fin/user-controlled-wallets',
-            '@circle-fin/w3s-pw-web-sdk',
           ],
+          // viem has no React hooks — safe to split.
+          'vendor-viem': ['viem'],
+          // w3s-pw-web-sdk has Node deps (dotenv, firebase, jsonwebtoken) —
+          // keep isolated so its prototype chains don't mix with the React chunk.
+          'vendor-w3s': ['@circle-fin/w3s-pw-web-sdk'],
           'vendor-ui': ['framer-motion', 'lucide-react', 'sonner', 'qrcode.react'],
         },
       },
