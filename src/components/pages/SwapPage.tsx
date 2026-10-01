@@ -3,8 +3,7 @@ import { useAccount, useChainId, useSwitchChain, useReadContract, useBalance } f
 import { AppKit, type SwapEstimate } from '@circle-fin/app-kit'
 import { createViemAdapterFromProvider } from '@circle-fin/adapter-viem-v2'
 import { erc20Abi, type EIP1193Provider } from 'viem'
-import { ArrowDown, Settings, CheckCircle, ExternalLink, RefreshCw, AlertCircle, X, Search, ArrowLeftRight } from 'lucide-react'
-import { ConnectKitButton } from 'connectkit'
+import { ArrowDown, Settings, CheckCircle, ExternalLink, RefreshCw, AlertCircle, X, Search } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
 import { swapFee, SWAP_FEE_BPS, bpsToPercent, FEE_WALLET } from '../../lib/fees'
 import { useNanTheme } from '../../hooks/useNanTheme'
@@ -241,21 +240,27 @@ export function SwapPage() {
   const [showBuyModal,  setShowBuyModal]  = useState(false)
   const [showSlippage,  setShowSlippage]  = useState(false)
 
-  // Lazy-instantiate AppKit inside the component so it runs after React mounts
+  // Instantiate AppKit once — stable across renders
   const appKitRef = useRef<AppKit | null>(null)
-  if (!appKitRef.current) appKitRef.current = new AppKit()
-  const appKit = appKitRef.current
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const appKit = React.useMemo(() => { appKitRef.current ??= new AppKit(); return appKitRef.current }, [])
 
   const balIn  = useTokenBalance(tokenIn,  address)
   const balOut = useTokenBalance(tokenOut, address)
+
+  // Circle user-controlled wallet address (set when logged in via Circle email/Google)
+  const circleWalletAddress = auth?.circleWalletAddress
 
   const arcNoPair = (tokenIn === 'USDC' && tokenOut === 'NATIVE') || (tokenIn === 'NATIVE' && tokenOut === 'USDC')
   const sameToken = tokenIn === tokenOut
   const arcUnsupportedPair = !!(TOKEN_META[tokenIn]?.arcUnsupported || TOKEN_META[tokenOut]?.arcUnsupported)
   const invalid   = sameToken || arcNoPair || arcUnsupportedPair
-  const canReview = isConnected && !!amountIn && parseFloat(amountIn) > 0 && !invalid
+  // Circle users can swap when they have a wallet address (server-side path)
+  const canReview = (isConnected || isCircleUser) && !!amountIn && parseFloat(amountIn) > 0 && !invalid
 
-  const addrShort = address ? `${address.slice(0, 4)}…${address.slice(-4)}` : ''
+  // Display address: prefer connected wagmi wallet, fall back to Circle wallet
+  const displayAddress = address ?? circleWalletAddress ?? ''
+  const addrShort = displayAddress ? `${displayAddress.slice(0, 4)}…${displayAddress.slice(-4)}` : ''
 
   // ── % chips: parse live balance and apply fraction ────────────────────────
   const applyPct = useCallback((pct: number | 'max') => {
@@ -275,8 +280,52 @@ export function SwapPage() {
     return createViemAdapterFromProvider({ provider })
   }
 
+  // ── Circle user-controlled wallet: server-side swap via /api/wallet ──────
+  const reviewSwapCircle = async () => {
+    if (!circleWalletAddress) return
+    setPhase('estimating'); setErrMsg('')
+    try {
+      const resp = await fetch('/api/wallet', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'estimate-swap', walletAddress: circleWalletAddress, tokenIn, tokenOut, amountIn, slippageBps: String(slippageBps) }),
+      })
+      const data = await resp.json() as { estimate?: unknown; error?: string }
+      if (!resp.ok || data.error) throw new Error(data.error ?? 'Estimation failed')
+      setReviewed({ estimate: data.estimate as import('@circle-fin/app-kit').SwapEstimate, tokenIn, tokenOut, amountIn, slippageBps, account: circleWalletAddress })
+      setPhase('reviewed')
+    } catch (e: unknown) {
+      setPhase('error'); setErrMsg(e instanceof Error ? e.message : 'Estimation failed.')
+    }
+  }
+
+  const executeSwapCircle = async () => {
+    if (!reviewed || !circleWalletAddress) return
+    setPhase('swapping'); setErrMsg('')
+    try {
+      const resp = await fetch('/api/wallet', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'swap', walletAddress: circleWalletAddress, tokenIn: reviewed.tokenIn, tokenOut: reviewed.tokenOut, amountIn: reviewed.amountIn, slippageBps: String(reviewed.slippageBps) }),
+      })
+      const data = await resp.json() as { result?: { txHash?: string; explorerUrl?: string }; error?: string }
+      if (!resp.ok || data.error) throw new Error(data.error ?? 'Swap failed')
+      const rHash = data.result?.txHash ?? ''
+      const rUrl  = data.result?.explorerUrl ?? ''
+      setTxHash(rHash); setExplorerUrl(rUrl); setPhase('done')
+      const gross = parseFloat(reviewed.amountIn)
+      const fee   = swapFee(gross)
+      addActivity({ type: 'swap', description: `Swap ${reviewed.tokenIn} → ${reviewed.tokenOut}`, amount: gross, sign: '-', status: 'confirmed', counterparty: reviewed.tokenOut, txHash: rHash })
+      if (fee > 0) recordFee({ source: 'swap', grossAmount: gross, feeAmount: fee, feeWallet: FEE_WALLET, txHash: rHash, description: `Swap ${reviewed.tokenIn} → ${reviewed.tokenOut}` })
+    } catch (e: unknown) {
+      setPhase('error'); setErrMsg(e instanceof Error ? e.message : 'Swap failed.')
+    }
+  }
+
+  // ── EIP-1193 browser wallet path ──────────────────────────────────────────
   const reviewSwap = async () => {
     if (!canReview) return
+    if (isCircleUser) { await reviewSwapCircle(); return }
     setPhase('estimating'); setErrMsg('')
     try {
       const adapter  = await getAdapter()
@@ -294,6 +343,7 @@ export function SwapPage() {
 
   const executeSwap = async () => {
     if (!reviewed) return
+    if (isCircleUser) { await executeSwapCircle(); return }
     if (address !== reviewed.account) { setPhase('error'); setErrMsg('Wallet changed since estimate. Get a new quote.'); return }
     setPhase('swapping'); setErrMsg('')
     try {
@@ -338,20 +388,7 @@ export function SwapPage() {
     </div>
   )
 
-  // ── Circle user: swap requires an EIP-1193 browser wallet ────────────────
-  if (isCircleUser) return (
-    <div style={{ maxWidth: 480, margin: '0 auto', padding: '48px 24px 100px', fontFamily: 'var(--nan-font)', textAlign: 'center' }}>
-      <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'rgba(0,102,255,0.1)', border: '1px solid rgba(0,102,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
-        <ArrowLeftRight size={24} color={c.blue} />
-      </div>
-      <div style={{ fontSize: 17, fontWeight: 700, color: c.text, marginBottom: 10 }}>Connect a browser wallet to swap</div>
-      <div style={{ fontSize: 13, color: c.t2, lineHeight: 1.7, marginBottom: 24 }}>
-        Token swaps use Circle App Kit which requires an EIP-1193 browser wallet (MetaMask, Coinbase Wallet, etc.) to sign transactions directly.<br /><br />
-        Your Circle wallet can still <strong style={{ color: c.text }}>send USDC, receive, bridge, and use Gateway</strong> — all fully supported.
-      </div>
-      <ConnectKitButton />
-    </div>
-  )
+  // (Circle user gate removed — Circle users now swap via server-side path)
 
   // ── Main swap UI ──────────────────────────────────────────────────────────
   return (
@@ -372,7 +409,7 @@ export function SwapPage() {
         <div style={{ padding: '16px 16px 14px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
             <span style={{ fontSize: 13, fontWeight: 600, color: c.t2 }}>Sell</span>
-            {isConnected && <span style={{ fontSize: 12, color: c.t3, display: 'flex', alignItems: 'center', gap: 4 }}><span style={{ width: 7, height: 7, borderRadius: '50%', background: c.blue, display: 'inline-block' }} />{addrShort}</span>}
+            {(isConnected || isCircleUser) && addrShort && <span style={{ fontSize: 12, color: c.t3, display: 'flex', alignItems: 'center', gap: 4 }}><span style={{ width: 7, height: 7, borderRadius: '50%', background: isCircleUser ? '#00C853' : c.blue, display: 'inline-block' }} />{addrShort}{isCircleUser && <span style={{ fontSize: 10, color: '#00C853', fontWeight: 600, marginLeft: 2 }}>Circle</span>}</span>}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <input type="text" inputMode="decimal" placeholder="0" value={amountIn}
@@ -384,6 +421,7 @@ export function SwapPage() {
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
             <span style={{ fontSize: 13, color: c.t3 }}>{amountIn && parseFloat(amountIn) > 0 ? `$${parseFloat(amountIn).toFixed(2)}` : '$0.00'}</span>
             {isConnected && <span style={{ fontSize: 12, color: c.t3 }}>Balance: {balIn}</span>}
+            {isCircleUser && <span style={{ fontSize: 12, color: c.t3 }}>Circle wallet</span>}
           </div>
           {/* % chips */}
           <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
@@ -410,7 +448,7 @@ export function SwapPage() {
         <div style={{ padding: '16px 16px 18px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
             <span style={{ fontSize: 13, fontWeight: 600, color: c.t2 }}>Buy</span>
-            {isConnected && <span style={{ fontSize: 12, color: c.t3, display: 'flex', alignItems: 'center', gap: 4 }}><span style={{ width: 7, height: 7, borderRadius: '50%', background: c.blue, display: 'inline-block' }} />{addrShort}</span>}
+            {(isConnected || isCircleUser) && addrShort && <span style={{ fontSize: 12, color: c.t3, display: 'flex', alignItems: 'center', gap: 4 }}><span style={{ width: 7, height: 7, borderRadius: '50%', background: isCircleUser ? '#00C853' : c.blue, display: 'inline-block' }} />{addrShort}{isCircleUser && <span style={{ fontSize: 10, color: '#00C853', fontWeight: 600, marginLeft: 2 }}>Circle</span>}</span>}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div style={{ flex: 1, fontSize: 36, fontWeight: 700, color: estimatedOut ? c.green : c.t3, fontFamily: 'var(--nan-mono)', minWidth: 0, fontVariantNumeric: 'tabular-nums' }}>
@@ -426,6 +464,11 @@ export function SwapPage() {
             </span>
             {isConnected && <span style={{ fontSize: 12, color: c.t3 }}>Balance: {balOut}</span>}
           </div>
+          {isCircleUser && (
+            <div style={{ marginTop: 6, fontSize: 11, color: c.t3, lineHeight: 1.5 }}>
+              Swapped via your Circle wallet on the server.
+            </div>
+          )}
         </div>
       </div>
 
@@ -482,7 +525,7 @@ export function SwapPage() {
           style={{ height: 54, borderRadius: 14, background: canReview ? c.blue : c.surf2, color: canReview ? '#fff' : c.t3, border: `1px solid ${canReview ? c.blue : c.bdr}`, fontSize: 15, fontWeight: 700, cursor: canReview ? 'pointer' : 'not-allowed', transition: 'all 0.15s' }}>
           {phase === 'estimating' ? <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}><span className="nan-spinner" />Getting quote…</span>
             : phase === 'swapping' ? <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}><span className="nan-spinner" />Swapping…</span>
-            : !isConnected ? 'Connect wallet to swap'
+            : !isConnected && !isCircleUser ? 'Connect wallet to swap'
             : !amountIn || parseFloat(amountIn) === 0 ? 'Enter an amount'
             : arcUnsupportedPair ? 'Token not available on Arc Testnet'
             : invalid ? 'Select different tokens'

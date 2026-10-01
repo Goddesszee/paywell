@@ -7,6 +7,8 @@
  *   action=initialize          POST  create user PIN + wallets
  *   action=request-otp         POST  create device token for email login (returns otpToken)
  *   action=list         (GET)        list wallets for a user token
+ *   action=swap                POST  server-side swap via Circle developer-controlled wallets adapter
+ *   action=estimate-swap       POST  server-side swap estimate (no funds moved)
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { initiateUserControlledWalletsClient, Blockchain } from '@circle-fin/user-controlled-wallets'
@@ -163,6 +165,64 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.json({ tokenBalances: response.data?.tokenBalances ?? [] })
     } catch (err: unknown) {
       return res.status(500).json({ error: err instanceof Error ? err.message : 'Circle API error' })
+    }
+  }
+
+  // ── estimate-swap ─────────────────────────────────────────────────────────
+  // Returns an estimate without moving any funds. Requires dev-controlled creds.
+  if (action === 'estimate-swap') {
+    const { walletAddress, tokenIn, tokenOut, amountIn, slippageBps } = body
+    if (!walletAddress || !tokenIn || !tokenOut || !amountIn)
+      return res.status(400).json({ error: 'walletAddress, tokenIn, tokenOut, amountIn required' })
+
+    const devKey = process.env.CIRCLE_DEVELOPER_CONTROLLED_API_KEY
+    const entitySecret = process.env.CIRCLE_ENTITY_SECRET
+    if (!devKey || !entitySecret)
+      return res.status(503).json({ error: 'Circle developer-controlled wallet credentials not configured on this server.' })
+
+    try {
+      const { AppKit } = await import('@circle-fin/app-kit')
+      const { createCircleWalletsAdapter } = await import('@circle-fin/adapter-circle-wallets')
+      const kit = new AppKit()
+      const adapter = createCircleWalletsAdapter({ apiKey: devKey, entitySecret })
+      const estimate = await kit.estimateSwap({
+        from: { adapter, chain: 'Arc_Testnet', address: walletAddress },
+        tokenIn, tokenOut, amountIn,
+        config: { slippageBps: slippageBps ? Number(slippageBps) : 100 },
+      })
+      return res.json({ estimate })
+    } catch (err: unknown) {
+      return res.status(500).json({ error: err instanceof Error ? err.message : 'Estimation failed' })
+    }
+  }
+
+  // ── swap ──────────────────────────────────────────────────────────────────
+  // Executes a swap server-side via Circle developer-controlled wallets adapter.
+  // The Circle wallet at walletAddress must be a developer-controlled wallet
+  // provisioned with the CIRCLE_DEVELOPER_CONTROLLED_API_KEY on this server.
+  if (action === 'swap') {
+    const { walletAddress, tokenIn, tokenOut, amountIn, slippageBps } = body
+    if (!walletAddress || !tokenIn || !tokenOut || !amountIn)
+      return res.status(400).json({ error: 'walletAddress, tokenIn, tokenOut, amountIn required' })
+
+    const devKey = process.env.CIRCLE_DEVELOPER_CONTROLLED_API_KEY
+    const entitySecret = process.env.CIRCLE_ENTITY_SECRET
+    if (!devKey || !entitySecret)
+      return res.status(503).json({ error: 'Circle developer-controlled wallet credentials not configured on this server.' })
+
+    try {
+      const { AppKit } = await import('@circle-fin/app-kit')
+      const { createCircleWalletsAdapter } = await import('@circle-fin/adapter-circle-wallets')
+      const kit = new AppKit()
+      const adapter = createCircleWalletsAdapter({ apiKey: devKey, entitySecret })
+      const result = await kit.swap({
+        from: { adapter, chain: 'Arc_Testnet', address: walletAddress },
+        tokenIn, tokenOut, amountIn,
+        config: { slippageBps: slippageBps ? Number(slippageBps) : 100 },
+      })
+      return res.json({ result })
+    } catch (err: unknown) {
+      return res.status(500).json({ error: err instanceof Error ? err.message : 'Swap failed' })
     }
   }
 
