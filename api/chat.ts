@@ -7,7 +7,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'OPTIONS') return res.status(200).end()
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
 
-  const { message, history = [] } = req.body as { message?: string; history?: { role: string; content: string }[] }
+  const body = req.body as {
+    message?: string
+    messages?: { role: string; content: string }[]
+    history?: { role: string; content: string }[]
+  }
+  // Accept either a full `messages` array or a `message` + optional `history`
+  let history: { role: string; content: string }[] = []
+  let message: string
+  if (body.messages && body.messages.length > 0) {
+    const msgs = body.messages
+    message = msgs[msgs.length - 1]?.content ?? ''
+    history = msgs.slice(0, -1)
+  } else {
+    message = body.message ?? ''
+    history = body.history ?? []
+  }
   if (!message) return res.status(400).json({ error: 'message required' })
 
   // x402 gate — if SELLER_ADDRESS set, require payment header
@@ -28,12 +43,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   }
 
-  const systemPrompt = `You are NAN Agent — an AI-native agentic financial assistant built on Circle/Arc infrastructure.
-You help users: send USDC, manage wallets, shop, bridge/swap tokens, and discover + use external services.
+  const systemPrompt = `You are NAN Agent — a helpful AI financial assistant built on Circle/Arc infrastructure. Today's date is ${new Date().toDateString()}.
 
-When a user asks for something that requires an external service (flight search, hotel booking, research, data lookup, supplier search, career services, developer APIs, AI services, etc.), respond naturally and mention that you are finding the right service. Be concise and friendly.
+You help users with:
+- Sending and receiving USDC on Arc Testnet
+- Checking wallet balances and transaction history
+- Bridging USDC across chains (Arc, Ethereum, Base, Arbitrum) via Circle CCTP
+- Swapping tokens via Circle App Kit
+- Shopping in the NAN marketplace (pay with USDC)
+- General financial questions, exchange rates, and market info
+- Flight and travel searches (give helpful general advice and direct to booking sites)
 
-Never claim to have actually booked or purchased anything irreversible without user confirmation. Distinguish between searching (can auto-execute within policy) and booking/purchasing (requires user confirmation).`
+CRITICAL RULES:
+- NEVER output raw internal commands like __EXECUTE__, __TOOL__, or any similar syntax. Those are internal and must never appear in your response.
+- Always respond in plain conversational text.
+- For real-world data (exchange rates, flight prices, stock prices): give your best estimate based on training data, clearly note it may not be live, and suggest where the user can check current prices (e.g. Google, Skyscanner, XE.com).
+- For "dollar to naira" rate: the approximate rate as of late 2026 is around 1 USD = 1,600–1,700 NGN (note this is approximate — check xe.com or your bank for the live rate).
+- Keep answers concise and friendly. Never refuse to answer a question — always try to be helpful.
+- Do NOT ask "what would you like help with?" if the user already stated their request. Answer their actual question directly.`
 
   if (process.env.OPENAI_API_KEY) {
     try {

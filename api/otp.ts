@@ -49,6 +49,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (entry.code !== code) return res.status(400).json({ error: 'Incorrect code.' })
     otpStore.delete(email)
     const token = Buffer.from(`${email}:${Date.now()}`).toString('base64')
+    // Persist session to Redis so community endpoints can validate it
+    try {
+      const { getRedis } = await import('./_redis')
+      const kv = getRedis()
+      if (kv) {
+        await kv.set(`session:${token}`, { email, walletAddress: '', walletId: '', createdAt: Date.now() }, { ex: 60 * 60 * 24 * 7 })
+      }
+    } catch { /* non-fatal — base64 decode fallback still works */ }
     return res.status(200).json({ ok: true, token })
   }
 

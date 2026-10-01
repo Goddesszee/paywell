@@ -342,25 +342,29 @@ function AgentChat() {
     setTyping(true)
     setOrchSteps([])
 
-    // Try orchestration first for complex tasks
+    // LLM first — handles all general questions including flights, rates, research
+    try {
+      if (backendConfigured() && auth) {
+        const msgs: Array<{role:'user'|'assistant';content:string}> = [
+          ...agentMessages.filter(m=>m.role==='user'||m.role==='agent').slice(-10).map<{role:'user'|'assistant';content:string}>(m=>({role:(m.role==='agent'?'assistant':'user'),content:m.content})),
+          {role:'user',content:text},
+        ]
+        const res = await nanChat({ messages:msgs, usdcBal:String(agentPermissions.dailyLimit ?? 0), userAddress:auth.walletAddress ?? '', sessionToken:auth.sessionToken })
+        setTyping(false)
+        // Sanitise any leaked internal command syntax before showing to user
+        const clean = res.reply.replace(/__[A-Z_]+__:[a-z\-]+/g, '').trim()
+        addAgentMessage({ role:'agent', content:clean || res.reply, action:'info' })
+        return
+      }
+    } catch { /* fall through to orchestration */ }
+
+    // Orchestration fallback for complex multi-step agent tasks (only when LLM unavailable)
     const needsService = /flight|hotel|search|research|find|book|supplier|price|compare|weather|news|data|job|career|invoice|translate|image|video|check|lookup/i.test(text)
     if (needsService && agentPermissions.enabled) {
       setTyping(false)
       const handled = await runOrchestration(text)
       if (handled) return
     }
-
-    // Fall back to LLM / local
-    try {
-      if (backendConfigured() && auth) {
-        const msgs: Array<{role:'user'|'assistant'; content:string}> = agentMessages.filter(m => m.role==='user'||m.role==='agent').slice(-8).map(m => ({ role:(m.role==='agent'?'assistant':'user'), content:m.content }))
-        msgs.push({ role:'user', content:text })
-        const res = await nanChat({ messages:msgs, usdcBal:String(agentPermissions.dailyLimit ?? 0), userAddress:auth.walletAddress ?? '', sessionToken:auth.sessionToken })
-        setTyping(false)
-        addAgentMessage({ role:'agent', content:res.reply, action:'info' })
-        return
-      }
-    } catch { /* fall through */ }
     await new Promise(r => setTimeout(r, 800 + Math.random()*500))
     setTyping(false)
     addAgentMessage(simulateAgentResponse(text, agentPermissions, agentDailyUsed, verifiedCatalog))

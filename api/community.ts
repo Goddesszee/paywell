@@ -56,8 +56,21 @@ async function resolveSession(authHeader: string | undefined, kv: RedisClient): 
   if (!authHeader) return null
   const token = authHeader.replace(/^Bearer\s+/i, '')
   if (!token) return null
-  try { return await kv.get<Session>(`session:${token}`) ?? null }
-  catch { return null }
+  // 1. Try Redis (works for Circle SDK tokens and newly-issued OTP tokens)
+  try {
+    const stored = await kv.get<Session>(`session:${token}`)
+    if (stored?.email) return stored
+  } catch { /* fall through */ }
+  // 2. Fallback: base64-decode the token (email:timestamp format from Vercel OTP handler)
+  try {
+    const decoded = Buffer.from(token, 'base64').toString('utf8')
+    const colonIdx = decoded.indexOf(':')
+    if (colonIdx > 0) {
+      const email = decoded.slice(0, colonIdx)
+      if (email.includes('@')) return { email, walletAddress: '', walletId: '', createdAt: 0 }
+    }
+  } catch { /* fall through */ }
+  return null
 }
 
 async function pushNotif(kv: RedisClient, email: string, n: Omit<AppNotification, 'id' | 'userEmail' | 'read' | 'createdAt'>) {
