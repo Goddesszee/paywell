@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useAccount, useReadContract } from 'wagmi'
 import { ConnectKitButton } from 'connectkit'
 import { erc20Abi } from 'viem'
@@ -117,6 +117,10 @@ export function HomePage() {
   const eurcFormatted = eurcNum.toFixed(2)
 
   const [hidden, setHidden] = useState(false)
+  const [hydrated, setHydrated] = useState(false)
+  /* eslint-disable react/set-state-in-effect */
+  useEffect(() => { setHydrated(true) }, [])
+  /* eslint-enable react/set-state-in-effect */
 
   const firstName = profile.displayName?.split(' ')[0]
     || auth?.email?.split('@')[0]
@@ -191,7 +195,7 @@ export function HomePage() {
           </span>
         )}
 
-        {!hasWallet && (
+        {hydrated && !hasWallet && (
           <div style={{ marginTop: 10 }}>
             <ConnectKitButton />
           </div>

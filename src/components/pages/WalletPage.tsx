@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import {
   Copy, ArrowUpRight, ArrowDownLeft, Check, ExternalLink,
   AlertCircle, X, ChevronRight, Wallet, Share2, Activity,
@@ -65,9 +65,17 @@ type WalletSubView = 'main' | 'send' | 'send_confirm' | 'send_success' | 'receiv
 
 export function WalletPage({ initialSubView = 'main' }: { initialSubView?: WalletSubView }) {
   const [subView, setSubView] = useState<WalletSubView>(initialSubView)
-  const { agentPermissions, addActivity, activity } = useAppStore()
-  const { address, chainId } = useAccount()
+  const { agentPermissions, addActivity, activity, auth } = useAppStore()
+  const { address: wagmiAddress, chainId } = useAccount()
+  // Circle wallet users don't connect via wagmi — fall back to circleWalletAddress
+  const address = wagmiAddress ?? (auth?.circleWalletAddress as `0x${string}` | undefined)
+  const isCircleUser = !wagmiAddress && !!auth?.circleWalletAddress
   const [copied, setCopied] = useState(false)
+  // Hydration guard: wait one tick before deciding address is absent
+  const [hydrated, setHydrated] = useState(false)
+  /* eslint-disable react/set-state-in-effect */
+  useEffect(() => { setHydrated(true) }, [])
+  /* eslint-enable react/set-state-in-effect */
   const chain = requireChain(ARC_TESTNET_ID)
   const { balance, rawNum, isLoading, refetch } = useWalletBalance(address ?? '')
 
@@ -79,7 +87,27 @@ export function WalletPage({ initialSubView = 'main' }: { initialSubView?: Walle
     toast.success('Address copied')
   }
 
+  // Don't flash "Connect wallet" before the store has rehydrated from localStorage
+  if (!hydrated) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 240 }}>
+        <div style={{ width: 32, height: 32, border: '3px solid rgba(0,102,255,0.2)', borderTopColor: '#0066FF', borderRadius: '50%', animation: 'nan-spin 0.8s linear infinite' }} />
+      </div>
+    )
+  }
+
   if (!address) {
+    // Only show Connect Wallet if user is NOT logged in via Circle (no auth at all)
+    const isLoggedInViaCircle = !!auth?.email
+    if (isLoggedInViaCircle) {
+      // Circle user logged in but wallet not yet loaded — show loading
+      return (
+        <div style={{ maxWidth: 400, margin: '0 auto', padding: '48px 24px', textAlign: 'center', fontFamily: SANS }}>
+          <div style={{ width: 48, height: 48, border: '3px solid rgba(0,102,255,0.2)', borderTopColor: '#0066FF', borderRadius: '50%', animation: 'nan-spin 0.8s linear infinite', margin: '0 auto 20px' }} />
+          <p style={{ fontSize: 14, color: 'var(--nan-text2)' }}>Loading your wallet…</p>
+        </div>
+      )
+    }
     return (
       <div style={{ maxWidth: 400, margin: '0 auto', padding: '48px 24px', textAlign: 'center', fontFamily: SANS }}>
         <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'var(--nan-surface)', border: '1px solid var(--nan-bdr)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
