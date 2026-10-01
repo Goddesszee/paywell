@@ -465,25 +465,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       }}>
         {/* Mobile drawer header */}
         <div style={{ height: 52, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingLeft: 16, paddingRight: 12, borderBottom: `1px solid ${C.bdr}`, userSelect: 'none' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <button onClick={handleLogoTap} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', WebkitTapHighlightColor: 'transparent' }}>
-              <NanLogo height={28} />
-            </button>
-            {/* Profile button top-left in drawer */}
-            <button
-              onClick={() => go('profile')}
-              aria-label="Profile"
-              style={{
-                width: 30, height: 30, borderRadius: '50%',
-                background: navActive('profile') ? 'rgba(0,102,255,0.18)' : C.surf2,
-                border: `1.5px solid ${navActive('profile') ? 'rgba(0,102,255,0.5)' : C.bdr2}`,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
-              }}
-            >
-              <User size={13} color={navActive('profile') ? C.blue : C.t2} />
-            </button>
-          </div>
+          <button onClick={handleLogoTap} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', WebkitTapHighlightColor: 'transparent' }}>
+            <NanLogo height={28} />
+          </button>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <NotificationBell color={C.t2} />
             <button onClick={() => setDrawerOpen(false)} aria-label="Close menu" style={{ width: 30, height: 30, borderRadius: 8, background: C.surf2, border: `1px solid ${C.bdr2}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>

@@ -29,9 +29,9 @@ async function apiGet<T>(path: string, token?: string): Promise<T> {
   return data as T
 }
 
-/** Returns true when a backend API URL is configured */
+/** Always true — /api/* routes are available on both Vercel (serverless) and local dev (Express proxy) */
 export function backendConfigured(): boolean {
-  return typeof import.meta.env.VITE_API_URL === 'string' && import.meta.env.VITE_API_URL.length > 0
+  return true
 }
 
 // ── types ──────────────────────────────────────────────────────────────────────
