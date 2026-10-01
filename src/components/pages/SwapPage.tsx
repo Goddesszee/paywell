@@ -1,15 +1,12 @@
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useRef } from 'react'
 import { useAccount, useChainId, useSwitchChain, useReadContract, useBalance } from 'wagmi'
-import { AppKit, type SwapEstimate } from '@circle-fin/app-kit'
-import { createViemAdapterFromProvider } from '@circle-fin/adapter-viem-v2'
+import type { SwapEstimate } from '@circle-fin/app-kit'
 import { erc20Abi, type EIP1193Provider } from 'viem'
 import { ArrowDown, Settings, CheckCircle, ExternalLink, RefreshCw, AlertCircle, X, Search, ArrowLeftRight } from 'lucide-react'
 import { ConnectKitButton } from 'connectkit'
 import { useAppStore } from '../../store/appStore'
 import { swapFee, SWAP_FEE_BPS, bpsToPercent, FEE_WALLET } from '../../lib/fees'
 import { useNanTheme } from '../../hooks/useNanTheme'
-
-const appKit = new AppKit()
 
 const CHAIN_ID  = 5042002
 const CHAIN_KEY = 'Arc_Testnet'
@@ -220,6 +217,18 @@ function useTokenBalance(token: Token, address: `0x${string}` | undefined) {
 // ── Main component ────────────────────────────────────────────────────────────
 export function SwapPage() {
   const c = useNanTheme()
+  // Lazy-load AppKit to avoid duplicate-React crash at module init
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const appKitRef = useRef<any>(null)
+  const getAppKit = async () => {
+    if (!appKitRef.current) {
+      const { AppKit } = await import('@circle-fin/app-kit')
+      const { createViemAdapterFromProvider } = await import('@circle-fin/adapter-viem-v2')
+      appKitRef.current = { kit: new AppKit(), createViemAdapterFromProvider }
+    }
+    return appKitRef.current as { kit: import('@circle-fin/app-kit').AppKit; createViemAdapterFromProvider: typeof import('@circle-fin/adapter-viem-v2').createViemAdapterFromProvider }
+  }
+
   const { connector, isConnected, address: wagmiAddress } = useAccount()
   const { auth } = useAppStore(s => ({ auth: s.auth, addActivity: s.addActivity, recordFee: s.recordFee }))
   const isCircleUser = !wagmiAddress && !!auth?.circleWalletAddress
@@ -269,6 +278,7 @@ export function SwapPage() {
     if (!connector) throw new Error('Wallet not connected')
     if (chainId !== CHAIN_ID) await switchChainAsync({ chainId: CHAIN_ID })
     const provider = (await connector.getProvider()) as EIP1193Provider
+    const { createViemAdapterFromProvider } = await getAppKit()
     return createViemAdapterFromProvider({ provider })
   }
 
@@ -276,8 +286,9 @@ export function SwapPage() {
     if (!canReview) return
     setPhase('estimating'); setErrMsg('')
     try {
+      const { kit } = await getAppKit()
       const adapter  = await getAdapter()
-      const estimate = await appKit.estimateSwap({
+      const estimate = await kit.estimateSwap({
         from: { adapter, chain: CHAIN_KEY },
         tokenIn, tokenOut, amountIn,
         config: { slippageBps },
@@ -294,8 +305,9 @@ export function SwapPage() {
     if (address !== reviewed.account) { setPhase('error'); setErrMsg('Wallet changed since estimate. Get a new quote.'); return }
     setPhase('swapping'); setErrMsg('')
     try {
+      const { kit } = await getAppKit()
       const adapter = await getAdapter()
-      const result  = await appKit.swap({
+      const result  = await kit.swap({
         from: { adapter, chain: CHAIN_KEY },
         tokenIn:  reviewed.tokenIn, tokenOut: reviewed.tokenOut,
         amountIn: reviewed.amountIn, config: { slippageBps: reviewed.slippageBps },

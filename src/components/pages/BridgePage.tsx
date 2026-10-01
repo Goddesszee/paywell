@@ -1,15 +1,12 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { useAccount, useChainId, useSwitchChain } from 'wagmi'
-import { AppKit } from '@circle-fin/app-kit'
-import { createViemAdapterFromProvider } from '@circle-fin/adapter-viem-v2'
-import type { EIP1193Provider } from 'viem'
 import { encodeFunctionData, erc20Abi, parseUnits } from 'viem'
+import type { EIP1193Provider } from 'viem'
 import { ArrowLeftRight, ArrowRight, CheckCircle, ExternalLink, Loader, Info } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
 import { bridgeFee, BRIDGE_FEE_BPS, bpsToPercent, BRIDGE_FEE_MIN_USDC, FEE_WALLET } from '../../lib/fees'
 import { useCircleTransaction } from '../../hooks/useCircleTransaction'
-
-const appKit = new AppKit()
+import { getProtocolContractByName, getUsdc } from '@/onchain-facts'
 
 const S  = 'var(--nan-surface)'
 const B  = 'var(--nan-bdr)'
@@ -63,9 +60,11 @@ const INITIAL_STEPS: StepState[] = [
   { name:'mint',             label:'Mint on destination',  status:'idle' },
 ]
 
-// CCTP V2 Arc Testnet — TokenMessenger for depositForBurn
-const TOKEN_MESSENGER_ARC = '0xeb08f243e5d3fcff26a9e38ae5520a669f4019d0' as const
-const USDC_ARC = '0x3400000000000000000000000000000000000001' as const
+// CCTP V2 Arc Testnet — addresses from onchain-facts (never hardcode)
+const ARC_TESTNET_CHAIN_ID = 5042002
+const TOKEN_MESSENGER_ARC  = (getProtocolContractByName('TokenMessengerV2', 'testnet')?.address ?? '0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA') as `0x${string}`
+const USDC_ARC             = (getUsdc(ARC_TESTNET_CHAIN_ID)?.address ?? '0x3600000000000000000000000000000000000000') as `0x${string}`
+
 const TOKEN_MESSENGER_ABI = [
   {
     name: 'depositForBurn',
@@ -84,6 +83,18 @@ const TOKEN_MESSENGER_ABI = [
 interface LiveFee { bps: number; label: string; fetched: boolean }
 
 export function BridgePage() {
+  // Lazy-load AppKit inside component to avoid duplicate-React crash at module init
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const appKitRef = useRef<any>(null)
+  const getAppKit = async () => {
+    if (!appKitRef.current) {
+      const { AppKit } = await import('@circle-fin/app-kit')
+      const { createViemAdapterFromProvider } = await import('@circle-fin/adapter-viem-v2')
+      appKitRef.current = { kit: new AppKit(), createViemAdapterFromProvider }
+    }
+    return appKitRef.current as { kit: import('@circle-fin/app-kit').AppKit; createViemAdapterFromProvider: typeof import('@circle-fin/adapter-viem-v2').createViemAdapterFromProvider }
+  }
+
   const { connector, isConnected, address: wagmiAddress } = useAccount()
   const { auth } = useAppStore(s => ({ auth: s.auth, addActivity: s.addActivity, recordFee: s.recordFee }))
   const isCircleUser = !wagmiAddress && !!auth?.circleWalletAddress
@@ -203,11 +214,12 @@ export function BridgePage() {
     try {
       if (chainId !== fromChain.chainId) await switchChainAsync({ chainId: fromChain.chainId })
       const provider = (await connector.getProvider()) as EIP1193Provider
+      const { kit, createViemAdapterFromProvider } = await getAppKit()
       const adapter  = await createViemAdapterFromProvider({ provider })
       updateStep('approve', { status: 'active' })
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const result = await appKit.bridge({
+      const result = await kit.bridge({
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         from: { adapter, chain: fromChain.kitName as unknown as any },
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
