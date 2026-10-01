@@ -10,7 +10,7 @@
  * propagates the new values down.
  */
 import { useSyncExternalStore } from 'react'
-import { useAppStore } from '../store/appStore'
+
 
 export interface NanTheme {
   bg:      string

@@ -37,7 +37,7 @@ interface OtpTokens   { deviceToken: string; deviceEncryptionKey: string; otpTok
 
 interface Props {
   onBack?: () => void
-  onSuccess: (walletAddress: string, userToken: string, email: string) => void
+  onSuccess: (walletAddress: string, userToken: string, email: string, encryptionKey?: string) => void
 }
 
 export function CircleEmailLogin({ onBack, onSuccess }: Props) {
@@ -52,26 +52,38 @@ export function CircleEmailLogin({ onBack, onSuccess }: Props) {
   const [statusMsg, setStatusMsg] = useState('')
 
   // ── finish: load wallets and call onSuccess ────────────────────────────────
-  const finishAuth = useCallback(async (userToken: string) => {
+  const encKeyRef = useRef<string | undefined>()
+
+  const finishAuth = useCallback(async (userToken: string, encryptionKey?: string) => {
     setStep('wallet_setup')
     setStatusMsg('Loading your wallet…')
+    // Persist encryptionKey from login callback for later sdk.execute() calls
+    if (encryptionKey) encKeyRef.current = encryptionKey
     try {
       const res  = await fetch('/api/wallet', {
         headers: { 'x-user-token': userToken },
       })
-      const data = await res.json() as { wallets?: { address: string }[]; error?: string }
+      const data = await res.json() as {
+        wallets?: { id: string; address: string }[]
+        error?: string
+      }
       if (data.error) throw new Error(data.error)
-      const addr = data.wallets?.[0]?.address ?? ''
+      const wallet = data.wallets?.[0]
+      const addr   = wallet?.address ?? ''
+      const wid    = wallet?.id      ?? ''
+      const ek     = encKeyRef.current
       setAuth({
         email,
-        sessionToken: userToken,
+        sessionToken:        userToken,
         userToken,
+        encryptionKey:       ek,
         circleWalletAddress: addr,
-        walletAddress: addr,
-        walletId: addr,
+        circleWalletId:      wid,
+        walletAddress:       addr,
+        walletId:            wid,
       })
       setStep('done')
-      onSuccess(addr, userToken, email)
+      onSuccess(addr, userToken, email, ek)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not load wallet. Please try again.')
       setStep('error')
@@ -91,13 +103,12 @@ export function CircleEmailLogin({ onBack, onSuccess }: Props) {
 
       // Existing user — just load their wallets
       if (data.code === 155106) {
-        await finishAuth(loginRes.userToken)
+        await finishAuth(loginRes.userToken, loginRes.encryptionKey)
         return
       }
       if (data.error || !data.challengeId) {
-        // If the error message indicates already initialized, treat as existing user
         if (data.error?.toLowerCase().includes('already') || data.error?.toLowerCase().includes('initialized')) {
-          await finishAuth(loginRes.userToken)
+          await finishAuth(loginRes.userToken, loginRes.encryptionKey)
           return
         }
         throw new Error(data.error ?? 'Wallet initialization failed')
@@ -111,16 +122,15 @@ export function CircleEmailLogin({ onBack, onSuccess }: Props) {
       sdk.execute(data.challengeId, async (execErr) => {
         if (execErr) {
           const msg = execErr instanceof Error ? execErr.message : String(execErr)
-          // "Already initialized" can also surface here
           if (msg.toLowerCase().includes('already') || msg.toLowerCase().includes('155106')) {
-            await finishAuth(loginRes.userToken)
+            await finishAuth(loginRes.userToken, loginRes.encryptionKey)
             return
           }
           setError('Wallet setup failed — please try again.')
           setStep('error')
           return
         }
-        await finishAuth(loginRes.userToken)
+        await finishAuth(loginRes.userToken, loginRes.encryptionKey)
       })
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Setup error — please try again.')
@@ -135,11 +145,10 @@ export function CircleEmailLogin({ onBack, onSuccess }: Props) {
     const onLoginComplete = (err: unknown, result: unknown) => {
       if (err) {
         const msg = err instanceof Error ? err.message : String(err)
-        // If the error is "already initialized" the login still succeeded — userToken is in result
         if (msg.toLowerCase().includes('already') || msg.toLowerCase().includes('155106')) {
           const res = result as LoginResult | undefined
           if (res?.userToken) {
-            void finishAuth(res.userToken)
+            void finishAuth(res.userToken, res.encryptionKey)
             return
           }
         }

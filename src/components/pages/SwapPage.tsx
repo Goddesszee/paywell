@@ -3,7 +3,8 @@ import { useAccount, useChainId, useSwitchChain, useReadContract, useBalance } f
 import { AppKit, type SwapEstimate } from '@circle-fin/app-kit'
 import { createViemAdapterFromProvider } from '@circle-fin/adapter-viem-v2'
 import { erc20Abi, type EIP1193Provider } from 'viem'
-import { ArrowDown, Settings, CheckCircle, ExternalLink, RefreshCw, AlertCircle, X, Search } from 'lucide-react'
+import { ArrowDown, Settings, CheckCircle, ExternalLink, RefreshCw, AlertCircle, X, Search, ArrowLeftRight } from 'lucide-react'
+import { ConnectKitButton } from 'connectkit'
 import { useAppStore } from '../../store/appStore'
 import { swapFee, SWAP_FEE_BPS, bpsToPercent, FEE_WALLET } from '../../lib/fees'
 import { useNanTheme } from '../../hooks/useNanTheme'
@@ -219,7 +220,10 @@ function useTokenBalance(token: Token, address: `0x${string}` | undefined) {
 // ── Main component ────────────────────────────────────────────────────────────
 export function SwapPage() {
   const c = useNanTheme()
-  const { connector, isConnected, address } = useAccount()
+  const { connector, isConnected, address: wagmiAddress } = useAccount()
+  const { auth } = useAppStore(s => ({ auth: s.auth, addActivity: s.addActivity, recordFee: s.recordFee }))
+  const isCircleUser = !wagmiAddress && !!auth?.circleWalletAddress
+  const address = wagmiAddress
   const chainId = useChainId()
   const { switchChainAsync } = useSwitchChain()
   const addActivity = useAppStore(s => s.addActivity)
@@ -328,6 +332,21 @@ export function SwapPage() {
         )}
         <button onClick={reset} className="nan-btn nan-btn-primary nan-btn-full" style={{ borderRadius: 14 }}>Swap again</button>
       </div>
+    </div>
+  )
+
+  // ── Circle user: swap requires an EIP-1193 browser wallet ────────────────
+  if (isCircleUser) return (
+    <div style={{ maxWidth: 480, margin: '0 auto', padding: '48px 24px 100px', fontFamily: 'var(--nan-font)', textAlign: 'center' }}>
+      <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'rgba(0,102,255,0.1)', border: '1px solid rgba(0,102,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+        <ArrowLeftRight size={24} color={c.blue} />
+      </div>
+      <div style={{ fontSize: 17, fontWeight: 700, color: c.text, marginBottom: 10 }}>Connect a browser wallet to swap</div>
+      <div style={{ fontSize: 13, color: c.t2, lineHeight: 1.7, marginBottom: 24 }}>
+        Token swaps use Circle App Kit which requires an EIP-1193 browser wallet (MetaMask, Coinbase Wallet, etc.) to sign transactions directly.<br /><br />
+        Your Circle wallet can still <strong style={{ color: c.text }}>send USDC, receive, bridge, and use Gateway</strong> — all fully supported.
+      </div>
+      <ConnectKitButton />
     </div>
   )
 

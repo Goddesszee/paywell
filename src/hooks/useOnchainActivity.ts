@@ -4,7 +4,7 @@ import { getUsdc, requireChain } from '@/onchain-facts'
 import { ActivityItem } from '../store/appStore'
 
 const ARC_TESTNET_ID = 5042002
-const PAGE_SIZE = 50n
+const _PAGE_SIZE = 50n
 
 export function useOnchainActivity(address?: string) {
   const [items, setItems] = useState<ActivityItem[]>([])

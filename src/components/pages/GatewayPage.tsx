@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react'
 import { Layers, RefreshCw, ArrowDownToLine, ArrowUpFromLine, ExternalLink, Check, AlertCircle, Copy, Info } from 'lucide-react'
 import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt, useSwitchChain, useChainId } from 'wagmi'
-import { erc20Abi, parseUnits, formatUnits } from 'viem'
+import { erc20Abi, parseUnits, formatUnits, encodeFunctionData } from 'viem'
 import { toast } from 'sonner'
 import { getUsdc, buildTxExplorerUrl } from '@/onchain-facts'
 import { usdcDecimalsFor } from '@/onchain-money'
+import { useAppStore } from '../../store/appStore'
+import { useCircleTransaction } from '../../hooks/useCircleTransaction'
 
 const F    = "'Inter', -apple-system, sans-serif"
 const MONO = "'JetBrains Mono', Menlo, monospace"
@@ -66,7 +68,10 @@ type Tab = 'balance' | 'deposit' | 'withdraw'
 
 export function GatewayPage() {
   const [tab, setTab] = useState<Tab>('balance')
-  const { address } = useAccount()
+  const { address: wagmiAddress } = useAccount()
+  const { auth } = useAppStore()
+  // Circle wallet users don't connect via wagmi — fall back to circleWalletAddress
+  const address = wagmiAddress ?? (auth?.circleWalletAddress as `0x${string}` | undefined)
   const usdcFact = getUsdc(ARC)
   const decimals = usdcDecimalsFor(ARC)
 
@@ -125,8 +130,112 @@ export function GatewayPage() {
       </div>
 
       {tab === 'balance'  && <BalanceTab  address={address} walletBalance={walletBalance} gatewayBalance={gatewayBalance} isLoading={isLoading} />}
-      {tab === 'deposit'  && <DepositTab  address={address} walletBalance={walletBalance} decimals={decimals} usdcFact={usdcFact} onSuccess={() => { refetchAll(); setTab('balance') }} />}
-      {tab === 'withdraw' && <WithdrawTab address={address} gatewayBalance={gatewayBalance} decimals={decimals} onSuccess={() => { refetchAll(); setTab('balance') }} />}
+      {tab === 'deposit'  && (wagmiAddress
+        ? <DepositTab  address={address} walletBalance={walletBalance} decimals={decimals} usdcFact={usdcFact} onSuccess={() => { refetchAll(); setTab('balance') }} />
+        : <CircleDepositTab  address={address} walletBalance={walletBalance} decimals={decimals} usdcFact={usdcFact} onSuccess={() => { refetchAll(); setTab('balance') }} />)}
+      {tab === 'withdraw' && (wagmiAddress
+        ? <WithdrawTab address={address} gatewayBalance={gatewayBalance} decimals={decimals} onSuccess={() => { refetchAll(); setTab('balance') }} />
+        : <CircleWithdrawTab address={address} gatewayBalance={gatewayBalance} decimals={decimals} onSuccess={() => { refetchAll(); setTab('balance') }} />)}
+    </div>
+  )
+}
+
+// Circle user deposit — two-step: approve then depositFor via challenge-response
+function CircleDepositTab({ address, walletBalance, decimals, usdcFact, onSuccess }: {
+  address?: string; walletBalance: string|null; decimals: number
+  usdcFact: { address: string } | undefined; onSuccess: () => void
+}) {
+  const [amount, setAmount] = useState('')
+  const circleTx = useCircleTransaction()
+  const { status, error } = circleTx
+  const busy = status === 'creating' || status === 'approving' || status === 'polling'
+
+  const handleDeposit = async () => {
+    if (!address || !amount || parseFloat(amount) <= 0 || !usdcFact) return
+    const parsed = parseUnits(amount, decimals)
+    // Step 1: approve USDC to GatewayWallet via Circle challenge
+    const approveCallData = encodeFunctionData({
+      abi: erc20Abi,
+      functionName: 'approve',
+      args: [GATEWAY_WALLET, parsed],
+    })
+    const approveTx = await circleTx.executeContract({ contractAddress: usdcFact.address, callData: approveCallData })
+    if (!approveTx) return
+    // Step 2: depositFor via Circle challenge
+    const depositCallData = encodeFunctionData({
+      abi: GATEWAY_WALLET_ABI,
+      functionName: 'depositFor',
+      args: [address as `0x${string}`, parsed],
+    })
+    const depositTx = await circleTx.executeContract({ contractAddress: GATEWAY_WALLET, callData: depositCallData })
+    if (depositTx) { toast.success(`Deposited ${amount} USDC to Gateway`); onSuccess() }
+  }
+
+  return (
+    <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+      <div style={{ fontSize:13, color:T2, lineHeight:1.6 }}>Deposit USDC into your unified Gateway balance.</div>
+      <div>
+        <div style={{ fontSize:11, fontWeight:600, color:T2, marginBottom:6, textTransform:'uppercase', letterSpacing:'0.05em' }}>Amount (USDC)</div>
+        <div style={{ position:'relative' }}>
+          <input type="number" min="0" step="0.01" placeholder="0.00" value={amount}
+            onChange={e => setAmount(e.target.value)} disabled={busy}
+            style={{ width:'100%', padding:'12px 56px 12px 14px', border:`1px solid ${BDR}`, borderRadius:10, background:SURF2, color:TEXT, fontSize:16, fontWeight:600, fontFamily:F, boxSizing:'border-box', outline:'none' }} />
+          <span style={{ position:'absolute', right:14, top:'50%', transform:'translateY(-50%)', fontSize:13, fontWeight:600, color:T2 }}>USDC</span>
+        </div>
+        <div style={{ fontSize:11, color:T2, marginTop:6 }}>Available: <strong style={{ color:TEXT }}>{walletBalance ? parseFloat(walletBalance).toFixed(2) : '—'} USDC</strong></div>
+      </div>
+      {error && <div style={{ background:'rgba(255,68,68,0.08)', border:`1px solid rgba(255,68,68,0.20)`, borderRadius:10, padding:'10px 14px', fontSize:12, color:'#FF4444' }}>{error}</div>}
+      {busy && <div style={{ fontSize:13, color:T2 }}>{status === 'approving' ? 'Approve in Circle popup…' : status === 'polling' ? 'Confirming on-chain…' : 'Preparing…'}</div>}
+      <button onClick={() => void handleDeposit()} disabled={!amount || parseFloat(amount)<=0 || busy}
+        style={{ width:'100%', padding:'14px 0', borderRadius:14, fontSize:14, fontWeight:600, border:'none', fontFamily:F, cursor:(!amount||busy)?'not-allowed':'pointer', background:(!amount||busy)?SURF:BLUE, color:(!amount||busy)?T2:'#fff', transition:'all 0.15s' }}>
+        {busy ? 'Processing…' : `Deposit ${amount||'0.00'} USDC`}
+      </button>
+    </div>
+  )
+}
+
+// Circle user withdraw — removeFund via challenge-response
+function CircleWithdrawTab({ address, gatewayBalance, decimals, onSuccess }: {
+  address?: string; gatewayBalance: string|null; decimals: number; onSuccess: () => void
+}) {
+  const [amount, setAmount] = useState('')
+  const circleTx = useCircleTransaction()
+  const { status, error } = circleTx
+  const busy = status === 'creating' || status === 'approving' || status === 'polling'
+  const gwBal = gatewayBalance ? parseFloat(gatewayBalance) : 0
+
+  const handleWithdraw = async () => {
+    if (!address || !amount || parseFloat(amount) <= 0) return
+    const parsed = parseUnits(amount, decimals)
+    const callData = encodeFunctionData({
+      abi: GATEWAY_MINTER_REMOVE_ABI,
+      functionName: 'removeFund',
+      args: [parsed],
+    })
+    const tx = await circleTx.executeContract({ contractAddress: GATEWAY_MINTER, callData })
+    if (tx) { toast.success(`Withdrew ${amount} USDC from Gateway`); onSuccess() }
+  }
+
+  return (
+    <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+      <div style={{ fontSize:13, color:T2, lineHeight:1.6 }}>Withdraw USDC from your Gateway balance back to your wallet.</div>
+      {gwBal <= 0 && <div style={{ background:`rgba(0,102,255,0.06)`, border:`1px solid rgba(0,102,255,0.15)`, borderRadius:10, padding:'10px 14px', fontSize:12, color:T2 }}>Your Gateway balance is 0.00 USDC. Deposit first.</div>}
+      <div>
+        <div style={{ fontSize:11, fontWeight:600, color:T2, marginBottom:6, textTransform:'uppercase', letterSpacing:'0.05em' }}>Amount (USDC)</div>
+        <div style={{ position:'relative' }}>
+          <input type="number" min="0" step="0.01" placeholder="0.00" value={amount}
+            onChange={e => setAmount(e.target.value)} disabled={busy || gwBal<=0}
+            style={{ width:'100%', padding:'12px 56px 12px 14px', border:`1px solid ${BDR}`, borderRadius:10, background:SURF2, color:TEXT, fontSize:16, fontWeight:600, fontFamily:F, boxSizing:'border-box', outline:'none' }} />
+          <span style={{ position:'absolute', right:14, top:'50%', transform:'translateY(-50%)', fontSize:13, fontWeight:600, color:T2 }}>USDC</span>
+        </div>
+        <div style={{ fontSize:11, color:T2, marginTop:6 }}>Gateway balance: <strong style={{ color:TEXT }}>{gwBal.toFixed(2)} USDC</strong></div>
+      </div>
+      {error && <div style={{ background:'rgba(255,68,68,0.08)', border:`1px solid rgba(255,68,68,0.20)`, borderRadius:10, padding:'10px 14px', fontSize:12, color:'#FF4444' }}>{error}</div>}
+      {busy && <div style={{ fontSize:13, color:T2 }}>{status === 'approving' ? 'Approve in Circle popup…' : 'Confirming on-chain…'}</div>}
+      <button onClick={() => void handleWithdraw()} disabled={!amount || parseFloat(amount)<=0 || busy || gwBal<=0}
+        style={{ width:'100%', padding:'14px 0', borderRadius:14, fontSize:14, fontWeight:600, border:'none', fontFamily:F, cursor:(!amount||busy||gwBal<=0)?'not-allowed':'pointer', background:(!amount||busy||gwBal<=0)?SURF:BLUE, color:(!amount||busy||gwBal<=0)?T2:'#fff', transition:'all 0.15s' }}>
+        {busy ? 'Processing…' : `Withdraw ${amount||'0.00'} USDC`}
+      </button>
     </div>
   )
 }

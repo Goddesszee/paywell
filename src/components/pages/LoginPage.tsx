@@ -4,7 +4,7 @@ import { useAccount } from 'wagmi'
 import { Wallet, ArrowLeft } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
 import { CircleEmailLogin } from '../CircleEmailLogin'
-import { CircleGoogleLogin } from '../CircleGoogleLogin'
+
 
 const F       = "'Inter', -apple-system, sans-serif"
 const BLUE    = '#0066FF'

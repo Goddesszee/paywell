@@ -13,7 +13,9 @@ export interface PaywellAuth {
   pendingOtpExpiry?: number
   // Circle user-controlled wallet fields
   userToken?: string
+  encryptionKey?: string       // required for sdk.execute() — must survive rehydration
   circleWalletAddress?: string
+  circleWalletId?: string      // Circle internal wallet ID (not the on-chain address)
 }
 
 // ── NAN Protected Purchase ────────────────────────────────────────────────

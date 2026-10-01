@@ -9,11 +9,11 @@ import { useWriteContract, useWaitForTransactionReceipt, useSwitchChain, useAcco
 import { erc20Abi, isAddress } from 'viem'
 import { toast } from 'sonner'
 import { Card } from '../ui/Card'
-import { Button } from '../ui/Button'
-import { Input, Textarea } from '../ui/Input'
+import { Textarea } from '../ui/Input'
 import { Badge } from '../ui/Badge'
 import { useAppStore, ActivityItem } from '../../store/appStore'
 import { formatAddress, formatUSDC, parseOnchainError } from '../../utils/format'
+import { useCircleTransaction } from '../../hooks/useCircleTransaction'
 import { TokenLogo } from '../ui/TokenLogo'
 import { getUsdc, requireChain, buildTxExplorerUrl } from '@/onchain-facts'
 import { Amount, usdcDecimalsFor } from '@/onchain-money'
@@ -129,6 +129,7 @@ export function WalletPage({ initialSubView = 'main' }: { initialSubView?: Walle
       <SendFlow
         address={address}
         chainId={chainId}
+        isCircleUser={isCircleUser}
         onBack={() => setSubView('main')}
         onSuccess={() => { void refetch(); setSubView('main') }}
         addActivity={addActivity}
@@ -329,12 +330,14 @@ function useIsDesktop() {
 function SendFlow({
   address: _address,
   chainId,
+  isCircleUser,
   onBack,
   onSuccess,
   addActivity,
 }: {
   address: string
   chainId?: number
+  isCircleUser?: boolean
   onBack: () => void
   onSuccess: () => void
   addActivity: (item: Omit<ActivityItem, 'id' | 'timestamp'>) => void
@@ -359,6 +362,11 @@ function SendFlow({
   const { writeContract, data: txHash, isPending, error: writeError, reset } = useWriteContract()
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash: txHash })
   const isWrongChain = chainId !== undefined && chainId !== ARC_TESTNET_ID
+  // Circle user-controlled wallet send path
+  const circleTx = useCircleTransaction()
+  const circleStatus  = circleTx.status
+  const circleTxHash  = circleTx.txHash
+  const circleError   = circleTx.error
 
   React.useEffect(() => {
     if (isSuccess && txHash) {
@@ -391,7 +399,8 @@ function SendFlow({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [writeError])
 
-  const displayStep: SendStep = (isPending || isConfirming) ? 'submitting' : step
+  const isCirclePending = isCircleUser && (circleStatus === 'creating' || circleStatus === 'approving' || circleStatus === 'polling')
+  const displayStep: SendStep = (isPending || isConfirming || isCirclePending) ? 'submitting' : step
 
   const validateRecipient = () => {
     if (!recipient) { setRecipientError('Recipient address is required'); return false }
@@ -409,6 +418,35 @@ function SendFlow({
   }
 
   const handleSend = () => {
+    if (isCircleUser) {
+      // Circle user-controlled wallet path: create transfer challenge on backend,
+      // execute via sdk.execute() popup, then poll until COMPLETE
+      setStep('submitting')
+      void circleTx.sendTransfer({
+        destinationAddress: recipient,
+        amount,
+        tokenAddress: selectedToken.address,
+        blockchain: 'ARC-TESTNET',
+      }).then(hash => {
+        if (hash) {
+          setStep('success')
+          addActivity({
+            type: 'sent',
+            description: noteRef.current || `Sent ${selectedToken.symbol}`,
+            amount: parseFloat(amountRef.current),
+            sign: '-',
+            status: 'confirmed',
+            counterparty: formatAddress(recipientRef.current),
+            txHash: hash,
+          })
+          toast.success(`Sent ${amountRef.current} ${selectedToken.symbol} successfully`)
+        } else {
+          setStep('error')
+          toast.error(circleError ?? 'Transaction failed')
+        }
+      })
+      return
+    }
     if (isWrongChain) { switchChain({ chainId: ARC_TESTNET_ID }); return }
     const rawAmount = BigInt(Math.round(parseFloat(amount) * 10 ** selectedToken.decimals))
     writeContract({
@@ -466,9 +504,9 @@ function SendFlow({
                 <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--nan-text)', fontFamily: 'JetBrains Mono, monospace' }}>{value}</span>
               </div>
             ))}
-            {txHash && (
+            {(txHash ?? circleTxHash) && (
               <div style={{ paddingTop: 8 }}>
-                <a href={buildTxExplorerUrl(ARC_TESTNET_ID, txHash)} target="_blank" rel="noopener noreferrer"
+                <a href={buildTxExplorerUrl(ARC_TESTNET_ID, (txHash ?? circleTxHash)!)} target="_blank" rel="noopener noreferrer"
                   style={{ fontSize: 12, color: '#0066FF', display: 'flex', alignItems: 'center', gap: 5, fontWeight: 600 }}>
                   <ExternalLink size={12} /> View on explorer
                 </a>
@@ -499,10 +537,14 @@ function SendFlow({
           <div style={{ width: 28, height: 28, border: '2px solid #0066FF', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
         </div>
         <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--nan-text)', margin: 0 }}>
-          {isPending ? 'Confirm in wallet' : 'Confirming…'}
+          {isCircleUser
+            ? circleStatus === 'approving' ? 'Approve in popup' : circleStatus === 'polling' ? 'Confirming…' : 'Preparing…'
+            : isPending ? 'Confirm in wallet' : 'Confirming…'}
         </h2>
         <p style={{ fontSize: 14, color: 'var(--nan-text2)', margin: 0 }}>
-          {isPending ? 'Approve the transaction in your wallet.' : 'Waiting for blockchain confirmation…'}
+          {isCircleUser
+            ? circleStatus === 'approving' ? 'Approve the transaction in the Circle popup.' : 'Waiting for blockchain confirmation…'
+            : isPending ? 'Approve the transaction in your wallet.' : 'Waiting for blockchain confirmation…'}
         </p>
       </div>
     )
@@ -907,15 +949,6 @@ function SendFlow({
           }}>Try again</button>
         </div>
       )}
-    </div>
-  )
-}
-
-function Row({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {
-  return (
-    <div className="flex items-center justify-between gap-2">
-      <span className="text-sm text-nan2">{label}</span>
-      <span className={`text-sm font-semibold text-nan ${mono ? 'font-mono text-xs' : ''}`}>{value}</span>
     </div>
   )
 }
