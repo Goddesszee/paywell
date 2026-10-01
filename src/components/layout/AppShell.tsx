@@ -383,6 +383,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <kbd style={{ background: C.surf2, border: `1px solid ${C.bdr}`, borderRadius: 4, padding: '1px 5px', fontSize: 10, fontFamily: 'monospace', color: C.t3 }}>⌘K</kbd>
             </button>
             <NotificationBell color={C.t2} />
+            {/* Profile avatar — top right */}
+            <button
+              onClick={() => go('profile')}
+              aria-label="Profile"
+              style={{
+                width: 34, height: 34, borderRadius: '50%', flexShrink: 0,
+                background: navActive('profile') ? 'rgba(0,102,255,0.18)' : C.surf2,
+                border: `1.5px solid ${navActive('profile') ? 'rgba(0,102,255,0.5)' : C.bdr2}`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: 'pointer', transition: 'all 0.12s',
+              }}
+            >
+              <User size={15} color={navActive('profile') ? BLUE : C.t2} />
+            </button>
           </div>
         </header>
 
@@ -397,28 +411,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             overflow: 'hidden',
             position: 'fixed', top: 0, left: 0, bottom: 0,
           }}>
-            {/* Top-left: logo + profile button */}
+            {/* Sidebar logo */}
             <div style={{
               height: TOPBAR_H, flexShrink: 0, display: 'flex', alignItems: 'center',
-              justifyContent: 'space-between',
-              paddingLeft: 16, paddingRight: 10,
+              paddingLeft: 16,
               borderBottom: `1px solid ${C.bdr}`,
             }}>
               <button onClick={handleLogoTap} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
                 <NanLogo height={32} />
-              </button>
-              <button
-                onClick={() => go('profile')}
-                aria-label="Profile"
-                style={{
-                  width: 32, height: 32, borderRadius: '50%', flexShrink: 0,
-                  background: navActive('profile') ? 'rgba(0,102,255,0.18)' : C.surf2,
-                  border: `1.5px solid ${navActive('profile') ? 'rgba(0,102,255,0.5)' : C.bdr2}`,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  cursor: 'pointer', transition: 'all 0.12s',
-                }}
-              >
-                <User size={15} color={navActive('profile') ? BLUE : C.t2} />
               </button>
             </div>
             <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '8px 8px', scrollbarWidth: 'none' }}>
