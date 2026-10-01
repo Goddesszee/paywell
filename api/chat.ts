@@ -28,23 +28,43 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   }
 
+  const systemPrompt = `You are NAN Agent — an AI-native agentic financial assistant built on Circle/Arc infrastructure.
+You help users: send USDC, manage wallets, shop, bridge/swap tokens, and discover + use external services.
+
+When a user asks for something that requires an external service (flight search, hotel booking, research, data lookup, supplier search, career services, developer APIs, AI services, etc.), respond naturally and mention that you are finding the right service. Be concise and friendly.
+
+Never claim to have actually booked or purchased anything irreversible without user confirmation. Distinguish between searching (can auto-execute within policy) and booking/purchasing (requires user confirmation).`
+
+  if (process.env.OPENAI_API_KEY) {
+    try {
+      const openaiRes = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            ...history as { role: 'user' | 'assistant'; content: string }[],
+            { role: 'user', content: message },
+          ],
+          max_tokens: 512,
+        }),
+      })
+      const openaiData = await openaiRes.json() as { choices?: Array<{ message: { content: string } }>; error?: { message: string } }
+      if (openaiData.error) throw new Error(openaiData.error.message)
+      return res.status(200).json({ reply: openaiData.choices?.[0]?.message?.content ?? 'Sorry, try again.' })
+    } catch (e) {
+      console.error('OpenAI error:', e)
+    }
+  }
+
   if (process.env.GROQ_API_KEY) {
     const Groq = (await import('groq-sdk')).default
     const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
     const completion = await groq.chat.completions.create({
       model: 'llama-3.3-70b-versatile',
       messages: [
-        {
-          role: 'system',
-          content: `You are NAN Agent — an AI-native agentic financial assistant built on Circle/Arc infrastructure.
-You help users: send USDC, manage wallets, shop, bridge/swap tokens, and discover + use external services.
-
-When a user asks for something that requires an external service (flight search, hotel booking, research, data lookup, supplier search, career services, developer APIs, AI services, etc.), respond naturally and mention that you are finding the right service. Be concise and friendly.
-
-You have access to a service registry. Categories include: search, research, travel, career, supplier, commerce, data, developer, ai, infrastructure, digital_services, other_agents.
-
-Never claim to have actually booked or purchased anything irreversible without user confirmation. Distinguish between searching (can auto-execute within policy) and booking/purchasing (requires user confirmation).`,
-        },
+        { role: 'system', content: systemPrompt },
         ...history as { role: 'user' | 'assistant'; content: string }[],
         { role: 'user', content: message },
       ],
