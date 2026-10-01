@@ -9,6 +9,8 @@ import { useAppStore } from '../../store/appStore'
 import { bridgeFee, BRIDGE_FEE_BPS, bpsToPercent, BRIDGE_FEE_MIN_USDC, FEE_WALLET } from '../../lib/fees'
 import { useCircleTransaction } from '../../hooks/useCircleTransaction'
 
+const appKit = new AppKit()
+
 const S  = 'var(--nan-surface)'
 const B  = 'var(--nan-bdr)'
 const T  = 'var(--nan-text)'
@@ -82,10 +84,6 @@ const TOKEN_MESSENGER_ABI = [
 interface LiveFee { bps: number; label: string; fetched: boolean }
 
 export function BridgePage() {
-  const appKitRef = React.useRef<AppKit | null>(null)
-  if (!appKitRef.current) appKitRef.current = new AppKit()
-  const appKit = appKitRef.current
-
   const { connector, isConnected, address: wagmiAddress } = useAccount()
   const { auth } = useAppStore(s => ({ auth: s.auth, addActivity: s.addActivity, recordFee: s.recordFee }))
   const isCircleUser = !wagmiAddress && !!auth?.circleWalletAddress
