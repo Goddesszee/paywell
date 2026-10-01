@@ -382,7 +382,18 @@ app.post('/api/chat', _paywall('0.001'), async (req, res) => {
     }
 
     const groqKey = process.env.GROQ_API_KEY
+    const openaiKey = process.env.OPENAI_API_KEY
     const userMsg = message ?? messages?.[messages.length - 1]?.content ?? ''
+
+    if (openaiKey) {
+      try {
+        const reply = await openaiChat(openaiKey, userMsg, usdcBal ?? '0', userAddress ?? session.walletAddress)
+        res.json({ success: true, reply })
+        return
+      } catch (e) {
+        console.error('OpenAI chat failed:', e)
+      }
+    }
 
     if (groqKey) {
       try {
@@ -504,6 +515,27 @@ async function circleTransfer(opts: {
   })
 
   return { txId: response.data?.id ?? genToken(8) }
+}
+
+async function openaiChat(apiKey: string, message: string, usdcBal: string, walletAddress: string): Promise<string> {
+  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'gpt-4o-mini',
+      messages: [
+        {
+          role: 'system',
+          content: `You are the NAN AI assistant — a helpful financial and shopping agent. The user's wallet address is ${walletAddress} and they have ${usdcBal} USDC available. Help them find products, answer questions about payments, and manage their wallet. Be concise and friendly. Never ask for private keys or seed phrases.`,
+        },
+        { role: 'user', content: message },
+      ],
+      max_tokens: 300,
+    }),
+  })
+  const data = await res.json() as { choices?: Array<{ message: { content: string } }>; error?: { message: string } }
+  if (data.error) throw new Error(data.error.message)
+  return data.choices?.[0]?.message?.content ?? 'Sorry, I could not process that.'
 }
 
 async function groqChat(apiKey: string, message: string, usdcBal: string, walletAddress: string): Promise<string> {
@@ -1119,7 +1151,9 @@ app.get('/api/auth/google/callback', async (req, res) => {
 // ── start ──────────────────────────────────────────────────────────────────────
 app.listen(PORT, () => {
   console.log(`Paywell API running on port ${PORT}`)
-  if (!process.env.GROQ_API_KEY) console.log('  ⚠  GROQ_API_KEY not set — using mock AI replies')
+  if (!process.env.OPENAI_API_KEY && !process.env.GROQ_API_KEY) console.log('  ⚠  OPENAI_API_KEY / GROQ_API_KEY not set — using mock AI replies')
+  if (process.env.OPENAI_API_KEY) console.log('  ✓  OpenAI GPT-4o-mini enabled for AI chat')
+  else if (process.env.GROQ_API_KEY) console.log('  ✓  Groq LLaMA enabled for AI chat')
   if (!process.env.CIRCLE_DEVELOPER_CONTROLLED_API_KEY) console.log('  ⚠  CIRCLE_DEVELOPER_CONTROLLED_API_KEY not set — using mock wallets')
   if (!process.env.SMTP_USER) console.log('  ⚠  SMTP not configured — OTP codes printed to console')
 })

@@ -397,28 +397,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             overflow: 'hidden',
             position: 'fixed', top: 0, left: 0, bottom: 0,
           }}>
-            {/* Sidebar top — nan pill navigates to Profile */}
+            {/* Sidebar top — plain nan logo, admin unlock on 5 taps */}
             <div style={{
               height: TOPBAR_H, flexShrink: 0, display: 'flex', alignItems: 'center',
-              paddingLeft: 12, paddingRight: 12,
+              paddingLeft: 20, paddingRight: 12,
               borderBottom: `1px solid ${C.bdr}`,
             }}>
-              <button
-                onClick={() => { handleLogoTap(); go('profile') }}
-                aria-label="Profile"
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 8,
-                  padding: '6px 14px 6px 8px',
-                  borderRadius: 50,
-                  background: navActive('profile') ? 'rgba(0,102,255,0.12)' : C.surf2,
-                  border: `1.5px solid ${navActive('profile') ? 'rgba(0,102,255,0.4)' : C.bdr2}`,
-                  cursor: 'pointer', transition: 'all 0.15s',
-                  WebkitTapHighlightColor: 'transparent',
-                }}
-              >
-                <NanLogo height={24} />
-                <User size={14} color={navActive('profile') ? BLUE : C.t2} />
-              </button>
+              <div onClick={handleLogoTap} style={{ cursor: 'default', lineHeight: 0 }}>
+                <NanLogo height={26} />
+              </div>
             </div>
             <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '8px 8px', scrollbarWidth: 'none' }}>
               {SIDEBAR_SECTIONS.map(section => (
