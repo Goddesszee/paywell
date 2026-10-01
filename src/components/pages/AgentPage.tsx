@@ -13,7 +13,7 @@ import { parseUnits } from 'viem'
 import { LoadingDots } from '../ui/Spinner'
 import { useAppStore } from '../../store/appStore'
 import type { AgentMessage, AgentPermissions } from '../../store/appStore'
-import { CATEGORIES, Product } from '../../data/products'
+import { Product } from '../../data/products'
 import { getVerifiedProducts } from '../../utils/listings'
 import { formatUSDC, formatRelativeTime } from '../../utils/format'
 import { nanChat, backendConfigured } from '../../lib/api'
@@ -601,7 +601,8 @@ function PolicyTab() {
   const [autoApprove, setAutoApprove] = useState(agentPermissions.autoApproveUnder.toString())
   const [approvalAbove, setApprovalAbove] = useState((agentPermissions.requireApprovalAbove ?? 5).toString())
   const [saved, setSaved] = useState(false)
-  const categories = CATEGORIES.filter(c => c.id !== 'all')
+  // Use agent service categories, not shopping categories
+  const categories = ALL_CATEGORIES.map(id => ({ id, label: id.charAt(0).toUpperCase() + id.slice(1).replace(/_/g,' ') }))
 
   const handleSave = () => {
     setAgentPermissions({
@@ -678,8 +679,8 @@ function PolicyTab() {
       {/* Allowed categories */}
       <div style={{ background:WHITE, border:`1px solid ${BORDER}`, borderRadius:14, padding:14 }}>
         <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10 }}>
-          <ShoppingBag size={14} color={BLACK} />
-          <span style={{ fontSize:13, fontWeight:700, color:BLACK }}>Allowed categories</span>
+          <Globe size={14} color={BLACK} />
+          <span style={{ fontSize:13, fontWeight:700, color:BLACK }}>Allowed service categories</span>
         </div>
         <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
           {categories.map(cat => {

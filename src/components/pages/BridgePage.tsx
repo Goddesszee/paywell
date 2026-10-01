@@ -201,7 +201,7 @@ export function BridgePage() {
           <div style={{ fontSize:11, fontWeight:600, color:T2, marginBottom:6, textTransform:'uppercase', letterSpacing:'0.05em' }}>From</div>
           <select value={fromIdx} onChange={e => { const v=Number(e.target.value); setFromIdx(v); if(v===toIdx) setToIdx(v===0?1:0) }}
             style={{ width:'100%', padding:'10px 12px', border:`1px solid ${B}`, borderRadius:10, background:S, color:T, fontSize:13, fontWeight:500, fontFamily:SANS, appearance:'none', cursor:'pointer' }}>
-            {CHAINS.map((c,i) => <option key={c.kitName} value={i}>{c.label}</option>)}
+            {CHAINS.map((c,i) => <option key={c.kitName} value={i} disabled={c.cctpDomain<0}>{c.label}{c.cctpDomain<0?' (no CCTP)':''}</option>)}
           </select>
         </div>
         <div style={{ textAlign:'center', marginTop:20 }}><ArrowRight size={16} color={T2} /></div>
@@ -209,7 +209,7 @@ export function BridgePage() {
           <div style={{ fontSize:11, fontWeight:600, color:T2, marginBottom:6, textTransform:'uppercase', letterSpacing:'0.05em' }}>To</div>
           <select value={toIdx} onChange={e => { const v=Number(e.target.value); setToIdx(v); if(v===fromIdx) setFromIdx(v===0?1:0) }}
             style={{ width:'100%', padding:'10px 12px', border:`1px solid ${B}`, borderRadius:10, background:S, color:T, fontSize:13, fontWeight:500, fontFamily:SANS, appearance:'none', cursor:'pointer' }}>
-            {CHAINS.map((c,i) => <option key={c.kitName} value={i} disabled={i===fromIdx}>{c.label}</option>)}
+            {CHAINS.map((c,i) => <option key={c.kitName} value={i} disabled={i===fromIdx||c.cctpDomain<0}>{c.label}{c.cctpDomain<0?' (no CCTP)':''}</option>)}
           </select>
         </div>
       </div>
