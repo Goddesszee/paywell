@@ -49,27 +49,20 @@ export default defineConfig({
     chunkSizeWarningLimit: 1500,
     rollupOptions: {
       output: {
-        manualChunks: {
-          // ALL React-hook-using packages in ONE chunk.
-          // ConnectKit, wagmi, zustand, and @tanstack/react-query all call
-          // React hooks — splitting any of them into a separate chunk gives
-          // Rollup two React module nodes = error #185 (invalid hook call).
-          'vendor-react': [
-            'react', 'react-dom', 'react/jsx-runtime',
-            'connectkit',
-            'wagmi', '@tanstack/react-query',
-            'zustand',
-            '@circle-fin/app-kit',
-            '@circle-fin/adapter-viem-v2',
-            '@circle-fin/modular-wallets-core',
-            '@circle-fin/user-controlled-wallets',
-          ],
-          // viem has no React hooks — safe to split.
-          'vendor-viem': ['viem'],
-          // w3s-pw-web-sdk has Node deps (dotenv, firebase, jsonwebtoken) —
-          // keep isolated so its prototype chains don't mix with the React chunk.
-          'vendor-w3s': ['@circle-fin/w3s-pw-web-sdk'],
-          'vendor-ui': ['framer-motion', 'lucide-react', 'sonner', 'qrcode.react'],
+        // Function-based chunking: anything that touches React hooks —
+        // including @reown/appkit* and @walletconnect/* which ConnectKit
+        // pulls in and which each bundle their own React — goes into
+        // vendor-react so there is exactly ONE React module instance.
+        manualChunks(id) {
+          // w3s-pw-web-sdk: has Node deps, keep isolated
+          if (id.includes('@circle-fin/w3s-pw-web-sdk')) return 'vendor-w3s'
+          // UI-only libs with no React hooks
+          if (id.includes('framer-motion') || id.includes('lucide-react') ||
+              id.includes('sonner') || id.includes('qrcode.react')) return 'vendor-ui'
+          // viem: no React hooks, safe to split
+          if (id.includes('/viem/') || id.includes('/node_modules/viem')) return 'vendor-viem'
+          // Everything else in node_modules that could touch React goes into one chunk
+          if (id.includes('node_modules')) return 'vendor-react'
         },
       },
     },
