@@ -112,7 +112,7 @@ export function LandingPage() {
       <div style={{
         position: 'absolute', inset: 0,
         backgroundImage: `url(${cur.img})`,
-        backgroundSize: 'cover', backgroundPosition: 'center top',
+        backgroundSize: 'cover', backgroundPosition: '50% 25%',
         opacity: fading ? 0 : 1, transition: 'opacity 0.3s ease',
       }} />
 
@@ -122,15 +122,13 @@ export function LandingPage() {
         background: 'linear-gradient(180deg, rgba(8,9,14,0.82) 0%, rgba(8,9,14,0.25) 40%, rgba(8,9,14,0.55) 100%)',
       }} />
 
-      {/* ── Navbar ── */}
+      {/* ── Navbar — logo only, fully transparent ── */}
       <nav style={{
         position: 'absolute', top: 0, left: 0, right: 0, zIndex: 20,
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        display: 'flex', alignItems: 'center',
         padding: '0 48px', height: 64,
-        background: 'rgba(10,11,18,0.75)', backdropFilter: 'blur(18px)',
-        borderBottom: '1px solid rgba(255,255,255,0.07)',
+        background: 'transparent',
       }}>
-        {/* Logo */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
           <div style={{ width: 32, height: 32, borderRadius: 9, background: '#0066FF', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 16px rgba(0,102,255,0.5)' }}>
             <svg viewBox="0 0 324 480" width="14" height="20" fill="none">
@@ -139,34 +137,6 @@ export function LandingPage() {
             </svg>
           </div>
           <span style={{ fontWeight: 800, fontSize: 20, letterSpacing: '-0.04em', color: '#fff' }}>nan</span>
-        </div>
-
-        {/* Nav links */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 32 }}>
-          {['Products', 'Agents', 'Resources', 'Build'].map(link => (
-            <button key={link} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.75)', fontSize: 14, fontWeight: 500, fontFamily: F, display: 'flex', alignItems: 'center', gap: 4, transition: 'color 0.15s' }}
-              onMouseEnter={e => (e.currentTarget.style.color = '#fff')}
-              onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.75)')}
-            >
-              {link} {link !== 'Build' && <span style={{ fontSize: 10, opacity: 0.6 }}>▾</span>}
-            </button>
-          ))}
-        </div>
-
-        {/* CTA buttons */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <button
-            onClick={() => setActiveView('login')}
-            style={{ padding: '9px 20px', borderRadius: 50, background: '#0066FF', border: 'none', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', gap: 6 }}
-          >
-            Get started <ArrowRight size={14} />
-          </button>
-          <button
-            onClick={() => setActiveView('login')}
-            style={{ padding: '9px 20px', borderRadius: 50, background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: F, backdropFilter: 'blur(8px)' }}
-          >
-            Sign in
-          </button>
         </div>
       </nav>
 
