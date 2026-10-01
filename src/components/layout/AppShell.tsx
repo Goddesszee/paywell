@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react'
 import {
   Home, Activity, Menu, X, LayoutDashboard,
   ArrowLeftRight, ArrowUpDown, Settings, ChevronRight,
-  Droplet, Layers, Repeat, Bot, Shield,
+  Droplet, Layers, Repeat, Bot,
   MessageSquare, HelpCircle, Info, User, Search, Bookmark,
   Star, Lightbulb, ArrowRight, Clock, ShoppingBag,
 } from 'lucide-react'
@@ -223,12 +223,10 @@ const SIDEBAR_SECTIONS = [
     { id: 'faucet',    label: 'Faucet',    Icon: Droplet,        desc: 'Free testnet USDC' },
   ]},
   { title: 'Automation', items: [
-    { id: 'agent',     label: 'AI Agents',      Icon: Bot,     desc: 'Create and manage agents' },
-    { id: 'agent',     label: 'Agent Spending',  Icon: Shield,  desc: 'Budgets & permissions' },
-    { id: 'recurring', label: 'Recurring',       Icon: Repeat,  desc: 'Scheduled payments' },
+    { id: 'agent',     label: 'AI Agents',  Icon: Bot,    desc: 'Create and manage agents' },
+    { id: 'recurring', label: 'Recurring',  Icon: Repeat, desc: 'Scheduled payments' },
   ]},
   { title: 'Account', items: [
-    { id: 'profile',   label: 'Profile',   Icon: User,     desc: 'Name, avatar & preferences' },
     { id: 'settings',  label: 'Settings',  Icon: Settings, desc: 'Wallet & app settings' },
     { id: 'favorites', label: 'Saved',     Icon: Bookmark, desc: 'Your bookmarked items' },
   ]},
@@ -399,21 +397,30 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             overflow: 'hidden',
             position: 'fixed', top: 0, left: 0, bottom: 0,
           }}>
-            {/* Logo pill — click to open Profile */}
-            <button
-              onClick={() => { handleLogoTap(); go('profile') }}
-              aria-label="Profile"
-              style={{
-                height: TOPBAR_H, flexShrink: 0, display: 'flex', alignItems: 'center',
-                paddingLeft: 16, borderBottom: `1px solid ${C.bdr}`,
-                background: navActive('profile') ? 'rgba(0,102,255,0.07)' : 'transparent',
-                border: 'none', borderBottomColor: C.bdr, borderBottomWidth: 1, borderBottomStyle: 'solid',
-                cursor: 'pointer', userSelect: 'none', width: '100%',
-                transition: 'background 0.12s', WebkitTapHighlightColor: 'transparent',
-              }}
-            >
-              <NanLogo height={32} />
-            </button>
+            {/* Top-left: logo + profile button */}
+            <div style={{
+              height: TOPBAR_H, flexShrink: 0, display: 'flex', alignItems: 'center',
+              justifyContent: 'space-between',
+              paddingLeft: 16, paddingRight: 10,
+              borderBottom: `1px solid ${C.bdr}`,
+            }}>
+              <button onClick={handleLogoTap} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                <NanLogo height={32} />
+              </button>
+              <button
+                onClick={() => go('profile')}
+                aria-label="Profile"
+                style={{
+                  width: 32, height: 32, borderRadius: '50%', flexShrink: 0,
+                  background: navActive('profile') ? 'rgba(0,102,255,0.18)' : C.surf2,
+                  border: `1.5px solid ${navActive('profile') ? 'rgba(0,102,255,0.5)' : C.bdr2}`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  cursor: 'pointer', transition: 'all 0.12s',
+                }}
+              >
+                <User size={15} color={navActive('profile') ? BLUE : C.t2} />
+              </button>
+            </div>
             <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '8px 8px', scrollbarWidth: 'none' }}>
               {SIDEBAR_SECTIONS.map(section => (
                 <div key={section.title} style={{ marginBottom: 4 }}>
@@ -470,15 +477,27 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         transition: 'transform 0.24s cubic-bezier(0.4,0,0.2,1)',
         display: 'flex', flexDirection: 'column',
       }}>
-        {/* Mobile drawer header — logo opens Profile */}
+        {/* Mobile drawer header */}
         <div style={{ height: 52, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingLeft: 16, paddingRight: 12, borderBottom: `1px solid ${C.bdr}`, userSelect: 'none' }}>
-          <button
-            onClick={() => { handleLogoTap(); go('profile') }}
-            aria-label="Profile"
-            style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', WebkitTapHighlightColor: 'transparent' }}
-          >
-            <NanLogo height={28} />
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <button onClick={handleLogoTap} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', WebkitTapHighlightColor: 'transparent' }}>
+              <NanLogo height={28} />
+            </button>
+            {/* Profile button top-left in drawer */}
+            <button
+              onClick={() => go('profile')}
+              aria-label="Profile"
+              style={{
+                width: 30, height: 30, borderRadius: '50%',
+                background: navActive('profile') ? 'rgba(0,102,255,0.18)' : C.surf2,
+                border: `1.5px solid ${navActive('profile') ? 'rgba(0,102,255,0.5)' : C.bdr2}`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
+              }}
+            >
+              <User size={13} color={navActive('profile') ? C.blue : C.t2} />
+            </button>
+          </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <NotificationBell color={C.t2} />
             <button onClick={() => setDrawerOpen(false)} aria-label="Close menu" style={{ width: 30, height: 30, borderRadius: 8, background: C.surf2, border: `1px solid ${C.bdr2}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
