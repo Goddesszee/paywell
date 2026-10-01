@@ -42,6 +42,56 @@
   to     = "/.netlify/functions/onramp-session"
   status = 200
 
+[[redirects]]
+  from   = "/api/feedback"
+  to     = "/.netlify/functions/feedback"
+  status = 200
+
+[[redirects]]
+  from   = "/api/admin/feedback"
+  to     = "/.netlify/functions/feedback"
+  status = 200
+
+[[redirects]]
+  from   = "/api/admin/feedback/*"
+  to     = "/.netlify/functions/feedback"
+  status = 200
+
+[[redirects]]
+  from   = "/api/suggestions"
+  to     = "/.netlify/functions/suggestions"
+  status = 200
+
+[[redirects]]
+  from   = "/api/admin/suggestions"
+  to     = "/.netlify/functions/suggestions"
+  status = 200
+
+[[redirects]]
+  from   = "/api/admin/suggestions/*"
+  to     = "/.netlify/functions/suggestions"
+  status = 200
+
+[[redirects]]
+  from   = "/api/support/tickets"
+  to     = "/.netlify/functions/support"
+  status = 200
+
+[[redirects]]
+  from   = "/api/support/tickets/*"
+  to     = "/.netlify/functions/support"
+  status = 200
+
+[[redirects]]
+  from   = "/api/admin/support/tickets"
+  to     = "/.netlify/functions/support"
+  status = 200
+
+[[redirects]]
+  from   = "/api/admin/support/tickets/*"
+  to     = "/.netlify/functions/support"
+  status = 200
+
 # SPA fallback — must be last
 [[redirects]]
   from   = "/*"
