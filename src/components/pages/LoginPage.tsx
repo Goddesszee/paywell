@@ -101,25 +101,12 @@ export function LoginPage() {
     )
   }
 
-  // ── choose mode — the main auth picker ────────────────────────────────────
+  // ── choose mode — email first, wallet as alternative ─────────────────────
   return wrap(
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
 
-      {/* Wallet */}
-      <button onClick={() => setMode('wallet')} style={btnS(BLUE, '#fff')}>
-        <Wallet size={17} />
-        <span>Continue with Wallet</span>
-      </button>
-
-      {/* Divider */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '4px 0' }}>
-        <div style={{ flex: 1, height: 1, background: BORDER }} />
-        <span style={{ fontSize: 12, color: TEXT3, fontWeight: 500 }}>or</span>
-        <div style={{ flex: 1, height: 1, background: BORDER }} />
-      </div>
-
-      {/* Email */}
-      <button onClick={() => setMode('email')} style={btnS(SURFACE, TEXT, BORDER)}>
+      {/* Email — primary CTA */}
+      <button onClick={() => setMode('email')} style={btnS(BLUE, '#fff')}>
         <MailIcon />
         <span>Continue with Email</span>
       </button>
@@ -130,8 +117,21 @@ export function LoginPage() {
         <span>Continue with Google</span>
       </button>
 
+      {/* Divider */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '4px 0' }}>
+        <div style={{ flex: 1, height: 1, background: BORDER }} />
+        <span style={{ fontSize: 12, color: TEXT3, fontWeight: 500 }}>or</span>
+        <div style={{ flex: 1, height: 1, background: BORDER }} />
+      </div>
+
+      {/* Wallet */}
+      <button onClick={() => setMode('wallet')} style={btnS(SURFACE, TEXT, BORDER)}>
+        <Wallet size={17} />
+        <span>Continue with Wallet</span>
+      </button>
+
       <p style={{ fontSize: 12, color: TEXT3, textAlign: 'center', marginTop: 14, lineHeight: 1.6 }}>
-        By continuing you agree to Nan's Terms of Service and Privacy Policy.
+        New here? We'll create your Circle wallet automatically.
       </p>
     </div>
   )
