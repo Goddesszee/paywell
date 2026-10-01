@@ -90,5 +90,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   }
 
+  // ── verify-otp ────────────────────────────────────────────────────────────
+  if (action === 'verify-otp') {
+    const { otpToken, otpCode, deviceToken, deviceEncryptionKey } = body
+    if (!otpToken || !otpCode) return res.status(400).json({ error: 'otpToken and otpCode required' })
+    try {
+      const response = await client.verifyOtpToken({
+        otpToken,
+        otpCode,
+        deviceToken,
+        deviceEncryptionKey,
+      })
+      const { userToken, encryptionKey } = response.data ?? {}
+      return res.json({ userToken, encryptionKey })
+    } catch (err: unknown) {
+      const code = (err as { response?: { data?: { code?: number } } })?.response?.data?.code
+      const msg  = err instanceof Error ? err.message : 'Verification failed'
+      if (code === 155106 || msg.toLowerCase().includes('already')) {
+        return res.json({ code: 155106, message: 'User already initialized' })
+      }
+      return res.status(400).json({ error: msg })
+    }
+  }
+
   return res.status(400).json({ error: `Unknown action: ${action ?? '(none)'}` })
 }
