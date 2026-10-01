@@ -112,7 +112,7 @@ export function LandingPage() {
       <div style={{
         position: 'absolute', inset: 0,
         backgroundImage: `url(${cur.img})`,
-        backgroundSize: 'cover', backgroundPosition: 'center center',
+        backgroundSize: 'cover', backgroundPosition: 'center top',
         opacity: fading ? 0 : 1, transition: 'opacity 0.3s ease',
       }} />
 
