@@ -20,6 +20,9 @@
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node'
+import { getRedis } from './_redis'
+
+const REDIS_KEY = 'nan:agent-registry:v1'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -249,11 +252,42 @@ const SEED_AGENTS: RegisteredAgent[] = [
   },
 ]
 
-// ── In-memory store (swap for Redis/Postgres in production) ──────────────────
+// ── Registry: in-memory seeded from Redis when available ─────────────────────
 
 const REGISTRY = new Map<string, RegisteredAgent>(
   SEED_AGENTS.map(a => [a.agent_id, a])
 )
+
+async function loadFromRedis() {
+  const redis = getRedis()
+  if (!redis) return
+  try {
+    const stored = await redis.get<Record<string, RegisteredAgent>>(REDIS_KEY)
+    if (stored && typeof stored === 'object') {
+      for (const [id, agent] of Object.entries(stored)) {
+        // Only load non-seed agents from Redis to avoid overwriting built-ins
+        if (!SEED_AGENTS.find(s => s.agent_id === id)) {
+          REGISTRY.set(id, agent)
+        }
+      }
+    }
+  } catch { /* Redis unavailable — continue with in-memory */ }
+}
+
+async function saveToRedis() {
+  const redis = getRedis()
+  if (!redis) return
+  try {
+    const snapshot: Record<string, RegisteredAgent> = {}
+    for (const [id, agent] of REGISTRY.entries()) {
+      snapshot[id] = agent
+    }
+    await redis.set(REDIS_KEY, snapshot)
+  } catch { /* ignore */ }
+}
+
+// Load on cold start
+void loadFromRedis()
 
 // ── Validation ────────────────────────────────────────────────────────────────
 
@@ -340,6 +374,7 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     REGISTRY.set(agent_id, newAgent)
+    void saveToRedis()
     return res.status(201).json({ agent: newAgent, message: 'Agent registered. Status: pending — will become discoverable after verification.' })
   }
 
@@ -359,6 +394,7 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
       updated_at: new Date().toISOString(),
     }
     REGISTRY.set(agent_id, updated)
+    void saveToRedis()
     return res.status(200).json({ agent: updated })
   }
 

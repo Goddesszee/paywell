@@ -298,7 +298,7 @@ export function BridgePage() {
               <div style={{ flex:1 }}>
                 <div style={{ fontSize:13, fontWeight:500, color:T }}>{step.label}</div>
                 {step.txHash && (
-                  <a href={`${fromChain.explorer}${step.txHash}`} target="_blank" rel="noreferrer"
+                  <a href={`${step.name === 'mint' ? toChain.explorer : fromChain.explorer}${step.txHash}`} target="_blank" rel="noreferrer"
                     style={{ fontSize:11, color:T2, display:'flex', alignItems:'center', gap:4, marginTop:2 }}>
                     {step.txHash.slice(0,10)}…{step.txHash.slice(-6)} <ExternalLink size={10} />
                   </a>

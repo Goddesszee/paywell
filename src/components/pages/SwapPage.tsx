@@ -15,19 +15,21 @@ const CHAIN_KEY = 'Arc_Testnet'
 
 // ── Token registry with logos + addresses ─────────────────────────────────────
 // Addresses on Arc Testnet (chainId 5042002). null = native/no ERC-20 on this chain.
-const TOKEN_META: Record<string, { label: string; color: string; address: `0x${string}` | null; decimals: number; logo: string }> = {
+const TOKEN_META: Record<string, { label: string; color: string; address: `0x${string}` | null; decimals: number; logo: string; arcUnsupported?: boolean }> = {
   USDC:  { label: 'USD Coin',        color: '#2775CA', address: '0x3600000000000000000000000000000000000000', decimals: 6,  logo: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48/logo.png' },
   EURC:  { label: 'Euro Coin',       color: '#0099CC', address: '0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a', decimals: 6,  logo: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x1aBaEA1f7C830bD89Acc67eC4af516284b1bC33c/logo.png' },
-  USDT:  { label: 'Tether USD',      color: '#26A17B', address: null, decimals: 6,  logo: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xdAC17F958D2ee523a2206206994597C13D831ec7/logo.png' },
-  PYUSD: { label: 'PayPal USD',      color: '#0070BA', address: null, decimals: 6,  logo: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x6c3ea9036406852006290770BEdFcAbA0e23A0e8/logo.png' },
-  DAI:   { label: 'Dai',             color: '#F5A623', address: null, decimals: 18, logo: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x6B175474E89094C44Da98b954EedeAC495271d0F/logo.png' },
-  USDE:  { label: 'Ethena USDe',     color: '#8B5CF6', address: null, decimals: 18, logo: 'https://assets.coingecko.com/coins/images/33613/small/usde.png' },
-  WBTC:  { label: 'Wrapped Bitcoin',  color: '#F7931A', address: null, decimals: 8,  logo: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599/logo.png' },
-  WETH:  { label: 'Wrapped Ether',   color: '#627EEA', address: null, decimals: 18, logo: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png' },
-  WSOL:  { label: 'Wrapped SOL',     color: '#9945FF', address: null, decimals: 9,  logo: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/solana/info/logo.png' },
-  WAVAX: { label: 'Wrapped AVAX',    color: '#E84142', address: null, decimals: 18, logo: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/avalanchec/info/logo.png' },
-  WPOL:  { label: 'Wrapped POL',     color: '#8247E5', address: null, decimals: 18, logo: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/polygon/info/logo.png' },
-  NATIVE:{ label: 'Native Gas (USDC)',color:'#2775CA', address: null, decimals: 18, logo: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48/logo.png' },
+  // Tokens below have no deployed contract on Arc Testnet — they are shown in
+  // the selector for cross-chain awareness but flagged as unavailable on this chain.
+  USDT:  { label: 'Tether USD',       color: '#26A17B', address: null, decimals: 6,  logo: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xdAC17F958D2ee523a2206206994597C13D831ec7/logo.png',  arcUnsupported: true },
+  PYUSD: { label: 'PayPal USD',       color: '#0070BA', address: null, decimals: 6,  logo: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x6c3ea9036406852006290770BEdFcAbA0e23A0e8/logo.png',  arcUnsupported: true },
+  DAI:   { label: 'Dai',              color: '#F5A623', address: null, decimals: 18, logo: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x6B175474E89094C44Da98b954EedeAC495271d0F/logo.png',  arcUnsupported: true },
+  USDE:  { label: 'Ethena USDe',      color: '#8B5CF6', address: null, decimals: 18, logo: 'https://assets.coingecko.com/coins/images/33613/small/usde.png',                                                                                   arcUnsupported: true },
+  WBTC:  { label: 'Wrapped Bitcoin',  color: '#F7931A', address: null, decimals: 8,  logo: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599/logo.png',  arcUnsupported: true },
+  WETH:  { label: 'Wrapped Ether',    color: '#627EEA', address: null, decimals: 18, logo: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png',  arcUnsupported: true },
+  WSOL:  { label: 'Wrapped SOL',      color: '#9945FF', address: null, decimals: 9,  logo: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/solana/info/logo.png',                                                    arcUnsupported: true },
+  WAVAX: { label: 'Wrapped AVAX',     color: '#E84142', address: null, decimals: 18, logo: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/avalanchec/info/logo.png',                                                arcUnsupported: true },
+  WPOL:  { label: 'Wrapped POL',      color: '#8247E5', address: null, decimals: 18, logo: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/polygon/info/logo.png',                                                   arcUnsupported: true },
+  NATIVE:{ label: 'Native Gas (USDC)',color: '#2775CA', address: null, decimals: 18, logo: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48/logo.png' },
 }
 
 const TOKENS = Object.keys(TOKEN_META)
@@ -121,7 +123,10 @@ function TokenModal({ current, exclude, onSelect, onClose, c }: {
                 <TokenLogo symbol={t} size={36} />
                 <div style={{ textAlign: 'left' }}>
                   <div style={{ fontSize: 14, fontWeight: 700, color: t === current ? c.blue : c.text }}>{t}</div>
-                  <div style={{ fontSize: 11, color: c.t3 }}>{TOKEN_META[t].label}</div>
+                  <div style={{ fontSize: 11, color: c.t3 }}>
+                    {TOKEN_META[t].label}
+                    {TOKEN_META[t].arcUnsupported && <span style={{ marginLeft: 6, fontSize: 10, color: '#F59E0B', fontWeight: 600 }}>· Not on Arc Testnet</span>}
+                  </div>
                 </div>
               </div>
               {t === current && <CheckCircle size={16} color={c.blue} />}
@@ -239,7 +244,8 @@ export function SwapPage() {
 
   const arcNoPair = (tokenIn === 'USDC' && tokenOut === 'NATIVE') || (tokenIn === 'NATIVE' && tokenOut === 'USDC')
   const sameToken = tokenIn === tokenOut
-  const invalid   = sameToken || arcNoPair
+  const arcUnsupportedPair = !!(TOKEN_META[tokenIn]?.arcUnsupported || TOKEN_META[tokenOut]?.arcUnsupported)
+  const invalid   = sameToken || arcNoPair || arcUnsupportedPair
   const canReview = isConnected && !!amountIn && parseFloat(amountIn) > 0 && !invalid
 
   const addrShort = address ? `${address.slice(0, 4)}…${address.slice(-4)}` : ''
@@ -398,10 +404,14 @@ export function SwapPage() {
       </div>
 
       {/* ── Warnings ── */}
-      {(sameToken || arcNoPair) && (
+      {(sameToken || arcNoPair || arcUnsupportedPair) && (
         <div className="nan-warn-box" style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
           <AlertCircle size={14} />
-          <span>{arcNoPair ? 'USDC and NATIVE are the same asset on Arc.' : 'Choose different tokens to swap.'}</span>
+          <span>
+            {arcNoPair ? 'USDC and NATIVE are the same asset on Arc.'
+              : sameToken ? 'Choose different tokens to swap.'
+              : `${TOKEN_META[tokenIn]?.arcUnsupported ? tokenIn : tokenOut} is not available on Arc Testnet. Bridge to another chain to trade it.`}
+          </span>
         </div>
       )}
 
@@ -448,6 +458,7 @@ export function SwapPage() {
             : phase === 'swapping' ? <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}><span className="nan-spinner" />Swapping…</span>
             : !isConnected ? 'Connect wallet to swap'
             : !amountIn || parseFloat(amountIn) === 0 ? 'Enter an amount'
+            : arcUnsupportedPair ? 'Token not available on Arc Testnet'
             : invalid ? 'Select different tokens'
             : 'Get quote'}
         </button>

@@ -38,7 +38,7 @@ export function OnrampPage() {
     if (!isConnected || !address) { setError('Connect your wallet first'); return }
     setLoading(true); setError(null)
     try {
-      const res = await fetch('/api/onramp-session', { method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({ appUserId:address, destinationAddress:address, amount:String(amount) }) })
+      const res = await fetch('/api/onramp-session', { method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({ appUserId:address, destinationAddress:address, amount:String(amount), paymentMethod:method, blockchain:'ARC-TESTNET' }) })
       if (!res.ok) {
         if (res.status === 503) { setError('Add CIRCLE_API_KEY to Vercel environment variables to activate onramp'); return }
         const err = await res.json().catch(() => ({ message:`HTTP ${res.status}` }))
@@ -129,7 +129,7 @@ export function OnrampPage() {
           <button onClick={() => setLaunched(false)} style={{ padding:'11px 24px', borderRadius:12, background:BLUE, color:'#fff', border:'none', cursor:'pointer', fontSize:14, fontWeight:600, fontFamily:F }}>Buy more USDC</button>
         </div>
       ) : (
-        <button onClick={handleBuy} disabled={loading || !isConnected} style={{ width:'100%', height:54, borderRadius:14, background:loading||!isConnected?SURF:BLUE, color:loading||!isConnected?T2:'#fff', border:'none', cursor:loading||!isConnected?'not-allowed':'pointer', fontSize:15, fontWeight:700, fontFamily:F, display:'flex', alignItems:'center', justifyContent:'center', gap:8, transition:'all 0.15s' }}>
+        <button onClick={() => { void handleBuy() }} disabled={loading || !isConnected} style={{ width:'100%', height:54, borderRadius:14, background:loading||!isConnected?SURF:BLUE, color:loading||!isConnected?T2:'#fff', border:'none', cursor:loading||!isConnected?'not-allowed':'pointer', fontSize:15, fontWeight:700, fontFamily:F, display:'flex', alignItems:'center', justifyContent:'center', gap:8, transition:'all 0.15s' }}>
           {loading ? 'Loading…' : `Buy $${amount} USDC →`}
         </button>
       )}

@@ -73,6 +73,19 @@ function Donut({ value, label, color = BLUE }: { value: string; label: string; c
 }
 
 // ── main ──────────────────────────────────────────────────────────────────────
+// ── Live NGN/USD exchange rate ─────────────────────────────────────────────────
+interface ErApiResponse { rates?: Record<string, number> }
+function useNgnRate() {
+  const [rate, setRate] = useState<number>(1630) // sensible fallback
+  useEffect(() => {
+    void fetch('https://open.er-api.com/v6/latest/USD')
+      .then(r => r.json() as Promise<ErApiResponse>)
+      .then(d => { if (d?.rates?.NGN) setRate(Number(d.rates.NGN)) })
+      .catch(() => {}) // keep fallback silently
+  }, [])
+  return rate
+}
+
 export function DashboardPage() {
   const C = useNanTheme()
   const { address } = useAccount()
@@ -81,6 +94,7 @@ export function DashboardPage() {
   const [period, setPeriod] = useState<PerfPeriod>('24H')
   const [showReceive, setShowReceive] = useState(false)
   const [copied, setCopied] = useState(false)
+  const ngnRate = useNgnRate()
 
   const copyAddress = () => {
     if (!address) return
@@ -180,7 +194,7 @@ export function DashboardPage() {
               </div>
             )}
             <div style={{ fontSize: 13, color: C.t3, marginTop: 6 }}>
-              ≈ NGN {hidden ? '•••••' : (numVal * 1630).toLocaleString('en', { maximumFractionDigits: 0 })}
+              ≈ NGN {hidden ? '•••••' : (numVal * ngnRate).toLocaleString('en', { maximumFractionDigits: 0 })}
             </div>
           </div>
 

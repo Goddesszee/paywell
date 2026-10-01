@@ -94,6 +94,23 @@ export interface OfferNegotiation {
   createdAt: string
 }
 
+// ── Recurring Payment Task ─────────────────────────────────────────────────────
+export type RecurringFrequency = 'manual' | 'daily' | 'weekly' | 'monthly'
+
+export interface RecurringTask {
+  id: string
+  name: string
+  recipient: string
+  amount: string
+  active: boolean
+  frequency: RecurringFrequency
+  nextRunAt?: string   // ISO — only set when frequency !== 'manual'
+  lastRun?: string
+  lastTxHash?: string
+  runCount: number
+  createdAt: string
+}
+
 export type ActivityType = 'received' | 'sent' | 'purchase' | 'agent_purchase' | 'request' | 'bridge' | 'swap'
 
 // ── Platform fee revenue tracking ─────────────────────────────────────────────
@@ -275,6 +292,13 @@ interface AppState {
   // ── User profile ────────────────────────────────────────────────────────────
   profile: UserProfile
   setProfile: (p: Partial<UserProfile>) => void
+
+  // ── Recurring payments ─────────────────────────────────────────────────────
+  recurringTasks: RecurringTask[]
+  addRecurringTask: (task: Omit<RecurringTask, 'id' | 'createdAt' | 'runCount'>) => string
+  updateRecurringTask: (id: string, patch: Partial<RecurringTask>) => void
+  removeRecurringTask: (id: string) => void
+  recordRecurringRun: (id: string, txHash: string) => void
 
   // ── Phase 3: A2A payments + task history ───────────────────────────────────
   a2aPayments: A2APaymentRecord[]
@@ -722,6 +746,34 @@ export const useAppStore = create<AppState>()(
       },
       setProfile: (p) => set((s) => ({ profile: { ...s.profile, ...p } })),
 
+      // ── Recurring payments ────────────────────────────────────────────────────
+      recurringTasks: [],
+      addRecurringTask: (task) => {
+        const id = `rec-${Date.now()}-${Math.random().toString(36).slice(2,6)}`
+        set((s) => ({
+          recurringTasks: [...s.recurringTasks, { ...task, id, runCount: 0, createdAt: new Date().toISOString() }],
+        }))
+        return id
+      },
+      updateRecurringTask: (id, patch) =>
+        set((s) => ({ recurringTasks: s.recurringTasks.map(t => t.id === id ? { ...t, ...patch } : t) })),
+      removeRecurringTask: (id) =>
+        set((s) => ({ recurringTasks: s.recurringTasks.filter(t => t.id !== id) })),
+      recordRecurringRun: (id, txHash) =>
+        set((s) => {
+          const now = new Date()
+          return {
+            recurringTasks: s.recurringTasks.map(t => {
+              if (t.id !== id) return t
+              let nextRunAt: string | undefined
+              if (t.frequency === 'daily')   nextRunAt = new Date(now.getTime() + 86400000).toISOString()
+              if (t.frequency === 'weekly')  nextRunAt = new Date(now.getTime() + 7*86400000).toISOString()
+              if (t.frequency === 'monthly') nextRunAt = new Date(now.getFullYear(), now.getMonth()+1, now.getDate()).toISOString()
+              return { ...t, lastRun: now.toLocaleString(), lastTxHash: txHash, runCount: t.runCount+1, nextRunAt }
+            }),
+          }
+        }),
+
       // ── Phase 3: A2A payments + task history ──────────────────────────────────
       a2aPayments: [],
       addA2APayment: (record) =>
@@ -752,6 +804,7 @@ export const useAppStore = create<AppState>()(
         favorites: s.favorites,
         recentSearches: s.recentSearches,
         profile: s.profile,
+        recurringTasks: s.recurringTasks,
         a2aPayments: s.a2aPayments,
         a2aTasks: s.a2aTasks,
       }),
@@ -785,6 +838,7 @@ export const useAppStore = create<AppState>()(
           favorites: p.favorites ?? current.favorites ?? [],
           recentSearches: p.recentSearches ?? current.recentSearches ?? [],
           profile: p.profile ?? current.profile ?? current.profile,
+          recurringTasks: p.recurringTasks ?? current.recurringTasks ?? [],
           a2aPayments: p.a2aPayments ?? current.a2aPayments ?? [],
           a2aTasks: p.a2aTasks ?? current.a2aTasks ?? [],
         }
