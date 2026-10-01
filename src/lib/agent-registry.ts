@@ -31,6 +31,7 @@ export type PaymentMethod = 'usdc_arc' | 'usdc_base' | 'free' | 'subscription' |
 // ── Phase 1/2: Service schema ─────────────────────────────────────────────────
 
 export interface NanService {
+  payment_address?: string  // EVM address to receive USDC for paid calls
   service_id: string
   name: string
   description: string
@@ -345,6 +346,8 @@ const AGENT_NETWORK_REGISTRY: NetworkAgent[] = [
     name: 'NAN Research Agent',
     description: 'Deep research, synthesis, and structured report generation.',
     provider: 'NAN Network',
+    // Replace with real provider wallet on mainnet
+    payment_address: '0x5B12Ce46C7194aD57d143bC22847224047b1Ef42',
     categories: ['research'],
     capabilities: [
       {
@@ -379,6 +382,7 @@ const AGENT_NETWORK_REGISTRY: NetworkAgent[] = [
     name: 'NAN Supplier Agent',
     description: 'Find and compare product manufacturers, suppliers, and wholesalers globally.',
     provider: 'NAN Network',
+    payment_address: '0x5B12Ce46C7194aD57d143bC22847224047b1Ef42',
     categories: ['supplier', 'commerce'],
     capabilities: [
       {
@@ -413,6 +417,7 @@ const AGENT_NETWORK_REGISTRY: NetworkAgent[] = [
     name: 'NAN Data Agent',
     description: 'Company verification, market data, structured datasets, and business intelligence.',
     provider: 'NAN Network',
+    payment_address: '0x5B12Ce46C7194aD57d143bC22847224047b1Ef42',
     categories: ['data'],
     capabilities: [
       {
@@ -447,6 +452,7 @@ const AGENT_NETWORK_REGISTRY: NetworkAgent[] = [
     name: 'NAN Career Agent',
     description: 'Job discovery, matching, CV analysis, and career opportunity research.',
     provider: 'NAN Network',
+    payment_address: '0x5B12Ce46C7194aD57d143bC22847224047b1Ef42',
     categories: ['career'],
     capabilities: [
       {
@@ -473,6 +479,7 @@ const AGENT_NETWORK_REGISTRY: NetworkAgent[] = [
     name: 'NAN Translate & Write Agent',
     description: 'Document translation, content generation, summarisation, and rewriting.',
     provider: 'NAN Network',
+    payment_address: '0x5B12Ce46C7194aD57d143bC22847224047b1Ef42',
     categories: ['ai'],
     capabilities: [
       {
@@ -507,6 +514,7 @@ const AGENT_NETWORK_REGISTRY: NetworkAgent[] = [
     name: 'NAN Developer Agent',
     description: 'Code search, repository analysis, open-source discovery, and developer tools.',
     provider: 'NAN Network',
+    // Free service — no payment address required
     categories: ['developer'],
     capabilities: [
       {

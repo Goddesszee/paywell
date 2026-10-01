@@ -39,6 +39,7 @@ export type PaymentStatus =
   | 'not_required'
   | 'pending'
   | 'authorized'
+  | 'paying'
   | 'confirmed'
   | 'failed'
   | 'blocked_by_policy'
@@ -396,14 +397,27 @@ export interface A2AProgress {
   data?: unknown
 }
 
+/**
+ * Real USDC payment callback — called for each paid subtask.
+ * Must transfer `amount_usdc` (as USDC with 6 decimals) to `recipientAddress`.
+ * Returns the on-chain tx hash, or throws on failure.
+ */
+export type ExecutePaymentFn = (opts: {
+  recipientAddress: string
+  amount_usdc: number
+  subtaskLabel: string
+}) => Promise<string>
+
 export async function runA2ATask(opts: {
   userRequest: string
   policy: AgentPolicy
   onProgress: (p: A2AProgress) => void
   onPaymentRecord: (r: A2APaymentRecord) => void
   onConfirmationRequired: (estimate: CostEstimate) => Promise<boolean>
+  /** Real on-chain USDC transfer. If omitted, paid subtasks are skipped. */
+  executePayment?: ExecutePaymentFn
 }): Promise<A2ATask> {
-  const { userRequest, policy, onProgress, onPaymentRecord, onConfirmationRequired } = opts
+  const { userRequest, policy, onProgress, onPaymentRecord, onConfirmationRequired, executePayment } = opts
   const taskId = `a2a-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
   const startedAt = Date.now()
 
@@ -477,8 +491,29 @@ export async function runA2ATask(opts: {
     await delay(300 + Math.random() * 400)
 
     try {
-      const result = await executeSubtask(sub, userRequest)
       const cost = sub.agentRef?.price_usdc ?? sub.serviceRef?.price_usdc ?? 0
+
+      // ── Real on-chain USDC payment ────────────────────────────────────────
+      let txId: string | undefined
+      if (cost > 0) {
+        const agent = sub.agentRef ? getNetworkAgentById(sub.agentRef.agentId) : null
+        const recipientAddress = agent?.payment_address ?? sub.serviceRef?.payment_address
+        if (!recipientAddress) {
+          throw new Error(`No payment address for ${agentName}. Cannot pay.`)
+        }
+        if (!executePayment) {
+          throw new Error(`Payment of ${cost} USDC required for ${agentName} but no wallet connected. Please connect your wallet.`)
+        }
+        onProgress({ step: 'execute', message: `Paying ${cost} USDC to ${agentName}…`, subtaskIndex: i, subtaskLabel: sub.label })
+        finalSubtasks[i] = { ...finalSubtasks[i], paymentStatus: 'paying' }
+        txId = await executePayment({ recipientAddress, amount_usdc: cost, subtaskLabel: sub.label })
+        finalSubtasks[i] = { ...finalSubtasks[i], paymentStatus: 'confirmed', paymentTxId: txId }
+        onProgress({ step: 'execute', message: `Payment confirmed · tx ${txId.slice(0, 10)}…`, subtaskIndex: i, subtaskLabel: sub.label })
+      }
+      // ─────────────────────────────────────────────────────────────────────
+
+      onProgress({ step: 'execute', message: `Executing ${agentName}…`, subtaskIndex: i, subtaskLabel: sub.label })
+      const result = await executeSubtask(sub, userRequest)
       paidUsdc += cost
 
       finalSubtasks[i] = {
@@ -486,6 +521,7 @@ export async function runA2ATask(opts: {
         status: 'complete',
         result,
         paymentStatus: cost > 0 ? 'confirmed' : 'not_required',
+        paymentTxId: txId,
         completedAt: Date.now(),
       }
 
@@ -496,6 +532,7 @@ export async function runA2ATask(opts: {
         policy_decision: 'allowed',
         approval_status: policyResult.requiresConfirmation ? 'user_approved' : 'auto_approved',
       })
+      if (txId) payRec.tx_id = txId
       onPaymentRecord(payRec)
 
       onProgress({
@@ -506,7 +543,7 @@ export async function runA2ATask(opts: {
       })
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : 'Unknown error'
-      finalSubtasks[i] = { ...finalSubtasks[i], status: 'failed', error: errMsg, completedAt: Date.now() }
+      finalSubtasks[i] = { ...finalSubtasks[i], status: 'failed', error: errMsg, paymentStatus: 'failed', completedAt: Date.now() }
       onProgress({ step: 'error', message: `${agentName} failed: ${errMsg}`, subtaskIndex: i })
     }
   }

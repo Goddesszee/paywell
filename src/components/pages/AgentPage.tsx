@@ -918,8 +918,16 @@ function AgentDetail({ agent, onBack }: { agent: NetworkAgent; onBack: () => voi
 
 // Multi-Agent Orchestrator
 
+const USDC_TRANSFER_ABI_A2A = [{
+  name: 'transfer', type: 'function', stateMutability: 'nonpayable',
+  inputs: [{ name: 'to', type: 'address' }, { name: 'value', type: 'uint256' }],
+  outputs: [{ name: '', type: 'bool' }],
+}] as const
+
 function MultiAgentOrchestrator() {
   const { agentPermissions, agentDailyUsed, addA2ATask, addA2APayment, addExecutionLog } = useAppStore()
+  const { address, chainId } = useAccount()
+  const { writeContractAsync } = useWriteContract()
   const [request, setRequest] = useState('')
   const [subtasks, setSubtasks] = useState<Subtask[]>([])
   const [estimate, setEstimate] = useState<CostEstimate | null>(null)
@@ -927,6 +935,21 @@ function MultiAgentOrchestrator() {
   const [progress, setProgress] = useState<A2AProgress[]>([])
   const [finalResult, setFinalResult] = useState('')
   const [_taskId, _setTaskId] = useState('')
+
+  // Real on-chain USDC payment to agent wallet
+  const executePayment = async (opts: { recipientAddress: string; amount_usdc: number; subtaskLabel: string }) => {
+    if (!address || !chainId) throw new Error('Wallet not connected. Please connect your wallet to pay agents.')
+    const usdc = getUsdc(chainId)
+    if (!usdc) throw new Error(`USDC not configured for chain ${chainId}`)
+    const value = parseUnits(opts.amount_usdc.toFixed(6), usdc.decimals)
+    const hash = await writeContractAsync({
+      address: usdc.address as `0x${string}`,
+      abi: USDC_TRANSFER_ABI_A2A,
+      functionName: 'transfer',
+      args: [opts.recipientAddress as `0x${string}`, value],
+    })
+    return hash
+  }
 
   const plan = async () => {
     if (!request.trim()) return
@@ -966,10 +989,8 @@ function MultiAgentOrchestrator() {
         policy,
         onProgress: (p: A2AProgress) => setProgress(prev => [...prev, p]),
         onPaymentRecord: (r) => addA2APayment(r),
-        onConfirmationRequired: async (_est) => {
-          // auto-approve if within policy — user already saw estimate screen
-          return true
-        },
+        onConfirmationRequired: async (_est) => true, // user confirmed at estimate screen
+        executePayment: address && chainId ? executePayment : undefined,
       })
       setFinalResult(task.finalResult ?? 'Task completed.')
       addA2ATask(task)
