@@ -353,7 +353,20 @@ function AgentChat() {
         setTyping(false)
         // Sanitise any leaked internal command syntax before showing to user
         const clean = res.reply.replace(/__[A-Z_]+__:[a-z\-]+/g, '').trim()
-        addAgentMessage({ role:'agent', content:clean || res.reply, action:'info' })
+        const SERVICE_LABELS: Record<string, string> = {
+          'coingecko-prices': 'CoinGecko live prices',
+          'exchangerate-fx': 'ExchangeRate-API live rates',
+          'skyscanner-flights': 'Skyscanner flight search',
+          'amadeus-hotels': 'Amadeus hotel search',
+          'github-code-search': 'GitHub search',
+          'perplexity-research': 'Perplexity deep research',
+          'brave-search': 'Brave Search',
+          'serper-search': 'Google Search via Serper',
+          'alibaba-suppliers': 'Supplier directory',
+          'openai-completion': 'OpenAI',
+        }
+        const serviceLabel = res.service_used ? (SERVICE_LABELS[res.service_used] ?? res.service_used) : undefined
+        addAgentMessage({ role:'agent', content:clean || res.reply, action:'info', serviceSource: serviceLabel })
         return
       }
     } catch { /* fall through to orchestration */ }
@@ -471,7 +484,14 @@ function MsgBubble({ msg, onApprove, onReject }: { msg:AgentMessage; onApprove:(
         )}
         {msg.action==='purchase_request' && msg.approved===true && <div style={{ fontSize:11, color:BLACK, fontWeight:600, display:'flex', alignItems:'center', gap:4 }}><Check size={11} /> Approved</div>}
         {msg.action==='purchase_request' && msg.approved===false && <div style={{ fontSize:11, color:TEXT3, fontWeight:500, display:'flex', alignItems:'center', gap:4 }}><X size={11} /> Declined</div>}
-        <div style={{ fontSize:10, color:TEXT3 }}>{formatRelativeTime(msg.timestamp)}</div>
+        <div style={{ display:'flex', alignItems:'center', gap:6, flexWrap:'wrap' }}>
+          <div style={{ fontSize:10, color:TEXT3 }}>{formatRelativeTime(msg.timestamp)}</div>
+          {msg.serviceSource && (
+            <div style={{ fontSize:10, fontWeight:600, color:'#0066FF', background:'rgba(0,102,255,0.08)', border:'1px solid rgba(0,102,255,0.2)', borderRadius:6, padding:'1px 7px', display:'flex', alignItems:'center', gap:3 }}>
+              <Zap size={9} color='#0066FF' /> {msg.serviceSource}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )

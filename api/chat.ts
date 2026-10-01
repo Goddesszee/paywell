@@ -1,5 +1,52 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 
+// ── Intent classifier (mirrors src/lib/agent-orchestrator.ts) ─────────────────
+type ServiceIntent = { service_id: string; query: string } | null
+
+function classifyToService(message: string): ServiceIntent {
+  const lower = message.toLowerCase()
+  // Crypto prices
+  if (/bitcoin|ethereum|btc|eth|solana|bnb|crypto price|coin price|token price|market cap|dogecoin|ripple|xrp/.test(lower))
+    return { service_id: 'coingecko-prices', query: message }
+  // Forex / currency exchange
+  if (/exchange rate|usd to|dollar to|naira|ngn|gbp|forex|convert.*currency|currency.*convert|how much is.*in/.test(lower))
+    return { service_id: 'exchangerate-fx', query: message }
+  // Flights
+  if (/flight|cheapest flight|fly from|fly to|book.*flight|airline|ticket to|travel to.*by plane/.test(lower))
+    return { service_id: 'skyscanner-flights', query: message }
+  // Hotels
+  if (/hotel|accommodation|where to stay|hostel|airbnb|book.*hotel|place to stay/.test(lower))
+    return { service_id: 'amadeus-hotels', query: message }
+  // GitHub / code search
+  if (/github|open source|repository|npm package|library for|code for|find.*package|find.*library/.test(lower))
+    return { service_id: 'github-code-search', query: message }
+  // Deep research
+  if (/research|analyze|deep dive|comprehensive overview|explain in detail|compare.*options|summarize.*topic/.test(lower))
+    return { service_id: 'perplexity-research', query: message }
+  // Suppliers
+  if (/supplier|manufacturer|wholesale|factory|alibaba|bulk buy|product sourcing/.test(lower))
+    return { service_id: 'alibaba-suppliers', query: message }
+  // Web search — catch-all for factual lookups
+  if (/search for|look up|what is the latest|current news|who is|where is|find information|tell me about|news about/.test(lower)) {
+    if (process.env.SERPER_API_KEY) return { service_id: 'serper-search', query: message }
+    if (process.env.BRAVE_SEARCH_API_KEY) return { service_id: 'brave-search', query: message }
+  }
+  return null
+}
+
+async function callAgentExecute(service_id: string, query: string, baseUrl: string): Promise<string | null> {
+  try {
+    const r = await fetch(`${baseUrl}/api/agent-execute`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ service_id, query }),
+    })
+    if (!r.ok) return null
+    const d = await r.json() as { result?: string; error?: string }
+    return d.result ?? null
+  } catch { return null }
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
@@ -25,6 +72,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
   if (!message) return res.status(400).json({ error: 'message required' })
 
+  // ── Live service call ─────────────────────────────────────────────────────────
+  // Classify intent and call the real external service if applicable.
+  // The result is injected into the system prompt so the LLM synthesises it.
+  let liveServiceResult: string | null = null
+  let liveServiceId: string | null = null
+  const serviceIntent = classifyToService(message)
+  if (serviceIntent) {
+    const host = req.headers.host ?? 'localhost:3001'
+    const proto = host.includes('localhost') ? 'http' : 'https'
+    const baseUrl = `${proto}://${host}`
+    liveServiceResult = await callAgentExecute(serviceIntent.service_id, serviceIntent.query, baseUrl)
+    liveServiceId = serviceIntent.service_id
+  }
+
   // x402 gate — if SELLER_ADDRESS set, require payment header
   const sellerAddr = process.env.SELLER_ADDRESS
   if (sellerAddr) {
@@ -43,7 +104,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   }
 
-  const systemPrompt = `You are NAN Agent — the built-in AI assistant for NAN (nanarc.xyz), an autonomous financial platform on Arc Testnet (Circle/USDC). Today is ${new Date().toDateString()}.
+  const liveDataBlock = liveServiceResult
+    ? `\n\n---\n## LIVE DATA FROM ${liveServiceId?.toUpperCase()} (retrieved just now)\n\n${liveServiceResult}\n\n---\n\nThe data above is LIVE and was just fetched. Use it directly in your response — do NOT say you cannot access live data, because you clearly can. Format the results clearly for the user and add helpful context.`
+    : ''
+
+  const systemPrompt = `You are NAN Agent — the built-in AI assistant for NAN (nanarc.xyz)${liveDataBlock}, an autonomous financial platform on Arc Testnet (Circle/USDC). Today is ${new Date().toDateString()}.
 
 You have COMPLETE knowledge of the NAN app. Here is the full feature map you must know and use:
 
@@ -157,7 +222,7 @@ RULES:
       })
       const openaiData = await openaiRes.json() as { choices?: Array<{ message: { content: string } }>; error?: { message: string } }
       if (openaiData.error) throw new Error(openaiData.error.message)
-      return res.status(200).json({ reply: openaiData.choices?.[0]?.message?.content ?? 'Sorry, try again.' })
+      return res.status(200).json({ reply: openaiData.choices?.[0]?.message?.content ?? 'Sorry, try again.', service_used: liveServiceId })
     } catch (e) {
       console.error('OpenAI error:', e)
     }
@@ -175,7 +240,7 @@ RULES:
       ],
       max_tokens: 512,
     })
-    return res.status(200).json({ reply: completion.choices[0]?.message?.content ?? 'Sorry, try again.' })
+    return res.status(200).json({ reply: completion.choices[0]?.message?.content ?? 'Sorry, try again.', service_used: liveServiceId })
   }
 
   // Smart fallback

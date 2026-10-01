@@ -178,6 +178,7 @@ export interface AgentMessage {
   purchaseProductId?: string
   purchaseAmount?: number
   approved?: boolean
+  serviceSource?: string   // e.g. "CoinGecko live prices" — shown as a badge on the message
 }
 
 export interface CartItem {
