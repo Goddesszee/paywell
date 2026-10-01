@@ -45,7 +45,7 @@ const POLL_INTERVAL_MS = 2000
 const POLL_TIMEOUT_MS  = 120_000
 
 export function useCircleTransaction() {
-  const { auth } = useAppStore()
+  const auth = useAppStore(s => s.auth)
   const [status, setStatus]   = useState<CircleTxStatus>('idle')
   const [txHash, setTxHash]   = useState<string | undefined>()
   const [error,  setError]    = useState<string | undefined>()

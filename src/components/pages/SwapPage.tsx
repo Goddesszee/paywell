@@ -219,7 +219,7 @@ function useTokenBalance(token: Token, address: `0x${string}` | undefined) {
 export function SwapPage() {
   const c = useNanTheme()
   const { connector, isConnected, address: wagmiAddress } = useAccount()
-  const { auth } = useAppStore(s => ({ auth: s.auth, addActivity: s.addActivity, recordFee: s.recordFee }))
+  const auth = useAppStore(s => s.auth)
   const isCircleUser = !wagmiAddress && !!auth?.circleWalletAddress
   const address = wagmiAddress
   const chainId = useChainId()

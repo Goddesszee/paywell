@@ -83,7 +83,7 @@ interface LiveFee { bps: number; label: string; fetched: boolean }
 
 export function BridgePage() {
   const { connector, isConnected, address: wagmiAddress } = useAccount()
-  const { auth } = useAppStore(s => ({ auth: s.auth, addActivity: s.addActivity, recordFee: s.recordFee }))
+  const auth = useAppStore(s => s.auth)
   const isCircleUser = !wagmiAddress && !!auth?.circleWalletAddress
   const chainId = useChainId()
   const { switchChainAsync } = useSwitchChain()
