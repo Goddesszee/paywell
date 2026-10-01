@@ -1,12 +1,15 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useAccount, useChainId, useSwitchChain } from 'wagmi'
-import { encodeFunctionData, erc20Abi, parseUnits } from 'viem'
+import { AppKit } from '@circle-fin/app-kit'
+import { createViemAdapterFromProvider } from '@circle-fin/adapter-viem-v2'
 import type { EIP1193Provider } from 'viem'
+import { encodeFunctionData, erc20Abi, parseUnits } from 'viem'
 import { ArrowLeftRight, ArrowRight, CheckCircle, ExternalLink, Loader, Info } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
 import { bridgeFee, BRIDGE_FEE_BPS, bpsToPercent, BRIDGE_FEE_MIN_USDC, FEE_WALLET } from '../../lib/fees'
 import { useCircleTransaction } from '../../hooks/useCircleTransaction'
-import { getProtocolContractByName, getUsdc } from '@/onchain-facts'
+
+const appKit = new AppKit()
 
 const S  = 'var(--nan-surface)'
 const B  = 'var(--nan-bdr)'
@@ -60,11 +63,9 @@ const INITIAL_STEPS: StepState[] = [
   { name:'mint',             label:'Mint on destination',  status:'idle' },
 ]
 
-// CCTP V2 Arc Testnet — addresses from onchain-facts (never hardcode)
-const ARC_TESTNET_CHAIN_ID = 5042002
-const TOKEN_MESSENGER_ARC  = (getProtocolContractByName('TokenMessengerV2', 'testnet')?.address ?? '0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA') as `0x${string}`
-const USDC_ARC             = (getUsdc(ARC_TESTNET_CHAIN_ID)?.address ?? '0x3600000000000000000000000000000000000000') as `0x${string}`
-
+// CCTP V2 Arc Testnet — TokenMessenger for depositForBurn
+const TOKEN_MESSENGER_ARC = '0xeb08f243e5d3fcff26a9e38ae5520a669f4019d0' as const
+const USDC_ARC = '0x3400000000000000000000000000000000000001' as const
 const TOKEN_MESSENGER_ABI = [
   {
     name: 'depositForBurn',
@@ -83,18 +84,6 @@ const TOKEN_MESSENGER_ABI = [
 interface LiveFee { bps: number; label: string; fetched: boolean }
 
 export function BridgePage() {
-  // Lazy-load AppKit inside component to avoid duplicate-React crash at module init
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const appKitRef = useRef<any>(null)
-  const getAppKit = async () => {
-    if (!appKitRef.current) {
-      const { AppKit } = await import('@circle-fin/app-kit')
-      const { createViemAdapterFromProvider } = await import('@circle-fin/adapter-viem-v2')
-      appKitRef.current = { kit: new AppKit(), createViemAdapterFromProvider }
-    }
-    return appKitRef.current as { kit: import('@circle-fin/app-kit').AppKit; createViemAdapterFromProvider: typeof import('@circle-fin/adapter-viem-v2').createViemAdapterFromProvider }
-  }
-
   const { connector, isConnected, address: wagmiAddress } = useAccount()
   const { auth } = useAppStore(s => ({ auth: s.auth, addActivity: s.addActivity, recordFee: s.recordFee }))
   const isCircleUser = !wagmiAddress && !!auth?.circleWalletAddress
@@ -111,9 +100,6 @@ export function BridgePage() {
   const [errMsg, setErrMsg]   = useState('')
   const [liveFee, setLiveFee] = useState<LiveFee>({ bps: 0, label: '—', fetched: false })
   const [feeLoading, setFeeLoading] = useState(false)
-  // Saved bridge result for kit.retry() — never re-run kit.bridge() from scratch after a soft error
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const lastResultRef = useRef<any>(null)
 
   const fromChain = CHAINS[fromIdx]
   const toChain   = CHAINS[toIdx]
@@ -217,32 +203,11 @@ export function BridgePage() {
     try {
       if (chainId !== fromChain.chainId) await switchChainAsync({ chainId: fromChain.chainId })
       const provider = (await connector.getProvider()) as EIP1193Provider
-      const { kit, createViemAdapterFromProvider } = await getAppKit()
       const adapter  = await createViemAdapterFromProvider({ provider })
       updateStep('approve', { status: 'active' })
 
-      // Subscribe to bridge step events so the UI updates in real-time.
-      // App Kit namespaces bridge events as "bridge.<step>".
-      // Use the wildcard overload to avoid strict generic-type mismatch on
-      // the per-action overload; narrow by event name inside the handler.
-      kit.on('*', (payload: unknown) => {
-        const p = payload as { action?: string; values?: { txHash?: string } }
-        if (p?.action === 'bridge.approve') {
-          updateStep('approve', { status: 'done' })
-          updateStep('burn', { status: 'active' })
-        } else if (p?.action === 'bridge.burn') {
-          updateStep('burn', { status: 'done', txHash: p?.values?.txHash })
-          updateStep('fetchAttestation', { status: 'active' })
-        } else if (p?.action === 'bridge.fetchAttestation') {
-          updateStep('fetchAttestation', { status: 'done' })
-          updateStep('mint', { status: 'active' })
-        } else if (p?.action === 'bridge.mint') {
-          updateStep('mint', { status: 'done', txHash: p?.values?.txHash })
-        }
-      })
-
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const result = await kit.bridge({
+      const result = await appKit.bridge({
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         from: { adapter, chain: fromChain.kitName as unknown as any },
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -251,75 +216,24 @@ export function BridgePage() {
         ...(maxFeeUsdc > 0 ? { maxFee: BigInt(Math.round(maxFeeUsdc * 1_000_000)) } : {}),
       })
 
-      // Sync final step states from result.steps (event handler may have raced)
       for (const step of result.steps ?? []) {
         const name = step.name as StepName
-        updateStep(name, {
-          status: step.state === 'success' ? 'done' : step.state === 'error' ? 'error' : 'idle',
-          txHash: step.txHash,
-          explorerUrl: step.explorerUrl,
-        })
+        updateStep(name, { status: step.state === 'success' ? 'done' : 'error', txHash: step.txHash, explorerUrl: step.explorerUrl })
       }
 
       if (result.state === 'success') {
-        lastResultRef.current = null
-        setSteps(prev => prev.map(s => s.status === 'idle' ? { ...s, status: 'done' } : s))
         setStatus('done')
         const mintHash = result.steps?.find(s => s.name === 'mint')?.txHash
         addActivity({ type:'bridge', description:`Bridge to ${toChain.label}`, amount:gross, sign:'-', status:'confirmed', counterparty:toChain.label, txHash:mintHash })
         recordFee({ source:'bridge', grossAmount:gross, feeAmount:platformFee, feeWallet:FEE_WALLET, txHash:mintHash, description:`Bridge ${fromChain.label} → ${toChain.label}` })
       } else {
-        // Soft error — save result so kit.retry() can resume from the failed step
-        // without re-running approve/burn (which would double-spend).
-        lastResultRef.current = result
-        const failedStep = result.steps?.find(s => s.state === 'error')
-        const stepErr = failedStep?.error instanceof Error ? failedStep.error.message : typeof failedStep?.error === 'string' ? failedStep.error : ''
         setStatus('error')
-        setErrMsg(
-          failedStep
-            ? `Step "${failedStep.name}" failed${stepErr ? `: ${stepErr}` : ''}. Tap Retry to resume from here.`
-            : 'Bridge returned a non-success state. Tap Retry to resume.'
-        )
+        setErrMsg('Bridge returned non-success state.')
       }
     } catch (e: unknown) {
       setStatus('error')
       setErrMsg(e instanceof Error ? e.message : 'Bridge failed.')
       setSteps(prev => prev.map(s => s.status === 'active' ? { ...s, status:'error' } : s))
-    }
-  }
-
-  // kit.retry() resumes from the failed CCTP step — never re-run kit.bridge() from scratch
-  const handleRetry = async () => {
-    if (!lastResultRef.current || !connector || !isConnected) return
-    setStatus('bridging'); setErrMsg('')
-    try {
-      const provider = (await connector.getProvider()) as EIP1193Provider
-      const { kit, createViemAdapterFromProvider } = await getAppKit()
-      const adapter = await createViemAdapterFromProvider({ provider })
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const retryResult = await kit.retryBridge(lastResultRef.current, { from: adapter as any, to: adapter as any })
-      for (const step of retryResult.steps ?? []) {
-        const name = step.name as StepName
-        updateStep(name, {
-          status: step.state === 'success' ? 'done' : step.state === 'error' ? 'error' : 'idle',
-          txHash: step.txHash,
-        })
-      }
-      if (retryResult.state === 'success') {
-        lastResultRef.current = null
-        setSteps(prev => prev.map(s => s.status === 'idle' ? { ...s, status: 'done' } : s))
-        setStatus('done')
-        const mintHash = retryResult.steps?.find((s: { name: string; txHash?: string }) => s.name === 'mint')?.txHash
-        addActivity({ type:'bridge', description:`Bridge to ${toChain.label}`, amount:gross, sign:'-', status:'confirmed', counterparty:toChain.label, txHash:mintHash })
-        recordFee({ source:'bridge', grossAmount:gross, feeAmount:platformFee, feeWallet:FEE_WALLET, txHash:mintHash, description:`Bridge ${fromChain.label} → ${toChain.label}` })
-      } else {
-        lastResultRef.current = retryResult
-        setStatus('error')
-        setErrMsg('Retry also failed. Check steps and try again.')
-      }
-    } catch (e: unknown) {
-      setStatus('error')
-      setErrMsg(e instanceof Error ? e.message : 'Retry failed.')
     }
   }
 
@@ -469,17 +383,6 @@ export function BridgePage() {
         <button onClick={reset} style={{ width:'100%', padding:'15px 0', background:S, border:`1px solid ${B}`, borderRadius:14, fontSize:15, fontWeight:600, color:T, cursor:'pointer', fontFamily:SANS }}>
           Bridge again
         </button>
-      ) : status==='error' && lastResultRef.current ? (
-        // Soft error with a saved result — use kit.retry() to resume from the failed step,
-        // never re-run kit.bridge() from scratch (risks double-spending the burn).
-        <div style={{ display:'flex', gap:8 }}>
-          <button onClick={reset} style={{ flex:1, padding:'15px 0', background:S, border:`1px solid ${B}`, borderRadius:14, fontSize:14, fontWeight:600, color:T2, cursor:'pointer', fontFamily:SANS }}>
-            Start over
-          </button>
-          <button onClick={() => void handleRetry()} style={{ flex:2, padding:'15px 0', background:BK, border:`1px solid ${BK}`, borderRadius:14, fontSize:15, fontWeight:600, color:WH, cursor:'pointer', fontFamily:SANS, display:'flex', alignItems:'center', justifyContent:'center', gap:8 }}>
-            <CheckCircle size={16} /> Retry from failed step
-          </button>
-        </div>
       ) : (
         <button onClick={() => void handleBridge()} disabled={status==='bridging'||!amount||parseFloat(amount)<=0}
           style={{ width:'100%', padding:'15px 0', background:status==='bridging'||!amount ? S : BK,

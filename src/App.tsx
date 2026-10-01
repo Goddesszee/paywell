@@ -1,6 +1,5 @@
 import { useAppStore } from './store/appStore'
 import { AppShell } from './components/layout/AppShell'
-import { ErrorBoundary } from './components/ErrorBoundary'
 import { LandingPage } from './components/pages/LandingPage'
 import { LoginPage } from './components/pages/LoginPage'
 import { OnboardingPage } from './components/pages/OnboardingPage'
@@ -28,7 +27,6 @@ import { FavoritesPage } from './components/pages/FavoritesPage'
 import { NamePage } from './components/pages/NamePage'
 import { DashboardPage } from './components/pages/DashboardPage'
 
-
 export default function App() {
   const { activeView } = useAppStore()
 
@@ -42,7 +40,6 @@ export default function App() {
   // App pages — inside the shell
   return (
     <AppShell>
-      <ErrorBoundary>
       {activeView === 'home' && <HomePage />}
       {activeView === 'dashboard' && <DashboardPage />}
       {activeView === 'wallet' && <WalletPage />}
@@ -67,7 +64,6 @@ export default function App() {
       {activeView === 'profile' && <ProfilePage />}
       {activeView === 'search' && <SearchPage />}
       {activeView === 'favorites' && <FavoritesPage />}
-      </ErrorBoundary>
     </AppShell>
   )
 }

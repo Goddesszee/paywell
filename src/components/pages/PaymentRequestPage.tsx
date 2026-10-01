@@ -29,7 +29,7 @@ interface PaymentParams {
   note?: string
 }
 
-export function parsePaymentParams(): PaymentParams | null {
+function parsePaymentParams(): PaymentParams | null {
   if (typeof window === 'undefined') return null
   const params = new URLSearchParams(window.location.search)
   const to = params.get('pay')

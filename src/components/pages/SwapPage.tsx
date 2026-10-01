@@ -1,12 +1,15 @@
-import React, { useState, useCallback, useRef } from 'react'
+import React, { useState, useCallback } from 'react'
 import { useAccount, useChainId, useSwitchChain, useReadContract, useBalance } from 'wagmi'
-import type { SwapEstimate, SwapStatusResult } from '@circle-fin/app-kit'
+import { AppKit, type SwapEstimate } from '@circle-fin/app-kit'
+import { createViemAdapterFromProvider } from '@circle-fin/adapter-viem-v2'
 import { erc20Abi, type EIP1193Provider } from 'viem'
 import { ArrowDown, Settings, CheckCircle, ExternalLink, RefreshCw, AlertCircle, X, Search, ArrowLeftRight } from 'lucide-react'
 import { ConnectKitButton } from 'connectkit'
 import { useAppStore } from '../../store/appStore'
 import { swapFee, SWAP_FEE_BPS, bpsToPercent, FEE_WALLET } from '../../lib/fees'
 import { useNanTheme } from '../../hooks/useNanTheme'
+
+const appKit = new AppKit()
 
 const CHAIN_ID  = 5042002
 const CHAIN_KEY = 'Arc_Testnet'
@@ -217,18 +220,6 @@ function useTokenBalance(token: Token, address: `0x${string}` | undefined) {
 // ── Main component ────────────────────────────────────────────────────────────
 export function SwapPage() {
   const c = useNanTheme()
-  // Lazy-load AppKit to avoid duplicate-React crash at module init
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const appKitRef = useRef<any>(null)
-  const getAppKit = async () => {
-    if (!appKitRef.current) {
-      const { AppKit } = await import('@circle-fin/app-kit')
-      const { createViemAdapterFromProvider } = await import('@circle-fin/adapter-viem-v2')
-      appKitRef.current = { kit: new AppKit(), createViemAdapterFromProvider }
-    }
-    return appKitRef.current as { kit: import('@circle-fin/app-kit').AppKit; createViemAdapterFromProvider: typeof import('@circle-fin/adapter-viem-v2').createViemAdapterFromProvider }
-  }
-
   const { connector, isConnected, address: wagmiAddress } = useAccount()
   const { auth } = useAppStore(s => ({ auth: s.auth, addActivity: s.addActivity, recordFee: s.recordFee }))
   const isCircleUser = !wagmiAddress && !!auth?.circleWalletAddress
@@ -246,7 +237,7 @@ export function SwapPage() {
   const [errMsg,   setErrMsg]   = useState('')
   const [txHash,   setTxHash]   = useState('')
   const [explorerUrl, setExplorerUrl] = useState('')
-  const [slippageBps, setSlippageBps] = useState(300) // 3% — Circle SDK recommended default
+  const [slippageBps, setSlippageBps] = useState(100)
 
   const [showSellModal, setShowSellModal] = useState(false)
   const [showBuyModal,  setShowBuyModal]  = useState(false)
@@ -278,7 +269,6 @@ export function SwapPage() {
     if (!connector) throw new Error('Wallet not connected')
     if (chainId !== CHAIN_ID) await switchChainAsync({ chainId: CHAIN_ID })
     const provider = (await connector.getProvider()) as EIP1193Provider
-    const { createViemAdapterFromProvider } = await getAppKit()
     return createViemAdapterFromProvider({ provider })
   }
 
@@ -286,9 +276,8 @@ export function SwapPage() {
     if (!canReview) return
     setPhase('estimating'); setErrMsg('')
     try {
-      const { kit } = await getAppKit()
       const adapter  = await getAdapter()
-      const estimate = await kit.estimateSwap({
+      const estimate = await appKit.estimateSwap({
         from: { adapter, chain: CHAIN_KEY },
         tokenIn, tokenOut, amountIn,
         config: { slippageBps },
@@ -305,42 +294,14 @@ export function SwapPage() {
     if (address !== reviewed.account) { setPhase('error'); setErrMsg('Wallet changed since estimate. Get a new quote.'); return }
     setPhase('swapping'); setErrMsg('')
     try {
-      const { kit } = await getAppKit()
       const adapter = await getAdapter()
-      const result  = await kit.swap({
+      const result  = await appKit.swap({
         from: { adapter, chain: CHAIN_KEY },
         tokenIn:  reviewed.tokenIn, tokenOut: reviewed.tokenOut,
         amountIn: reviewed.amountIn, config: { slippageBps: reviewed.slippageBps },
       })
-
-      // For same-chain swaps progress.status is "DONE" immediately.
-      // For cross-chain swaps the source tx confirms with status "PENDING" — call
-      // waitForSwap() to track until the destination leg settles. Per the Circle
-      // docs: never resubmit swap() just because destination is still pending.
-      const progress = (result as { progress?: { status?: string } }).progress
-      // waitForSwap returns SwapStatusResult (different shape from SwapResult)
-      let statusResult: SwapStatusResult | null = null
-
-      if (progress?.status === 'PENDING') {
-        // Track cross-chain settlement — onProgress updates UI during the wait
-        statusResult = await kit.waitForSwap({
-          result,
-          onProgress: (snapshot: SwapStatusResult) => {
-            const sub = snapshot.progress.substatus ?? snapshot.progress.status
-            setErrMsg(`Cross-chain: ${sub}…`)
-          },
-        })
-        setErrMsg('') // Clear progress message once settled
-      }
-
-      const finalStatus = statusResult?.progress.status ?? progress?.status
-      if (finalStatus && finalStatus !== 'DONE' && finalStatus !== 'SUCCESS') {
-        throw new Error(`Swap ended with status: ${finalStatus}`)
-      }
-
-      // Prefer destination-leg tx hash for cross-chain swaps; fall back to source-leg
-      const rHash = statusResult?.source?.txHash ?? result.txHash ?? ''
-      const rUrl  = result.explorerUrl ?? ''
+      const rHash = (result as { txHash?: string }).txHash ?? ''
+      const rUrl  = (result as { explorerUrl?: string }).explorerUrl ?? ''
       setTxHash(rHash); setExplorerUrl(rUrl); setPhase('done')
       const gross = parseFloat(reviewed.amountIn)
       const fee   = swapFee(gross)
@@ -517,7 +478,7 @@ export function SwapPage() {
           className="nan-btn nan-btn-full"
           style={{ height: 54, borderRadius: 14, background: canReview ? c.blue : c.surf2, color: canReview ? '#fff' : c.t3, border: `1px solid ${canReview ? c.blue : c.bdr}`, fontSize: 15, fontWeight: 700, cursor: canReview ? 'pointer' : 'not-allowed', transition: 'all 0.15s' }}>
           {phase === 'estimating' ? <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}><span className="nan-spinner" />Getting quote…</span>
-            : phase === 'swapping' ? <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}><span className="nan-spinner" />{errMsg ? errMsg : 'Swapping…'}</span>
+            : phase === 'swapping' ? <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}><span className="nan-spinner" />Swapping…</span>
             : !isConnected ? 'Connect wallet to swap'
             : !amountIn || parseFloat(amountIn) === 0 ? 'Enter an amount'
             : arcUnsupportedPair ? 'Token not available on Arc Testnet'
