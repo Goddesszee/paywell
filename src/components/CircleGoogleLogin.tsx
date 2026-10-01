@@ -12,8 +12,9 @@
  */
 
 import React, { useState, useEffect, useRef, useCallback } from 'react'
-import { W3SSdk } from '@circle-fin/w3s-pw-web-sdk'
-import { SocialLoginProvider } from '@circle-fin/w3s-pw-web-sdk/dist/src/types'
+// Lazy imports — prevent w3s-pw-web-sdk's bundled React from causing error #185 in production
+import type { W3SSdk } from '@circle-fin/w3s-pw-web-sdk'
+import type { SocialLoginProvider as SocialLoginProviderType } from '@circle-fin/w3s-pw-web-sdk/dist/src/types'
 import { useAppStore } from '../store/appStore'
 import { ArrowLeft, Loader } from 'lucide-react'
 
@@ -63,7 +64,7 @@ export function CircleGoogleLogin({ onBack, onSuccess }: Props) {
     }
   }, [onSuccess, setAuth])
 
-  // ── init Circle Web SDK ────────────────────────────────────────────────────
+  // ── init Circle Web SDK — lazy import avoids duplicate-React in production ──
   useEffect(() => {
     const appId        = CIRCLE_APP_ID    ?? 'pending-configuration'
     const googleId     = GOOGLE_CLIENT_ID ?? ''
@@ -120,27 +121,28 @@ export function CircleGoogleLogin({ onBack, onSuccess }: Props) {
       })()
     }
 
-    const sdk = new W3SSdk(
-      {
-        appSettings: { appId },
-        loginConfigs: {
-          deviceToken: storedDToken,
-          deviceEncryptionKey: storedDKey,
-          google: {
-            clientId: googleId,
-            redirectUri: window.location.origin,
-            selectAccountPrompt: true,
+    void import('@circle-fin/w3s-pw-web-sdk').then(({ W3SSdk: Sdk }) => {
+      const sdk = new Sdk(
+        {
+          appSettings: { appId },
+          loginConfigs: {
+            deviceToken: storedDToken,
+            deviceEncryptionKey: storedDKey,
+            google: {
+              clientId: googleId,
+              redirectUri: window.location.origin,
+              selectAccountPrompt: true,
+            },
           },
         },
-      },
-      onLoginComplete
-    )
-    sdkRef.current = sdk
-
-    // ensure deviceId is obtained so the SDK can process the OAuth return
-    sdk.getDeviceId()
-      .then(id => sessionStorage.setItem('nan_g_deviceId', id))
-      .catch(() => setError('Could not initialise Circle SDK'))
+        onLoginComplete
+      )
+      sdkRef.current = sdk
+      // ensure deviceId is obtained so the SDK can process the OAuth return
+      sdk.getDeviceId()
+        .then(id => sessionStorage.setItem('nan_g_deviceId', id))
+        .catch(() => setError('Could not initialise Circle SDK'))
+    })
   }, [finishAuth])
 
   // ── start Google login ──────────────────────────────────────────────────────
@@ -177,7 +179,8 @@ export function CircleGoogleLogin({ onBack, onSuccess }: Props) {
       })
 
       setStep('waiting')
-      sdkRef.current?.performLogin(SocialLoginProvider.GOOGLE)
+      // SocialLoginProvider.GOOGLE = 'GOOGLE' per Circle SDK source
+      sdkRef.current?.performLogin('GOOGLE' as SocialLoginProviderType)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Google login failed')
       setLoading(false)

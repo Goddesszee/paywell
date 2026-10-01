@@ -17,7 +17,9 @@
  */
 
 import React, { useState, useEffect, useRef, useCallback } from 'react'
-import { W3SSdk } from '@circle-fin/w3s-pw-web-sdk'
+// W3SSdk is imported lazily inside useEffect to prevent its bundled React copy
+// from being evaluated at module init time, which causes React error #185 in production.
+import type { W3SSdk } from '@circle-fin/w3s-pw-web-sdk'
 import { useAppStore } from '../store/appStore'
 import { ArrowLeft, ArrowRight, Loader, Mail } from 'lucide-react'
 
@@ -138,7 +140,7 @@ export function CircleEmailLogin({ onBack, onSuccess }: Props) {
     }
   }, [finishAuth])
 
-  // ── init SDK once ──────────────────────────────────────────────────────────
+  // ── init SDK once — lazy import avoids duplicate-React in production ──────
   useEffect(() => {
     const appId = CIRCLE_APP_ID ?? 'pending-configuration'
 
@@ -160,8 +162,10 @@ export function CircleEmailLogin({ onBack, onSuccess }: Props) {
       void initializeUser(res)
     }
 
-    const sdk = new W3SSdk({ appSettings: { appId } }, onLoginComplete)
-    sdkRef.current = sdk
+    void import('@circle-fin/w3s-pw-web-sdk').then(({ W3SSdk: Sdk }) => {
+      const sdk = new Sdk({ appSettings: { appId } }, onLoginComplete)
+      sdkRef.current = sdk
+    })
   }, [initializeUser, finishAuth])
 
   // ── Step 1: send OTP ───────────────────────────────────────────────────────
