@@ -104,32 +104,15 @@ export function LandingPage() {
     )
   }
 
-  // ── DESKTOP — full-bleed photo with navbar overlay ─────────────────────────
+  // ── DESKTOP — split layout: dark left panel + photo right panel ────────────
   return (
-    <div style={{ position: 'fixed', inset: 0, fontFamily: F, overflow: 'hidden' }}>
+    <div style={{ position: 'fixed', inset: 0, fontFamily: F, overflow: 'hidden', display: 'flex', background: '#08090E' }}>
 
-      {/* Full-bleed photo */}
-      <div style={{
-        position: 'absolute', inset: 0,
-        backgroundImage: `url(${cur.img})`,
-        backgroundSize: 'cover', backgroundPosition: '50% 25%',
-        opacity: fading ? 0 : 1, transition: 'opacity 0.3s ease',
-      }} />
+      {/* ── LEFT: dark content panel ── */}
+      <div style={{ flex: '0 0 46%', display: 'flex', flexDirection: 'column', padding: '0 56px', position: 'relative', zIndex: 10 }}>
 
-      {/* Subtle dark overlay so text reads well */}
-      <div style={{
-        position: 'absolute', inset: 0,
-        background: 'linear-gradient(180deg, rgba(8,9,14,0.82) 0%, rgba(8,9,14,0.25) 40%, rgba(8,9,14,0.55) 100%)',
-      }} />
-
-      {/* ── Navbar — logo only, fully transparent ── */}
-      <nav style={{
-        position: 'absolute', top: 0, left: 0, right: 0, zIndex: 20,
-        display: 'flex', alignItems: 'center',
-        padding: '0 48px', height: 64,
-        background: 'transparent',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+        {/* Logo */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 9, paddingTop: 28 }}>
           <div style={{ width: 32, height: 32, borderRadius: 9, background: '#0066FF', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 16px rgba(0,102,255,0.5)' }}>
             <svg viewBox="0 0 324 480" width="14" height="20" fill="none">
               <path d="M255,0 L84,167 L71,163 L0,97 L0,378 L246,132 L255,110 Z" fill="#fff"/>
@@ -138,54 +121,65 @@ export function LandingPage() {
           </div>
           <span style={{ fontWeight: 800, fontSize: 20, letterSpacing: '-0.04em', color: '#fff' }}>nan</span>
         </div>
-      </nav>
 
-      {/* ── Headline — bottom left ── */}
-      <div style={{
-        position: 'absolute', bottom: 80, left: 64, zIndex: 20, maxWidth: 560,
-        opacity: fading ? 0 : 1, transition: 'opacity 0.3s',
-      }}>
-        <h1 style={{ fontSize: 'clamp(36px,4.5vw,64px)', fontWeight: 900, lineHeight: 1.05, letterSpacing: '-0.04em', color: '#ffffff', margin: 0, textShadow: '0 2px 24px rgba(0,0,0,0.5)' }}>
-          {cur.headline}
-        </h1>
-        <h1 style={{ fontSize: 'clamp(36px,4.5vw,64px)', fontWeight: 900, lineHeight: 1.05, letterSpacing: '-0.04em', color: '#0066FF', margin: '0 0 16px', textShadow: '0 2px 24px rgba(0,102,255,0.4)' }}>
-          {cur.accent}
-        </h1>
-        <p style={{ fontSize: 16, color: 'rgba(255,255,255,0.80)', lineHeight: 1.6, marginBottom: 28, maxWidth: 420 }}>{cur.sub}</p>
-        <div style={{ display: 'flex', gap: 12 }}>
-          <button onClick={() => setActiveView('login')} style={{ padding: '13px 28px', borderRadius: 50, background: '#0066FF', border: 'none', color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', gap: 7, boxShadow: '0 4px 20px rgba(0,102,255,0.45)' }}>
-            Get started <ArrowRight size={16} />
-          </button>
-          <button onClick={() => setActiveView('login')} style={{ padding: '13px 28px', borderRadius: 50, background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', fontSize: 15, fontWeight: 600, cursor: 'pointer', fontFamily: F, backdropFilter: 'blur(8px)' }}>
-            Sign in
-          </button>
+        {/* Headline — vertically centred */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', opacity: fading ? 0 : 1, transition: 'opacity 0.3s' }}>
+          <h1 style={{ fontSize: 'clamp(32px,3.8vw,58px)', fontWeight: 900, lineHeight: 1.05, letterSpacing: '-0.04em', color: '#ffffff', margin: 0 }}>
+            {cur.headline}
+          </h1>
+          <h1 style={{ fontSize: 'clamp(32px,3.8vw,58px)', fontWeight: 900, lineHeight: 1.05, letterSpacing: '-0.04em', color: '#0066FF', margin: '0 0 20px' }}>
+            {cur.accent}
+          </h1>
+          <p style={{ fontSize: 16, color: 'rgba(255,255,255,0.65)', lineHeight: 1.65, marginBottom: 36, maxWidth: 380 }}>{cur.sub}</p>
+          <div style={{ display: 'flex', gap: 12 }}>
+            <button onClick={() => setActiveView('login')} style={{ padding: '13px 28px', borderRadius: 50, background: '#0066FF', border: 'none', color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', gap: 7, boxShadow: '0 4px 20px rgba(0,102,255,0.45)' }}>
+              Get started <ArrowRight size={16} />
+            </button>
+            <button onClick={() => setActiveView('login')} style={{ padding: '13px 28px', borderRadius: 50, background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.85)', fontSize: 15, fontWeight: 600, cursor: 'pointer', fontFamily: F }}>
+              Sign in
+            </button>
+          </div>
+        </div>
+
+        {/* Slide dots + arrows at bottom */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 36 }}>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {SLIDES.map((_, i) => (
+              <button key={i} onClick={() => go(i)} style={{ width: i === slide ? 24 : 8, height: 8, borderRadius: 4, background: i === slide ? '#0066FF' : 'rgba(255,255,255,0.25)', border: 'none', cursor: 'pointer', padding: 0, transition: 'all 0.3s' }} />
+            ))}
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {([{ Icon: ChevronLeft, dir: -1 }, { Icon: ChevronRight, dir: 1 }] as const).map(({ Icon, dir }) => (
+              <button
+                key={dir}
+                onClick={() => go((slide + dir + SLIDES.length) % SLIDES.length)}
+                style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.15s' }}
+                onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.18)')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.08)')}
+              >
+                <Icon size={16} />
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
-      {/* ── Slide dots — bottom left below headline ── */}
-      <div style={{ position: 'absolute', bottom: 40, left: 64, zIndex: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
-        {SLIDES.map((_, i) => (
-          <button key={i} onClick={() => go(i)} style={{ width: i === slide ? 24 : 8, height: 8, borderRadius: 4, background: i === slide ? '#0066FF' : 'rgba(255,255,255,0.35)', border: 'none', cursor: 'pointer', padding: 0, transition: 'all 0.3s' }} />
-        ))}
+      {/* ── RIGHT: photo panel — full height, contained ── */}
+      <div style={{ flex: '0 0 54%', position: 'relative', overflow: 'hidden', borderRadius: '24px 0 0 24px' }}>
+        <img
+          src={cur.img}
+          alt=""
+          style={{
+            position: 'absolute', inset: 0,
+            width: '100%', height: '100%',
+            objectFit: 'cover', objectPosition: '50% 15%',
+            opacity: fading ? 0 : 1, transition: 'opacity 0.3s ease',
+          }}
+        />
+        {/* subtle gradient on left edge to blend into dark panel */}
+        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(90deg, rgba(8,9,14,0.35) 0%, transparent 25%)' }} />
       </div>
 
-      {/* ── Prev / Next arrows — bottom right ── */}
-      <div style={{ position: 'absolute', bottom: 32, right: 48, zIndex: 20, display: 'flex', gap: 10 }}>
-        {[
-          { Icon: ChevronLeft, dir: -1 },
-          { Icon: ChevronRight, dir: 1 },
-        ].map(({ Icon, dir }) => (
-          <button
-            key={dir}
-            onClick={() => go((slide + dir + SLIDES.length) % SLIDES.length)}
-            style={{ width: 40, height: 40, borderRadius: '50%', background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(8px)', transition: 'background 0.15s' }}
-            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.22)')}
-            onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.12)')}
-          >
-            <Icon size={18} />
-          </button>
-        ))}
-      </div>
     </div>
   )
 }
