@@ -1,4 +1,4 @@
-export function NanLogo({ height = 44 }) {
+export function NanLogo({ height = 44, showText = false }) {
   return (
     <div style={{display:'inline-flex', alignItems:'center', gap:9}}>
       <div style={{width:height, height:height, borderRadius:'50%', background:'#4338CA', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0}}>
@@ -7,7 +7,7 @@ export function NanLogo({ height = 44 }) {
           <path d="M69,480 L240,313 L253,317 L324,383 L324,102 L78,348 L69,370 Z" fill="#fff"/>
         </svg>
       </div>
-      <span style={{fontWeight:800, fontSize:height*0.45, color:'var(--text, #f0f0f0)', fontFamily:'Manrope, Inter, sans-serif', lineHeight:`${height}px`}}>NAN</span>
+      {showText && <span style={{fontWeight:800, fontSize:height*0.45, color:'var(--text, #f0f0f0)', fontFamily:'Manrope, Inter, sans-serif', lineHeight:`${height}px`}}>NAN</span>}
     </div>
   )
 }

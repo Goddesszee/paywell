@@ -10,6 +10,7 @@ import { useAppStore } from '../../store/appStore'
 import { useAccount } from 'wagmi'
 import { useNanTheme } from '../../hooks/useNanTheme'
 import { NotificationBell } from '../ui/NotificationBell'
+import { NanLogo } from '../NanLogo'
 
 const F = "'Inter',-apple-system,sans-serif"
 const ADMIN_ADDRESS = (import.meta.env.VITE_ADMIN_ADDRESS as string ?? '').toLowerCase()
@@ -249,38 +250,6 @@ const MOBILE_DRAWER_SECTIONS = SIDEBAR_SECTIONS.map(s => ({
   ),
 })).filter(s => s.items.length > 0)
 
-// ── NAN logo mark ──────────────────────────────────────────────────────────────
-function NanMark({ size = 18 }: { size?: number }) {
-  return (
-    <svg viewBox="0 0 324 480" width={size * 0.75} height={size} fill="none">
-      <path d="M255,0 L84,167 L71,163 L0,97 L0,378 L246,132 L255,110 Z" fill="#fff"/>
-      <path d="M69,480 L240,313 L253,317 L324,383 L324,102 L78,348 L69,370 Z" fill="#fff"/>
-    </svg>
-  )
-}
-
-// ── Profile avatar button ──────────────────────────────────────────────────────
-function ProfileAvatar({ onClick, C }: { onClick: () => void; C: ReturnType<typeof useNanTheme> }) {
-  const { address } = useAccount()
-  const initials = address ? address.slice(2, 4).toUpperCase() : 'NA'
-  return (
-    <button
-      onClick={onClick}
-      aria-label="Profile"
-      style={{
-        width: 30, height: 30, borderRadius: '50%',
-        background: `linear-gradient(135deg, ${BLUE}, #7C3AED)`,
-        border: `2px solid ${C.bdr}`,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        cursor: 'pointer', flexShrink: 0, color: '#fff',
-        fontSize: 11, fontWeight: 700, fontFamily: F,
-      }}
-    >
-      {initials}
-    </button>
-  )
-}
-
 // ── Sidebar nav button ─────────────────────────────────────────────────────────
 function SideNavBtn({
   _id: _id, label, Icon, desc, isActive, onClick, C, showDesc,
@@ -430,19 +399,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             overflow: 'hidden',
             position: 'fixed', top: 0, left: 0, bottom: 0,
           }}>
-            <div
-              onClick={handleLogoTap}
+            {/* Logo pill — click to open Profile */}
+            <button
+              onClick={() => { handleLogoTap(); go('profile') }}
+              aria-label="Profile"
               style={{
                 height: TOPBAR_H, flexShrink: 0, display: 'flex', alignItems: 'center',
-                gap: 9, paddingLeft: 18, borderBottom: `1px solid ${C.bdr}`,
-                cursor: 'default', userSelect: 'none',
+                paddingLeft: 16, borderBottom: `1px solid ${C.bdr}`,
+                background: navActive('profile') ? 'rgba(0,102,255,0.07)' : 'transparent',
+                border: 'none', borderBottomColor: C.bdr, borderBottomWidth: 1, borderBottomStyle: 'solid',
+                cursor: 'pointer', userSelect: 'none', width: '100%',
+                transition: 'background 0.12s', WebkitTapHighlightColor: 'transparent',
               }}
             >
-              <div style={{ width: 28, height: 28, borderRadius: 8, background: BLUE, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <NanMark size={16} />
-              </div>
-              <span style={{ fontWeight: 800, fontSize: 16, letterSpacing: '-0.04em', color: C.text }}>nan</span>
-            </div>
+              <NanLogo height={32} />
+            </button>
             <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '8px 8px', scrollbarWidth: 'none' }}>
               {SIDEBAR_SECTIONS.map(section => (
                 <div key={section.title} style={{ marginBottom: 4 }}>
@@ -499,13 +470,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         transition: 'transform 0.24s cubic-bezier(0.4,0,0.2,1)',
         display: 'flex', flexDirection: 'column',
       }}>
-        <div onClick={handleLogoTap} style={{ height: 52, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingLeft: 16, paddingRight: 12, borderBottom: `1px solid ${C.bdr}`, cursor: 'default', userSelect: 'none' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <div style={{ width: 26, height: 26, borderRadius: 7, background: C.blue, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <NanMark size={15} />
-            </div>
-            <span style={{ fontWeight: 800, fontSize: 15, letterSpacing: '-0.04em', color: C.text }}>nan</span>
-          </div>
+        {/* Mobile drawer header — logo opens Profile */}
+        <div style={{ height: 52, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingLeft: 16, paddingRight: 12, borderBottom: `1px solid ${C.bdr}`, userSelect: 'none' }}>
+          <button
+            onClick={() => { handleLogoTap(); go('profile') }}
+            aria-label="Profile"
+            style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', WebkitTapHighlightColor: 'transparent' }}
+          >
+            <NanLogo height={28} />
+          </button>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <NotificationBell color={C.t2} />
             <button onClick={() => setDrawerOpen(false)} aria-label="Close menu" style={{ width: 30, height: 30, borderRadius: 8, background: C.surf2, border: `1px solid ${C.bdr2}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
