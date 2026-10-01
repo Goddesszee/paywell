@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react'
 import { useAppStore } from './store/appStore'
 import { AppShell } from './components/layout/AppShell'
 import { LandingPage } from './components/pages/LandingPage'
@@ -8,9 +9,13 @@ import { WalletPage } from './components/pages/WalletPage'
 import { AgentPage } from './components/pages/AgentPage'
 import { ActivityPage } from './components/pages/ActivityPage'
 import { SettingsPage } from './components/pages/SettingsPage'
-import { BridgePage } from './components/pages/BridgePage'
-import { SwapPage } from './components/pages/SwapPage'
 import { OnrampPage } from './components/pages/OnrampPage'
+
+// Lazy-load Circle App Kit pages — they import @circle-fin/app-kit which
+// initialises sub-kit module-level code. Loading them lazily ensures React's
+// internal dispatcher is fully set up before any kit code runs.
+const BridgePage = lazy(() => import('./components/pages/BridgePage').then(m => ({ default: m.BridgePage })))
+const SwapPage   = lazy(() => import('./components/pages/SwapPage').then(m => ({ default: m.SwapPage })))
 import { FaucetPage } from './components/pages/FaucetPage'
 import { AdminDashboard } from './components/pages/AdminDashboard'
 import { GatewayPage } from './components/pages/GatewayPage'
@@ -46,8 +51,8 @@ export default function App() {
       {activeView === 'send' && <WalletPage initialSubView="send" />}
       {activeView === 'receive' && <WalletPage initialSubView="receive" />}
       {activeView === 'agent' && <AgentPage />}
-      {activeView === 'bridge' && <BridgePage />}
-      {activeView === 'swap'   && <SwapPage />}
+      {activeView === 'bridge' && <Suspense fallback={null}><BridgePage /></Suspense>}
+      {activeView === 'swap'   && <Suspense fallback={null}><SwapPage /></Suspense>}
       {activeView === 'onramp' && <OnrampPage />}
       {activeView === 'faucet' && <FaucetPage />}
       {activeView === 'activity' && <ActivityPage />}

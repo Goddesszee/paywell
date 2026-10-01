@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useRef } from 'react'
 import { useAccount, useChainId, useSwitchChain, useReadContract, useBalance } from 'wagmi'
 import { AppKit, type SwapEstimate } from '@circle-fin/app-kit'
 import { createViemAdapterFromProvider } from '@circle-fin/adapter-viem-v2'
@@ -8,8 +8,6 @@ import { ConnectKitButton } from 'connectkit'
 import { useAppStore } from '../../store/appStore'
 import { swapFee, SWAP_FEE_BPS, bpsToPercent, FEE_WALLET } from '../../lib/fees'
 import { useNanTheme } from '../../hooks/useNanTheme'
-
-const appKit = new AppKit()
 
 const CHAIN_ID  = 5042002
 const CHAIN_KEY = 'Arc_Testnet'
@@ -242,6 +240,11 @@ export function SwapPage() {
   const [showSellModal, setShowSellModal] = useState(false)
   const [showBuyModal,  setShowBuyModal]  = useState(false)
   const [showSlippage,  setShowSlippage]  = useState(false)
+
+  // Lazy-instantiate AppKit inside the component so it runs after React mounts
+  const appKitRef = useRef<AppKit | null>(null)
+  if (!appKitRef.current) appKitRef.current = new AppKit()
+  const appKit = appKitRef.current
 
   const balIn  = useTokenBalance(tokenIn,  address)
   const balOut = useTokenBalance(tokenOut, address)

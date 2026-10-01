@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { useAccount, useChainId, useSwitchChain } from 'wagmi'
 import { AppKit } from '@circle-fin/app-kit'
 import { createViemAdapterFromProvider } from '@circle-fin/adapter-viem-v2'
@@ -8,8 +8,6 @@ import { ArrowLeftRight, ArrowRight, CheckCircle, ExternalLink, Loader, Info } f
 import { useAppStore } from '../../store/appStore'
 import { bridgeFee, BRIDGE_FEE_BPS, bpsToPercent, BRIDGE_FEE_MIN_USDC, FEE_WALLET } from '../../lib/fees'
 import { useCircleTransaction } from '../../hooks/useCircleTransaction'
-
-const appKit = new AppKit()
 
 const S  = 'var(--nan-surface)'
 const B  = 'var(--nan-bdr)'
@@ -91,6 +89,11 @@ export function BridgePage() {
   const { switchChainAsync } = useSwitchChain()
   const addActivity = useAppStore(s => s.addActivity)
   const recordFee   = useAppStore(s => s.recordFee)
+
+  // Lazy-instantiate AppKit inside the component so it runs after React mounts
+  const appKitRef = useRef<AppKit | null>(null)
+  if (!appKitRef.current) appKitRef.current = new AppKit()
+  const appKit = appKitRef.current
 
   const [fromIdx, setFromIdx] = useState(0)
   const [toIdx, setToIdx]     = useState(1)
