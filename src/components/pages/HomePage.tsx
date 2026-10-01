@@ -84,8 +84,12 @@ function ActionBtn({ Icon, label, primary, onClick, C }: {
 
 export function HomePage() {
   const C = useNanTheme()
-  const { address, isConnected } = useAccount()
+  const { address: wagmiAddress, isConnected } = useAccount()
   const { activity, setActiveView, auth, profile } = useAppStore()
+
+  // Circle wallet users don't connect via wagmi — fall back to their Circle wallet address
+  const address = wagmiAddress ?? (auth?.circleWalletAddress as `0x${string}` | undefined)
+  const hasWallet = isConnected || !!auth?.circleWalletAddress
 
   const usdcFact = getUsdc(ARC)
   const { data: rawBalance, isLoading } = useReadContract({
@@ -187,7 +191,7 @@ export function HomePage() {
           </span>
         )}
 
-        {!isConnected && (
+        {!hasWallet && (
           <div style={{ marginTop: 10 }}>
             <ConnectKitButton />
           </div>

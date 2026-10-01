@@ -88,8 +88,10 @@ function useNgnRate() {
 
 export function DashboardPage() {
   const C = useNanTheme()
-  const { address } = useAccount()
-  const { setActiveView, activity } = useAppStore()
+  const { address: wagmiAddress } = useAccount()
+  const { setActiveView, activity, auth } = useAppStore()
+  // Circle wallet users don't connect a browser wallet — fall back to their Circle wallet address
+  const address = wagmiAddress ?? (auth?.circleWalletAddress as `0x${string}` | undefined)
   const [hidden, setHidden] = useState(false)
   const [period, setPeriod] = useState<PerfPeriod>('24H')
   const [showReceive, setShowReceive] = useState(false)
