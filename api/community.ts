@@ -85,10 +85,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   Object.entries(CORS).forEach(([k, v]) => res.setHeader(k, v))
   if (req.method === 'OPTIONS') return res.status(200).end()
 
+  try {
+    return await routeHandler(req, res)
+  } catch (e) {
+    console.error('[community] unhandled error:', e)
+    return res.status(500).json({ success: false, error: e instanceof Error ? e.message : 'Internal server error' })
+  }
+}
+
+async function routeHandler(req: VercelRequest, res: VercelResponse) {
   const kv = getRedis()
   if (!kv) return res.status(503).json(REDIS_NOT_CONFIGURED)
 
-  const routeParam = (req.query.route ?? '') as string
+  // Support both ?route=feedback and path segments passed by Vercel rewrites.
+  // Vercel rewrites with :id pass the real value as req.query[id], not in the route string.
+  const routeParam = (
+    req.query.route ??
+    req.query.path ??
+    ''
+  ) as string
   const route = routeParam.replace(/^\/+/, '')
   const auth = req.headers.authorization as string | undefined
   const sess = await resolveSession(auth, kv)
