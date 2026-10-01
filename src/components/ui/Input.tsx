@@ -15,30 +15,21 @@ interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement
   helper?: string
 }
 
-const inputBase: React.CSSProperties = {
-  width: '100%',
-  background: '#EFEFEF',
-  border: '1px solid rgba(0,0,0,0.10)',
-  borderRadius: 10,
-  padding: '12px 14px',
-  fontSize: 14,
-  fontFamily: 'Inter, -apple-system, sans-serif',
-  color: '#0D0D0D',
-  outline: 'none',
-  transition: 'border-color 0.2s, box-shadow 0.2s',
-  letterSpacing: '-0.01em',
+const labelStyle: React.CSSProperties = {
+  display: 'block', fontSize: 12, fontWeight: 600,
+  color: 'var(--nan-text2)', fontFamily: 'Inter, sans-serif',
+  letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 8,
 }
 
-const labelStyle: React.CSSProperties = {
-  display: 'block',
-  fontSize: 12,
-  fontWeight: 600,
-  color: '#A0A0A0',
-  fontFamily: 'JetBrains Mono, Menlo, monospace',
-  letterSpacing: '0.08em',
-  textTransform: 'uppercase',
-  marginBottom: 8,
-}
+const getInputStyle = (error?: string, mono?: boolean): React.CSSProperties => ({
+  width: '100%', background: 'var(--nan-surface2)',
+  border: `1px solid ${error ? 'rgba(239,68,68,0.5)' : 'var(--nan-bdr)'}`,
+  borderRadius: 10, padding: '12px 14px', fontSize: 14,
+  fontFamily: mono ? 'monospace' : 'Inter, sans-serif',
+  color: 'var(--nan-text)', outline: 'none',
+  transition: 'border-color 0.2s, box-shadow 0.2s',
+  letterSpacing: '-0.01em', boxSizing: 'border-box',
+})
 
 export function Input({ label, error, helper, prefix, suffix, mono, className, style, ...props }: InputProps) {
   return (
@@ -46,74 +37,60 @@ export function Input({ label, error, helper, prefix, suffix, mono, className, s
       {label && <label style={labelStyle}>{label}</label>}
       <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
         {prefix && (
-          <div style={{
-            position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)',
-            color: '#A0A0A0', display: 'flex', alignItems: 'center', pointerEvents: 'none',
-          }}>{prefix}</div>
+          <div style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--nan-text2)', display: 'flex', alignItems: 'center', pointerEvents: 'none' }}>{prefix}</div>
         )}
         <input
           {...props}
+          className={className}
           style={{
-            ...inputBase,
+            ...getInputStyle(error, mono),
             paddingLeft: prefix ? 40 : 14,
             paddingRight: suffix ? 40 : 14,
-            fontFamily: mono ? 'JetBrains Mono, Menlo, monospace' : 'Inter, -apple-system, sans-serif',
-            borderColor: error ? 'rgba(239,68,68,0.5)' : undefined,
             ...style,
           }}
           onFocus={(e) => {
-            e.target.style.borderColor = '#0D0D0D'
-            e.target.style.boxShadow = '0 0 0 3px rgba(0,0,0,0.05)'
+            e.target.style.borderColor = '#0066FF'
+            e.target.style.boxShadow = '0 0 0 3px rgba(0,102,255,0.12)'
             props.onFocus?.(e)
           }}
           onBlur={(e) => {
-            e.target.style.borderColor = error ? 'rgba(239,68,68,0.5)' : 'rgba(0,0,0,0.10)'
+            e.target.style.borderColor = error ? 'rgba(239,68,68,0.5)' : 'var(--nan-bdr)'
             e.target.style.boxShadow = 'none'
             props.onBlur?.(e)
           }}
-          className={className}
         />
         {suffix && (
-          <div style={{
-            position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)',
-            color: '#A0A0A0', display: 'flex', alignItems: 'center',
-          }}>{suffix}</div>
+          <div style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--nan-text2)', display: 'flex', alignItems: 'center' }}>{suffix}</div>
         )}
       </div>
-      {error && <p style={{ fontSize: 12, color: '#ef4444', marginTop: 5, fontFamily: 'Inter, -apple-system, sans-serif' }}>{error}</p>}
-      {helper && !error && <p style={{ fontSize: 12, color: '#A0A0A0', marginTop: 5, fontFamily: 'Inter, -apple-system, sans-serif' }}>{helper}</p>}
+      {error  && <p style={{ marginTop: 6, fontSize: 12, color: '#EF4444', fontFamily: 'Inter, sans-serif' }}>{error}</p>}
+      {helper && <p style={{ marginTop: 6, fontSize: 12, color: 'var(--nan-text2)', fontFamily: 'Inter, sans-serif' }}>{helper}</p>}
     </div>
   )
 }
 
-export function Textarea({ label, error, helper, className, style, ...props }: TextareaProps) {
+export function Textarea({ label, error, helper, style, ...props }: TextareaProps) {
   return (
     <div style={{ marginBottom: 16 }}>
       {label && <label style={labelStyle}>{label}</label>}
       <textarea
         {...props}
-        rows={props.rows ?? 3}
         style={{
-          ...inputBase,
-          resize: 'vertical',
-          minHeight: 80,
-          borderColor: error ? 'rgba(239,68,68,0.5)' : undefined,
+          ...getInputStyle(error),
+          resize: 'vertical', minHeight: 80, paddingTop: 12,
           ...style,
         }}
         onFocus={(e) => {
-          e.target.style.borderColor = '#0D0D0D'
-          e.target.style.boxShadow = '0 0 0 3px rgba(0,0,0,0.05)'
-          props.onFocus?.(e)
+          e.target.style.borderColor = '#0066FF'
+          e.target.style.boxShadow = '0 0 0 3px rgba(0,102,255,0.12)'
         }}
         onBlur={(e) => {
-          e.target.style.borderColor = error ? 'rgba(239,68,68,0.5)' : 'rgba(0,0,0,0.10)'
+          e.target.style.borderColor = error ? 'rgba(239,68,68,0.5)' : 'var(--nan-bdr)'
           e.target.style.boxShadow = 'none'
-          props.onBlur?.(e)
         }}
-        className={className}
       />
-      {error && <p style={{ fontSize: 12, color: '#ef4444', marginTop: 5, fontFamily: 'Inter, -apple-system, sans-serif' }}>{error}</p>}
-      {helper && !error && <p style={{ fontSize: 12, color: '#A0A0A0', marginTop: 5, fontFamily: 'Inter, -apple-system, sans-serif' }}>{helper}</p>}
+      {error  && <p style={{ marginTop: 6, fontSize: 12, color: '#EF4444' }}>{error}</p>}
+      {helper && <p style={{ marginTop: 6, fontSize: 12, color: 'var(--nan-text2)' }}>{helper}</p>}
     </div>
   )
 }

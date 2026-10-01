@@ -1,0 +1,364 @@
+/* ═══════════════════════════════════════════════════════
+   NAN DESIGN SYSTEM — v3.0
+   Brand: Near-black #08090B · White #FFFFFF · Blue #0066FF
+   Ratio: 60% dark / 30% white / 10% blue
+═══════════════════════════════════════════════════════ */
+
+:root {
+  /* ── Core brand ── */
+  --nan-bg:        #08090B;
+  --nan-bg-2:      #0E1014;
+  --nan-surface:   #13151A;
+  --nan-surface-2: #1A1D24;
+  --nan-surface-3: #20242D;
+  --nan-border:    rgba(255,255,255,0.07);
+  --nan-border-2:  rgba(255,255,255,0.12);
+
+  --nan-blue:      #0066FF;
+  --nan-blue-dim:  rgba(0,102,255,0.12);
+  --nan-blue-glow: rgba(0,102,255,0.20);
+
+  --nan-white:     #FFFFFF;
+  --nan-text:      #F2F3F5;
+  --nan-text-2:    #8A8F9E;
+  --nan-text-3:    #50556A;
+
+  --nan-green:     #00C853;
+  --nan-red:       #FF3B3B;
+  --nan-gold:      #F0A500;
+
+  /* ── Spacing ── */
+  --nan-r-sm:  8px;
+  --nan-r-md:  12px;
+  --nan-r-lg:  16px;
+  --nan-r-xl:  20px;
+
+  /* ── Typography ── */
+  --nan-font: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --nan-mono: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+}
+
+/* ── Reset ── */
+*, *::before, *::after { box-sizing: border-box; }
+html, body, #root {
+  margin: 0; padding: 0;
+  background: var(--nan-bg);
+  color: var(--nan-text);
+  font-family: var(--nan-font);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+/* ── Typography scale ── */
+.nan-display   { font-size: 48px; font-weight: 800; line-height: 1.05; letter-spacing: -0.03em; }
+.nan-h1        { font-size: 32px; font-weight: 700; line-height: 1.1;  letter-spacing: -0.025em; }
+.nan-h2        { font-size: 22px; font-weight: 700; line-height: 1.2;  letter-spacing: -0.02em; }
+.nan-h3        { font-size: 17px; font-weight: 600; line-height: 1.3;  letter-spacing: -0.015em; }
+.nan-body      { font-size: 14px; font-weight: 400; line-height: 1.6; }
+.nan-body-sm   { font-size: 13px; font-weight: 400; line-height: 1.55; }
+.nan-label     { font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--nan-text-2); }
+.nan-caption   { font-size: 11px; color: var(--nan-text-3); }
+.nan-balance   { font-size: 42px; font-weight: 700; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; font-family: var(--nan-font); }
+.nan-amount    { font-size: 22px; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.nan-mono      { font-family: var(--nan-mono); font-variant-numeric: tabular-nums; }
+.nan-blue-text { color: var(--nan-blue); }
+.nan-green-text{ color: var(--nan-green); }
+.nan-red-text  { color: var(--nan-red); }
+.nan-muted     { color: var(--nan-text-2); }
+
+/* ── Cards ── */
+.nan-card {
+  background: var(--nan-surface);
+  border: 1px solid var(--nan-border);
+  border-radius: var(--nan-r-xl);
+  padding: 20px;
+}
+.nan-card-sm {
+  background: var(--nan-surface);
+  border: 1px solid var(--nan-border);
+  border-radius: var(--nan-r-lg);
+  padding: 14px 16px;
+}
+.nan-card-flush {
+  background: var(--nan-surface);
+  border: 1px solid var(--nan-border);
+  border-radius: var(--nan-r-xl);
+  overflow: hidden;
+}
+.nan-card-blue {
+  background: var(--nan-blue-dim);
+  border: 1px solid rgba(0,102,255,0.20);
+  border-radius: var(--nan-r-xl);
+  padding: 20px;
+}
+.nan-card-dark {
+  background: var(--nan-bg-2);
+  border: 1px solid var(--nan-border);
+  border-radius: var(--nan-r-xl);
+  padding: 20px;
+}
+
+/* ── Buttons ── */
+.nan-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  font-family: var(--nan-font); font-size: 14px; font-weight: 600; letter-spacing: -0.01em;
+  border: none; cursor: pointer; transition: all 0.15s ease; white-space: nowrap;
+  border-radius: var(--nan-r-md); padding: 11px 20px;
+  -webkit-tap-highlight-color: transparent;
+}
+.nan-btn:disabled { opacity: 0.38; cursor: not-allowed; pointer-events: none; }
+.nan-btn-primary {
+  background: var(--nan-blue); color: #fff;
+  box-shadow: 0 0 0 0 rgba(0,102,255,0);
+}
+.nan-btn-primary:hover:not(:disabled) { background: #0052CC; }
+.nan-btn-primary:active:not(:disabled) { transform: scale(0.98); }
+.nan-btn-secondary {
+  background: var(--nan-surface-2); color: var(--nan-text);
+  border: 1px solid var(--nan-border-2);
+}
+.nan-btn-secondary:hover:not(:disabled) { background: var(--nan-surface-3); border-color: rgba(255,255,255,0.18); }
+.nan-btn-ghost {
+  background: transparent; color: var(--nan-text-2);
+  border: 1px solid var(--nan-border);
+}
+.nan-btn-ghost:hover:not(:disabled) { background: var(--nan-surface); color: var(--nan-text); }
+.nan-btn-danger { background: rgba(255,59,59,0.12); color: var(--nan-red); border: 1px solid rgba(255,59,59,0.20); }
+.nan-btn-danger:hover:not(:disabled) { background: rgba(255,59,59,0.18); }
+.nan-btn-sm  { font-size: 12px; padding: 7px 13px; border-radius: var(--nan-r-sm); }
+.nan-btn-lg  { font-size: 15px; padding: 14px 28px; border-radius: var(--nan-r-lg); }
+.nan-btn-xl  { font-size: 15px; padding: 16px 28px; border-radius: var(--nan-r-lg); width: 100%; }
+.nan-btn-icon {
+  width: 36px; height: 36px; padding: 0; border-radius: var(--nan-r-sm);
+  background: var(--nan-surface-2); color: var(--nan-text-2);
+  border: 1px solid var(--nan-border);
+}
+.nan-btn-icon:hover:not(:disabled) { background: var(--nan-surface-3); color: var(--nan-text); }
+
+/* ── Inputs ── */
+.nan-input {
+  width: 100%; padding: 11px 14px;
+  background: var(--nan-surface);
+  border: 1px solid var(--nan-border-2);
+  border-radius: var(--nan-r-md);
+  color: var(--nan-text);
+  font-family: var(--nan-font); font-size: 14px;
+  outline: none; transition: border-color 0.15s;
+  -webkit-appearance: none;
+}
+.nan-input::placeholder { color: var(--nan-text-3); }
+.nan-input:focus { border-color: var(--nan-blue); box-shadow: 0 0 0 3px rgba(0,102,255,0.12); }
+.nan-input:disabled { opacity: 0.45; cursor: not-allowed; }
+.nan-input-lg { font-size: 15px; padding: 13px 16px; border-radius: var(--nan-r-lg); }
+.nan-label-field {
+  display: block; font-size: 11px; font-weight: 600; color: var(--nan-text-2);
+  letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 6px;
+}
+
+/* ── Divider rows (settings-style) ── */
+.nan-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 13px 0; border-bottom: 1px solid var(--nan-border);
+}
+.nan-row:last-child { border-bottom: none; }
+.nan-row-icon {
+  width: 32px; height: 32px; border-radius: var(--nan-r-sm);
+  background: var(--nan-surface-2);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; color: var(--nan-text-2);
+}
+
+/* ── Tab bar ── */
+.nan-tabs {
+  display: flex; background: var(--nan-surface); border-radius: var(--nan-r-md);
+  padding: 3px; gap: 2px;
+}
+.nan-tab {
+  flex: 1; padding: 8px 6px; border: none; cursor: pointer;
+  font-family: var(--nan-font); font-size: 12px; font-weight: 500;
+  background: transparent; color: var(--nan-text-2);
+  border-radius: var(--nan-r-sm); transition: all 0.15s;
+}
+.nan-tab.active {
+  background: var(--nan-surface-3); color: var(--nan-text);
+  font-weight: 700;
+}
+.nan-tab.active-blue {
+  background: var(--nan-blue-dim); color: var(--nan-blue);
+  font-weight: 700; border: 1px solid rgba(0,102,255,0.20);
+}
+
+/* ── Status badges ── */
+.nan-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 20px;
+}
+.nan-badge-blue    { background: var(--nan-blue-dim); color: var(--nan-blue); border: 1px solid rgba(0,102,255,0.20); }
+.nan-badge-green   { background: rgba(0,200,83,0.10); color: var(--nan-green); border: 1px solid rgba(0,200,83,0.20); }
+.nan-badge-red     { background: rgba(255,59,59,0.10); color: var(--nan-red);  border: 1px solid rgba(255,59,59,0.20); }
+.nan-badge-gold    { background: rgba(240,165,0,0.10); color: var(--nan-gold); border: 1px solid rgba(240,165,0,0.20); }
+.nan-badge-default { background: var(--nan-surface-2); color: var(--nan-text-2); border: 1px solid var(--nan-border); }
+.nan-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.nan-dot-blue  { background: var(--nan-blue); }
+.nan-dot-green { background: var(--nan-green); }
+.nan-dot-red   { background: var(--nan-red); }
+
+/* ── Transaction rows ── */
+.nan-tx-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 16px; border-bottom: 1px solid var(--nan-border);
+  cursor: pointer; transition: background 0.12s;
+}
+.nan-tx-row:last-child { border-bottom: none; }
+.nan-tx-row:hover { background: var(--nan-surface-2); }
+.nan-tx-icon {
+  width: 38px; height: 38px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.nan-tx-icon-in  { background: rgba(0,200,83,0.10);  border: 1px solid rgba(0,200,83,0.18); }
+.nan-tx-icon-out { background: rgba(255,59,59,0.10);  border: 1px solid rgba(255,59,59,0.18); }
+.nan-tx-icon-swap{ background: var(--nan-blue-dim);   border: 1px solid rgba(0,102,255,0.20); }
+.nan-tx-icon-bot { background: rgba(0,102,255,0.08);  border: 1px solid rgba(0,102,255,0.15); }
+
+/* ── Balance card ── */
+.nan-balance-card {
+  background: linear-gradient(145deg, #0E1014 0%, #13151A 60%, #0D0F13 100%);
+  border: 1px solid var(--nan-border-2);
+  border-radius: var(--nan-r-xl); padding: 22px 24px;
+  position: relative; overflow: hidden;
+}
+.nan-balance-card::after {
+  content: ''; position: absolute; top: -40px; right: -40px;
+  width: 200px; height: 200px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(0,102,255,0.14) 0%, transparent 65%);
+  pointer-events: none;
+}
+
+/* ── Navigation ── */
+.nan-nav-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 12px; border-radius: var(--nan-r-md);
+  color: var(--nan-text-2); font-size: 13px; font-weight: 500;
+  cursor: pointer; transition: all 0.12s; border: none; background: none;
+  width: 100%; text-align: left; font-family: var(--nan-font);
+}
+.nan-nav-item:hover { background: var(--nan-surface-2); color: var(--nan-text); }
+.nan-nav-item.active {
+  background: var(--nan-blue-dim); color: var(--nan-blue);
+  font-weight: 600;
+}
+.nan-nav-item.active svg { color: var(--nan-blue); }
+
+/* ── Quick action buttons (home page) ── */
+.nan-action-btn {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  padding: 14px 8px; border-radius: var(--nan-r-lg);
+  background: var(--nan-surface); border: 1px solid var(--nan-border);
+  cursor: pointer; transition: all 0.15s; font-family: var(--nan-font);
+}
+.nan-action-btn:hover { background: var(--nan-surface-2); border-color: var(--nan-border-2); }
+.nan-action-btn.primary-action {
+  background: var(--nan-blue-dim); border-color: rgba(0,102,255,0.22);
+}
+.nan-action-btn.primary-action:hover { background: rgba(0,102,255,0.18); }
+.nan-action-icon {
+  width: 36px; height: 36px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--nan-surface-2); border: 1px solid var(--nan-border);
+}
+.nan-action-btn.primary-action .nan-action-icon {
+  background: var(--nan-blue); border-color: transparent;
+}
+.nan-action-label { font-size: 11px; font-weight: 600; color: var(--nan-text-2); letter-spacing: 0.03em; }
+.nan-action-btn.primary-action .nan-action-label { color: var(--nan-blue); }
+
+/* ── Empty states ── */
+.nan-empty {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 48px 20px; text-align: center; gap: 10px;
+}
+.nan-empty-icon {
+  width: 52px; height: 52px; border-radius: var(--nan-r-lg);
+  background: var(--nan-surface-2); border: 1px solid var(--nan-border);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--nan-text-3); margin-bottom: 4px;
+}
+
+/* ── Loading ── */
+.nan-spinner {
+  width: 18px; height: 18px; border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.15);
+  border-top-color: var(--nan-blue);
+  animation: nan-spin 0.7s linear infinite;
+  display: inline-block;
+}
+@keyframes nan-spin { to { transform: rotate(360deg); } }
+
+/* ── Skeleton shimmer ── */
+.nan-skel {
+  background: linear-gradient(90deg, var(--nan-surface) 25%, var(--nan-surface-2) 50%, var(--nan-surface) 75%);
+  background-size: 200% 100%;
+  animation: nan-shimmer 1.4s ease infinite;
+  border-radius: var(--nan-r-sm);
+}
+@keyframes nan-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+/* ── Toast ── */
+.nan-toast {
+  background: var(--nan-surface-2); border: 1px solid var(--nan-border-2);
+  border-radius: var(--nan-r-lg); padding: 13px 16px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+  color: var(--nan-text); font-family: var(--nan-font); font-size: 13px;
+}
+
+/* ── Modal ── */
+.nan-modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.72);
+  display: flex; align-items: flex-end; justify-content: center;
+  z-index: 9000; backdrop-filter: blur(4px);
+}
+.nan-modal {
+  background: var(--nan-surface); border: 1px solid var(--nan-border-2);
+  border-radius: 20px 20px 0 0; padding: 24px 20px 40px;
+  width: 100%; max-width: 480px;
+}
+
+/* ── Section header ── */
+.nan-section-head {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 12px;
+}
+.nan-section-title {
+  font-size: 12px; font-weight: 600; color: var(--nan-text-2);
+  letter-spacing: 0.06em; text-transform: uppercase;
+}
+
+/* ── Scrollbar ── */
+* { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.08) transparent; }
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 4px; }
+
+/* ── Utility ── */
+.nan-divider { height: 1px; background: var(--nan-border); margin: 4px 0; }
+.nan-glass {
+  background: rgba(19,21,26,0.85);
+  backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--nan-border);
+}
+
+/* ── Sonner toast override ── */
+[data-sonner-toaster] [data-sonner-toast] {
+  background: var(--nan-surface-2) !important;
+  border: 1px solid var(--nan-border-2) !important;
+  color: var(--nan-text) !important;
+}
+
+/* ── Responsive ── */
+@media (max-width: 480px) {
+  .nan-display { font-size: 36px; }
+  .nan-h1      { font-size: 26px; }
+  .nan-balance { font-size: 34px; }
+  .nan-btn-xl  { padding: 14px 20px; }
+}

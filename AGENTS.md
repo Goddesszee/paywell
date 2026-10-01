@@ -54,3 +54,13 @@ CIRCLE_DEVELOPER_CONTROLLED_API_KEY=
 CIRCLE_ENTITY_SECRET=
 VITE_MERCHANT_WALLET=0xYourMerchantWallet
 ```
+
+## Shared marketplace storage (required for Shop to work cross-user)
+`/api/listings` needs a Redis store so listings submitted/approved in one
+browser are visible to everyone, not just localStorage on that device.
+
+In Vercel: **Storage → Create Database → Redis** (Upstash-backed), then
+**Connect** it to this project — Vercel injects `KV_REST_API_URL` and
+`KV_REST_API_TOKEN` automatically, no manual copy/paste needed. Redeploy
+after connecting. Without this, `/api/listings` returns a 503 and the Shop
+falls back to empty/local-only state.

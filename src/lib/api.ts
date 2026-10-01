@@ -1,5 +1,5 @@
 /**
- * api.ts — Paywell backend API client
+ * api.ts — NAN backend API client
  *
  * Set VITE_API_URL in .env to point at your backend.
  * Defaults to relative paths (same origin) when not set.
@@ -128,7 +128,7 @@ export async function sendUsdc(
 export async function getActivity(walletAddress: string, sessionToken?: string): Promise<TxRecord[]> {
   try {
     const data = await apiGet<{ activities?: TxRecord[]; transactions?: TxRecord[] }>(
-      `/api/activity-feed?wallet=${walletAddress}`, sessionToken,
+      `/api/misc?route=activity-feed&address=${walletAddress}`, sessionToken,
     )
     return data.activities ?? data.transactions ?? []
   } catch {

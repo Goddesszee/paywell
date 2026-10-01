@@ -4,12 +4,22 @@ import path from 'path'
 import { nodePolyfills } from 'vite-plugin-node-polyfills'
 
 export default defineConfig({
-  plugins: [react(), nodePolyfills()],
+  plugins: [
+    react(),
+    nodePolyfills({
+      globals: { Buffer: true, global: true, process: true },
+      protocolImports: true,
+    }),
+  ],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+      // Force ALL packages (including @circle-fin/w3s-pw-web-sdk which bundles its own React)
+      // to use the exact same React instance — prevents "Invalid hook call" / duplicate React crash
+      'react': path.resolve(__dirname, 'node_modules/react'),
+      'react-dom': path.resolve(__dirname, 'node_modules/react-dom'),
     },
-    dedupe: ['react', 'react-dom'],
+    dedupe: ['react', 'react-dom', 'react/jsx-runtime'],
   },
   optimizeDeps: {
     include: [
@@ -29,10 +39,30 @@ export default defineConfig({
       'sonner',
       'clsx',
       'tailwind-merge',
+      'zustand',
       'vite-plugin-node-polyfills/shims/buffer',
       'vite-plugin-node-polyfills/shims/global',
       'vite-plugin-node-polyfills/shims/process',
     ],
+  },
+  build: {
+    chunkSizeWarningLimit: 1500,
+    rollupOptions: {
+      output: {
+        // Function-based chunking: anything that touches React hooks —
+        // including @reown/appkit* and @walletconnect/* which ConnectKit
+        // pulls in and which each bundle their own React — goes into
+        // vendor-react so there is exactly ONE React module instance.
+        manualChunks(id) {
+          // w3s-pw-web-sdk: Node deps (firebase/dotenv/jsonwebtoken), no React — safe to isolate
+          if (id.includes('@circle-fin/w3s-pw-web-sdk')) return 'vendor-w3s'
+          // Every other node_module (React, viem, wagmi, connectkit, framer-motion,
+          // @reown/*, @walletconnect/*, Circle kits, zustand, sonner, lucide-react…)
+          // goes into ONE chunk so there is exactly one module instance of everything.
+          if (id.includes('node_modules')) return 'vendor-react'
+        },
+      },
+    },
   },
   server: {
     allowedHosts: true,

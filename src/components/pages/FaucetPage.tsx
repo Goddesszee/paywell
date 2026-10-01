@@ -4,13 +4,13 @@ import { useAccount } from 'wagmi'
 import { ArrowLeft, Droplet, AlertCircle, CheckCircle2, ExternalLink } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
 
-const PW_BG      = '#FFFFFF'
-const PW_SURFACE = '#F7F7F8'
-const PW_BORDER  = '#E4E4E7'
-const PW_TEXT    = '#0D0D0D'
-const PW_TEXT_2  = '#5C5C6B'
-const PW_BLACK   = '#0D0D0D'
-const PW_WHITE   = '#FFFFFF'
+const PW_BG      = 'var(--nan-bg)'
+const PW_SURFACE = 'var(--nan-surface)'
+const PW_BORDER  = 'var(--nan-bdr)'
+const PW_TEXT    = 'var(--nan-text)'
+const PW_TEXT_2  = 'var(--nan-text2)'
+const PW_BLACK   = 'var(--nan-blue)'
+const PW_WHITE   = 'var(--nan-surface2)'
 const SANS       = 'Inter, sans-serif'
 
 export function FaucetPage() {
@@ -34,7 +34,7 @@ export function FaucetPage() {
     setCooldownMs(null)
 
     try {
-      const res = await fetch('/api/faucet', {
+      const res = await fetch('/api/misc?route=faucet', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ address }),
@@ -113,25 +113,25 @@ export function FaucetPage() {
         )}
 
         {!isConnected && (
-          <div style={{ marginBottom: 20, padding: 16, background: '#FFF9EC', borderRadius: 12, border: '1px solid #F5D78E', textAlign: 'center' }}>
-            <p style={{ color: '#92600A', fontSize: 14, margin: 0 }}>Connect your wallet on the Home screen first</p>
+          <div style={{ marginBottom: 20, padding: 16, background: 'rgba(240,165,0,0.10)', borderRadius: 12, border: '1px solid rgba(240,165,0,0.25)', textAlign: 'center' }}>
+            <p style={{ color: 'var(--nan-text)', fontSize: 14, margin: 0 }}>Connect your wallet on the Home screen first</p>
           </div>
         )}
 
         {/* Error */}
         {error && (
-          <div style={{ display: 'flex', gap: 10, padding: 14, background: '#FEF2F2', borderRadius: 12, border: '1px solid #FCA5A5', marginBottom: 16 }}>
+          <div style={{ display: 'flex', gap: 10, padding: 14, background: 'rgba(255,68,68,0.10)', borderRadius: 12, border: '1px solid rgba(255,68,68,0.25)', marginBottom: 16 }}>
             <AlertCircle size={18} color="#DC2626" style={{ flexShrink: 0, marginTop: 1 }} />
             <div>
-              <p style={{ color: '#DC2626', fontSize: 14, margin: 0, lineHeight: 1.4 }}>{error}</p>
+              <p style={{ color: 'var(--nan-red, #FF4444)', fontSize: 14, margin: 0, lineHeight: 1.4 }}>{error}</p>
               {cooldownLabel && (
-                <p style={{ color: '#DC2626', fontSize: 12, margin: '4px 0 0', opacity: 0.8 }}>{cooldownLabel}</p>
+                <p style={{ color: 'var(--nan-red, #FF4444)', fontSize: 12, margin: '4px 0 0', opacity: 0.8 }}>{cooldownLabel}</p>
               )}
               <a
                 href="https://faucet.circle.com"
                 target="_blank"
                 rel="noopener noreferrer"
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 8, fontSize: 13, fontWeight: 600, color: '#DC2626', textDecoration: 'underline' }}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 8, fontSize: 13, fontWeight: 600, color: 'var(--nan-red, #FF4444)', textDecoration: 'underline' }}
               >
                 Open Circle's faucet directly <ExternalLink size={12} />
               </a>
@@ -155,7 +155,7 @@ export function FaucetPage() {
             disabled={loading || !isConnected}
             style={{
               width: '100%', height: 56, borderRadius: 16,
-              background: loading || !isConnected ? '#E4E4E7' : PW_BLACK,
+              background: loading || !isConnected ? 'rgba(255,255,255,0.08)' : PW_BLACK,
               color: loading || !isConnected ? PW_TEXT_2 : PW_WHITE,
               border: 'none', cursor: loading || !isConnected ? 'not-allowed' : 'pointer',
               fontSize: 16, fontWeight: 700, fontFamily: SANS,

@@ -1,6 +1,6 @@
 import React from 'react'
 
-export function Spinner({ size = 20, color = '#0D0D0D' }: { size?: number, color?: string }) {
+export function Spinner({ size = 20, color = '#ffffff' }: { size?: number, color?: string }) {
   return (
     <span
       style={{
@@ -17,7 +17,7 @@ export function Spinner({ size = 20, color = '#0D0D0D' }: { size?: number, color
   )
 }
 
-export function LoadingDots({ color = '#0D0D0D' }: { color?: string }) {
+export function LoadingDots({ color = '#ffffff' }: { color?: string }) {
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
       {[0, 1, 2].map((i) => (
@@ -39,11 +39,11 @@ export function PageLoader() {
     <div style={{
       position: 'fixed', inset: 0, display: 'flex', flexDirection: 'column',
       alignItems: 'center', justifyContent: 'center', gap: 16,
-      background: '#FFFFFF', zIndex: 999,
+      background: '#111111', zIndex: 999,
     }}>
       <div style={{
         width: 40, height: 40, borderRadius: 11,
-        background: '#0D0D0D',
+        background: '#ffffff',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         fontSize: 20, fontWeight: 800, color: '#fff',
         boxShadow: '0 8px 24px rgba(37,99,235,0.45)',

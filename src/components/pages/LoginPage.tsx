@@ -1,288 +1,172 @@
 import React, { useState, useEffect } from 'react'
 import { ConnectKitButton } from 'connectkit'
 import { useAccount } from 'wagmi'
-import { Mail, Wallet, ArrowLeft, Loader } from 'lucide-react'
+import { Wallet, ArrowLeft } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
+import { CircleEmailLogin } from '../CircleEmailLogin'
 
 
-const F = "'Inter', -apple-system, sans-serif"
-const BLACK = '#0D0D0D'
-const SURFACE = '#F5F5F5'
-const BORDER = 'rgba(0,0,0,0.1)'
-const TEXT2 = '#6B6B6B'
-const TEXT3 = '#A0A0A0'
+const F       = "'Inter', -apple-system, sans-serif"
+const BLUE    = '#0066FF'
+const TEXT    = 'var(--nan-text)'
+const TEXT2   = '#8A8F9E'
+const TEXT3   = '#50556A'
+const SURFACE = 'var(--nan-surface)'
+const BORDER  = 'var(--nan-bdr2)'
+const BG      = 'var(--nan-bg)'
 
-type LoginMode = 'choose' | 'email' | 'otp'
+type LoginMode = 'choose' | 'email' | 'google' | 'wallet'
 
 export function LoginPage() {
   const { address, isConnected } = useAccount()
-  const { setAuth, setOnboarding, onboarding, setActiveView } = useAppStore()
+  const { setAuth, setActiveView, profile } = useAppStore()
   const [mode, setMode] = useState<LoginMode>('choose')
-  const [email, setEmail] = useState('')
-  const [otp, setOtp] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-  const [otpSent, setOtpSent] = useState(false)
 
-  // Handle Google OAuth redirect
-  useEffect(() => {
-    const hash = window.location.hash
-    if (hash.includes('google-auth=')) {
-      const params = new URLSearchParams(hash.slice(1))
-      const token = params.get('google-auth')
-      const emailParam = params.get('email')
-      if (token && emailParam) {
-        window.location.hash = ''
-        setAuth({ email: emailParam, sessionToken: token, walletAddress: '', walletId: '' })
-        if (!onboarding.completed) {
-          setActiveView('onboarding')
-        } else {
-          setActiveView('home')
-        }
-      }
-    }
-  }, [onboarding.completed, setAuth, setActiveView])
-
-  // Wallet connect auto-advance
+  // ── wallet connect effect ─────────────────────────────────────────────────
   useEffect(() => {
     if (isConnected && address) {
       setAuth({ email: '', sessionToken: 'wallet', walletAddress: address, walletId: address })
-      if (!onboarding.completed) {
-        setActiveView('onboarding')
-      } else {
-        setActiveView('home')
-      }
+      setActiveView(profile.displayName ? 'home' : 'name')
     }
-  }, [isConnected, address, onboarding.completed, setAuth, setActiveView, setOnboarding])
+  }, [isConnected, address, profile.displayName, setAuth, setActiveView])
 
-  const sendOtp = async () => {
-    if (!email.trim()) return
-    setLoading(true)
-    setError('')
-    try {
-      const res = await fetch('/api/otp', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, action: 'send' }),
-      })
-      if (!res.ok) throw new Error('Failed to send code')
-      setOtpSent(true)
-      setMode('otp')
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to send code')
-    } finally {
-      setLoading(false)
-    }
+  // ── Circle email auth success ─────────────────────────────────────────────
+  const onCircleSuccess = (walletAddress: string, userToken: string, email: string) => {
+    setAuth({ email, sessionToken: userToken, userToken, walletAddress, walletId: walletAddress, circleWalletAddress: walletAddress })
+    setActiveView(profile.displayName ? 'home' : 'name')
   }
 
-  const verifyOtp = async () => {
-    if (!otp.trim()) return
-    setLoading(true)
-    setError('')
-    try {
-      const res = await fetch('/api/otp', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, code: otp, action: 'verify' }),
-      })
-      const data = await res.json() as { success?: boolean; sessionToken?: string; devCode?: string }
-      if (!res.ok || !data.success) throw new Error('Invalid code')
-      setAuth({ email, sessionToken: data.sessionToken ?? 'email-auth', walletAddress: '', walletId: '' })
-      if (!onboarding.completed) {
-        setActiveView('onboarding')
-      } else {
-        setActiveView('home')
-      }
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Invalid code')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const googleLogin = () => {
-    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined
-    if (!clientId) {
-      setError('Google login not configured. Add VITE_GOOGLE_CLIENT_ID to environment variables.')
-      return
-    }
-    const params = new URLSearchParams({
-      client_id: clientId,
-      redirect_uri: `${window.location.origin}/api/auth/google/callback`,
-      response_type: 'code',
-      scope: 'openid email profile',
-      state: Math.random().toString(36).slice(2),
-    })
-    window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?${params}`
-  }
-
-  return (
+  // ── shared page wrapper ───────────────────────────────────────────────────
+  const wrap = (children: React.ReactNode) => (
     <div style={{
-      minHeight: '100vh', background: '#FFF', fontFamily: F,
+      minHeight: '100dvh', background: BG, fontFamily: F,
       display: 'flex', flexDirection: 'column', alignItems: 'center',
       justifyContent: 'center', padding: '24px 20px',
     }}>
-      <div style={{ width: '100%', maxWidth: 400 }}>
-
+      <div style={{ width: '100%', maxWidth: 380 }}>
         {/* Logo */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 40 }}>
-          <span style={{fontWeight:800,fontSize:28,letterSpacing:"-0.03em",color:"#0D0D0D",fontFamily:"Inter,sans-serif"}}>Paywell</span>
-          <p style={{ fontSize: 14, color: TEXT2, marginTop: 10, fontWeight: 400 }}>
-            The intelligent payment layer
-          </p>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 44 }}>
+          <div style={{ width: 44, height: 44, borderRadius: 12, background: BLUE,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+            <svg viewBox="0 0 324 480" width="18" height="25" fill="none">
+              <path d="M255,0 L84,167 L71,163 L0,97 L0,378 L246,132 L255,110 Z" fill="#fff"/>
+              <path d="M69,480 L240,313 L253,317 L324,383 L324,102 L78,348 L69,370 Z" fill="#fff"/>
+            </svg>
+          </div>
+          <span style={{ fontWeight: 800, fontSize: 26, letterSpacing: '-0.04em', color: TEXT }}>nan</span>
+          <p style={{ fontSize: 14, color: TEXT2, marginTop: 6 }}>The intelligent payment layer</p>
         </div>
-
-        {/* ── Choose method ── */}
-        {mode === 'choose' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {/* Wallet */}
-            <ConnectKitButton.Custom>
-              {({ show }) => (
-                <button onClick={show} style={btnStyle('#0D0D0D', '#FFF')}>
-                  <Wallet size={18} />
-                  <span>Continue with Wallet</span>
-                </button>
-              )}
-            </ConnectKitButton.Custom>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '4px 0' }}>
-              <div style={{ flex: 1, height: 1, background: BORDER }} />
-              <span style={{ fontSize: 12, color: TEXT3, fontWeight: 500 }}>or</span>
-              <div style={{ flex: 1, height: 1, background: BORDER }} />
-            </div>
-
-            {/* Google */}
-            <button onClick={googleLogin} style={btnStyle('#FFF', BLACK, BORDER)}>
-              <GoogleIcon />
-              <span>Continue with Google</span>
-            </button>
-
-            {/* Email */}
-            <button onClick={() => setMode('email')} style={btnStyle(SURFACE, BLACK, BORDER)}>
-              <Mail size={18} />
-              <span>Continue with Email</span>
-            </button>
-
-            <p style={{ fontSize: 12, color: TEXT3, textAlign: 'center', marginTop: 16, lineHeight: 1.6 }}>
-              By continuing you agree to Paywell's Terms of Service and Privacy Policy.
-            </p>
-          </div>
-        )}
-
-        {/* ── Email entry ── */}
-        {mode === 'email' && (
-          <div>
-            <button onClick={() => { setMode('choose'); setError('') }}
-              style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', cursor: 'pointer', color: TEXT2, fontSize: 14, marginBottom: 28, padding: 0, fontFamily: F }}>
-              <ArrowLeft size={15} /> Back
-            </button>
-            <h2 style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.03em', marginBottom: 6, color: BLACK }}>Enter your email</h2>
-            <p style={{ fontSize: 14, color: TEXT2, marginBottom: 24 }}>We'll send you a one-time code to sign in.</p>
-            <input
-              type="email"
-              placeholder="you@example.com"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && void sendOtp()}
-              autoFocus
-              style={inputStyle}
-            />
-            {error && <p style={errStyle}>{error}</p>}
-            <button
-              onClick={() => void sendOtp()}
-              disabled={loading || !email.trim()}
-              style={{ ...btnStyle(loading || !email.trim() ? SURFACE : BLACK, loading || !email.trim() ? TEXT3 : '#FFF'), marginTop: 12, cursor: loading || !email.trim() ? 'not-allowed' : 'pointer' }}
-            >
-              {loading ? <Loader size={16} style={{ animation: 'spin 1s linear infinite' }} /> : null}
-              {loading ? 'Sending…' : 'Send code →'}
-            </button>
-          </div>
-        )}
-
-        {/* ── OTP entry ── */}
-        {mode === 'otp' && (
-          <div>
-            <button onClick={() => { setMode('email'); setError(''); setOtp('') }}
-              style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', cursor: 'pointer', color: TEXT2, fontSize: 14, marginBottom: 28, padding: 0, fontFamily: F }}>
-              <ArrowLeft size={15} /> Back
-            </button>
-            <h2 style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.03em', marginBottom: 6, color: BLACK }}>Check your email</h2>
-            <p style={{ fontSize: 14, color: TEXT2, marginBottom: 24 }}>
-              We sent a 6-digit code to <strong>{email}</strong>
-            </p>
-            {otpSent && (
-              <div style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 10, padding: '10px 14px', marginBottom: 16, fontSize: 13, color: '#166534' }}>
-                Code sent. Check your inbox (or server console in dev mode).
-              </div>
-            )}
-            <input
-              type="text"
-              inputMode="numeric"
-              maxLength={6}
-              placeholder="000000"
-              value={otp}
-              onChange={e => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-              onKeyDown={e => e.key === 'Enter' && otp.length === 6 && void verifyOtp()}
-              autoFocus
-              style={{ ...inputStyle, textAlign: 'center', fontSize: 28, fontWeight: 700, letterSpacing: '0.3em' }}
-            />
-            {error && <p style={errStyle}>{error}</p>}
-            <button
-              onClick={() => void verifyOtp()}
-              disabled={loading || otp.length !== 6}
-              style={{ ...btnStyle(loading || otp.length !== 6 ? SURFACE : BLACK, loading || otp.length !== 6 ? TEXT3 : '#FFF'), marginTop: 12, cursor: loading || otp.length !== 6 ? 'not-allowed' : 'pointer' }}
-            >
-              {loading ? <Loader size={16} style={{ animation: 'spin 1s linear infinite' }} /> : null}
-              {loading ? 'Verifying…' : 'Verify →'}
-            </button>
-            <button
-              onClick={() => void sendOtp()}
-              style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer', color: TEXT2, fontSize: 13, marginTop: 14, fontFamily: F, textDecoration: 'underline' }}>
-              Resend code
-            </button>
-          </div>
-        )}
-
+        {children}
       </div>
-
       <p style={{ position: 'fixed', bottom: 20, fontSize: 11, color: TEXT3 }}>
         Arc · Circle USDC · Testnet
       </p>
     </div>
   )
+
+  // ── email mode — render Circle email login ────────────────────────────────
+  if (mode === 'email') {
+    return wrap(
+      <CircleEmailLogin
+        onBack={() => setMode('choose')}
+        onSuccess={onCircleSuccess}
+      />
+    )
+  }
+
+  // ── wallet mode — show ConnectKit, back button available ──────────────────
+  if (mode === 'wallet') {
+    return wrap(
+      <div>
+        <button onClick={() => setMode('choose')}
+          style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none',
+            cursor: 'pointer', color: TEXT2, fontSize: 14, marginBottom: 28, padding: 0, fontFamily: F }}>
+          <ArrowLeft size={14} /> Back
+        </button>
+        <h2 style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.025em', marginBottom: 6, color: TEXT }}>
+          Connect your wallet
+        </h2>
+        <p style={{ fontSize: 14, color: TEXT2, marginBottom: 22 }}>
+          Use any browser wallet to sign in to Nan.
+        </p>
+        <ConnectKitButton.Custom>
+          {({ show }) => (
+            <button onClick={show} style={btnS(BLUE, '#fff')}>
+              <Wallet size={17} />
+              <span>Connect Wallet</span>
+            </button>
+          )}
+        </ConnectKitButton.Custom>
+      </div>
+    )
+  }
+
+  // ── choose mode — email first, wallet as alternative ─────────────────────
+  return wrap(
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+
+      {/* Email — primary CTA */}
+      <button onClick={() => setMode('email')} style={btnS(BLUE, '#fff')}>
+        <MailIcon />
+        <span>Continue with Email</span>
+      </button>
+
+      {/* Google */}
+      <button onClick={() => setMode('google')} style={btnS(SURFACE, TEXT, BORDER)}>
+        <GoogleIcon />
+        <span>Continue with Google</span>
+      </button>
+
+      {/* Divider */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '4px 0' }}>
+        <div style={{ flex: 1, height: 1, background: BORDER }} />
+        <span style={{ fontSize: 12, color: TEXT3, fontWeight: 500 }}>or</span>
+        <div style={{ flex: 1, height: 1, background: BORDER }} />
+      </div>
+
+      {/* Wallet */}
+      <button onClick={() => setMode('wallet')} style={btnS(SURFACE, TEXT, BORDER)}>
+        <Wallet size={17} />
+        <span>Continue with Wallet</span>
+      </button>
+
+      <p style={{ fontSize: 12, color: TEXT3, textAlign: 'center', marginTop: 14, lineHeight: 1.6 }}>
+        New here? We'll create your Circle wallet automatically.
+      </p>
+    </div>
+  )
 }
 
-function GoogleIcon() {
+// ── icon helpers ───────────────────────────────────────────────────────────────
+function MailIcon() {
   return (
-    <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-      <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615Z" fill="#4285F4"/>
-      <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18Z" fill="#34A853"/>
-      <path d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332Z" fill="#FBBC05"/>
-      <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58Z" fill="#EA4335"/>
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="4" width="20" height="16" rx="2"/>
+      <path d="M2 7l10 7 10-7"/>
     </svg>
   )
 }
 
-function btnStyle(bg: string, color: string, borderColor?: string): React.CSSProperties {
+function GoogleIcon() {
+  return (
+    <svg width="17" height="17" viewBox="0 0 48 48" fill="none">
+      <path d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z" fill="#FFC107"/>
+      <path d="M6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 16.318 4 9.656 8.337 6.306 14.691z" fill="#FF3D00"/>
+      <path d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238C29.211 35.091 26.715 36 24 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z" fill="#4CAF50"/>
+      <path d="M43.611 20.083H42V20H24v8h11.303a11.966 11.966 0 01-4.087 5.571l6.19 5.238C36.971 39.205 44 34 44 24c0-1.341-.138-2.65-.389-3.917z" fill="#1976D2"/>
+    </svg>
+  )
+}
+
+// ── style helpers ──────────────────────────────────────────────────────────────
+function btnS(bg: string, color: string, borderColor?: string): React.CSSProperties {
   return {
-    width: '100%', padding: '14px 20px',
+    width: '100%', padding: '13px 20px',
     background: bg, color,
     border: borderColor ? `1px solid ${borderColor}` : 'none',
-    borderRadius: 14, fontSize: 15, fontWeight: 600,
+    borderRadius: 12, fontSize: 15, fontWeight: 600,
     cursor: 'pointer', fontFamily: F,
-    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
-    transition: 'opacity 0.15s',
+    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 9,
+    transition: 'opacity 0.15s', letterSpacing: '-0.01em',
   }
-}
-
-const inputStyle: React.CSSProperties = {
-  width: '100%', padding: '13px 16px',
-  border: '1.5px solid rgba(0,0,0,0.12)',
-  borderRadius: 12, fontSize: 16, fontFamily: F,
-  color: '#0D0D0D', background: '#FFF', outline: 'none',
-  boxSizing: 'border-box',
-}
-
-const errStyle: React.CSSProperties = {
-  fontSize: 13, color: '#DC2626', marginTop: 8,
 }

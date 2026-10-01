@@ -1,43 +1,137 @@
-import React, { useState, useMemo, useEffect } from 'react'
-import { Search, Star, ShoppingCart, ArrowLeft, Check, X, SlidersHorizontal, ShoppingBag, ExternalLink, Loader2 } from 'lucide-react'
+/**
+ * ShopPage — NAN marketplace composition root.
+ * Orchestrates all shop sub-views.
+ * Architecture is AI-agent ready: same Product/Order entities used by both humans and agents.
+ */
+import React, { useState, useMemo, useCallback, useEffect } from 'react'
+import { ShoppingBag } from 'lucide-react'
 import { useAccount } from 'wagmi'
-import { toast } from 'sonner'
-import { Card } from '../ui/Card'
-import { Button } from '../ui/Button'
-import { Badge } from '../ui/Badge'
-import { Input } from '../ui/Input'
-import { useAppStore, CartItem } from '../../store/appStore'
-import { CATEGORIES, Product } from '../../data/products'
-import { getVerifiedProducts } from '../../utils/listings'
-import { formatUSDC } from '../../utils/format'
-import { useShopCheckout } from '../../hooks/useShopCheckout'
-import { buildTxExplorerUrl } from '../../onchain-facts'
 
-type ShopSubView = 'catalog' | 'product' | 'cart' | 'checkout' | 'success' | 'list'
+// Store
+import { useAppStore } from '../../store/appStore'
+import { useShopStore, ShopProduct } from '../../store/shopStore'
+
+// Data
+import { mapLegacyCategory } from '../../data/shopCategories'
+
+// Components
+import { ShopHeader } from '../shop/ShopHeader'
+import { CategoryNavigation } from '../shop/CategoryNavigation'
+import { FilterPanel } from '../shop/FilterPanel'
+import { ShopProductCard } from '../shop/ShopProductCard'
+import { ProductDetail } from '../shop/ProductDetail'
+import { OfferModal } from '../shop/OfferModal'
+import { CartPage, CheckoutPage, ProtectedPurchaseSuccess } from '../shop/ShopCart'
+import { OrdersPage } from '../shop/OrdersPage'
+import { SellerDashboard } from '../shop/SellerDashboard'
+import { SellForm } from '../shop/SellForm'
+import { SavedItemsPage } from '../shop/SavedItemsPage'
+import { AgentPicksSection } from '../shop/AgentRecommendation'
+import { Button } from '../ui/Button'
+
+type ShopView =
+  | 'catalog'
+  | 'product'
+  | 'cart'
+  | 'checkout'
+  | 'success'
+  | 'orders'
+  | 'seller'
+  | 'sell'
+  | 'saved'
+
+const FONT = "'Inter', -apple-system, sans-serif"
 
 export function ShopPage() {
-  const [subView, setSubView] = useState<ShopSubView>('catalog')
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
-  const [activeCategory, setActiveCategory] = useState('all')
+  // ── Sub-view state ─────────────────────────────────────────────────────────
+  const [view, setView] = useState<ShopView>('catalog')
+  const [selectedProduct, setSelectedProduct] = useState<ShopProduct | null>(null)
+  const [showOffer, setShowOffer] = useState(false)
+  const [showFilters, setShowFilters] = useState(false)
   const [search, setSearch] = useState('')
+  const [lastTxHash, setLastTxHash] = useState<string | undefined>()
 
-  const { cart, addToCart, removeFromCart, clearCart, addActivity, pendingListings } = useAppStore()
-  const { isConnected } = useAccount()
+  // ── Stores ─────────────────────────────────────────────────────────────────
+  const { cart, addToCart, removeFromCart, clearCart, addActivity } = useAppStore()
+  const { filter, setFilter, favorites, orders, shopProducts, fetchShopProducts } = useShopStore()
+  useAccount()
 
-  const verifiedProducts = useMemo(() => getVerifiedProducts(pendingListings), [pendingListings])
+  // Load the shared, admin-approved catalog from the server so listings show
+  // up for every visitor — not just the browser that approved them.
+  useEffect(() => {
+    fetchShopProducts()
+  }, [fetchShopProducts])
 
+  // ── Product universe ───────────────────────────────────────────────────────
+  // Only admin-approved products appear in the marketplace.
+  // shopProducts are written by AdminDashboard.approveListing → addShopProduct.
+  const allProducts: ShopProduct[] = useMemo(() => shopProducts, [shopProducts])
+
+  // ── Filtered & sorted catalog ──────────────────────────────────────────────
   const filteredProducts = useMemo(() => {
-    return verifiedProducts.filter((p) => {
-      const matchCat = activeCategory === 'all' || p.category === activeCategory
-      const matchSearch = !search || p.name.toLowerCase().includes(search.toLowerCase()) || p.merchant.toLowerCase().includes(search.toLowerCase())
-      return matchCat && matchSearch
+    let list = allProducts.filter((p) => {
+      if (filter.category !== 'all') {
+        const mapped = mapLegacyCategory(p.category)
+        if (mapped !== filter.category && p.category !== filter.category) return false
+      }
+      if (search) {
+        const q = search.toLowerCase()
+        const match =
+          p.name.toLowerCase().includes(q) ||
+          p.merchant.toLowerCase().includes(q) ||
+          p.category.toLowerCase().includes(q) ||
+          p.tags.some((t) => t.toLowerCase().includes(q))
+        if (!match) return false
+      }
+      if (filter.priceMin !== undefined && p.price < filter.priceMin) return false
+      if (filter.priceMax !== undefined && p.price > filter.priceMax) return false
+      if (filter.condition && p.condition !== filter.condition) return false
+      if (filter.verifiedOnly && !p.merchantVerified) return false
+      if (filter.minRating && p.rating < filter.minRating) return false
+      if (filter.deliveryMethod && !p.deliveryOptions.includes(filter.deliveryMethod)) return false
+      return true
     })
-  }, [verifiedProducts, activeCategory, search])
 
+    switch (filter.sortBy) {
+      case 'newest':
+        list = [...list].sort((a, b) => new Date(b.listedAt).getTime() - new Date(a.listedAt).getTime())
+        break
+      case 'price_asc':
+        list = [...list].sort((a, b) => a.price - b.price)
+        break
+      case 'price_desc':
+        list = [...list].sort((a, b) => b.price - a.price)
+        break
+      case 'rating':
+        list = [...list].sort((a, b) => b.rating - a.rating)
+        break
+      default:
+        break
+    }
+    return list
+  }, [allProducts, filter, search])
+
+  // ── Cart helpers ───────────────────────────────────────────────────────────
   const cartCount = cart.reduce((acc, c) => acc + c.quantity, 0)
   const cartTotal = cart.reduce((acc, c) => acc + c.product.price * c.quantity, 0)
 
-  const handlePurchaseComplete = () => {
+  const pendingOrdersCount = orders.filter((o) =>
+    ['payment_protected', 'confirmed', 'shipped', 'delivered'].includes(o.status)
+  ).length
+
+  // ── Navigation helpers ─────────────────────────────────────────────────────
+  const goProduct = useCallback((p: ShopProduct) => {
+    setSelectedProduct(p)
+    setView('product')
+    window.scrollTo({ top: 0 })
+  }, [])
+
+  const goCatalog = useCallback(() => {
+    setView('catalog')
+    setSelectedProduct(null)
+  }, [])
+
+  const handlePurchaseComplete = useCallback((txHash?: string) => {
     cart.forEach((item) => {
       addActivity({
         type: 'purchase',
@@ -47,713 +141,330 @@ export function ShopPage() {
         status: 'confirmed',
         counterparty: item.product.merchant,
         productId: item.product.id,
+        txHash,
       })
     })
     clearCart()
-    setSubView('success')
-    toast.success('Purchase complete!')
-  }
+    setLastTxHash(txHash)
+    setView('success')
+  }, [cart, addActivity, clearCart])
 
-  if (subView === 'product' && selectedProduct) {
+  // ── Section data ───────────────────────────────────────────────────────────
+  const featured = useMemo(() => allProducts.filter((p) => p.inStock).slice(0, 4), [allProducts])
+  const popular = useMemo(() => [...allProducts].sort((a, b) => b.reviewCount - a.reviewCount).slice(0, 8), [allProducts])
+  const recentlyListed = useMemo(() => [...allProducts].sort((a, b) => new Date(b.listedAt).getTime() - new Date(a.listedAt).getTime()).slice(0, 8), [allProducts])
+  const agentPicks = useMemo(() => allProducts.filter((p) => p.agentSearchable).slice(0, 6), [allProducts])
+  const isEmpty = allProducts.length === 0
+
+  const isSearching = search.trim().length > 0 || filter.category !== 'all'
+
+  // ── Views ──────────────────────────────────────────────────────────────────
+
+  if (view === 'product' && selectedProduct) {
     return (
-      <ProductDetailPage
-        product={selectedProduct}
-        onBack={() => setSubView('catalog')}
-        onAddToCart={() => { addToCart(selectedProduct); toast.success(`${selectedProduct.name} added to cart`) }}
-        onBuyNow={() => { addToCart(selectedProduct); setSubView('cart') }}
-        inCart={cart.some((c) => c.product.id === selectedProduct.id)}
-      />
+      <>
+        <ProductDetail
+          product={selectedProduct}
+          onBack={goCatalog}
+          onBuyNow={() => {
+            addToCart({
+              id: selectedProduct.id,
+              name: selectedProduct.name,
+              description: selectedProduct.description,
+              price: selectedProduct.price,
+              merchant: selectedProduct.merchant,
+              merchantId: selectedProduct.merchantId,
+              merchantWallet: selectedProduct.merchantWallet,
+              category: selectedProduct.category as 'tech' | 'home' | 'fashion' | 'digital',
+              rating: selectedProduct.rating,
+              reviewCount: selectedProduct.reviewCount,
+              imageUrl: selectedProduct.images[0] ?? '',
+              inStock: selectedProduct.inStock,
+              tags: selectedProduct.tags,
+            })
+            setView('cart')
+          }}
+          onAddToCart={() => {
+            addToCart({
+              id: selectedProduct.id,
+              name: selectedProduct.name,
+              description: selectedProduct.description,
+              price: selectedProduct.price,
+              merchant: selectedProduct.merchant,
+              merchantId: selectedProduct.merchantId,
+              merchantWallet: selectedProduct.merchantWallet,
+              category: selectedProduct.category as 'tech' | 'home' | 'fashion' | 'digital',
+              rating: selectedProduct.rating,
+              reviewCount: selectedProduct.reviewCount,
+              imageUrl: selectedProduct.images[0] ?? '',
+              inStock: selectedProduct.inStock,
+              tags: selectedProduct.tags,
+            })
+          }}
+          onMakeOffer={() => setShowOffer(true)}
+          inCart={cart.some((c) => c.product.id === selectedProduct.id)}
+        />
+        {showOffer && (
+          <OfferModal product={selectedProduct} onClose={() => setShowOffer(false)} />
+        )}
+      </>
     )
   }
 
-  if (subView === 'cart') {
+  if (view === 'cart') {
     return (
       <CartPage
         cart={cart}
         total={cartTotal}
-        onBack={() => setSubView('catalog')}
+        onBack={goCatalog}
         onRemove={removeFromCart}
-        onCheckout={() => setSubView('checkout')}
+        onCheckout={() => setView('checkout')}
+        onContinueShopping={goCatalog}
       />
     )
   }
 
-  if (subView === 'checkout') {
+  if (view === 'checkout') {
     return (
       <CheckoutPage
         cart={cart}
         total={cartTotal}
-        isConnected={isConnected}
-        onBack={() => setSubView('cart')}
+        onBack={() => setView('cart')}
         onComplete={handlePurchaseComplete}
       />
     )
   }
 
-  if (subView === 'list') {
-    return <ListProductForm onBack={() => setSubView('catalog')} />
-  }
-
-  if (subView === 'success') {
+  if (view === 'success') {
     return (
-      <div className="max-w-lg mx-auto px-4 py-12 text-center">
-        <div className="w-16 h-16 rounded-full bg-[#dcfce7] flex items-center justify-center mx-auto mb-4">
-          <Check size={28} className="text-[#166534]" />
-        </div>
-        <h2 className="text-2xl font-bold text-[#0D0D0D] mb-2" style={{ fontFamily: "'Inter', sans-serif" }}>
-          Order confirmed
-        </h2>
-        <p className="text-[#5C5C6B] text-sm mb-8">Your USDC payment was processed successfully.</p>
-        <Button onClick={() => setSubView('catalog')} fullWidth>Continue shopping</Button>
-      </div>
+      <ProtectedPurchaseSuccess
+        txHash={lastTxHash}
+        onViewOrders={() => setView('orders')}
+        onContinueShopping={goCatalog}
+      />
     )
   }
 
+  if (view === 'orders') {
+    return (
+      <OrdersPage
+        onBack={goCatalog}
+        onContinueShopping={goCatalog}
+      />
+    )
+  }
+
+  if (view === 'seller') {
+    return (
+      <SellerDashboard
+        onBack={goCatalog}
+        onListItem={() => setView('sell')}
+      />
+    )
+  }
+
+  if (view === 'sell') {
+    return <SellForm onBack={() => setView('seller')} />
+  }
+
+  if (view === 'saved') {
+    return (
+      <SavedItemsPage
+        onBack={goCatalog}
+        onProduct={goProduct}
+        onContinueShopping={goCatalog}
+      />
+    )
+  }
+
+  // ── Catalog ────────────────────────────────────────────────────────────────
   return (
-    <div className="max-w-4xl mx-auto px-4 py-6 pb-28 lg:pb-8">
+    <div style={{ maxWidth: 720, margin: '0 auto', paddingBottom: 80 }}>
       {/* Header */}
-      <div className="flex items-center justify-between mb-5">
-        <div>
-          <h1 className="text-xl font-bold text-[#0D0D0D]" style={{ fontFamily: "'Inter', sans-serif" }}>
-            Shop with Paywell
-          </h1>
-          <p className="text-sm text-[#5C5C6B] mt-0.5">Discover products you can pay for with USDC.</p>
-        </div>
-        {cartCount > 0 && (
-          <button
-            onClick={() => setSubView('cart')}
-            className="relative w-10 h-10 flex items-center justify-center rounded-xl bg-[#0D0D0D] text-white hover:bg-[#333] transition-colors"
-          >
-            <ShoppingCart size={18} />
-            <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-[#0D0D0D] text-white text-xs font-bold flex items-center justify-center">
-              {cartCount}
-            </span>
-          </button>
-        )}
-      </div>
-
-      {/* Merchant CTA */}
-      <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '12px 14px', marginBottom: 16,
-        background: '#F7F7F8', borderRadius: 12,
-        border: '1px solid rgba(0,0,0,0.07)',
-      }}>
-        <div>
-          <div style={{ fontSize: 13, fontWeight: 600, color: '#0D0D0D' }}>Sell on Paywell</div>
-          <div style={{ fontSize: 12, color: '#5C5C6B', marginTop: 2 }}>List a product and accept USDC</div>
-        </div>
-        <button
-          onClick={() => setSubView('list')}
-          style={{
-            height: 34, padding: '0 14px', borderRadius: 8,
-            background: '#0D0D0D', color: '#FFF',
-            fontSize: 12, fontWeight: 600, border: 'none', cursor: 'pointer',
-            fontFamily: "'Inter', sans-serif",
-          }}
-        >
-          + List item
-        </button>
-      </div>
-
-      {/* Search + filter */}
-      <div className="flex gap-2 mb-4">
-        <div className="flex-1">
-          <Input
-            placeholder="Search products..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            prefix={<Search size={16} />}
-          />
-        </div>
-        <button className="w-11 h-11 flex items-center justify-center rounded-xl bg-[#F7F7F8] hover:bg-[#EFEFEF] text-[#0D0D0D] border border-[rgba(18,45,69,0.1)] transition-colors">
-          <SlidersHorizontal size={17} />
-        </button>
-      </div>
+      <ShopHeader
+        search={search}
+        onSearchChange={setSearch}
+        onOpenCart={() => setView('cart')}
+        onOpenOrders={() => setView('orders')}
+        onOpenSell={() => setView('sell')}
+        onOpenSaved={() => setView('saved')}
+        onOpenFilters={() => setShowFilters(true)}
+        cartCount={cartCount}
+        ordersCount={pendingOrdersCount}
+        savedCount={favorites.length}
+      />
 
       {/* Categories */}
-      <div className="flex gap-2 overflow-x-auto pb-1 mb-5 scrollbar-none">
-        {CATEGORIES.map((cat) => (
-          <button
-            key={cat.id}
-            onClick={() => setActiveCategory(cat.id)}
-            className={`flex-shrink-0 h-8 px-4 rounded-full text-sm font-semibold transition-all ${
-              activeCategory === cat.id
-                ? 'bg-[#0D0D0D] text-white'
-                : 'bg-[#F7F7F8] text-[#0D0D0D] hover:bg-[#EFEFEF]'
-            }`}
-          >
-            {cat.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Product grid */}
-      {filteredProducts.length === 0 ? (
-        <div className="text-center py-16">
-          <ShoppingBag size={36} className="text-[#9898A6] mx-auto mb-3" />
-          <h3 className="text-base font-bold text-[#0D0D0D] mb-1">No products found</h3>
-          <p className="text-sm text-[#5C5C6B]">
-            {verifiedProducts.length === 0
-              ? 'No verified listings yet — check back soon, or list an item yourself.'
-              : 'Try a different search or category.'}
-          </p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-          {filteredProducts.map((product) => (
-            <ProductCard
-              key={product.id}
-              product={product}
-              inCart={cart.some((c) => c.product.id === product.id)}
-              onClick={() => { setSelectedProduct(product); setSubView('product') }}
-              onAddToCart={(e) => {
-                e.stopPropagation()
-                addToCart(product)
-                toast.success(`${product.name} added to cart`)
-              }}
-            />
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
-
-function ProductCard({
-  product,
-  inCart,
-  onClick,
-  onAddToCart,
-}: {
-  product: Product
-  inCart: boolean
-  onClick: () => void
-  onAddToCart: (e: React.MouseEvent) => void
-}) {
-  return (
-    <div
-      onClick={onClick}
-      className="bg-white rounded-2xl border border-[rgba(18,45,69,0.08)] shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer overflow-hidden"
-    >
-      <div className="aspect-[4/3] overflow-hidden bg-[#F7F7F8] relative">
-        <img
-          src={product.imageUrl}
-          alt={product.name}
-          className="w-full h-full object-cover"
-          loading="lazy"
+      <div style={{ marginBottom: 16 }}>
+        <CategoryNavigation
+          active={filter.category}
+          onChange={(id) => setFilter({ category: id })}
         />
-        {!product.inStock && (
-          <div className="absolute inset-0 bg-white/70 flex items-center justify-center">
-            <Badge variant="default" size="sm">Out of stock</Badge>
-          </div>
-        )}
-      </div>
-      <div className="p-3">
-        <div className="text-xs text-[#5C5C6B] font-medium mb-1">{product.merchant}</div>
-        <h3 className="text-sm font-bold text-[#0D0D0D] leading-snug mb-1.5 line-clamp-2">{product.name}</h3>
-        <div className="flex items-center gap-1 mb-2">
-          <Star size={11} className="text-[#f59e0b] fill-[#f59e0b]" />
-          <span className="text-xs font-semibold text-[#0D0D0D] tabular-nums">{product.rating}</span>
-          <span className="text-xs text-[#9898A6]">({product.reviewCount})</span>
-        </div>
-        <div className="flex items-center justify-between">
-          <span className="text-base font-bold text-[#0D0D0D] tabular-nums">{product.price} <span className="text-xs font-semibold text-[#5C5C6B]">USDC</span></span>
-          {product.inStock && (
-            <button
-              onClick={onAddToCart}
-              className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${
-                inCart
-                  ? 'bg-[#dcfce7] text-[#166534]'
-                  : 'bg-[#F7F7F8] text-[#0D0D0D] hover:bg-[#0D0D0D] hover:text-white'
-              }`}
-            >
-              {inCart ? <Check size={14} /> : <ShoppingCart size={14} />}
-            </button>
-          )}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function ProductDetailPage({
-  product,
-  onBack,
-  onAddToCart,
-  onBuyNow,
-  inCart,
-}: {
-  product: Product
-  onBack: () => void
-  onAddToCart: () => void
-  onBuyNow: () => void
-  inCart: boolean
-}) {
-  return (
-    <div className="max-w-2xl mx-auto px-4 py-6 pb-28 lg:pb-8">
-      <button
-        onClick={onBack}
-        className="flex items-center gap-2 text-sm font-semibold text-[#5C5C6B] hover:text-[#0D0D0D] mb-4 transition-colors"
-      >
-        <ArrowLeft size={16} />
-        Back to Shop
-      </button>
-
-      <div className="bg-white rounded-2xl border border-[rgba(18,45,69,0.08)] shadow-sm overflow-hidden mb-4">
-        <div className="aspect-[16/9] overflow-hidden bg-[#F7F7F8]">
-          <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" />
-        </div>
-        <div className="p-5">
-          <div className="flex items-center justify-between mb-2">
-            <Badge variant="default" size="sm">{product.category}</Badge>
-            <div className="flex items-center gap-1">
-              <Star size={13} className="text-[#f59e0b] fill-[#f59e0b]" />
-              <span className="text-sm font-bold text-[#0D0D0D] tabular-nums">{product.rating}</span>
-              <span className="text-xs text-[#9898A6]">({product.reviewCount} reviews)</span>
-            </div>
-          </div>
-          <h1 className="text-2xl font-bold text-[#0D0D0D] mb-1" style={{ fontFamily: "'Inter', sans-serif", letterSpacing: '-0.03em' }}>
-            {product.name}
-          </h1>
-          <p className="text-sm text-[#5C5C6B] font-medium mb-3">by {product.merchant}</p>
-          <p className="text-sm text-[#0D0D0D] leading-relaxed mb-4">{product.description}</p>
-
-          <div className="flex flex-wrap gap-2 mb-5">
-            {product.tags.map((tag) => (
-              <span key={tag} className="px-2.5 py-1 bg-[#F7F7F8] rounded-full text-xs font-medium text-[#0D0D0D]">
-                #{tag}
-              </span>
-            ))}
-          </div>
-
-          {/* Reviews section */}
-          <div className="pt-4 border-t border-[rgba(0,0,0,0.06)] mb-4">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-bold text-[#0D0D0D] uppercase tracking-wider">Reviews</span>
-              <div className="flex items-center gap-1">
-                <Star size={13} className="text-[#f59e0b] fill-[#f59e0b]" />
-                <span className="text-sm font-bold text-[#0D0D0D]">{product.rating}</span>
-                <span className="text-xs text-[#9898A6]">({product.reviewCount})</span>
-              </div>
-            </div>
-            {/* Rating bars */}
-            {[5,4,3,2,1].map(star => (
-              <div key={star} className="flex items-center gap-2 mb-1">
-                <span className="text-xs text-[#5C5C6B] w-3">{star}</span>
-                <Star size={10} className="text-[#f59e0b] fill-[#f59e0b]" />
-                <div className="flex-1 h-1.5 rounded-full bg-[#F7F7F8] overflow-hidden">
-                  <div className="h-full rounded-full bg-[#0D0D0D]" style={{ width: star === 5 ? '70%' : star === 4 ? '20%' : star === 3 ? '7%' : '2%' }} />
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="flex items-center justify-between pt-4 border-t border-[rgba(0,0,0,0.06)] mb-4">
-            <div>
-              <div className="text-xs text-[#5C5C6B] font-medium">Price</div>
-              <div className="text-2xl font-bold text-[#0D0D0D] tabular-nums" style={{ fontFamily: "'Inter', sans-serif" }}>
-                {product.price} <span className="text-base font-semibold text-[#5C5C6B]">USDC</span>
-              </div>
-            </div>
-            {!product.inStock ? (
-              <Badge variant="default">Out of stock</Badge>
-            ) : (
-              <Badge variant="success">In stock</Badge>
-            )}
-          </div>
-
-          {product.inStock && (
-            <div className="flex gap-2">
-              <Button
-                fullWidth
-                variant="secondary"
-                onClick={onAddToCart}
-                icon={inCart ? <Check size={16} /> : <ShoppingCart size={16} />}
-              >
-                {inCart ? 'In cart' : 'Add to cart'}
-              </Button>
-              <Button fullWidth onClick={onBuyNow} icon={<ShoppingBag size={16} />}>
-                Buy now
-              </Button>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function CartPage({
-  cart,
-  total,
-  onBack,
-  onRemove,
-  onCheckout,
-}: {
-  cart: CartItem[]
-  total: number
-  onBack: () => void
-  onRemove: (id: string) => void
-  onCheckout: () => void
-}) {
-  return (
-    <div className="max-w-lg mx-auto px-4 py-6 pb-28 lg:pb-8">
-      <div className="flex items-center gap-3 mb-5">
-        <button onClick={onBack} className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-[#F7F7F8] text-[#0D0D0D]">
-          <ArrowLeft size={18} />
-        </button>
-        <h1 className="text-xl font-bold text-[#0D0D0D]" style={{ fontFamily: "'Inter', sans-serif" }}>
-          Cart ({cart.length})
-        </h1>
       </div>
 
-      {cart.length === 0 ? (
-        <div className="text-center py-12">
-          <ShoppingCart size={36} className="text-[#9898A6] mx-auto mb-3" />
-          <p className="text-sm text-[#5C5C6B]">Your cart is empty</p>
+      {/* Search / filtered results */}
+      {isSearching ? (
+        <SearchResults
+          products={filteredProducts}
+          onProduct={goProduct}
+          cartProductIds={cart.map((c) => c.product.id)}
+          query={search}
+        />
+      ) : isEmpty ? (
+        /* Empty marketplace — no approved listings yet */
+        <div style={{ textAlign: 'center', padding: '60px 20px' }}>
+          <div style={{
+            width: 60, height: 60, borderRadius: 16, background: '#1a1a1a',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            margin: '0 auto 16px',
+          }}>
+            <ShoppingBag size={26} color="#9898A6" />
+          </div>
+          <h2 style={{ fontSize: 18, fontWeight: 800, color: '#ffffff', fontFamily: FONT, letterSpacing: '-0.02em', marginBottom: 8 }}>
+            No listings yet
+          </h2>
+          <p style={{ fontSize: 14, color: '#5C5C6B', lineHeight: 1.7, marginBottom: 24, maxWidth: 300, margin: '0 auto 24px' }}>
+            Be the first to list a product. All listings are reviewed before going live.
+          </p>
+          <Button onClick={() => setView('sell')}>Sell an Item</Button>
         </div>
       ) : (
-        <>
-          <div className="space-y-3 mb-5">
-            {cart.map((item: CartItem) => (
-              <Card key={item.product.id} padding="md">
-                <div className="flex items-center gap-3">
-                  <div className="w-14 h-14 rounded-xl overflow-hidden bg-[#F7F7F8] flex-shrink-0">
-                    <img src={item.product.imageUrl} alt={item.product.name} className="w-full h-full object-cover" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-sm font-bold text-[#0D0D0D] truncate">{item.product.name}</h3>
-                    <p className="text-xs text-[#5C5C6B]">{item.product.merchant}</p>
-                    <p className="text-sm font-bold text-[#0D0D0D] tabular-nums mt-1">
-                      {formatUSDC(item.product.price * item.quantity)} USDC
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => onRemove(item.product.id)}
-                    className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-[#fee2e2] text-[#9898A6] hover:text-[#DC2626] transition-colors"
-                  >
-                    <X size={14} />
-                  </button>
-                </div>
-              </Card>
-            ))}
-          </div>
+        /* Full catalog sections */
+        <div>
+          {/* Featured */}
+          {featured.length > 0 && (
+            <Section title="Featured Products" onSeeAll={() => {}}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
+                {featured.map((p) => (
+                  <ShopProductCard key={p.id} product={p} onClick={() => goProduct(p)} inCart={cart.some((c) => c.product.id === p.id)} />
+                ))}
+              </div>
+            </Section>
+          )}
 
-          <Card padding="md" className="mb-4">
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm text-[#5C5C6B]">
-                <span>Subtotal</span>
-                <span className="font-semibold text-[#0D0D0D] tabular-nums">{formatUSDC(total)} USDC</span>
+          {/* Agent picks */}
+          <AgentPicksSection products={agentPicks} onProductClick={goProduct} />
+
+          {/* Popular */}
+          {popular.length > 0 && (
+            <Section title="Popular Products" onSeeAll={() => {}}>
+              <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 4, scrollbarWidth: 'none' }}>
+                {popular.map((p) => (
+                  <div key={p.id} style={{ flexShrink: 0, width: 200 }}>
+                    <ShopProductCard product={p} onClick={() => goProduct(p)} size="sm" />
+                  </div>
+                ))}
               </div>
-              <div className="flex justify-between text-sm text-[#5C5C6B]">
-                <span>Network fee</span>
-                <span className="font-semibold text-[#166534]">Free</span>
+            </Section>
+          )}
+
+          {/* Recently listed */}
+          {recentlyListed.length > 0 && (
+            <Section title="Recently Listed" onSeeAll={() => {}}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
+                {recentlyListed.slice(0, 6).map((p) => (
+                  <ShopProductCard key={p.id} product={p} onClick={() => goProduct(p)} />
+                ))}
               </div>
-              <div className="pt-2 border-t border-[rgba(18,45,69,0.06)] flex justify-between font-bold text-[#0D0D0D]">
-                <span>Total</span>
-                <span className="tabular-nums">{formatUSDC(total)} USDC</span>
+            </Section>
+          )}
+
+          {/* Sell CTA */}
+          <div style={{
+            padding: '16px 18px',
+            background: '#ffffff',
+            borderRadius: 14, marginBottom: 20,
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          }}>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: '#ffffff', fontFamily: FONT }}>Sell on NAN</div>
+              <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>
+                List a product and accept USDC
               </div>
             </div>
-          </Card>
-
-          <Button fullWidth size="lg" onClick={onCheckout} icon={<ShoppingBag size={18} />}>
-            Checkout · {formatUSDC(total)} USDC
-          </Button>
-        </>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setView('sell')}
+              style={{ background: 'rgba(255,255,255,0.10)', borderColor: 'rgba(255,255,255,0.20)', color: '#ffffff' }}
+            >
+              + List item
+            </Button>
+          </div>
+        </div>
       )}
+
+      {/* Filter panel */}
+      {showFilters && <FilterPanel onClose={() => setShowFilters(false)} />}
     </div>
   )
 }
 
-function CheckoutPage({
-  cart,
-  total,
-  isConnected,
-  onBack,
-  onComplete,
+// ── Section wrapper ────────────────────────────────────────────────────────
+
+function Section({
+  title, children,
 }: {
-  cart: CartItem[]
-  total: number
-  isConnected: boolean
-  onBack: () => void
-  onComplete: () => void
+  title: string
+  onSeeAll?: () => void
+  children: React.ReactNode
 }) {
-  const { checkout, status, txHash, error } = useShopCheckout()
-  const { chainId } = useAccount()
-
-  useEffect(() => {
-    if (status === 'confirmed') {
-      const t = setTimeout(onComplete, 1200)
-      return () => clearTimeout(t)
-    }
-  }, [status, onComplete])
-
-  const handleConfirm = async () => {
-    if (!isConnected) return
-    await checkout(cart)
-  }
-
-  const isPending   = status === 'approving' || status === 'creating-order' || status === 'pending'
-  const isConfirmed = status === 'confirmed'
-
   return (
-    <div className="max-w-lg mx-auto px-4 py-6 pb-28 lg:pb-8">
-      <div className="flex items-center gap-3 mb-5">
-        <button onClick={onBack} className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-[#F7F7F8] text-[#0D0D0D]">
-          <ArrowLeft size={18} />
-        </button>
-        <h1 className="text-xl font-bold text-[#0D0D0D]" style={{ fontFamily: "'Inter', sans-serif" }}>
-          Checkout
-        </h1>
+    <section style={{ marginBottom: 28 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+        <h2 style={{ fontSize: 14, fontWeight: 700, color: '#ffffff', fontFamily: "'Inter', sans-serif" }}>
+          {title}
+        </h2>
       </div>
-
-      {!isConnected && (
-        <div className="flex items-center gap-2 bg-[#fef9c3] border border-[#fde68a] rounded-xl px-3 py-2.5 mb-4">
-          <span className="text-sm text-[#854d0e] font-medium">Connect your wallet to complete purchase.</span>
-        </div>
-      )}
-
-      <Card padding="md" className="mb-4">
-        <p className="text-xs font-bold text-[#5C5C6B] uppercase tracking-wider mb-3">Order summary</p>
-        <div className="space-y-2 mb-3">
-          {cart.map((item: CartItem) => (
-            <div key={item.product.id} className="flex justify-between text-sm">
-              <span className="text-[#5C5C6B] truncate pr-2">{item.product.name} ×{item.quantity}</span>
-              <span className="font-semibold text-[#0D0D0D] tabular-nums flex-shrink-0">
-                {formatUSDC(item.product.price * item.quantity)} USDC
-              </span>
-            </div>
-          ))}
-        </div>
-        <div className="pt-2 border-t border-[rgba(0,0,0,0.06)] flex justify-between font-bold text-[#0D0D0D]">
-          <span>Total</span>
-          <span className="tabular-nums">{formatUSDC(total)} USDC</span>
-        </div>
-      </Card>
-
-      <Card padding="md" className="mb-4">
-        <p className="text-xs font-bold text-[#5C5C6B] uppercase tracking-wider mb-2">Merchant wallet</p>
-        <p className="text-xs font-mono text-[#5C5C6B] break-all">{cart[0]?.product.merchantWallet}</p>
-        <p className="text-xs text-[#9898A6] mt-1">USDC transfers directly to this address onchain.</p>
-      </Card>
-
-      <Card padding="md" className="mb-5">
-        <p className="text-xs font-bold text-[#5C5C6B] uppercase tracking-wider mb-2">Payment method</p>
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-[#F7F7F8] flex items-center justify-center border border-[rgba(0,0,0,0.08)]">
-            <ShoppingBag size={15} className="text-[#0D0D0D]" />
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-[#0D0D0D]">USDC Wallet</p>
-            <p className="text-xs text-[#5C5C6B]">Arc Testnet · Direct onchain transfer</p>
-          </div>
-          <span className="ml-auto"><Badge variant="success" size="sm">Ready</Badge></span>
-        </div>
-      </Card>
-
-      {error && (
-        <div className="mb-4 flex items-center gap-2 bg-[#FEE2E2] border border-[#FECACA] rounded-xl px-3 py-2.5">
-          <span className="text-sm text-[#7F1D1D]">{error}</span>
-        </div>
-      )}
-
-      {txHash && chainId && (
-        <div className="mb-4 flex items-center gap-2 bg-[#F7F7F8] border border-[rgba(0,0,0,0.08)] rounded-xl px-3 py-2.5">
-          <span className="text-xs text-[#5C5C6B] font-mono truncate flex-1">{txHash.slice(0, 20)}…</span>
-          <a href={buildTxExplorerUrl(chainId, txHash)} target="_blank" rel="noopener noreferrer" className="text-[#0D0D0D] flex-shrink-0">
-            <ExternalLink size={14} />
-          </a>
-        </div>
-      )}
-
-      <Button
-        fullWidth
-        size="lg"
-        onClick={() => { void handleConfirm() }}
-        disabled={!isConnected || isPending}
-      >
-        {isPending
-          ? <><Loader2 size={16} style={{ animation: 'nan-spin 0.8s linear infinite', display: 'inline-block', marginRight: 8 }} />{status === 'approving' ? 'Approving USDC…' : status === 'creating-order' ? 'Creating order…' : 'Confirming…'}</>
-          : isConfirmed
-          ? '✓ Payment confirmed'
-          : `Pay ${formatUSDC(total)} USDC`}
-      </Button>
-      <p className="text-center text-xs text-[#9898A6] mt-3">
-        Real USDC transfer on Arc Testnet · Irreversible once signed
-      </p>
-    </div>
+      {children}
+    </section>
   )
 }
 
-function ListProductForm({ onBack }: { onBack: () => void }) {
-  const { address } = useAccount()
-  const { submitListing } = useAppStore()
-  const [step, setStep] = useState<'product' | 'kyc'>('product')
-  const [name, setName] = useState('')
-  const [price, setPrice] = useState('')
-  const [description, setDescription] = useState('')
-  const [imageUrl, setImageUrl] = useState('')
-  const [imageBase64, setImageBase64] = useState('')
-  const [category, setCategory] = useState('digital')
-  const [wallet, setWallet] = useState(address ?? '')
-  const [kycFullName, setKycFullName] = useState('')
-  const [kycIdType, setKycIdType] = useState('passport')
-  const [kycIdNumber, setKycIdNumber] = useState('')
-  const [submitted, setSubmitted] = useState(false)
+// ── Search results ─────────────────────────────────────────────────────────
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    const reader = new FileReader()
-    reader.onload = (ev) => {
-      const result = ev.target?.result as string
-      setImageBase64(result)
-      setImageUrl('')
-    }
-    reader.readAsDataURL(file)
-  }
-
-  const handleSubmit = () => {
-    if (!name || !price || !wallet || !kycFullName || !kycIdNumber) return
-    submitListing({
-      name, description, price: parseFloat(price),
-      category, imageUrl, imageBase64, merchantWallet: wallet,
-      kycStatus: 'submitted', kycFullName, kycIdType, kycIdNumber,
-      status: 'pending',
-    })
-    setSubmitted(true)
-  }
-
-  const FONT = "'Inter', -apple-system, sans-serif"
-  const S = { fontFamily: FONT, color: '#0D0D0D' }
-
-  if (submitted) {
+function SearchResults({
+  products, onProduct, cartProductIds, query,
+}: {
+  products: ShopProduct[]
+  onProduct: (p: ShopProduct) => void
+  cartProductIds: string[]
+  query: string
+}) {
+  if (products.length === 0) {
     return (
-      <div style={{ maxWidth: 480, margin: '0 auto', padding: '48px 16px', textAlign: 'center' }}>
-        <div style={{ width: 56, height: 56, borderRadius: '50%', background: '#F7F7F8', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
-          <Check size={24} color="#0D0D0D" />
+      <div style={{ textAlign: 'center', padding: '60px 20px' }}>
+        <div style={{
+          width: 52, height: 52, borderRadius: 14, background: '#1a1a1a',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px',
+        }}>
+          <ShoppingBag size={22} color="#9898A6" />
         </div>
-        <h2 style={{ ...S, fontSize: 22, fontWeight: 700, marginBottom: 8 }}>Listing submitted</h2>
-        <p style={{ color: '#5C5C6B', fontSize: 14, marginBottom: 8 }}>
-          <strong style={{ color: '#0D0D0D' }}>{name}</strong> · {price} USDC
+        <h3 style={{ fontSize: 15, fontWeight: 700, color: '#ffffff', fontFamily: "'Inter', sans-serif", marginBottom: 6 }}>
+          No products found
+        </h3>
+        <p style={{ fontSize: 13, color: '#9898A6' }}>
+          {query ? `No results for "${query}". Try a different search.` : 'Try a different category or filter.'}
         </p>
-        <p style={{ color: '#9898A6', fontSize: 13, marginBottom: 24 }}>
-          Your listing is pending admin review. Once approved it will appear in the shop.
-          Payments go to {wallet.slice(0, 6)}...{wallet.slice(-4)} on Arc Testnet.
-        </p>
-        <button onClick={onBack} style={{ ...S, height: 48, padding: '0 24px', borderRadius: 12, background: '#0D0D0D', color: '#FFF', fontSize: 15, fontWeight: 600, border: 'none', cursor: 'pointer', width: '100%' }}>
-          Back to shop
-        </button>
       </div>
     )
   }
 
-  const previewSrc = imageBase64 || imageUrl
-
   return (
-    <div style={{ maxWidth: 480, margin: '0 auto', padding: '16px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
-        <button onClick={step === 'kyc' ? () => setStep('product') : onBack} style={{ width: 36, height: 36, borderRadius: 9, background: '#F7F7F8', border: '1px solid rgba(0,0,0,0.08)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <ArrowLeft size={16} color="#0D0D0D" />
-        </button>
-        <div>
-          <div style={{ ...S, fontSize: 17, fontWeight: 700 }}>{step === 'kyc' ? 'Verify your identity' : 'List a product'}</div>
-          <div style={{ color: '#5C5C6B', fontSize: 13 }}>{step === 'kyc' ? 'Step 2 of 2 — required for all sellers' : 'Step 1 of 2 — product details'}</div>
-        </div>
+    <div>
+      <div style={{ fontSize: 12, color: '#9898A6', fontFamily: "'Inter', sans-serif", marginBottom: 12 }}>
+        {products.length} {products.length === 1 ? 'product' : 'products'} found
       </div>
-
-      {/* Step indicator */}
-      <div style={{ display: 'flex', gap: 4, marginBottom: 20 }}>
-        {['product', 'kyc'].map((s, i) => (
-          <div key={s} style={{ flex: 1, height: 3, borderRadius: 2, background: i === 0 || step === 'kyc' ? '#0D0D0D' : '#EFEFEF' }} />
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
+        {products.map((p) => (
+          <ShopProductCard
+            key={p.id}
+            product={p}
+            onClick={() => onProduct(p)}
+            inCart={cartProductIds.includes(p.id)}
+          />
         ))}
       </div>
-
-      {step === 'product' ? (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-        <Input label="Product name" placeholder="e.g. Custom design template" value={name} onChange={(e) => setName(e.target.value)} />
-        <Input label="Price (USDC)" type="number" min="0.01" step="0.01" placeholder="e.g. 12.50" value={price} onChange={(e) => setPrice(e.target.value)} suffix={<span style={{ fontSize: 12, fontWeight: 700, color: '#9898A6' }}>USDC</span>} />
-        <Input label="Description (optional)" placeholder="What does the buyer get?" value={description} onChange={(e) => setDescription(e.target.value)} />
-
-        {/* Image upload */}
-        <div>
-          <div style={{ fontSize: 12, fontWeight: 600, color: '#5C5C6B', marginBottom: 6, fontFamily: FONT }}>Product image</div>
-          <label style={{ display: 'block', border: '2px dashed rgba(0,0,0,0.12)', borderRadius: 12, padding: 16, textAlign: 'center', cursor: 'pointer', background: '#FAFAFA' }}>
-            <input type="file" accept="image/*" onChange={handleImageUpload} style={{ display: 'none' }} />
-            {previewSrc ? (
-              <img src={previewSrc} alt="Preview" style={{ width: '100%', maxHeight: 180, objectFit: 'cover', borderRadius: 8 }} />
-            ) : (
-              <div>
-                <div style={{ fontSize: 24, marginBottom: 6 }}>📷</div>
-                <div style={{ fontSize: 13, color: '#5C5C6B', fontFamily: FONT }}>Tap to upload a photo</div>
-                <div style={{ fontSize: 11, color: '#9898A6', fontFamily: FONT, marginTop: 2 }}>or paste URL below</div>
-              </div>
-            )}
-          </label>
-          <input type="text" placeholder="Or paste image URL: https://..." value={imageUrl} onChange={(e) => { setImageUrl(e.target.value); setImageBase64('') }}
-            style={{ width: '100%', marginTop: 8, padding: '9px 12px', border: '1px solid rgba(0,0,0,0.1)', borderRadius: 10, fontSize: 13, fontFamily: FONT, background: '#F7F7F8', color: '#0D0D0D', boxSizing: 'border-box' }} />
-        </div>
-
-        <div>
-          <div style={{ fontSize: 12, fontWeight: 600, color: '#5C5C6B', marginBottom: 6, fontFamily: FONT }}>Category</div>
-          <select value={category} onChange={e => setCategory(e.target.value)}
-            style={{ width: '100%', padding: '10px 12px', border: '1px solid rgba(0,0,0,0.1)', borderRadius: 10, background: '#F7F7F8', color: '#0D0D0D', fontSize: 14, fontFamily: FONT, appearance: 'none' }}>
-            <option value="digital">Digital</option>
-            <option value="services">Services</option>
-            <option value="fashion">Fashion</option>
-            <option value="electronics">Electronics</option>
-            <option value="food">Food</option>
-          </select>
-        </div>
-        <Input label="Your wallet address (receives USDC)" placeholder="0x..." value={wallet} onChange={(e) => setWallet(e.target.value)} />
-
-        <div style={{ padding: '12px 14px', background: '#F7F7F8', borderRadius: 10, border: '1px solid rgba(0,0,0,0.07)' }}>
-          <p style={{ margin: 0, fontSize: 12, color: '#5C5C6B', fontFamily: FONT }}>
-            When a buyer completes checkout, USDC is transferred directly onchain to your wallet. No intermediary.
-          </p>
-        </div>
-
-        <button
-          onClick={() => { if (name && price && wallet) setStep('kyc') }}
-          disabled={!name || !price || !wallet}
-          style={{ height: 50, borderRadius: 13, background: '#0D0D0D', color: '#FFF', fontSize: 15, fontWeight: 600, border: 'none', cursor: name && price && wallet ? 'pointer' : 'not-allowed', opacity: name && price && wallet ? 1 : 0.4, fontFamily: FONT, width: '100%' }}
-        >
-          Continue to verification →
-        </button>
-      </div>
-      ) : (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-        <div style={{ padding: '12px 14px', background: '#FFF8E1', borderRadius: 10, border: '1px solid rgba(0,0,0,0.07)' }}>
-          <p style={{ margin: 0, fontSize: 12, color: '#5C5C6B', fontFamily: FONT }}>
-            We verify all sellers to protect buyers. Your information is stored securely and reviewed by our team.
-          </p>
-        </div>
-        <Input label="Full legal name" placeholder="e.g. Jane Smith" value={kycFullName} onChange={(e) => setKycFullName(e.target.value)} />
-        <div>
-          <div style={{ fontSize: 12, fontWeight: 600, color: '#5C5C6B', marginBottom: 6, fontFamily: FONT }}>ID type</div>
-          <select value={kycIdType} onChange={e => setKycIdType(e.target.value)}
-            style={{ width: '100%', padding: '10px 12px', border: '1px solid rgba(0,0,0,0.1)', borderRadius: 10, background: '#F7F7F8', color: '#0D0D0D', fontSize: 14, fontFamily: FONT, appearance: 'none' }}>
-            <option value="passport">Passport</option>
-            <option value="national_id">National ID</option>
-            <option value="drivers_license">Driver's License</option>
-          </select>
-        </div>
-        <Input label="ID number" placeholder="e.g. AB123456" value={kycIdNumber} onChange={(e) => setKycIdNumber(e.target.value)} />
-        <div style={{ padding: '12px 14px', background: '#F7F7F8', borderRadius: 10, border: '1px solid rgba(0,0,0,0.07)' }}>
-          <p style={{ margin: 0, fontSize: 12, color: '#5C5C6B', fontFamily: FONT }}>
-            By submitting, you agree that Paywell may verify your identity and that your listing will be reviewed before going live.
-          </p>
-        </div>
-        <button
-          onClick={handleSubmit}
-          disabled={!kycFullName || !kycIdNumber}
-          style={{ height: 50, borderRadius: 13, background: '#0D0D0D', color: '#FFF', fontSize: 15, fontWeight: 600, border: 'none', cursor: kycFullName && kycIdNumber ? 'pointer' : 'not-allowed', opacity: kycFullName && kycIdNumber ? 1 : 0.4, fontFamily: FONT, width: '100%' }}
-        >
-          Submit for review
-        </button>
-      </div>
-      )}
     </div>
   )
 }

@@ -1,215 +1,381 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+/**
+ * Circle User-Controlled Wallet — Email OTP login
+ *
+ * Correct flow per Circle docs:
+ *  1. Enter email → POST /api/wallet (action=request-otp)
+ *     Circle sends OTP email. Returns deviceToken, deviceEncryptionKey, otpToken.
+ *  2. Feed tokens into W3SSdk via updateConfigs then call sdk.verifyOtp()
+ *     Circle opens its hosted OTP entry popup. User types the code there.
+ *  3. SDK fires onLoginComplete callback with userToken + encryptionKey
+ *  4. POST /api/wallet (action=initialize) — creates wallet for new users
+ *     code 155106 = existing user, skip to step 5
+ *  5. GET /api/wallet → load wallets → done
+ *
+ * Required env vars (Vercel):
+ *   VITE_CIRCLE_APP_ID
+ *   CIRCLE_USER_CONTROLLED_API_KEY (or CIRCLE_API_KEY)
+ */
+
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { W3SSdk } from '@circle-fin/w3s-pw-web-sdk'
 import { useAppStore } from '../store/appStore'
+import { ArrowLeft, ArrowRight, Loader, Mail } from 'lucide-react'
 
-const SANS = "'Inter', -apple-system, sans-serif"
+const F     = "'Inter', -apple-system, sans-serif"
+const BLUE  = '#0066FF'
+const TEXT  = 'var(--nan-text)'
+const TEXT2 = '#8A8F9E'
+const TEXT3 = '#50556A'
+const SURF  = 'var(--nan-surface)'
+const BDR   = 'var(--nan-bdr2)'
+
 const CIRCLE_APP_ID = import.meta.env.VITE_CIRCLE_APP_ID as string | undefined
 
+type Step = 'email' | 'otp_sent' | 'verifying' | 'wallet_setup' | 'done' | 'error'
 interface LoginResult { userToken: string; encryptionKey: string }
-interface OtpTokens { deviceToken: string; deviceEncryptionKey: string; otpToken: string }
+interface OtpTokens   { deviceToken: string; deviceEncryptionKey: string; otpToken: string }
 
-type Step = 'email' | 'verify' | 'creating' | 'done' | 'error'
+interface Props {
+  onBack?: () => void
+  onSuccess: (walletAddress: string, userToken: string, email: string, encryptionKey?: string) => void
+}
 
-interface Props { onSuccess: (address: string, userToken: string) => void }
+export function CircleEmailLogin({ onBack, onSuccess }: Props) {
+  const { setAuth, profile } = useAppStore()
+  const sdkRef      = useRef<W3SSdk | null>(null)
+  const otpDataRef  = useRef<OtpTokens | null>(null)
 
-export function CircleEmailLogin({ onSuccess }: Props) {
-  const setAuth = useAppStore(s => s.setAuth)
-  const sdkRef = useRef<W3SSdk | null>(null)
-  const [deviceId, setDeviceId] = useState('')
-  const [email, setEmail] = useState('')
-  const [otpTokens, setOtpTokens] = useState<OtpTokens | null>(null)
-  const [loginResult, setLoginResult] = useState<LoginResult | null>(null)
-  const [step, setStep] = useState<Step>('email')
-  const [error, setError] = useState('')
-  const [loading, setLoading] = useState(false)
+  const [email,     setEmail]     = useState('')
+  const [step,      setStep]      = useState<Step>('email')
+  const [error,     setError]     = useState('')
+  const [loading,   setLoading]   = useState(false)
+  const [statusMsg, setStatusMsg] = useState('')
 
-  const loadWallets = useCallback(async (userToken: string) => {
-    const res = await fetch('/api/wallet/wallets', {
-      headers: { 'x-user-token': userToken },
-    })
-    const data = await res.json() as { wallets?: { address: string }[] }
-    const address = data.wallets?.[0]?.address ?? ''
-    setAuth({ email, userToken, circleWalletAddress: address })
-    setStep('done')
-    onSuccess(address, userToken)
+  // ── finish: load wallets and call onSuccess ────────────────────────────────
+  const encKeyRef = useRef<string | undefined>()
+
+  const finishAuth = useCallback(async (userToken: string, encryptionKey?: string) => {
+    setStep('wallet_setup')
+    setStatusMsg('Loading your wallet…')
+    // Persist encryptionKey from login callback for later sdk.execute() calls
+    if (encryptionKey) encKeyRef.current = encryptionKey
+    try {
+      const res  = await fetch('/api/wallet', {
+        headers: { 'x-user-token': userToken },
+      })
+      const data = await res.json() as {
+        wallets?: { id: string; address: string }[]
+        error?: string
+      }
+      if (data.error) throw new Error(data.error)
+      const wallet = data.wallets?.[0]
+      const addr   = wallet?.address ?? ''
+      const wid    = wallet?.id      ?? ''
+      const ek     = encKeyRef.current
+      setAuth({
+        email,
+        sessionToken:        userToken,
+        userToken,
+        encryptionKey:       ek,
+        circleWalletAddress: addr,
+        circleWalletId:      wid,
+        walletAddress:       addr,
+        walletId:            wid,
+      })
+      setStep('done')
+      onSuccess(addr, userToken, email, ek)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not load wallet. Please try again.')
+      setStep('error')
+    }
   }, [email, onSuccess, setAuth])
 
-  const initUser = useCallback(async (userToken: string, encryptionKey: string) => {
-    setLoading(true)
+  // ── initialize: new user gets wallet challenge, existing user skips ────────
+  const initializeUser = useCallback(async (loginRes: LoginResult) => {
+    setStatusMsg('Setting up your account…')
     try {
-      const res = await fetch('/api/wallet/initialize', {
+      const res  = await fetch('/api/wallet', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userToken }),
+        body: JSON.stringify({ action: 'initialize', userToken: loginRes.userToken }),
       })
       const data = await res.json() as { challengeId?: string; code?: number; error?: string }
-      if (data.code === 155106) { await loadWallets(userToken); return }
-      if (data.error) { setError(data.error); setStep('error'); return }
+
+      // Existing user — just load their wallets
+      if (data.code === 155106) {
+        await finishAuth(loginRes.userToken, loginRes.encryptionKey)
+        return
+      }
+      if (data.error || !data.challengeId) {
+        if (data.error?.toLowerCase().includes('already') || data.error?.toLowerCase().includes('initialized')) {
+          await finishAuth(loginRes.userToken, loginRes.encryptionKey)
+          return
+        }
+        throw new Error(data.error ?? 'Wallet initialization failed')
+      }
+
+      // New user — execute wallet creation challenge via SDK
+      setStatusMsg('Complete wallet setup in the popup…')
       const sdk = sdkRef.current
-      if (!sdk || !data.challengeId) return
-      sdk.setAuthentication({ userToken, encryptionKey })
-      sdk.execute(data.challengeId, async (err) => {
-        if (err) { setError('Wallet creation failed'); setStep('error'); return }
-        await loadWallets(userToken)
+      if (!sdk) throw new Error('SDK not initialised')
+      sdk.setAuthentication({ userToken: loginRes.userToken, encryptionKey: loginRes.encryptionKey })
+      sdk.execute(data.challengeId, async (execErr) => {
+        if (execErr) {
+          const msg = execErr instanceof Error ? execErr.message : String(execErr)
+          if (msg.toLowerCase().includes('already') || msg.toLowerCase().includes('155106')) {
+            await finishAuth(loginRes.userToken, loginRes.encryptionKey)
+            return
+          }
+          setError('Wallet setup failed — please try again.')
+          setStep('error')
+          return
+        }
+        await finishAuth(loginRes.userToken, loginRes.encryptionKey)
       })
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Setup error — please try again.')
+      setStep('error')
+    }
+  }, [finishAuth])
+
+  // ── init SDK once ──────────────────────────────────────────────────────────
+  useEffect(() => {
+    const appId = CIRCLE_APP_ID ?? 'pending-configuration'
+
+    const onLoginComplete = (err: unknown, result: unknown) => {
+      if (err) {
+        const msg = err instanceof Error ? err.message : String(err)
+        if (msg.toLowerCase().includes('already') || msg.toLowerCase().includes('155106')) {
+          const res = result as LoginResult | undefined
+          if (res?.userToken) {
+            void finishAuth(res.userToken, res.encryptionKey)
+            return
+          }
+        }
+        setError('Verification failed — please check your code and try again.')
+        setStep('error')
+        return
+      }
+      const res = result as LoginResult
+      void initializeUser(res)
+    }
+
+    const sdk = new W3SSdk({ appSettings: { appId } }, onLoginComplete)
+    sdkRef.current = sdk
+  }, [initializeUser, finishAuth])
+
+  // ── Step 1: send OTP ───────────────────────────────────────────────────────
+  const sendOtp = async () => {
+    if (!email.trim()) return
+    setLoading(true); setError('')
+
+    // Get deviceId from SDK
+    const sdk = sdkRef.current
+    if (!sdk) { setError('SDK not ready — please refresh the page.'); setLoading(false); return }
+
+    let deviceId: string
+    try {
+      deviceId = await sdk.getDeviceId()
     } catch {
-      setError('Network error'); setStep('error')
+      setError('Could not initialise Circle SDK — please refresh the page.')
+      setLoading(false)
+      return
+    }
+
+    try {
+      const res  = await fetch('/api/wallet', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'request-otp', deviceId, email: email.trim() }),
+      })
+      const data = await res.json() as OtpTokens & { error?: string }
+      if (data.error) throw new Error(data.error)
+
+      otpDataRef.current = data
+
+      // Feed tokens into SDK
+      sdk.updateConfigs({
+        appSettings: { appId: CIRCLE_APP_ID ?? 'pending-configuration' },
+        loginConfigs: {
+          deviceToken:          data.deviceToken,
+          deviceEncryptionKey:  data.deviceEncryptionKey,
+          otpToken:             data.otpToken,
+        },
+      })
+      setStep('otp_sent')
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to send code — please check your email address.')
     } finally {
       setLoading(false)
     }
-  }, [loadWallets])
-
-  useEffect(() => {
-    const appId = CIRCLE_APP_ID || 'pending-configuration'
-    const onLoginComplete = (err: unknown, result: unknown) => {
-      if (err) { setError('OTP verification failed'); setStep('error'); return }
-      const r = result as LoginResult
-      setLoginResult(r)
-      setStep('creating')
-      void initUser(r.userToken, r.encryptionKey)
-    }
-    const sdk = new W3SSdk({ appSettings: { appId } }, onLoginComplete)
-    sdkRef.current = sdk
-    sdk.getDeviceId().then(id => {
-      setDeviceId(id)
-      localStorage.setItem('pw_deviceId', id)
-    }).catch(() => setError('Failed to init Circle SDK'))
-  }, [initUser])
-
-  // Step 1 — send OTP
-  const handleSendOtp = async () => {
-    if (!email || !deviceId) return
-    setLoading(true); setError('')
-    try {
-      const res = await fetch('/api/wallet/request-otp', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ deviceId, email }),
-      })
-      const data = await res.json() as OtpTokens & { error?: string }
-      if (data.error) { setError(data.error); return }
-      setOtpTokens(data)
-      sdkRef.current?.updateConfigs({
-        appSettings: { appId: CIRCLE_APP_ID! },
-        loginConfigs: {
-          deviceToken: data.deviceToken,
-          deviceEncryptionKey: data.deviceEncryptionKey,
-          otpToken: data.otpToken,
-        },
-      })
-      setStep('verify')
-    } catch { setError('Network error') }
-    finally { setLoading(false) }
   }
 
-  // Step 2 — verify OTP (opens Circle hosted UI)
-  const handleVerifyOtp = () => {
-    if (!sdkRef.current || !otpTokens) return
-    sdkRef.current.verifyOtp()
+  // ── Step 2: open Circle OTP popup ─────────────────────────────────────────
+  const verifyOtp = () => {
+    setStep('verifying')
+    setStatusMsg('Waiting for verification…')
+    sdkRef.current?.verifyOtp()
   }
 
-  // Show form always — API will return a clear error if env vars are missing
-
-  if (step === 'done') return (
-    <div style={{ fontFamily: SANS, textAlign: 'center', padding: 16 }}>
-      <div style={{ fontSize: 32, marginBottom: 8 }}>✓</div>
-      <div style={{ fontWeight: 700, fontSize: 16 }}>Wallet ready</div>
-      <div style={{ fontSize: 13, color: '#6B6B6B', marginTop: 4 }}>Circle wallet created via {email}</div>
-    </div>
-  )
+  const notConfigured = !CIRCLE_APP_ID
 
   return (
-    <div style={{ fontFamily: SANS }}>
+    <div style={{ width: '100%', maxWidth: 380, margin: '0 auto', fontFamily: F }}>
+
+      {onBack && step === 'email' && (
+        <button onClick={onBack}
+          style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none',
+            cursor: 'pointer', color: TEXT2, fontSize: 14, marginBottom: 28, padding: 0, fontFamily: F }}>
+          <ArrowLeft size={14} /> Back
+        </button>
+      )}
+
+      {/* ── email entry ────────────────────────────────────────────────────── */}
       {step === 'email' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <div style={{ fontSize: 13, color: '#6B6B6B', marginBottom: 4 }}>
-            Enter your email to create a Circle wallet — no MetaMask needed.
-          </div>
-          <input
-            type="email"
-            placeholder="you@example.com"
-            value={email}
-            onChange={e => setEmail(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && void handleSendOtp()}
-            style={{
-              width: '100%', height: 48, padding: '0 14px',
-              border: '1.5px solid rgba(0,0,0,0.12)', borderRadius: 10,
-              fontSize: 15, fontFamily: SANS, outline: 'none', boxSizing: 'border-box',
-            }}
-          />
-          <button
-            onClick={() => void handleSendOtp()}
-            disabled={loading || !email}
-            style={{
-              width: '100%', height: 48,
-              background: loading || !email ? '#D0D0D0' : '#0D0D0D',
-              color: '#fff', border: 'none', borderRadius: 10,
-              fontSize: 15, fontWeight: 700, fontFamily: SANS, cursor: 'pointer',
-            }}
-          >
-            {loading ? 'Sending…' : 'Send code →'}
-          </button>
-          {error && <div style={{ color: '#C00', fontSize: 13 }}>{error}</div>}
-          {!CIRCLE_APP_ID && (
-            <div style={{ fontSize: 11, color: '#9898A6', textAlign: 'center', marginTop: 4 }}>
-              Add <code>VITE_CIRCLE_APP_ID</code> + <code>CIRCLE_USER_CONTROLLED_API_KEY</code> in Vercel to activate
+        <>
+          <h2 style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.025em', marginBottom: 6, color: TEXT }}>
+            Enter your email
+          </h2>
+          <p style={{ fontSize: 14, color: TEXT2, marginBottom: 22, lineHeight: 1.55 }}>
+            New here? We'll create your wallet automatically.<br />
+            Already have an account? You'll pick up right where you left off.
+          </p>
+
+          {notConfigured && (
+            <div style={{ background: 'rgba(255,180,0,0.1)', border: '1px solid rgba(255,180,0,0.3)',
+              borderRadius: 10, padding: '10px 14px', marginBottom: 16, fontSize: 12, color: '#F0A500', lineHeight: 1.5 }}>
+              Add <code>VITE_CIRCLE_APP_ID</code> and <code>CIRCLE_USER_CONTROLLED_API_KEY</code> in Vercel to activate live email login.
             </div>
+          )}
+
+          <div style={{ position: 'relative', marginBottom: 12 }}>
+            <Mail size={15} color={TEXT3} style={{ position: 'absolute', left: 14, top: '50%',
+              transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+            <input
+              type="email"
+              placeholder="you@example.com"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && void sendOtp()}
+              autoFocus
+              style={{ ...inputS, paddingLeft: 40 }}
+            />
+          </div>
+
+          {error && <p style={errS}>{error}</p>}
+
+          <button
+            onClick={() => void sendOtp()}
+            disabled={loading || !email.trim()}
+            style={btnS(loading || !email.trim() ? SURF : BLUE,
+              loading || !email.trim() ? TEXT3 : '#fff',
+              loading || !email.trim() ? BDR : undefined)}
+          >
+            {loading
+              ? <><Loader size={15} style={{ animation: 'nan-spin 1s linear infinite' }} /> Sending…</>
+              : <><ArrowRight size={15} /> Continue</>}
+          </button>
+        </>
+      )}
+
+      {/* ── OTP sent ─────────────────────────────────────────────────────── */}
+      {step === 'otp_sent' && (
+        <>
+          <h2 style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.025em', marginBottom: 6, color: TEXT }}>
+            Check your inbox
+          </h2>
+          <p style={{ fontSize: 14, color: TEXT2, marginBottom: 22, lineHeight: 1.55 }}>
+            A verification code was sent to <strong style={{ color: TEXT }}>{email}</strong>.<br />
+            Tap the button below — a popup will open where you enter the code.
+          </p>
+
+          <div style={{ background: 'rgba(0,102,255,0.08)', border: '1px solid rgba(0,102,255,0.2)',
+            borderRadius: 10, padding: '12px 16px', marginBottom: 20, fontSize: 13, color: BLUE, lineHeight: 1.5 }}>
+            Code sent — check inbox and spam folder.
+          </div>
+
+          {error && <p style={errS}>{error}</p>}
+
+          <button onClick={verifyOtp} style={btnS(BLUE, '#fff')}>
+            Enter verification code →
+          </button>
+
+          <button onClick={() => void sendOtp()}
+            style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer',
+              color: TEXT2, fontSize: 13, marginTop: 14, fontFamily: F, textDecoration: 'underline' }}>
+            Resend code
+          </button>
+
+          <button onClick={() => { setStep('email'); setError('') }}
+            style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer',
+              color: TEXT3, fontSize: 12, marginTop: 8, fontFamily: F }}>
+            ← Use a different email
+          </button>
+        </>
+      )}
+
+      {/* ── verifying / wallet setup ──────────────────────────────────────── */}
+      {(step === 'verifying' || step === 'wallet_setup') && (
+        <div style={{ textAlign: 'center', padding: '40px 0' }}>
+          <Loader size={30} color={BLUE} style={{ animation: 'nan-spin 1s linear infinite', marginBottom: 18 }} />
+          <p style={{ fontSize: 15, color: TEXT2, lineHeight: 1.6 }}>
+            {step === 'verifying' ? 'Waiting for verification…' : statusMsg || 'Setting up your wallet…'}
+          </p>
+          {step === 'wallet_setup' && statusMsg.includes('popup') && (
+            <p style={{ fontSize: 12, color: TEXT3, marginTop: 8 }}>
+              Complete the steps in the Circle popup to finish.
+            </p>
           )}
         </div>
       )}
 
-      {step === 'verify' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <div style={{ fontSize: 13, color: '#6B6B6B', marginBottom: 4 }}>
-            A code was sent to <strong>{email}</strong>. Tap below to verify it.
-          </div>
-          <button
-            onClick={handleVerifyOtp}
-            style={{
-              width: '100%', height: 48,
-              background: '#0D0D0D', color: '#fff',
-              border: 'none', borderRadius: 10,
-              fontSize: 15, fontWeight: 700, fontFamily: SANS, cursor: 'pointer',
-            }}
-          >
-            Enter verification code →
-          </button>
-          <button
-            onClick={() => void handleSendOtp()}
-            style={{
-              width: '100%', height: 40, background: 'transparent',
-              color: '#6B6B6B', border: '1px solid rgba(0,0,0,0.1)',
-              borderRadius: 10, fontSize: 14, fontFamily: SANS, cursor: 'pointer',
-            }}
-          >
-            Resend code
-          </button>
-          {error && <div style={{ color: '#C00', fontSize: 13 }}>{error}</div>}
+      {/* ── success ──────────────────────────────────────────────────────── */}
+      {step === 'done' && (
+        <div style={{ textAlign: 'center', padding: '40px 0' }}>
+          <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'rgba(0,200,83,0.12)',
+            border: '2px solid rgba(0,200,83,0.4)', display: 'flex', alignItems: 'center',
+            justifyContent: 'center', margin: '0 auto 18px', fontSize: 24 }}>✓</div>
+          <p style={{ fontSize: 17, fontWeight: 700, color: TEXT, marginBottom: 4 }}>
+            {profile.displayName ? `Welcome back, ${profile.displayName}!` : 'Wallet ready!'}
+          </p>
+          <p style={{ fontSize: 13, color: TEXT2 }}>Taking you in…</p>
         </div>
       )}
 
-      {step === 'creating' && (
-        <div style={{ textAlign: 'center', padding: '24px 0' }}>
-          <div style={{ fontSize: 13, color: '#6B6B6B' }}>
-            {loading ? 'Creating your Circle wallet on Arc Testnet…' : 'Approve wallet creation in the popup…'}
-          </div>
-        </div>
-      )}
-
+      {/* ── error ──────────────────────────────────────────────────────────── */}
       {step === 'error' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <div style={{ color: '#C00', fontSize: 13 }}>{error}</div>
-          <button
-            onClick={() => { setStep('email'); setError('') }}
-            style={{
-              width: '100%', height: 40, background: '#0D0D0D', color: '#fff',
-              border: 'none', borderRadius: 10, fontSize: 14, fontFamily: SANS, cursor: 'pointer',
-            }}
-          >
+        <>
+          <p style={errS}>{error}</p>
+          <button onClick={() => { setStep('email'); setError('') }}
+            style={{ ...btnS(SURF, TEXT, BDR), marginTop: 16 }}>
             Try again
           </button>
-        </div>
+        </>
       )}
     </div>
   )
+}
+
+function btnS(bg: string, color: string, bdr?: string): React.CSSProperties {
+  return {
+    width: '100%', padding: '13px 20px',
+    background: bg, color,
+    border: bdr ? `1px solid ${bdr}` : 'none',
+    borderRadius: 12, fontSize: 15, fontWeight: 600,
+    cursor: 'pointer', fontFamily: F,
+    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+    transition: 'opacity 0.15s', letterSpacing: '-0.01em',
+  }
+}
+
+const inputS: React.CSSProperties = {
+  width: '100%', padding: '13px 16px',
+  border: '1px solid rgba(255,255,255,0.12)',
+  borderRadius: 12, fontSize: 16, fontFamily: F,
+  color: '#F2F3F5', background: '#13151A', outline: 'none',
+  boxSizing: 'border-box',
+}
+
+const errS: React.CSSProperties = {
+  fontSize: 13, color: '#FF3B3B', marginTop: 8, marginBottom: 8, lineHeight: 1.5,
 }

@@ -172,7 +172,7 @@ export async function getActivity(
 ): Promise<NanTx[]> {
   try {
     const data = await get<{ activities?: NanTx[]; transactions?: NanTx[] }>(
-      `/api/activity-feed?wallet=${walletAddress}`,
+      `/api/misc?route=activity-feed&address=${walletAddress}`,
       sessionToken,
     )
     return data.activities ?? data.transactions ?? []
