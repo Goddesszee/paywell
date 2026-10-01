@@ -397,7 +397,11 @@ export function SwapPage() {
             <TokenPill token={tokenOut} onClick={() => setShowBuyModal(true)} c={c} />
           </div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
-            <span style={{ fontSize: 13, color: c.t3 }}>$0.00</span>
+            <span style={{ fontSize: 13, color: c.t3 }}>
+              {estimatedOut && parseFloat(estimatedOut.amount) > 0
+                ? `~$${parseFloat(estimatedOut.amount).toFixed(2)}`
+                : '$0.00'}
+            </span>
             {isConnected && <span style={{ fontSize: 12, color: c.t3 }}>Balance: {balOut}</span>}
           </div>
         </div>

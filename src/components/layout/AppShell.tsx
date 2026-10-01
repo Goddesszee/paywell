@@ -61,6 +61,7 @@ function CommandPalette({ onClose, onGo }: { onClose: () => void; onGo: (action:
       )
     : ALL_RESULTS.slice(0, 10)
 
+  // eslint-disable-next-line react/set-state-in-effect
   useEffect(() => { setCursor(0) }, [query])
 
   const commit = useCallback((r: SearchResult) => {

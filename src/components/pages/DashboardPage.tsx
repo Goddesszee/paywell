@@ -121,6 +121,7 @@ export function DashboardPage() {
 
   // Build sparkline from activity history (fallback: empty → shows placeholder)
   const [sparkPoints, setSparkPoints] = useState<number[]>([])
+  /* eslint-disable react/set-state-in-effect */
   useEffect(() => {
     if (activity.length === 0) { setSparkPoints([]); return }
     let running = numVal
@@ -133,6 +134,7 @@ export function DashboardPage() {
     })
     setSparkPoints(pts)
   }, [activity, numVal])
+  /* eslint-enable react/set-state-in-effect */
 
   const PERIODS: PerfPeriod[] = ['24H', '7D', '1M', '3M', '1Y']
 

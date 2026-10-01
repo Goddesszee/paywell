@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Layers, RefreshCw, ArrowDownToLine, ArrowUpFromLine, ExternalLink, Check, AlertCircle, Copy } from 'lucide-react'
+import { Layers, RefreshCw, ArrowDownToLine, ArrowUpFromLine, ExternalLink, Check, AlertCircle, Copy, Info } from 'lucide-react'
 import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt, useSwitchChain, useChainId } from 'wagmi'
 import { erc20Abi, parseUnits, formatUnits } from 'viem'
 import { toast } from 'sonner'
@@ -17,16 +17,29 @@ const T2   = 'var(--nan-text2)'
 const T3   = 'var(--nan-text3)'
 const ARC  = 5042002
 
-// Circle Gateway Wallet on Arc Testnet — the address users deposit USDC to.
-// Funds deposited here become unified cross-chain balance.
-// Source: https://developers.circle.com/gateway
+// ── Circle Gateway contract addresses (Arc Testnet) ───────────────────────────
+// Source: onchain-facts.ts protocolContracts (networkKind: testnet)
 const GATEWAY_WALLET = '0x0077777d7EBA4688BDeF3E311b846F25870A19B9' as const
-// Circle Gateway Minter — used to read your gateway balance (as USDC allowance).
 const GATEWAY_MINTER = '0x0022222ABE238Cc2C7Bb1f21003F0a260052475B' as const
 
-// Minimal ABI for reading your Gateway balance:
-// Gateway tracks balances as an ERC-20 allowance from GatewayWallet → GatewayMinter
-// So balanceOf(user) on the GatewayMinter gives your unified balance.
+// ── Correct Gateway ABI ───────────────────────────────────────────────────────
+// depositFor(address account, uint256 amount) — GatewayWallet records the deposit
+// against `account` so the unified balance is credited to that address.
+const GATEWAY_WALLET_ABI = [
+  {
+    inputs: [
+      { internalType: 'address', name: 'account', type: 'address' },
+      { internalType: 'uint256', name: 'amount', type: 'uint256' },
+    ],
+    name: 'depositFor',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+] as const
+
+// GatewayMinter.balanceOf(address) — the minted gateway-token balance is the
+// live unified USDC balance for a given address.
 const GATEWAY_MINTER_ABI = [
   {
     inputs: [{ internalType: 'address', name: 'account', type: 'address' }],
@@ -37,11 +50,12 @@ const GATEWAY_MINTER_ABI = [
   },
 ] as const
 
-// Minimal ABI for Gateway withdraw: burn gateway tokens back to USDC
-const GATEWAY_MINTER_BURN_ABI = [
+// GatewayMinter.removeFund(uint256 amount) — burns gateway tokens back to
+// on-chain USDC for the calling address.
+const GATEWAY_MINTER_REMOVE_ABI = [
   {
     inputs: [{ internalType: 'uint256', name: 'amount', type: 'uint256' }],
-    name: 'burn',
+    name: 'removeFund',
     outputs: [],
     stateMutability: 'nonpayable',
     type: 'function',
@@ -56,7 +70,7 @@ export function GatewayPage() {
   const usdcFact = getUsdc(ARC)
   const decimals = usdcDecimalsFor(ARC)
 
-  // Wallet USDC balance
+  // Wallet USDC balance (ERC-20)
   const { data: rawWalletBalance, isLoading: walletLoading, refetch: refetchWallet } = useReadContract({
     address: usdcFact?.address as `0x${string}`,
     abi: erc20Abi, functionName: 'balanceOf',
@@ -64,7 +78,7 @@ export function GatewayPage() {
     chainId: ARC, query: { enabled: !!address && !!usdcFact },
   })
 
-  // Gateway balance — read from GatewayMinter.balanceOf(user)
+  // Gateway balance — GatewayMinter.balanceOf(user) gives the unified balance
   const { data: rawGatewayBalance, isLoading: gatewayLoading, refetch: refetchGateway } = useReadContract({
     address: GATEWAY_MINTER,
     abi: GATEWAY_MINTER_ABI,
@@ -111,7 +125,7 @@ export function GatewayPage() {
       </div>
 
       {tab === 'balance'  && <BalanceTab  address={address} walletBalance={walletBalance} gatewayBalance={gatewayBalance} isLoading={isLoading} />}
-      {tab === 'deposit'  && <DepositTab  address={address} walletBalance={walletBalance} decimals={decimals} onSuccess={() => { refetchAll(); setTab('balance') }} />}
+      {tab === 'deposit'  && <DepositTab  address={address} walletBalance={walletBalance} decimals={decimals} usdcFact={usdcFact} onSuccess={() => { refetchAll(); setTab('balance') }} />}
       {tab === 'withdraw' && <WithdrawTab address={address} gatewayBalance={gatewayBalance} decimals={decimals} onSuccess={() => { refetchAll(); setTab('balance') }} />}
     </div>
   )
@@ -173,38 +187,36 @@ function BalanceTab({ address, walletBalance, gatewayBalance, isLoading }: {
   )
 }
 
-function DepositTab({ address, walletBalance, decimals, onSuccess }: {
-  address?: string; walletBalance: string|null; decimals: number; onSuccess: () => void
+function DepositTab({ address, walletBalance, decimals, usdcFact, onSuccess }: {
+  address?: string; walletBalance: string|null; decimals: number
+  usdcFact: { address: string; decimals: number; symbol: string } | undefined
+  onSuccess: () => void
 }) {
   const chainId = useChainId()
   const { switchChainAsync } = useSwitchChain()
-  const usdcFact = getUsdc(ARC)
   const [amount, setAmount] = useState('')
   const [phase, setPhase] = useState<'idle'|'approving'|'depositing'|'done'|'error'>('idle')
   const [errMsg, setErrMsg] = useState('')
   const parsed = amount && parseFloat(amount) > 0 ? parseUnits(amount, decimals) : 0n
 
-  // Step 1: approve USDC → GatewayWallet
+  // Step 1: approve USDC spend to GatewayWallet
   const { writeContract: approve, data: approveTxHash, reset: resetApprove } = useWriteContract()
   const { isSuccess: approveSuccess, isError: approveError } = useWaitForTransactionReceipt({ hash: approveTxHash })
 
-  // Step 2: GatewayWallet.depositFor(amount) — but GatewayWallet on Arc is a simple
-  // ERC-20 transfer target (USDC → GatewayWallet mints gateway tokens for your address).
-  // The Circle Gateway on Arc works by transferring USDC to the GatewayWallet address.
-  // Circle's backend detects the transfer and credits your unified balance.
+  // Step 2: depositFor(address, amount) on GatewayWallet — credits unified balance to the caller
   const { writeContract: deposit, data: depositTxHash, reset: resetDeposit } = useWriteContract()
   const { isSuccess: depositSuccess, isError: depositError } = useWaitForTransactionReceipt({ hash: depositTxHash })
 
   useEffect(() => {
-    if (approveSuccess && parsed > 0n && usdcFact) {
+    if (approveSuccess && parsed > 0n && address) {
       // eslint-disable-next-line react/set-state-in-effect
       setPhase('depositing')
-      // Transfer USDC to the GatewayWallet — Circle detects and credits unified balance
+      // depositFor(address, amount) — the correct Circle Gateway deposit method
       deposit({
-        address: usdcFact.address as `0x${string}`,
-        abi: erc20Abi,
-        functionName: 'transfer',
-        args: [GATEWAY_WALLET, parsed],
+        address: GATEWAY_WALLET,
+        abi: GATEWAY_WALLET_ABI,
+        functionName: 'depositFor',
+        args: [address as `0x${string}`, parsed],
         chainId: ARC,
       })
     }
@@ -233,7 +245,6 @@ function DepositTab({ address, walletBalance, decimals, onSuccess }: {
     try {
       if (chainId !== ARC) await switchChainAsync({ chainId: ARC })
       setPhase('approving')
-      // Approve GatewayWallet to spend your USDC
       approve({
         address: usdcFact.address as `0x${string}`,
         abi: erc20Abi,
@@ -267,6 +278,14 @@ function DepositTab({ address, walletBalance, decimals, onSuccess }: {
         </div>
       </div>
 
+      {/* How it works */}
+      <div style={{ background:`rgba(0,102,255,0.06)`, border:`1px solid rgba(0,102,255,0.15)`, borderRadius:10, padding:'10px 14px', display:'flex', gap:8, alignItems:'flex-start' }}>
+        <Info size={13} color={BLUE} style={{ flexShrink:0, marginTop:1 }} />
+        <div style={{ fontSize:11, color:T2, lineHeight:1.5 }}>
+          Approves USDC spend, then calls <strong>GatewayWallet.depositFor</strong> — the Circle-specified method that credits your unified cross-chain balance.
+        </div>
+      </div>
+
       <div>
         <div style={{ fontSize:11, fontWeight:600, color:T2, marginBottom:6, textTransform:'uppercase', letterSpacing:'0.05em' }}>Amount (USDC)</div>
         <div style={{ position:'relative' }}>
@@ -291,7 +310,7 @@ function DepositTab({ address, walletBalance, decimals, onSuccess }: {
         <div style={{ border:`1px solid ${BDR}`, borderRadius:12, overflow:'hidden' }}>
           {[
             { label:'Approve USDC spend', done: phase==='depositing'||phase==='done', active: phase==='approving' },
-            { label:'Transfer to Gateway', done: phase==='done', active: phase==='depositing' },
+            { label:'Deposit to Gateway (depositFor)', done: phase==='done', active: phase==='depositing' },
           ].map((s,i) => (
             <div key={i} style={{ padding:'12px 16px', borderBottom: i===0?`1px solid ${BDR}`:'none', display:'flex', alignItems:'center', gap:12 }}>
               <div style={{ width:28, height:28, borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', background:s.done?BLUE:SURF2, border:`1px solid ${s.done?BLUE:BDR}`, flexShrink:0 }}>
@@ -335,41 +354,42 @@ function WithdrawTab({ address, gatewayBalance, decimals, onSuccess }: {
   const chainId = useChainId()
   const { switchChainAsync } = useSwitchChain()
   const [amount, setAmount] = useState('')
-  const [phase, setPhase] = useState<'idle'|'burning'|'done'|'error'>('idle')
+  const [phase, setPhase] = useState<'idle'|'removing'|'done'|'error'>('idle')
   const [errMsg, setErrMsg] = useState('')
   const parsed = amount && parseFloat(amount) > 0 ? parseUnits(amount, decimals) : 0n
 
-  // Withdraw = call burn() on GatewayMinter — converts gateway tokens back to wallet USDC
-  const { writeContract: burn, data: burnTxHash, reset: resetBurn } = useWriteContract()
-  const { isSuccess: burnSuccess, isError: burnError } = useWaitForTransactionReceipt({ hash: burnTxHash })
+  // removeFund(amount) — burns gateway tokens and returns USDC to the caller's wallet
+  const { writeContract: removeFund, data: removeTxHash, reset: resetRemove } = useWriteContract()
+  const { isSuccess: removeSuccess, isError: removeError } = useWaitForTransactionReceipt({ hash: removeTxHash })
 
   useEffect(() => {
-    if (burnSuccess) {
+    if (removeSuccess) {
       // eslint-disable-next-line react/set-state-in-effect
       setPhase('done')
       toast.success(`Withdrew ${amount} USDC from Gateway`)
       setTimeout(onSuccess, 1500)
     }
-  }, [burnSuccess]) // eslint-disable-line
+  }, [removeSuccess]) // eslint-disable-line
 
   useEffect(() => {
-    if (burnError) {
+    if (removeError) {
       // eslint-disable-next-line react/set-state-in-effect
       setPhase('error')
       setErrMsg('Withdrawal failed. Check you have sufficient Gateway balance.')
     }
-  }, [burnError]) // eslint-disable-line
+  }, [removeError]) // eslint-disable-line
 
   const handleWithdraw = async () => {
     if (!address || !amount || parseFloat(amount) <= 0) return
     setErrMsg('')
     try {
       if (chainId !== ARC) await switchChainAsync({ chainId: ARC })
-      setPhase('burning')
-      burn({
+      setPhase('removing')
+      // removeFund — the correct Circle-specified withdrawal from GatewayMinter
+      removeFund({
         address: GATEWAY_MINTER,
-        abi: GATEWAY_MINTER_BURN_ABI,
-        functionName: 'burn',
+        abi: GATEWAY_MINTER_REMOVE_ABI,
+        functionName: 'removeFund',
         args: [parsed],
         chainId: ARC,
       })
@@ -379,7 +399,7 @@ function WithdrawTab({ address, gatewayBalance, decimals, onSuccess }: {
     }
   }
 
-  const reset = () => { setPhase('idle'); setAmount(''); setErrMsg(''); resetBurn() }
+  const reset = () => { setPhase('idle'); setAmount(''); setErrMsg(''); resetRemove() }
 
   if (!address) return (
     <div style={{ textAlign:'center', padding:'48px 0', color:T3 }}>
@@ -398,7 +418,7 @@ function WithdrawTab({ address, gatewayBalance, decimals, onSuccess }: {
         </div>
         <div>
           <div style={{ fontSize:14, fontWeight:700, color:TEXT }}>Withdraw USDC</div>
-          <div style={{ fontSize:11, color:T2 }}>Convert Gateway balance back to wallet USDC</div>
+          <div style={{ fontSize:11, color:T2 }}>Convert Gateway balance back to wallet USDC via removeFund</div>
         </div>
       </div>
 
@@ -425,23 +445,23 @@ function WithdrawTab({ address, gatewayBalance, decimals, onSuccess }: {
         </div>
       </div>
 
-      {phase === 'burning' && (
+      {phase === 'removing' && (
         <div style={{ border:`1px solid ${BDR}`, borderRadius:12, padding:'12px 16px', display:'flex', alignItems:'center', gap:12 }}>
           <div style={{ width:28, height:28, borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', background:SURF2, border:`1px solid ${BDR}` }}>
             <div style={{ width:12, height:12, borderRadius:'50%', border:`2px solid ${BLUE}`, borderTopColor:'transparent', animation:'nan-spin 0.8s linear infinite' }} />
           </div>
-          <span style={{ fontSize:13, color:TEXT }}>Burning gateway tokens…</span>
-          {burnTxHash && (
-            <a href={buildTxExplorerUrl(ARC, burnTxHash)} target="_blank" rel="noreferrer" style={{ marginLeft:'auto', fontSize:11, color:T2, display:'flex', alignItems:'center', gap:3 }}>View <ExternalLink size={10} /></a>
+          <span style={{ fontSize:13, color:TEXT }}>Calling removeFund…</span>
+          {removeTxHash && (
+            <a href={buildTxExplorerUrl(ARC, removeTxHash)} target="_blank" rel="noreferrer" style={{ marginLeft:'auto', fontSize:11, color:T2, display:'flex', alignItems:'center', gap:3 }}>View <ExternalLink size={10} /></a>
           )}
         </div>
       )}
 
-      {phase === 'done' && burnTxHash && (
+      {phase === 'done' && removeTxHash && (
         <div style={{ border:`1px solid rgba(0,200,83,0.20)`, borderRadius:12, padding:'12px 16px', display:'flex', alignItems:'center', gap:12 }}>
           <Check size={16} color="#00C853" />
           <span style={{ fontSize:13, color:TEXT }}>Withdrawal complete</span>
-          <a href={buildTxExplorerUrl(ARC, burnTxHash)} target="_blank" rel="noreferrer" style={{ marginLeft:'auto', fontSize:11, color:T2, display:'flex', alignItems:'center', gap:3 }}>View <ExternalLink size={10} /></a>
+          <a href={buildTxExplorerUrl(ARC, removeTxHash)} target="_blank" rel="noreferrer" style={{ marginLeft:'auto', fontSize:11, color:T2, display:'flex', alignItems:'center', gap:3 }}>View <ExternalLink size={10} /></a>
         </div>
       )}
 
@@ -457,7 +477,7 @@ function WithdrawTab({ address, gatewayBalance, decimals, onSuccess }: {
       ) : (
         <button onClick={() => void handleWithdraw()} disabled={!amount || parseFloat(amount)<=0 || phase!=='idle' || !hasBalance}
           style={{ width:'100%', padding:'14px 0', borderRadius:14, fontSize:14, fontWeight:600, border:'none', fontFamily:F, cursor:(!amount||phase!=='idle'||!hasBalance)?'not-allowed':'pointer', background:(!amount||phase!=='idle'||!hasBalance)?SURF:BLUE, color:(!amount||phase!=='idle'||!hasBalance)?T2:'#fff', transition:'all 0.15s' }}>
-          {phase==='burning'?'Withdrawing…':`Withdraw ${amount||'0.00'} USDC`}
+          {phase==='removing'?'Withdrawing…':`Withdraw ${amount||'0.00'} USDC`}
         </button>
       )}
 

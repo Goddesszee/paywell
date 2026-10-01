@@ -2,7 +2,12 @@ import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { createAppServerKit, createSessionRouteHandler } from '@circle-fin/app-kit/server'
 
 const apiKey = process.env.CIRCLE_STABLECOIN_KIT_API_KEY ?? process.env.CIRCLE_API_KEY
-const domain = 'paywell-puce.vercel.app'
+// Domain must match the origin that hosts /api/onramp-session.
+// Set ONRAMP_DOMAIN in your deployment env; falls back to the Vercel URL or the
+// canonical production URL so the handler works in all environments.
+const domain =
+  process.env.ONRAMP_DOMAIN ??
+  (process.env.VERCEL_URL ? process.env.VERCEL_URL : 'paywell-puce.vercel.app')
 
 let routeHandler: ((req: Request) => Promise<Response>) | null = null
 

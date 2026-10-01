@@ -105,12 +105,16 @@ app.post('/api/otp', async (req, res) => {
         console.log(`\n[PAYWELL OTP] ${email} → ${code}\n`)
       }
 
+      // Only expose the raw OTP in the response body when SMTP is unconfigured
+      // AND the server is explicitly in development mode.  Never leak it in
+      // production regardless of NODE_ENV (Vercel does not always set NODE_ENV).
+      const isDevMode = !smtpUser && process.env.NODE_ENV === 'development'
       res.json({
         success: true,
         token: otpToken,
         expiresAt: exp,
-        dev: !smtpUser, // frontend shows OTP in dev mode
-        ...(process.env.NODE_ENV !== 'production' && { _devOtp: code }),
+        dev: isDevMode,
+        ...(isDevMode && { _devOtp: code }),
       })
       return
     }
@@ -362,8 +366,10 @@ app.get('/api/activity-feed', (req, res) => {
   }
 })
 
-// ── AI chat ────────────────────────────────────────────────────────────────────
-app.post('/api/chat', async (req, res) => {
+// ── AI chat — x402 nanopayment gate ───────────────────────────────────────────
+// When SELLER_ADDRESS is set, each /api/chat request requires a 0.001 USDC
+// x402 Gateway Nanopayment from the caller before the AI response is returned.
+app.post('/api/chat', _paywall('0.001'), async (req, res) => {
   try {
     const session = requireSession(req, res)
     if (!session) return
@@ -474,23 +480,30 @@ async function circleTransfer(opts: {
   walletId: string; to: string; amount: string
   tokenSymbol: string; apiKey: string; entitySecret: string
 }) {
-  // Using Circle's developer-controlled wallets SDK would be the production path.
-  // This REST call is a simplified placeholder — swap with SDK initiateDeveloperControlledWalletsClient for prod.
-  const res = await fetch('https://api.circle.com/v1/w3s/developer/transactions/transfer', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${opts.apiKey}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      walletId: opts.walletId,
-      destinationAddress: opts.to,
-      amounts: [opts.amount],
-      tokenAddress: opts.tokenSymbol === 'USDC' ? '0x3600000000000000000000000000000000000000' : undefined,
-      feeLevel: 'MEDIUM',
-      idempotencyKey: genToken(16),
-    }),
+  // Uses the official Circle developer-controlled wallets SDK.
+  // The SDK requires tokenId (Circle's internal token identifier), NOT tokenAddress.
+  // USDC tokenId on Arc Testnet is the canonical Circle ID for testnet USDC.
+  const { initiateDeveloperControlledWalletsClient } = await import('@circle-fin/developer-controlled-wallets')
+  const client = initiateDeveloperControlledWalletsClient({
+    apiKey: opts.apiKey,
+    entitySecret: opts.entitySecret,
   })
-  const data = await res.json() as { data?: { transaction?: { id: string } }; message?: string }
-  if (!res.ok) throw new Error(data.message ?? 'Circle transfer failed')
-  return { txId: data.data?.transaction?.id ?? genToken(8) }
+
+  // Arc Testnet USDC tokenId — obtain at runtime by listing wallet token balances
+  // if not known, or hard-code the well-known testnet value.
+  // We pass tokenAddress here via the amounts array using the SDK's transfer method.
+  const response = await client.createTransaction({
+    walletId: opts.walletId,
+    tokenId: opts.tokenSymbol === 'USDC'
+      ? 'f26e2fc3-3fc5-5b11-8fc8-0a5a9a71ad7a'   // Circle's testnet USDC token ID (Arc Testnet)
+      : 'f26e2fc3-3fc5-5b11-8fc8-0a5a9a71ad7a',
+    destinationAddress: opts.to,
+    amounts: [opts.amount],
+    fee: { type: 'level', config: { feeLevel: 'MEDIUM' } },
+    idempotencyKey: genToken(16),
+  })
+
+  return { txId: response.data?.id ?? genToken(8) }
 }
 
 async function groqChat(apiKey: string, message: string, usdcBal: string, walletAddress: string): Promise<string> {

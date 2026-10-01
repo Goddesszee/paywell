@@ -2,10 +2,10 @@ import React, { useState, useRef, useEffect } from 'react'
 import {
   Bot, Send, X, Check, Zap, Shield, ShoppingBag,
   ToggleLeft, ToggleRight, Coins, Loader2, Plus,
-  Trash2, Play, Pause, ExternalLink, Copy, RefreshCw,
+  Play,
   Search, Globe, Cpu, FileText, AlertTriangle, CheckCircle2,
-  Clock, ChevronRight, Sparkles, Network, Star, Activity,
-  UserCheck, TrendingUp, Lock, Unlock, PackageCheck
+  Clock, ChevronRight, Sparkles, Network, Activity,
+  UserCheck, TrendingUp, PackageCheck
 } from 'lucide-react'
 import { useWriteContract, useAccount } from 'wagmi'
 import { parseUnits } from 'viem'
@@ -26,12 +26,12 @@ import {
   getAllServices, discoverServices, getAllNetworkAgents,
   searchNetworkAgents, getNetworkAgentsByCategory,
   type NanService, type ServiceDiscoveryResult,
-  type NetworkAgent, type AgentCapability, ALL_CATEGORIES,
+  type NetworkAgent, ALL_CATEGORIES,
 } from '../../lib/agent-registry'
 import {
   decomposeTask, assignAgentsToSubtasks, estimateCost,
   checkMultiAgentPolicy, runA2ATask,
-  type Subtask, type CostEstimate, type A2ATask, type A2AProgress,
+  type Subtask, type CostEstimate, type A2AProgress,
 } from '../../lib/agent-network'
 
 const F       = "'Inter', -apple-system, sans-serif"
@@ -355,7 +355,7 @@ function AgentChat() {
       if (backendConfigured() && auth) {
         const msgs: Array<{role:'user'|'assistant'; content:string}> = agentMessages.filter(m => m.role==='user'||m.role==='agent').slice(-8).map(m => ({ role:(m.role==='agent'?'assistant':'user'), content:m.content }))
         msgs.push({ role:'user', content:text })
-        const res = await nanChat({ messages:msgs, usdcBal:String(agentPermissions.dailyLimit), userAddress:auth.walletAddress, sessionToken:auth.sessionToken })
+        const res = await nanChat({ messages:msgs, usdcBal:String(agentPermissions.dailyLimit ?? 0), userAddress:auth.walletAddress ?? '', sessionToken:auth.sessionToken })
         setTyping(false)
         addAgentMessage({ role:'agent', content:res.reply, action:'info' })
         return
