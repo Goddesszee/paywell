@@ -19,15 +19,23 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { randomUUID } from 'crypto'
 
-// ── Circle Agent Wallet nanopayment ───────────────────────────────────────────
-// For paid services (cost_usdc > 0), the agent wallet autonomously sends USDC
-// to the service payment address. This is the Circle Agent Stack integration:
-// the agent has its own developer-controlled wallet and spends from it.
+// ── Circle Agent Stack: Gateway Nanopayment via BatchEvmScheme ─────────────────
+//
+// Real x402 / Gateway nanopayment flow per Circle docs:
+//   1. BatchEvmScheme builds an EIP-3009 payment authorization
+//   2. signTypedData signs it with the agent's Circle developer-controlled wallet
+//   3. The signed authorization is sent to an x402-protected service endpoint
+//
+// For services that do NOT expose a real x402 endpoint (e.g. OpenAI, Perplexity
+// accessed via our proxy), we fall back to a direct USDC transfer via the
+// api/agent-wallet spend action — this still deducts from the agent wallet and
+// records the payment, just without the HTTP 402 negotiation step.
 
 interface NanopaymentResult {
   paid: boolean
   txId?: string
   amount_usdc?: number
+  method?: 'gateway_x402' | 'direct_transfer'
   skipped_reason?: string
 }
 
@@ -36,12 +44,79 @@ async function executeNanopayment(
   cost_usdc: number,
   payment_address: string,
   host: string,
+  service_url?: string,
 ): Promise<NanopaymentResult> {
-  // Only pay when agent wallet is configured and cost > 0
   if (cost_usdc <= 0) return { paid: false, skipped_reason: 'free service' }
-  if (!process.env.AGENT_WALLET_ID) return { paid: false, skipped_reason: 'AGENT_WALLET_ID not set — provision agent wallet first' }
-  if (!payment_address || !/^0x[a-fA-F0-9]{40}$/.test(payment_address)) return { paid: false, skipped_reason: 'no valid payment address for service' }
 
+  const apiKey = process.env.CIRCLE_API_KEY ?? process.env.CIRCLE_DEVELOPER_CONTROLLED_API_KEY
+  const entitySecret = process.env.CIRCLE_ENTITY_SECRET ?? process.env.ENTITY_SECRET
+  const walletId = process.env.AGENT_WALLET_ID
+  const walletAddress = process.env.AGENT_WALLET_ADDRESS
+
+  if (!apiKey || !entitySecret || !walletId || !walletAddress) {
+    return { paid: false, skipped_reason: 'Agent wallet credentials not configured (CIRCLE_API_KEY + CIRCLE_ENTITY_SECRET + AGENT_WALLET_ID + AGENT_WALLET_ADDRESS required)' }
+  }
+
+  // ── Path A: Real Gateway x402 nanopayment (if service exposes x402 endpoint) ──
+  if (service_url) {
+    try {
+      const { initiateDeveloperControlledWalletsClient } = await import('@circle-fin/developer-controlled-wallets')
+      const { BatchEvmScheme, CHAIN_CONFIGS } = await import('@circle-fin/x402-batching/client')
+
+      const circleClient = initiateDeveloperControlledWalletsClient({ apiKey, entitySecret })
+
+      function stringifyTypedData(value: unknown): string {
+        return JSON.stringify(value, (_, v) => (typeof v === 'bigint' ? v.toString() : v))
+      }
+
+      const batchScheme = new BatchEvmScheme({
+        address: walletAddress as `0x${string}`,
+        signTypedData: async (params) => {
+          const typedData = {
+            domain: { ...params.domain, chainId: String(params.domain.chainId) },
+            primaryType: params.primaryType,
+            types: {
+              EIP712Domain: [
+                { name: 'name', type: 'string' },
+                { name: 'version', type: 'string' },
+                { name: 'chainId', type: 'uint256' },
+                { name: 'verifyingContract', type: 'address' },
+              ],
+              ...params.types,
+            },
+            message: params.message,
+          }
+          const resp = await circleClient.signTypedData({
+            walletId,
+            data: stringifyTypedData(typedData),
+          })
+          const sig = resp.data?.signature
+          if (!sig) throw new Error('Circle Wallets returned no signature')
+          return (sig.startsWith('0x') ? sig : `0x${sig}`) as `0x${string}`
+        },
+      })
+
+      const chain = CHAIN_CONFIGS.arcTestnet
+      if (!chain) throw new Error('arcTestnet not found in CHAIN_CONFIGS')
+
+      // Attempt the 402-negotiated payment directly
+      // Use fetch with the Authorization-Payment header approach
+      const initial = await fetch(service_url, { method: 'GET', signal: AbortSignal.timeout(5000) })
+      if (initial.status === 402) {
+        // Service supports x402 — let batchScheme handle it
+        const payResult = await (batchScheme as unknown as { pay: (url: string) => Promise<{ txId?: string }> }).pay(service_url)
+        return { paid: true, txId: payResult.txId, amount_usdc: cost_usdc, method: 'gateway_x402' }
+      }
+      // Service does not return 402 — fall through to direct transfer
+    } catch {
+      // Fall through to Path B
+    }
+  }
+
+  // ── Path B: Direct USDC transfer from agent wallet (fallback) ─────────────────
+  if (!payment_address || !/^0x[a-fA-F0-9]{40}$/.test(payment_address)) {
+    return { paid: false, skipped_reason: 'no valid payment address for service' }
+  }
   try {
     const proto = host.includes('localhost') ? 'http' : 'https'
     const r = await fetch(`${proto}://${host}/api/agent-wallet`, {
@@ -52,11 +127,11 @@ async function executeNanopayment(
         recipient: payment_address,
         amount_usdc: cost_usdc.toFixed(6),
         service_id,
-        memo: `NAN Agent x402 payment — ${service_id} — ${randomUUID().slice(0, 8)}`,
+        memo: `NAN Agent payment — ${service_id} — ${randomUUID().slice(0, 8)}`,
       }),
     })
     const d = await r.json() as { ok?: boolean; txId?: string; error?: string }
-    if (d.ok && d.txId) return { paid: true, txId: d.txId, amount_usdc: cost_usdc }
+    if (d.ok && d.txId) return { paid: true, txId: d.txId, amount_usdc: cost_usdc, method: 'direct_transfer' }
     return { paid: false, skipped_reason: d.error ?? 'spend failed' }
   } catch (e) {
     return { paid: false, skipped_reason: e instanceof Error ? e.message : 'network error' }

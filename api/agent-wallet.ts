@@ -125,7 +125,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       })
     }
     try {
-      const balRes = await client.getWalletTokenBalance({ walletId })
+      const balRes = await client.getWalletTokenBalance({ id: walletId })
       const balances = balRes.data?.tokenBalances ?? []
       const usdc = balances.find(b => b.token?.symbol === 'USDC')
       return res.status(200).json({
@@ -157,13 +157,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const txRes = await client.createTransaction({
         idempotencyKey: randomUUID(),
         walletId,
-        // @ts-expect-error blockchain enum
-        blockchain: 'ARC-TESTNET',
         destinationAddress: recipient,
-        amounts: [amount_usdc],
-        tokenAddress: '', // native USDC on Arc
+        // tokenAddress: '' means native token (USDC on Arc)
+        tokenAddress: '',
+        amount: [amount_usdc],
         fee: { type: 'level', config: { feeLevel: 'MEDIUM' } },
-        note: memo ?? `NAN Agent payment for ${service_id ?? 'service'}`,
+        refId: memo ?? `NAN Agent payment for ${service_id ?? 'service'}`,
       })
       const txId = txRes.data?.id
       return res.status(200).json({ ok: true, txId, service_id, amount_usdc })
