@@ -38,18 +38,35 @@ interface AgentWalletRecord {
   createdAt: string
 }
 
-// ── Auth: extract email from NAN session token ────────────────────────────────
-// NAN session tokens are base64(email:timestamp) — same encoding as api/otp.ts
+// ── Auth: extract user identity from NAN session ─────────────────────────────
+//
+// NAN supports three login methods, each produces a different sessionToken:
+//
+//   1. Email OTP  → base64(email:timestamp)  stored in Redis as session:{token}
+//   2. Circle SDK → Circle userToken (opaque)
+//   3. Wallet     → literal string 'wallet'  (set by LoginPage.tsx line 28)
+//
+// For (3) we fall back to the wallet address sent in the request body.
+// The user identity key used for Redis is always lowercase email or wallet addr.
 
-async function getUserEmail(req: VercelRequest): Promise<string | null> {
+async function getUserIdentity(req: VercelRequest): Promise<string | null> {
+  const body = (req.body ?? {}) as Record<string, string>
   const authHeader = req.headers.authorization ?? ''
   const token = authHeader.startsWith('Bearer ')
     ? authHeader.slice(7).trim()
-    : (req.body as Record<string, string>)?.sessionToken ?? ''
+    : body.sessionToken ?? ''
+
+  // ── wallet connect: sessionToken === 'wallet' ──────────────────────────────
+  // Use the wallet address as the identity key (sent explicitly in body)
+  if (token === 'wallet') {
+    const addr = (body.walletAddress ?? '').toLowerCase().trim()
+    if (addr && addr.startsWith('0x') && addr.length >= 20) return addr
+    return null
+  }
 
   if (!token) return null
 
-  // 1. Try Redis session lookup (preferred — validates token is still live)
+  // ── Email OTP / Circle SDK: try Redis session lookup first ─────────────────
   try {
     const { getRedis } = await import('./_redis')
     const kv = getRedis()
@@ -57,13 +74,15 @@ async function getUserEmail(req: VercelRequest): Promise<string | null> {
       const session = await kv.get<{ email: string }>(`session:${token}`)
       if (session?.email) return session.email.toLowerCase().trim()
     }
-  } catch { /* fall through to base64 decode */ }
+  } catch { /* fall through */ }
 
-  // 2. Fallback: base64 decode (works even without Redis)
+  // ── Fallback: base64 decode for email OTP tokens ───────────────────────────
   try {
     const decoded = Buffer.from(token, 'base64').toString('utf8')
-    const [email] = decoded.split(':')
-    if (email && email.includes('@')) return email.toLowerCase().trim()
+    const [part] = decoded.split(':')
+    if (part && part.includes('@')) return part.toLowerCase().trim()
+    // Circle SDK tokens don't base64-decode to an email — treat as opaque key
+    if (part && part.length > 6) return `circle:${token.slice(0, 32)}`
   } catch { /* invalid token */ }
 
   return null
@@ -120,7 +139,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   // ── All other actions require authentication ──────────────────────────────
-  const email = await getUserEmail(req)
+  const email = await getUserIdentity(req)
   if (!email) {
     return res.status(401).json({
       error: 'Not authenticated. Please log in to NAN first.',

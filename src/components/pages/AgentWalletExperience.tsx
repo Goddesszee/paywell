@@ -414,7 +414,7 @@ function ErrorScreen({ onRetry, onSupport, errorMsg, C }: { onRetry: () => void;
 
 // ── SCREEN: Dashboard ─────────────────────────────────────────────────────────
 
-function DashboardScreen({ sessionToken, C }: { sessionToken?: string | null; C: ReturnType<typeof useNanTheme> }) {
+function DashboardScreen({ sessionToken, walletAddress, C }: { sessionToken?: string | null; walletAddress?: string; C: ReturnType<typeof useNanTheme> }) {
   const { agentWallet, setAgentWallet, agentSpendLog, auth } = useAppStore()
   const [refreshing, setRefreshing] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -428,7 +428,7 @@ function DashboardScreen({ sessionToken, C }: { sessionToken?: string | null; C:
       const r = await fetch('/api/agent-wallet', {
         method: 'POST',
         headers: buildHeaders(sessionToken),
-        body: JSON.stringify({ action: 'status' }),
+        body: JSON.stringify({ action: 'status', sessionToken, walletAddress }),
       })
       const d = await r.json() as { provisioned?: boolean; address?: string; walletId?: string; balance_usdc?: string; createdAt?: string; blockchain?: string }
       if (d.provisioned && d.address) {
@@ -565,7 +565,8 @@ export function AgentWalletExperience() {
   const C = useNanTheme()
   const { agentWallet, setAgentWallet, setActiveView, auth } = useAppStore()
 
-  const sessionToken = auth?.sessionToken ?? null
+  const sessionToken  = auth?.sessionToken ?? null
+  const walletAddress = auth?.walletAddress ?? auth?.circleWalletAddress ?? ''
 
   const [screen, setScreen] = useState<Screen>('detect')
   const [newAddress, setNewAddress]   = useState('')
@@ -591,7 +592,7 @@ export function AgentWalletExperience() {
     fetch('/api/agent-wallet', {
       method: 'POST',
       headers: buildHeaders(sessionToken),
-      body: JSON.stringify({ action: 'status' }),
+      body: JSON.stringify({ action: 'status', sessionToken, walletAddress }),
     })
       .then(r => r.json())
       .then((d: { provisioned?: boolean; address?: string; walletId?: string; balance_usdc?: string; createdAt?: string; blockchain?: string; auth_required?: boolean }) => {
@@ -628,7 +629,7 @@ export function AgentWalletExperience() {
         fetch('/api/agent-wallet', {
           method: 'POST',
           headers: buildHeaders(sessionToken),
-          body: JSON.stringify({ action: 'provision' }),
+          body: JSON.stringify({ action: 'provision', sessionToken, walletAddress }),
         }),
         new Promise(r => setTimeout(r, 2800)),
       ])
@@ -708,7 +709,7 @@ export function AgentWalletExperience() {
         {screen === 'setup'        && <SetupScreen onCreate={handleCreate} C={C} />}
         {screen === 'creating'     && <CreatingScreen C={C} />}
         {screen === 'success'      && <SuccessScreen address={newAddress} walletId={newWalletId} createdAt={newCreatedAt} onDashboard={() => setScreen('dashboard')} C={C} />}
-        {screen === 'dashboard'    && <DashboardScreen sessionToken={sessionToken} C={C} />}
+        {screen === 'dashboard'    && <DashboardScreen sessionToken={sessionToken} walletAddress={walletAddress} C={C} />}
         {screen === 'error'        && <ErrorScreen onRetry={() => setScreen('setup')} onSupport={() => setActiveView('support')} errorMsg={errorMsg} C={C} />}
       </div>
     </>
