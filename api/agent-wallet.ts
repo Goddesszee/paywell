@@ -248,6 +248,46 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   }
 
+  // ── topup — transfer USDC from Main App Wallet → Agent Wallet ────────────
+  // The Main App Wallet is a Circle developer-controlled wallet (walletId from
+  // auth session). We initiate a transfer from it to the agent wallet.
+  if (action === 'topup') {
+    const { amount_usdc, main_wallet_id } = body
+    if (!amount_usdc || !main_wallet_id) {
+      return res.status(400).json({ error: 'amount_usdc and main_wallet_id required' })
+    }
+    const amtNum = parseFloat(amount_usdc)
+    if (isNaN(amtNum) || amtNum <= 0 || amtNum > 10000) {
+      return res.status(400).json({ error: 'Invalid amount.' })
+    }
+
+    const record = kv ? await kv.get<AgentWalletRecord>(agentWalletKey(email)) : null
+    if (!record?.walletId || !record?.address) {
+      return res.status(400).json({ error: 'No agent wallet found. Create one first.' })
+    }
+
+    // USDC contract address on ARC-TESTNET
+    const ARC_USDC = '0x3c499c542cef5e3811e1192ce70d8cc03d5c3359'
+
+    try {
+      const txRes = await client.createTransaction({
+        idempotencyKey: randomUUID(),
+        walletId: main_wallet_id,
+        destinationAddress: record.address,
+        // @ts-expect-error SDK tokenAddress field name varies by version
+        tokenAddress: ARC_USDC,
+        amounts: [amount_usdc],
+        fee: { type: 'level', config: { feeLevel: 'MEDIUM' } },
+        refId: `NAN Agent Wallet Top-up — ${email.split('@')[0]}`,
+      })
+      console.log(`[agent-wallet] topup ${amount_usdc} USDC from ${main_wallet_id} to agent wallet for ${email}`)
+      return res.status(200).json({ ok: true, txId: txRes.data?.id, amount_usdc })
+    } catch (e) {
+      console.error('[agent-wallet] topup error:', e instanceof Error ? e.message : e)
+      return res.status(500).json({ error: 'Transfer failed. Please try again.' })
+    }
+  }
+
   // ── spend — send USDC from this user's agent wallet ───────────────────────
   if (action === 'spend') {
     const { recipient, amount_usdc, service_id, memo } = body
@@ -266,13 +306,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'Maximum $10 USDC per agent payment.' })
     }
 
+    const ARC_USDC_SPEND = '0x3c499c542cef5e3811e1192ce70d8cc03d5c3359'
     try {
       const txRes = await client.createTransaction({
         idempotencyKey: randomUUID(),
         walletId: record.walletId,
         destinationAddress: recipient,
-        tokenAddress: '',
-        amount: [amount_usdc],
+        // @ts-expect-error SDK tokenAddress field name varies by version
+        tokenAddress: ARC_USDC_SPEND,
+        amounts: [amount_usdc],
         fee: { type: 'level', config: { feeLevel: 'MEDIUM' } },
         refId: memo ?? `NAN Agent — ${service_id ?? 'service'}`,
       })

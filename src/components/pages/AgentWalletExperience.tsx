@@ -393,8 +393,7 @@ function SuccessScreen({ address, walletId, createdAt, onDashboard, C }: {
 
 // ── SCREEN: Error ─────────────────────────────────────────────────────────────
 
-function ErrorScreen({ onRetry, errorMsg, C }: { onRetry: () => void; errorMsg?: string; C: ReturnType<typeof useNanTheme> }) {
-  const { setActiveView } = useAppStore()
+function ErrorScreen({ onRetry, onSupport, errorMsg, C }: { onRetry: () => void; onSupport: () => void; errorMsg?: string; C: ReturnType<typeof useNanTheme> }) {
   return (
     <div style={{ fontFamily: F, textAlign: 'center', paddingTop: 24 }}>
       <div style={{ width: 68, height: 68, borderRadius: 22, margin: '0 auto 18px', background: 'rgba(255,59,59,0.10)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid rgba(255,59,59,0.2)' }}>
@@ -406,7 +405,7 @@ function ErrorScreen({ onRetry, errorMsg, C }: { onRetry: () => void; errorMsg?:
       </p>
       <p style={{ fontSize: 12, color: C.t3, margin: '0 auto 32px', maxWidth: 280 }}>Your main NAN wallet has not been affected.</p>
       <PrimaryBtn label="Try Again" onClick={onRetry} C={C} />
-      <button onClick={() => setActiveView('support')} style={{ width: '100%', marginTop: 12, background: 'none', border: `1px solid ${C.bdr}`, borderRadius: 14, height: 48, fontSize: 14, fontWeight: 600, color: C.t2, fontFamily: F, cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}>
+      <button onClick={onSupport} style={{ width: '100%', marginTop: 12, background: 'none', border: `1px solid ${C.bdr}`, borderRadius: 14, height: 48, fontSize: 14, fontWeight: 600, color: C.t2, fontFamily: F, cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}>
         Contact Support
       </button>
     </div>
@@ -710,7 +709,7 @@ export function AgentWalletExperience() {
         {screen === 'creating'     && <CreatingScreen C={C} />}
         {screen === 'success'      && <SuccessScreen address={newAddress} walletId={newWalletId} createdAt={newCreatedAt} onDashboard={() => setScreen('dashboard')} C={C} />}
         {screen === 'dashboard'    && <DashboardScreen sessionToken={sessionToken} C={C} />}
-        {screen === 'error'        && <ErrorScreen onRetry={() => setScreen('setup')} errorMsg={errorMsg} C={C} />}
+        {screen === 'error'        && <ErrorScreen onRetry={() => setScreen('setup')} onSupport={() => setActiveView('support')} errorMsg={errorMsg} C={C} />}
       </div>
     </>
   )
