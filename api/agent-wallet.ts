@@ -1,94 +1,22 @@
 /**
- * api/agent-wallet.ts — NAN Personal Agent Wallet
+ * api/agent-wallet.ts — NAN Circle Agent Stack Integration
  *
- * Every authenticated NAN user gets their OWN Circle developer-controlled
- * wallet for their AI agent. Wallets are stored in Redis keyed by the
- * user's email address (extracted from their NAN session token).
- *
- * Architecture:
- *   NAN USER (identified by session token → email)
- *     └── AGENT WALLET (separate Circle wallet, stored in Redis)
- *           ├── walletId      (Circle internal ID)
- *           ├── walletSetId   (Circle wallet set ID)
- *           ├── address       (on-chain address)
- *           ├── blockchain    (ARC-TESTNET)
- *           └── createdAt     (ISO timestamp)
+ * Manages the NAN Agent's own dedicated Circle developer-controlled wallet.
+ * This wallet is separate from the user's wallet — it belongs to the agent
+ * and is funded by the user as an "agent budget".
  *
  * Routes (all POST):
- *   action=status     — get this user's agent wallet + balance
- *   action=provision  — create wallet for this user (idempotent)
- *   action=spend      — spend USDC from this user's agent wallet
- *   action=marketplace — public list of agent services (no auth needed)
+ *   action=provision    — create wallet set + agent wallet (one-time setup)
+ *   action=status       — get agent wallet address, balance, and spend history
+ *   action=topup        — create a transfer challenge for user to fund the agent wallet
+ *   action=spend        — spend USDC from agent wallet for a service call
+ *   action=marketplace  — fetch live services from Circle Agent Marketplace
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { randomUUID } from 'crypto'
 
-// ── Redis key helpers ─────────────────────────────────────────────────────────
-
-function agentWalletKey(email: string) {
-  return `agent_wallet:${email.toLowerCase().trim()}`
-}
-
-interface AgentWalletRecord {
-  walletId: string
-  walletSetId: string
-  address: string
-  blockchain: string
-  createdAt: string
-}
-
-// ── Auth: extract user identity from NAN session ─────────────────────────────
-//
-// NAN supports three login methods, each produces a different sessionToken:
-//
-//   1. Email OTP  → base64(email:timestamp)  stored in Redis as session:{token}
-//   2. Circle SDK → Circle userToken (opaque)
-//   3. Wallet     → literal string 'wallet'  (set by LoginPage.tsx line 28)
-//
-// For (3) we fall back to the wallet address sent in the request body.
-// The user identity key used for Redis is always lowercase email or wallet addr.
-
-async function getUserIdentity(req: VercelRequest): Promise<string | null> {
-  const body = (req.body ?? {}) as Record<string, string>
-  const authHeader = req.headers.authorization ?? ''
-  const token = authHeader.startsWith('Bearer ')
-    ? authHeader.slice(7).trim()
-    : body.sessionToken ?? ''
-
-  // ── wallet connect: sessionToken === 'wallet' ──────────────────────────────
-  // Use the wallet address as the identity key (sent explicitly in body)
-  if (token === 'wallet') {
-    const addr = (body.walletAddress ?? '').toLowerCase().trim()
-    if (addr && addr.startsWith('0x') && addr.length >= 20) return addr
-    return null
-  }
-
-  if (!token) return null
-
-  // ── Email OTP / Circle SDK: try Redis session lookup first ─────────────────
-  try {
-    const { getRedis } = await import('./_redis')
-    const kv = getRedis()
-    if (kv) {
-      const session = await kv.get<{ email: string }>(`session:${token}`)
-      if (session?.email) return session.email.toLowerCase().trim()
-    }
-  } catch { /* fall through */ }
-
-  // ── Fallback: base64 decode for email OTP tokens ───────────────────────────
-  try {
-    const decoded = Buffer.from(token, 'base64').toString('utf8')
-    const [part] = decoded.split(':')
-    if (part && part.includes('@')) return part.toLowerCase().trim()
-    // Circle SDK tokens don't base64-decode to an email — treat as opaque key
-    if (part && part.length > 6) return `circle:${token.slice(0, 32)}`
-  } catch { /* invalid token */ }
-
-  return null
-}
-
-// ── Circle developer-controlled wallet client ─────────────────────────────────
+// ── SDK initialisation (lazy — only when creds are present) ──────────────────
 
 async function getDevClient() {
   const apiKey = process.env.CIRCLE_API_KEY ?? process.env.CIRCLE_DEVELOPER_CONTROLLED_API_KEY
@@ -98,7 +26,7 @@ async function getDevClient() {
   return initiateDeveloperControlledWalletsClient({ apiKey, entitySecret })
 }
 
-// ── Main handler ──────────────────────────────────────────────────────────────
+// ── Main handler ─────────────────────────────────────────────────────────────
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*')
@@ -109,7 +37,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const body = (req.body ?? {}) as Record<string, string>
   const action = body.action ?? (req.query.action as string)
 
-  // ── marketplace — public, no auth needed ─────────────────────────────────
+  // ── marketplace — no creds needed ────────────────────────────────────────
   if (action === 'marketplace') {
     try {
       const r = await fetch('https://agents.circle.com/services', {
@@ -119,228 +47,127 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (r.ok) {
         const ct = r.headers.get('content-type') ?? ''
         if (ct.includes('application/json')) {
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-          return res.status(200).json({ services: await r.json(), source: 'live' })
+          const data = await r.json()
+          return res.status(200).json({ services: data, source: 'live' })
         }
       }
-    } catch { /* fall through */ }
+    } catch { /* fall through to static */ }
 
+    // Static curated list as fallback
     return res.status(200).json({
       source: 'static',
       services: [
-        { id: 'perplexity-research', name: 'Perplexity AI Research',  category: 'research',  price_usdc: 0.002, description: 'Deep research with cited sources' },
-        { id: 'brave-search',        name: 'Brave Search',            category: 'search',    price_usdc: 0,     description: 'Privacy-first web search' },
-        { id: 'coingecko-prices',    name: 'CoinGecko Prices',        category: 'data',      price_usdc: 0,     description: 'Live crypto market data' },
-        { id: 'exchangerate-fx',     name: 'Exchange Rate API',       category: 'data',      price_usdc: 0,     description: 'Live forex exchange rates' },
-        { id: 'github-code-search',  name: 'GitHub Search',           category: 'developer', price_usdc: 0,     description: 'Search public repositories' },
-        { id: 'openai-completion',   name: 'OpenAI GPT-4o',           category: 'ai',        price_usdc: 0.001, description: 'AI reasoning and generation' },
+        { id: 'perplexity-research', name: 'Perplexity AI Research', category: 'research', price_usdc: 0.002, description: 'Deep research with cited sources', endpoint: 'https://api.perplexity.ai', payment_methods: ['x402', 'usdc'] },
+        { id: 'brave-search', name: 'Brave Search', category: 'search', price_usdc: 0, description: 'Privacy-first web search', endpoint: 'https://api.search.brave.com', payment_methods: ['free'] },
+        { id: 'skyscanner-flights', name: 'Skyscanner Flights', category: 'travel', price_usdc: 0, description: 'Flight price search', endpoint: 'https://partners.api.skyscanner.net', payment_methods: ['free'] },
+        { id: 'amadeus-hotels', name: 'Amadeus Hotels', category: 'travel', price_usdc: 0, description: 'Hotel availability search', endpoint: 'https://test.api.amadeus.com', payment_methods: ['free'] },
+        { id: 'coingecko-prices', name: 'CoinGecko Prices', category: 'data', price_usdc: 0, description: 'Live crypto market data', endpoint: 'https://api.coingecko.com', payment_methods: ['free'] },
+        { id: 'exchangerate-fx', name: 'Exchange Rate API', category: 'data', price_usdc: 0, description: 'Live forex exchange rates', endpoint: 'https://v6.exchangerate-api.com', payment_methods: ['free'] },
+        { id: 'github-code-search', name: 'GitHub Search', category: 'developer', price_usdc: 0, description: 'Search public repositories and code', endpoint: 'https://api.github.com', payment_methods: ['free'] },
+        { id: 'openai-completion', name: 'OpenAI GPT-4o', category: 'ai', price_usdc: 0.001, description: 'General-purpose AI reasoning and generation', endpoint: 'https://api.openai.com', payment_methods: ['x402', 'usdc'] },
       ],
     })
   }
 
-  // ── All other actions require authentication ──────────────────────────────
-  const email = await getUserIdentity(req)
-  if (!email) {
-    return res.status(401).json({
-      error: 'Not authenticated. Please log in to NAN first.',
-      auth_required: true,
-    })
-  }
-
-  // ── All wallet actions require Circle credentials ─────────────────────────
+  // All other actions require Circle developer-controlled wallet credentials
   const client = await getDevClient()
   if (!client) {
     return res.status(503).json({
-      error: 'Agent wallet service not available. Add CIRCLE_API_KEY + CIRCLE_ENTITY_SECRET to Vercel environment variables.',
+      error: 'Agent wallet credentials not configured. Add CIRCLE_API_KEY + CIRCLE_ENTITY_SECRET to Vercel environment variables.',
       setup_required: true,
     })
   }
 
-  // ── Redis for per-user wallet persistence ────────────────────────────────
-  const { getRedis } = await import('./_redis')
-  const kv = getRedis()
-
-  // ── status — get this user's agent wallet + live balance ─────────────────
-  if (action === 'status') {
-    try {
-      // Look up this user's wallet record
-      const record = kv ? await kv.get<AgentWalletRecord>(agentWalletKey(email)) : null
-
-      if (!record?.walletId || !record?.address) {
-        return res.status(200).json({ provisioned: false })
-      }
-
-      // Fetch live balance from Circle
-      let balance_usdc = '0'
-      try {
-        const balRes = await client.getWalletTokenBalance({ id: record.walletId })
-        const balances = balRes.data?.tokenBalances ?? []
-        const usdc = balances.find(b => b.token?.symbol === 'USDC')
-        balance_usdc = usdc?.amount ?? '0'
-      } catch { /* non-fatal — return stale balance */ }
-
-      return res.status(200).json({
-        provisioned: true,
-        walletId: record.walletId,
-        address: record.address,
-        blockchain: record.blockchain,
-        createdAt: record.createdAt,
-        balance_usdc,
-      })
-    } catch (e) {
-      console.error('[agent-wallet] status error:', e instanceof Error ? e.message : e)
-      return res.status(500).json({ error: 'Failed to load wallet status.' })
-    }
-  }
-
-  // ── provision — create wallet for this user (idempotent) ─────────────────
+  // ── provision — create the agent wallet (one-time) ────────────────────────
   if (action === 'provision') {
     try {
-      // Idempotency: if user already has a wallet, return it
-      if (kv) {
-        const existing = await kv.get<AgentWalletRecord>(agentWalletKey(email))
-        if (existing?.walletId && existing?.address) {
-          console.log(`[agent-wallet] returning existing wallet for ${email}`)
-          return res.status(200).json({
-            ok: true,
-            walletId: existing.walletId,
-            address: existing.address,
-            blockchain: existing.blockchain,
-            createdAt: existing.createdAt,
-            already_existed: true,
-          })
-        }
-      }
-
-      console.log(`[agent-wallet] creating new wallet for ${email}`)
-
-      // 1. Create a wallet set scoped to this user
-      const safeEmail = email.replace(/[^a-z0-9]/gi, '-').slice(0, 40)
+      // 1. Create wallet set
       const wsRes = await client.createWalletSet({
         idempotencyKey: randomUUID(),
-        name: `NAN Agent — ${safeEmail}`,
+        name: 'NAN Agent Wallet Set',
       })
       const walletSetId = wsRes.data?.walletSet?.id
       if (!walletSetId) throw new Error('Failed to create wallet set')
 
-      // 2. Create the agent wallet on Arc Testnet
+      // 2. Create agent wallet on Arc Testnet (EOA — needed for Gateway nanopayments)
       const wRes = await client.createWallets({
         idempotencyKey: randomUUID(),
-        // @ts-expect-error SDK enum varies by version
+        // @ts-expect-error SDK enum may vary
         blockchains: ['ARC-TESTNET'],
         count: 1,
         walletSetId,
-        metadata: [{ name: `NAN Agent Wallet — ${safeEmail}`, refId: `nan-agent-${safeEmail}` }],
+        metadata: [{ name: 'NAN Agent Wallet', refId: 'nan-agent-v1' }],
       })
       const wallet = wRes.data?.wallets?.[0]
-      if (!wallet?.address) throw new Error('Failed to create agent wallet — no address returned')
-
-      const record: AgentWalletRecord = {
-        walletId: wallet.id,
-        walletSetId,
-        address: wallet.address,
-        blockchain: wallet.blockchain ?? 'ARC-TESTNET',
-        createdAt: new Date().toISOString(),
-      }
-
-      // 3. Persist to Redis against this user's email
-      if (kv) {
-        await kv.set(agentWalletKey(email), record)
-        console.log(`[agent-wallet] saved wallet ${wallet.id} for ${email}`)
-      } else {
-        // No Redis — wallet was created but can't be persisted server-side.
-        // Return it anyway; the frontend will cache it in Zustand.
-        console.warn('[agent-wallet] Redis not configured — wallet created but not persisted server-side')
-      }
+      if (!wallet) throw new Error('Failed to create agent wallet')
 
       return res.status(200).json({
         ok: true,
-        walletId: record.walletId,
-        address: record.address,
-        blockchain: record.blockchain,
-        createdAt: record.createdAt,
+        walletId: wallet.id,
+        address: wallet.address,
+        blockchain: wallet.blockchain,
         walletSetId,
+        message: 'Agent wallet provisioned. Store AGENT_WALLET_ID and AGENT_WALLET_ADDRESS in your Vercel environment variables.',
       })
     } catch (e) {
-      console.error('[agent-wallet] provision error:', e instanceof Error ? e.message : e)
-      return res.status(500).json({ error: 'Wallet creation failed. Please try again.' })
+      return res.status(500).json({ error: e instanceof Error ? e.message : 'Provisioning failed' })
     }
   }
 
-  // ── topup — transfer USDC from Main App Wallet → Agent Wallet ────────────
-  // The Main App Wallet is a Circle developer-controlled wallet (walletId from
-  // auth session). We initiate a transfer from it to the agent wallet.
-  if (action === 'topup') {
-    const { amount_usdc, main_wallet_id } = body
-    if (!amount_usdc || !main_wallet_id) {
-      return res.status(400).json({ error: 'amount_usdc and main_wallet_id required' })
+  // ── status — get balance + spend log ──────────────────────────────────────
+  if (action === 'status') {
+    const walletId = process.env.AGENT_WALLET_ID
+    const address = process.env.AGENT_WALLET_ADDRESS
+    if (!walletId || !address) {
+      return res.status(200).json({
+        provisioned: false,
+        message: 'Agent wallet not yet provisioned. Call action=provision to create one.',
+      })
     }
-    const amtNum = parseFloat(amount_usdc)
-    if (isNaN(amtNum) || amtNum <= 0 || amtNum > 10000) {
-      return res.status(400).json({ error: 'Invalid amount.' })
-    }
-
-    const record = kv ? await kv.get<AgentWalletRecord>(agentWalletKey(email)) : null
-    if (!record?.walletId || !record?.address) {
-      return res.status(400).json({ error: 'No agent wallet found. Create one first.' })
-    }
-
-    // USDC contract address on ARC-TESTNET
-    const ARC_USDC = '0x3c499c542cef5e3811e1192ce70d8cc03d5c3359'
-
     try {
-      const txRes = await client.createTransaction({
-        idempotencyKey: randomUUID(),
-        walletId: main_wallet_id,
-        destinationAddress: record.address,
-        // @ts-expect-error SDK tokenAddress field name varies by version
-        tokenAddress: ARC_USDC,
-        amounts: [amount_usdc],
-        fee: { type: 'level', config: { feeLevel: 'MEDIUM' } },
-        refId: `NAN Agent Wallet Top-up — ${email.split('@')[0]}`,
+      const balRes = await client.getWalletTokenBalance({ id: walletId })
+      const balances = balRes.data?.tokenBalances ?? []
+      const usdc = balances.find(b => b.token?.symbol === 'USDC')
+      return res.status(200).json({
+        provisioned: true,
+        walletId,
+        address,
+        balance_usdc: usdc?.amount ?? '0',
+        balances,
       })
-      console.log(`[agent-wallet] topup ${amount_usdc} USDC from ${main_wallet_id} to agent wallet for ${email}`)
-      return res.status(200).json({ ok: true, txId: txRes.data?.id, amount_usdc })
     } catch (e) {
-      console.error('[agent-wallet] topup error:', e instanceof Error ? e.message : e)
-      return res.status(500).json({ error: 'Transfer failed. Please try again.' })
+      return res.status(500).json({ error: e instanceof Error ? e.message : 'Balance check failed' })
     }
   }
 
-  // ── spend — send USDC from this user's agent wallet ───────────────────────
+  // ── spend — send USDC from agent wallet for a service call ────────────────
   if (action === 'spend') {
     const { recipient, amount_usdc, service_id, memo } = body
-    if (!recipient || !amount_usdc) {
-      return res.status(400).json({ error: 'recipient and amount_usdc required' })
+    if (!recipient || !amount_usdc) return res.status(400).json({ error: 'recipient and amount_usdc required' })
+
+    const walletId = process.env.AGENT_WALLET_ID
+    if (!walletId) return res.status(400).json({ error: 'AGENT_WALLET_ID not set — run action=provision first' })
+
+    // Safety cap: max $0.10 USDC per service call from agent wallet
+    if (parseFloat(amount_usdc) > 0.10) {
+      return res.status(400).json({ error: 'Agent wallet spend cap is 0.10 USDC per call. Adjust spending policy.' })
     }
 
-    // Look up this user's wallet
-    const record = kv ? await kv.get<AgentWalletRecord>(agentWalletKey(email)) : null
-    if (!record?.walletId) {
-      return res.status(400).json({ error: 'No agent wallet found. Create one first.' })
-    }
-
-    // Safety cap: $10 USDC max per agent call
-    if (parseFloat(amount_usdc) > 10) {
-      return res.status(400).json({ error: 'Maximum $10 USDC per agent payment.' })
-    }
-
-    const ARC_USDC_SPEND = '0x3c499c542cef5e3811e1192ce70d8cc03d5c3359'
     try {
       const txRes = await client.createTransaction({
         idempotencyKey: randomUUID(),
-        walletId: record.walletId,
+        walletId,
         destinationAddress: recipient,
-        // @ts-expect-error SDK tokenAddress field name varies by version
-        tokenAddress: ARC_USDC_SPEND,
-        amounts: [amount_usdc],
+        // tokenAddress: '' means native token (USDC on Arc)
+        tokenAddress: '',
+        amount: [amount_usdc],
         fee: { type: 'level', config: { feeLevel: 'MEDIUM' } },
-        refId: memo ?? `NAN Agent — ${service_id ?? 'service'}`,
+        refId: memo ?? `NAN Agent payment for ${service_id ?? 'service'}`,
       })
-      return res.status(200).json({ ok: true, txId: txRes.data?.id, service_id, amount_usdc })
+      const txId = txRes.data?.id
+      return res.status(200).json({ ok: true, txId, service_id, amount_usdc })
     } catch (e) {
-      console.error('[agent-wallet] spend error:', e instanceof Error ? e.message : e)
-      return res.status(500).json({ error: 'Payment failed.' })
+      return res.status(500).json({ error: e instanceof Error ? e.message : 'Spend failed' })
     }
   }
 

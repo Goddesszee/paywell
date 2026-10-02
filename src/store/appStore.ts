@@ -323,8 +323,6 @@ export interface AgentWalletState {
   walletId?: string
   balance_usdc: string
   lastRefreshed?: string
-  createdAt?: string
-  blockchain?: string
 }
 
 export interface AgentSpendEntry {

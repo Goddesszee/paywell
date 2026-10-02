@@ -90,10 +90,9 @@ export function BridgePage() {
   const addActivity = useAppStore(s => s.addActivity)
   const recordFee   = useAppStore(s => s.recordFee)
 
-  // Lazy-instantiate AppKit once; access only outside render (in callbacks/effects)
+  // Lazy-instantiate AppKit inside the component so it runs after React mounts
   const appKitRef = useRef<AppKit | null>(null)
-  // eslint-disable-next-line react/refs -- intentional: initialised before any render path that uses it
-  if (appKitRef.current === null) { appKitRef.current = new AppKit() }
+  if (!appKitRef.current) appKitRef.current = new AppKit()
   const appKit = appKitRef.current
 
   const [fromIdx, setFromIdx] = useState(0)
