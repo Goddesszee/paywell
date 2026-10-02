@@ -125,7 +125,7 @@ export function SupportPage() {
         setNewMessage('')
         setSelected(data.ticket)
         setView('ticket')
-        fetchNotifications()
+        void fetchNotifications()
       }
     } catch {
       setError('Failed to submit. Please try again.')
@@ -156,7 +156,7 @@ export function SupportPage() {
   }
 
   // eslint-disable-next-line react/set-state-in-effect
-  useEffect(() => { fetchTickets() }, [token]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { void fetchTickets() }, [token]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── List view ────────────────────────────────────────────────────────────────
   if (view === 'list') return (
@@ -205,7 +205,7 @@ export function SupportPage() {
       ) : (
         <div style={{ background: 'var(--nan-surface)', border: '1px solid var(--nan-bdr)', borderRadius: 14, overflow: 'hidden' }}>
           {tickets.map((t, i) => (
-            <div key={t.id} onClick={() => openTicket(t)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', borderBottom: i < tickets.length - 1 ? '1px solid var(--nan-bdr)' : 'none', cursor: 'pointer', background: t.hasUnreadAdmin ? 'var(--nan-blue-dim)' : 'transparent', transition: 'background 0.15s' }}>
+            <div key={t.id} onClick={() => { void openTicket(t) }} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', borderBottom: i < tickets.length - 1 ? '1px solid var(--nan-bdr)' : 'none', cursor: 'pointer', background: t.hasUnreadAdmin ? 'var(--nan-blue-dim)' : 'transparent', transition: 'background 0.15s' }}>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 3, flexWrap: 'wrap' }}>
                   <span style={{ fontSize: 13, fontWeight: t.hasUnreadAdmin ? 700 : 600, color: 'var(--nan-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 200 }}>{t.subject}</span>
@@ -253,7 +253,7 @@ export function SupportPage() {
         </div>
         {error && <div style={{ fontSize: 13, color: 'var(--nan-red)', fontWeight: 500 }}>{error}</div>}
         <button
-          onClick={submitNew}
+          onClick={() => { void submitNew() }}
           disabled={submitLoading}
           style={{ padding: '12px', borderRadius: 11, background: submitLoading ? 'var(--nan-surface2)' : 'var(--nan-blue)', color: '#fff', fontSize: 14, fontWeight: 600, border: 'none', cursor: submitLoading ? 'default' : 'pointer', fontFamily: SANS, transition: 'background 0.15s' }}
         >
@@ -267,7 +267,7 @@ export function SupportPage() {
   if (view === 'ticket' && selected) return (
     <div style={{ maxWidth: 600, margin: '0 auto', fontFamily: SANS, display: 'flex', flexDirection: 'column', minHeight: '70vh' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-        <button onClick={() => { setView('list'); fetchTickets() }} style={{ background: 'none', border: 'none', color: 'var(--nan-text2)', cursor: 'pointer', padding: 0 }}>
+        <button onClick={() => { setView('list'); void fetchTickets() }} style={{ background: 'none', border: 'none', color: 'var(--nan-text2)', cursor: 'pointer', padding: 0 }}>
           <ArrowLeft size={18} color="var(--nan-text2)" />
         </button>
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -318,16 +318,16 @@ export function SupportPage() {
             onChange={e => setReplyText(e.target.value)}
             placeholder="Type a reply…"
             rows={2}
-            onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendReply() } }}
+            onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void sendReply() } }}
             style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: 'var(--nan-text)', fontSize: 13, fontFamily: SANS, resize: 'none', lineHeight: 1.5 }}
           />
-          <button onClick={sendReply} disabled={replyLoading || !replyText.trim()} style={{ width: 36, height: 36, borderRadius: 9, background: replyText.trim() ? 'var(--nan-blue)' : 'var(--nan-surface2)', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: replyText.trim() ? 'pointer' : 'default', flexShrink: 0, transition: 'background 0.15s' }}>
+          <button onClick={() => { void sendReply() }} disabled={replyLoading || !replyText.trim()} style={{ width: 36, height: 36, borderRadius: 9, background: replyText.trim() ? 'var(--nan-blue)' : 'var(--nan-surface2)', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: replyText.trim() ? 'pointer' : 'default', flexShrink: 0, transition: 'background 0.15s' }}>
             <Send size={15} color={replyText.trim() ? '#fff' : 'var(--nan-text3)'} />
           </button>
         </div>
       ) : (
         <button onClick={() => {
-          fetch(`/api/support/tickets/${selected.id}/reply`, {
+          void fetch(`/api/support/tickets/${selected.id}/reply`, {
             method: 'POST',
             headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
             body: JSON.stringify({ message: 'Reopening this request.' }),

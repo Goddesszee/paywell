@@ -13,8 +13,8 @@ export function NotificationBell({ color, size = 18 }: Props) {
   // Poll for new notifications every 30 seconds while logged in
   useEffect(() => {
     if (!auth?.sessionToken) return
-    fetchNotifications()
-    const interval = setInterval(() => fetchNotifications(), 30000)
+    void fetchNotifications()
+    const interval = setInterval(() => { void fetchNotifications() }, 30000)
     return () => clearInterval(interval)
   }, [auth?.sessionToken, fetchNotifications])
 

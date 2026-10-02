@@ -17,7 +17,8 @@ import './console-capture'
 ;(function () {
   try {
     const s = localStorage.getItem('paywell-state-v2')
-    const t = s ? JSON.parse(s)?.state?.theme : null
+    const parsed = s ? (JSON.parse(s) as { state?: { theme?: string } }) : null
+    const t = parsed?.state?.theme ?? null
     document.documentElement.setAttribute('data-theme', t === 'light' ? 'light' : 'dark')
   } catch { document.documentElement.setAttribute('data-theme', 'dark') }
 })()

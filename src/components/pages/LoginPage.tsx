@@ -4,6 +4,7 @@ import { useAccount } from 'wagmi'
 import { Wallet, ArrowLeft } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
 import { CircleEmailLogin } from '../CircleEmailLogin'
+import { CircleGoogleLogin } from '../CircleGoogleLogin'
 
 
 const F       = "'Inter', -apple-system, sans-serif"
@@ -25,14 +26,19 @@ export function LoginPage() {
   // ── wallet connect effect ─────────────────────────────────────────────────
   useEffect(() => {
     if (isConnected && address) {
-      setAuth({ email: '', sessionToken: 'wallet', walletAddress: address, walletId: address })
+      // Generate a real base64 session token so community endpoints (support,
+      // feedback, notifications) can decode email from it as a fallback.
+      // Wallet users have no email — we use the address as the identity key.
+      const token = btoa(`${address}:${Date.now()}`)
+      setAuth({ email: address, sessionToken: token, walletAddress: address, walletId: address })
       setActiveView(profile.displayName ? 'home' : 'name')
     }
   }, [isConnected, address, profile.displayName, setAuth, setActiveView])
 
   // ── Circle email auth success ─────────────────────────────────────────────
-  const onCircleSuccess = (walletAddress: string, userToken: string, email: string) => {
-    setAuth({ email, sessionToken: userToken, userToken, walletAddress, walletId: walletAddress, circleWalletAddress: walletAddress })
+  // encryptionKey is passed by CircleEmailLogin's onSuccess(addr, userToken, email, encryptionKey)
+  const onCircleSuccess = (walletAddress: string, userToken: string, email: string, encryptionKey?: string) => {
+    setAuth({ email, sessionToken: userToken, userToken, encryptionKey, walletAddress, walletId: walletAddress, circleWalletAddress: walletAddress })
     setActiveView(profile.displayName ? 'home' : 'name')
   }
 
@@ -70,6 +76,16 @@ export function LoginPage() {
       <CircleEmailLogin
         onBack={() => setMode('choose')}
         onSuccess={onCircleSuccess}
+      />
+    )
+  }
+
+  // ── google mode — render Circle Google login ──────────────────────────────
+  if (mode === 'google') {
+    return wrap(
+      <CircleGoogleLogin
+        onBack={() => setMode('choose')}
+        onSuccess={(walletAddress, userToken, email) => onCircleSuccess(walletAddress, userToken, email)}
       />
     )
   }

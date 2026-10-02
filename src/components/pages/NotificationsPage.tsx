@@ -40,7 +40,7 @@ export function NotificationsPage() {
   const { notifications, unreadCount, fetchNotifications, markNotificationRead, markAllNotificationsRead, setActiveView } = useAppStore()
 
   useEffect(() => {
-    fetchNotifications()
+    void fetchNotifications()
   }, [fetchNotifications])
 
   const handleNotifClick = (n: AppNotification) => {

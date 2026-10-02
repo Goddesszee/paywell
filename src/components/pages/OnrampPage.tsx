@@ -41,8 +41,8 @@ export function OnrampPage() {
       const res = await fetch('/api/onramp-session', { method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({ appUserId:address, destinationAddress:address, amount:String(amount), paymentMethod:method, blockchain:'ARC-TESTNET' }) })
       if (!res.ok) {
         if (res.status === 503) { setError('Add CIRCLE_API_KEY to Vercel environment variables to activate onramp'); return }
-        const err = await res.json().catch(() => ({ message:`HTTP ${res.status}` }))
-        throw new Error((err as { message?: string }).message ?? `HTTP ${res.status}`)
+        const err = await (res.json() as Promise<{ message?: string }>).catch(() => ({ message: `HTTP ${res.status}` }))
+        throw new Error((err).message ?? `HTTP ${res.status}`)
       }
       const session = await res.json() as Record<string, unknown>
       const widgetUrl = session.widgetUrl as string | undefined

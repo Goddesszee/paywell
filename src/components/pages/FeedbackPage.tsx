@@ -120,7 +120,7 @@ export function FeedbackPage() {
         <div style={{ background: 'rgba(255,59,59,0.08)', border: '1px solid rgba(255,59,59,0.18)', borderRadius: 10, padding: '10px 14px', fontSize: 13, color: '#FF3B3B', marginBottom: 12 }}>{error}</div>
       )}
 
-      <button onClick={submit} disabled={submitting || !rating}
+      <button onClick={() => { void submit() }} disabled={submitting || !rating}
         style={{ width: '100%', padding: '14px', borderRadius: 12, background: rating ? '#0066FF' : C.surf2, color: rating ? '#fff' : C.t3, border: `1px solid ${rating ? '#0066FF' : C.bdr}`, fontSize: 15, fontWeight: 600, cursor: rating ? 'pointer' : 'not-allowed', fontFamily: F, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, transition: 'all 0.15s', opacity: submitting ? 0.7 : 1 }}>
         <Send size={15} />
         {submitting ? 'Submitting…' : 'Submit Feedback'}

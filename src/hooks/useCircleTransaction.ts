@@ -36,7 +36,7 @@ export interface ContractExecParams {
   contractAddress: string
   abiFunctionSignature?: string
   abiParameters?: string[]     // must be serialisable to JSON strings
-  callData?: `0x${string}` | string  // hex-encoded; mutually exclusive with abiFunctionSignature
+  callData?: string  // hex-encoded (0x...); mutually exclusive with abiFunctionSignature
   amount?: string              // for payable functions
 }
 

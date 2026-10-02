@@ -67,6 +67,11 @@ export default defineConfig({
   server: {
     allowedHosts: true,
     cors: true,
+    // Fix HMR WebSocket in Arc Studio preview (proxied over HTTPS/WSS)
+    hmr: {
+      clientPort: 443,
+      protocol: 'wss',
+    },
     proxy: {
       '/api': {
         target: 'http://localhost:3001',

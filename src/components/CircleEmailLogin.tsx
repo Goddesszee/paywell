@@ -144,7 +144,7 @@ export function CircleEmailLogin({ onBack, onSuccess }: Props) {
 
     const onLoginComplete = (err: unknown, result: unknown) => {
       if (err) {
-        const msg = err instanceof Error ? err.message : String(err)
+        const msg = err instanceof Error ? err.message : JSON.stringify(err)
         if (msg.toLowerCase().includes('already') || msg.toLowerCase().includes('155106')) {
           const res = result as LoginResult | undefined
           if (res?.userToken) {

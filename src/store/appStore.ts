@@ -847,6 +847,14 @@ export const useAppStore = create<AppState>()(
       }),
       merge: (persisted, current) => {
         const p = persisted as Partial<AppState>
+        // Strip encryptionKey from rehydrated auth — it belongs to the Circle W3S SDK
+        // session that ran in a previous tab/session.  Keeping it causes the SDK to
+        // try to re-initialise before React is ready, which throws
+        // "Cannot read properties of null (reading 'useCallback')" and crashes the app.
+        // The key is re-acquired on the next successful login via the SDK onLoginComplete callback.
+        if (p.auth) {
+          p.auth = { ...p.auth, encryptionKey: undefined }
+        }
         return {
           ...current,
           ...p,

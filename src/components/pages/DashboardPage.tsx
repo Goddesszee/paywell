@@ -407,7 +407,7 @@ export function DashboardPage() {
                 {copied ? <Check size={17} /> : <Copy size={17} />}
                 {copied ? 'Copied!' : 'Copy Address'}
               </button>
-              <button onClick={() => navigator.share?.({ title: 'My NAN Wallet', text: `Send me USDC: ${address}`, url: window.location.href })} style={{
+              <button onClick={() => { void navigator.share?.({ title: 'My NAN Wallet', text: `Send me USDC: ${address}`, url: window.location.href }) }} style={{
                 width: '100%', height: 52, borderRadius: 100,
                 background: C.surf2, border: `1px solid ${C.bdr}`,
                 cursor: 'pointer', fontSize: 15, fontWeight: 700, color: C.text, fontFamily: F,

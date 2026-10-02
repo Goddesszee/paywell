@@ -127,7 +127,7 @@ function FeatureCard({
 // ── primary CTA button ────────────────────────────────────────────────────────
 
 function PrimaryBtn({
-  label, onClick, disabled, loading, C,
+  label, onClick, disabled, loading, C: _C,
 }: {
   label: string; onClick: () => void; disabled?: boolean; loading?: boolean
   C: ReturnType<typeof useNanTheme>
@@ -935,7 +935,7 @@ export function AgentWalletExperience() {
         </div>
 
         {screen === 'edu'       && <EduScreen      onSetup={() => setScreen('setup')} C={C} />}
-        {screen === 'setup'     && <SetupScreen    onCreate={handleCreate}            C={C} />}
+        {screen === 'setup'     && <SetupScreen    onCreate={() => { void handleCreate() }} C={C} />}
         {screen === 'creating'  && <CreatingScreen                                    C={C} />}
         {screen === 'success'   && (
           <SuccessScreen

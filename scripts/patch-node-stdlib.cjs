@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
+/* oxlint-disable typescript/no-unsafe-assignment, typescript/no-unsafe-call, typescript/no-unsafe-member-access */
 'use strict'
 // Patches node-stdlib-browser/helpers/rollup/plugin.js to make
 // handleCircularDependancyWarning a no-op. This stops vite-plugin-node-polyfills

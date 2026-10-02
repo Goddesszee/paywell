@@ -12,7 +12,6 @@ import {
   ProtectedOrder,
   DeliveryStage,
   DisputeReason,
-  OrderStatus,
 } from '../../store/appStore'
 import { formatUSDC, formatDate } from '../../utils/format'
 import { buildTxExplorerUrl } from '../../onchain-facts'
@@ -59,7 +58,7 @@ function stageIndex(stage: DeliveryStage) {
 
 // ── status badge ───────────────────────────────────────────────────────────────
 
-function StatusPill({ status }: { status: OrderStatus | string }) {
+function StatusPill({ status }: { status: string }) {
   const map: Record<string, string> = {
     active:    'border border-[rgba(0,0,0,0.1)] text-white bg-[var(--nan-surface)]',
     completed: 'border border-[rgba(0,0,0,0.12)] text-white bg-[var(--nan-surface)]',

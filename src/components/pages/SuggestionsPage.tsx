@@ -192,7 +192,7 @@ export function SuggestionsPage() {
 
           {error && <div style={{ background: 'rgba(255,59,59,0.08)', border: '1px solid rgba(255,59,59,0.18)', borderRadius: 10, padding: '10px 14px', fontSize: 13, color: '#FF3B3B', marginBottom: 12 }}>{error}</div>}
 
-          <button onClick={submit} disabled={submitting || !title.trim()}
+          <button onClick={() => { void submit() }} disabled={submitting || !title.trim()}
             style={{ width: '100%', padding: '14px', borderRadius: 12, background: title.trim() ? '#0066FF' : C.surf2, color: title.trim() ? '#fff' : C.t3, border: 'none', fontSize: 15, fontWeight: 600, cursor: title.trim() ? 'pointer' : 'not-allowed', fontFamily: F, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: submitting ? 0.7 : 1 }}>
             <Send size={15} /> {submitting ? 'Submitting…' : 'Submit Suggestion'}
           </button>

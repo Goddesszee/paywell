@@ -24,22 +24,22 @@ async function post<T>(path: string, body: unknown, token?: string): Promise<T> 
     headers,
     body: JSON.stringify(body),
   })
-  const data = await res.json()
+  const data = await res.json() as { success?: boolean; error?: string }
   if (!res.ok || data?.success === false) {
     throw new Error(data?.error ?? `${path} failed (${res.status})`)
   }
-  return data as T
+  return data as unknown as T
 }
 
 async function get<T>(path: string, token?: string): Promise<T> {
   const headers: Record<string, string> = {}
   if (token) headers['Authorization'] = `Bearer ${token}`
   const res = await fetch(`${BASE}${path}`, { headers })
-  const data = await res.json()
+  const data = await res.json() as { success?: boolean; error?: string }
   if (!res.ok || data?.success === false) {
     throw new Error(data?.error ?? `GET ${path} failed (${res.status})`)
   }
-  return data as T
+  return data as unknown as T
 }
 
 // ── types ─────────────────────────────────────────────────────────────────────
@@ -318,9 +318,9 @@ export async function nanChat(opts: {
       userAddress: opts.userAddress ?? '',
     }),
   })
-  const data = await res.json()
+  const data = await res.json() as { error?: string } & NanChatResult
   if (!res.ok) throw new Error(data?.error ?? `Chat failed (${res.status})`)
-  return data as NanChatResult
+  return data
 }
 
 // ── Utility ───────────────────────────────────────────────────────────────────

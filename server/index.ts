@@ -361,7 +361,7 @@ app.get('/api/activity-feed', (req, res) => {
     }
     const activities = activityStore.get(wallet) ?? []
     res.json({ success: true, activities })
-  } catch (_e) {
+  } catch {
     res.status(500).json({ success: false, error: 'Server error' })
   }
 })
@@ -451,7 +451,7 @@ app.post('/api/marketplace/order', (req, res) => {
       status: 'complete',
       createdAt: new Date().toISOString(),
     })
-  } catch (_e) {
+  } catch {
     res.status(500).json({ success: false, error: 'Server error' })
   }
 })

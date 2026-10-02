@@ -96,7 +96,7 @@ function AdminSupportPanel() {
   }
 
   // eslint-disable-next-line react/set-state-in-effect
-  useEffect(() => { fetchAll() }, [])
+  useEffect(() => { void fetchAll() }, [])
 
   const openTicket = async (t: SupportTicket) => {
     setSelected(t)
@@ -155,17 +155,17 @@ function AdminSupportPanel() {
         {/* Status controls */}
         <div style={{ display: 'flex', gap: 6, flexShrink: 0, flexWrap: 'wrap' }}>
           {selected.status !== 'in_progress' && (
-            <button onClick={() => sendReply('in_progress')} style={{ padding: '6px 12px', borderRadius: 8, background: 'var(--nan-gold-dim)', border: '1px solid var(--nan-gold)', color: 'var(--nan-gold)', fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: SANS }}>
+            <button onClick={() => { void sendReply('in_progress') }} style={{ padding: '6px 12px', borderRadius: 8, background: 'var(--nan-gold-dim)', border: '1px solid var(--nan-gold)', color: 'var(--nan-gold)', fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: SANS }}>
               Mark In Progress
             </button>
           )}
           {selected.status !== 'resolved' && (
-            <button onClick={() => sendReply('resolved')} style={{ padding: '6px 12px', borderRadius: 8, background: 'var(--nan-green-dim)', border: '1px solid var(--nan-green)', color: 'var(--nan-green)', fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: SANS }}>
+            <button onClick={() => { void sendReply('resolved') }} style={{ padding: '6px 12px', borderRadius: 8, background: 'var(--nan-green-dim)', border: '1px solid var(--nan-green)', color: 'var(--nan-green)', fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: SANS }}>
               ✓ Resolve
             </button>
           )}
           {selected.status === 'resolved' && (
-            <button onClick={() => sendReply('open')} style={{ padding: '6px 12px', borderRadius: 8, background: 'var(--nan-blue-dim)', border: '1px solid var(--nan-blue-bd)', color: 'var(--nan-blue)', fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: SANS }}>
+            <button onClick={() => { void sendReply('open') }} style={{ padding: '6px 12px', borderRadius: 8, background: 'var(--nan-blue-dim)', border: '1px solid var(--nan-blue-bd)', color: 'var(--nan-blue)', fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: SANS }}>
               Reopen
             </button>
           )}
@@ -206,7 +206,7 @@ function AdminSupportPanel() {
           style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: 'var(--nan-text)', fontSize: 13, fontFamily: SANS, resize: 'none', lineHeight: 1.5 }}
         />
         <button
-          onClick={() => sendReply()}
+          onClick={() => { void sendReply() }}
           disabled={replyLoading || !replyText.trim()}
           style={{ width: 36, height: 36, borderRadius: 9, background: replyText.trim() ? 'var(--nan-blue)' : 'var(--nan-surface2)', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: replyText.trim() ? 'pointer' : 'default', flexShrink: 0, transition: 'background 0.15s' }}
         >
@@ -227,7 +227,7 @@ function AdminSupportPanel() {
             {unreadCount > 0 && <span style={{ marginLeft: 8, background: 'var(--nan-blue)', color: '#fff', fontSize: 10, fontWeight: 700, padding: '1px 7px', borderRadius: 20 }}>{unreadCount} new</span>}
           </div>
         </div>
-        <button onClick={fetchAll} style={{ padding: '6px 12px', borderRadius: 8, background: S, border: `1px solid ${B}`, color: 'var(--nan-text2)', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: SANS }}>
+        <button onClick={() => { void fetchAll() }} style={{ padding: '6px 12px', borderRadius: 8, background: S, border: `1px solid ${B}`, color: 'var(--nan-text2)', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: SANS }}>
           Refresh
         </button>
       </div>
@@ -256,7 +256,7 @@ function AdminSupportPanel() {
       ) : (
         <div style={{ background: S, border: `1px solid ${B}`, borderRadius: 14, overflow: 'hidden' }}>
           {filtered.map((t, i) => (
-            <div key={t.id} onClick={() => openTicket(t)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', borderBottom: i < filtered.length - 1 ? `1px solid ${B}` : 'none', cursor: 'pointer', background: t.hasUnreadCustomer ? 'var(--nan-blue-dim)' : 'transparent', transition: 'background 0.15s' }}>
+            <div key={t.id} onClick={() => { void openTicket(t) }} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', borderBottom: i < filtered.length - 1 ? `1px solid ${B}` : 'none', cursor: 'pointer', background: t.hasUnreadCustomer ? 'var(--nan-blue-dim)' : 'transparent', transition: 'background 0.15s' }}>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 3, flexWrap: 'wrap' }}>
                   <span style={{ fontSize: 13, fontWeight: t.hasUnreadCustomer ? 700 : 500, color: 'var(--nan-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.subject}</span>
@@ -299,7 +299,7 @@ function AdminFAQPanel() {
 
   const fetchFaqs = () => {
     setLoading(true)
-    fetch('/api/faqs')
+    void fetch('/api/faqs')
       .then(r => r.json())
       .then((d: { faqs: FaqItem[] }) => { if (d.faqs) setFaqs(d.faqs.sort((a, b) => a.order - b.order)) })
       .finally(() => setLoading(false))
@@ -357,7 +357,7 @@ function AdminFAQPanel() {
           style={{ width: '100%', padding: '9px 12px', borderRadius: 9, background: S, border: `1px solid ${B}`, color: 'var(--nan-text)', fontSize: 13, fontFamily: SANS, boxSizing: 'border-box', outline: 'none', resize: 'vertical', lineHeight: 1.5 }} />
       </div>
       <div style={{ display: 'flex', gap: 8 }}>
-        <button onClick={() => save(editing ? 'update' : 'create', editing?.id)} disabled={saving || !form.question || !form.answer}
+        <button onClick={() => { void save(editing ? 'update' : 'create', editing?.id) }} disabled={saving || !form.question || !form.answer}
           style={{ flex: 1, padding: '10px', borderRadius: 9, background: 'var(--nan-blue)', color: '#fff', fontSize: 13, fontWeight: 600, border: 'none', cursor: 'pointer', fontFamily: SANS, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
           <Save size={14} /> {saving ? 'Saving…' : editing ? 'Update FAQ' : 'Add FAQ'}
         </button>
@@ -413,7 +413,7 @@ function AdminFAQPanel() {
                       style={{ width: 30, height: 30, borderRadius: 7, background: 'var(--nan-blue-dim)', border: `1px solid var(--nan-blue-bd)`, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--nan-blue)' }}>
                       <Edit3 size={12} />
                     </button>
-                    <button onClick={() => del(f.id)}
+                    <button onClick={() => { void del(f.id) }}
                       style={{ width: 30, height: 30, borderRadius: 7, background: 'var(--nan-red-dim)', border: `1px solid rgba(255,68,68,0.2)`, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       <Trash2 size={12} color="var(--nan-red)" />
                     </button>
@@ -438,7 +438,7 @@ function AdminAboutPanel() {
   const [preview, setPreview] = useState(false)
 
   useEffect(() => {
-    fetch('/api/about')
+    void fetch('/api/about')
       .then(r => r.json())
       .then((d: { about: AboutContent }) => {
         if (d.about) { setAbout(d.about); setForm(d.about) }
@@ -491,7 +491,7 @@ function AdminAboutPanel() {
             {preview ? <Edit3 size={13} /> : <Info size={13} />}
             {preview ? 'Edit' : 'Preview'}
           </button>
-          <button onClick={save} disabled={saving} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 9, background: saved ? 'var(--nan-green)' : 'var(--nan-blue)', color: '#fff', fontSize: 12, fontWeight: 600, border: 'none', cursor: 'pointer', fontFamily: SANS, transition: 'background 0.3s' }}>
+          <button onClick={() => { void save() }} disabled={saving} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 9, background: saved ? 'var(--nan-green)' : 'var(--nan-blue)', color: '#fff', fontSize: 12, fontWeight: 600, border: 'none', cursor: 'pointer', fontFamily: SANS, transition: 'background 0.3s' }}>
             <Save size={13} /> {saving ? 'Saving…' : saved ? 'Saved!' : 'Save & Publish'}
           </button>
         </div>
@@ -598,7 +598,7 @@ function AdminFeedbackPanel() {
                   </div>
                 </div>
                 {!f.reviewed && (
-                  <button onClick={() => markReviewed(f.id)}
+                  <button onClick={() => { void markReviewed(f.id) }}
                     style={{ fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 20, background: 'rgba(0,102,255,0.08)', border: '1px solid rgba(0,102,255,0.20)', color: '#0066FF', cursor: 'pointer', fontFamily: SANS }}>
                     Mark reviewed
                   </button>
@@ -715,7 +715,7 @@ function AdminSuggestionsPanel() {
                       <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--nan-text3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Status</div>
                       <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
                         {SUG_STATUSES.map(st => (
-                          <button key={st} onClick={() => update(sug.id, st)}
+                          <button key={st} onClick={() => { void update(sug.id, st) }}
                             style={{ padding: '4px 10px', borderRadius: 20, border: `1px solid ${sug.status === st ? '#0066FF' : B}`, background: sug.status === st ? 'rgba(0,102,255,0.12)' : S, color: sug.status === st ? '#0066FF' : 'var(--nan-text2)', fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: SANS, textTransform: 'capitalize' }}>
                             {st}
                           </button>
@@ -726,7 +726,7 @@ function AdminSuggestionsPanel() {
                       <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--nan-text3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Admin note</div>
                       <textarea value={note} onChange={e => setNote(e.target.value)} rows={2} placeholder="Internal note…"
                         style={{ width: '100%', padding: '8px 10px', borderRadius: 9, background: S, border: `1px solid ${B}`, color: 'var(--nan-text)', fontSize: 13, fontFamily: SANS, resize: 'none', outline: 'none', boxSizing: 'border-box' }} />
-                      <button onClick={() => update(sug.id, undefined, note)} disabled={saving}
+                      <button onClick={() => { void update(sug.id, undefined, note) }} disabled={saving}
                         style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 5, padding: '6px 14px', borderRadius: 8, background: '#0066FF', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600, fontFamily: SANS, opacity: saving ? 0.7 : 1 }}>
                         <Save size={12} /> Save note
                       </button>
@@ -854,8 +854,8 @@ export function AdminDashboard() {
   // Pull the shared, server-side listing queue and catalog — without this,
   // Admin would only ever see submissions made from this same browser.
   useEffect(() => {
-    fetchPendingListings()
-    fetchShopProducts()
+    void fetchPendingListings()
+    void fetchShopProducts()
   }, [fetchPendingListings, fetchShopProducts])
 
   // Computed stats from real activity store
@@ -1103,10 +1103,10 @@ export function AdminDashboard() {
                         )}
                         {l.status === 'pending' && (
                           <div style={{ display: 'flex', gap: 8 }}>
-                            <button onClick={() => handleApprove(l.id)} style={{ height: 32, padding: '0 16px', borderRadius: 8, background: '#0066FF', color: '#fff', fontSize: 12, fontWeight: 600, border: 'none', cursor: 'pointer', fontFamily: SANS }}>
+                            <button onClick={() => { void handleApprove(l.id) }} style={{ height: 32, padding: '0 16px', borderRadius: 8, background: '#0066FF', color: '#fff', fontSize: 12, fontWeight: 600, border: 'none', cursor: 'pointer', fontFamily: SANS }}>
                               ✓ Approve
                             </button>
-                            <button onClick={() => rejectListing(l.id)} style={{ height: 32, padding: '0 16px', borderRadius: 8, background: 'var(--nan-surface2)', color: 'var(--nan-text)', fontSize: 12, fontWeight: 600, border: '1px solid var(--nan-bdr)', cursor: 'pointer', fontFamily: SANS }}>
+                            <button onClick={() => { void rejectListing(l.id) }} style={{ height: 32, padding: '0 16px', borderRadius: 8, background: 'var(--nan-surface2)', color: 'var(--nan-text)', fontSize: 12, fontWeight: 600, border: '1px solid var(--nan-bdr)', cursor: 'pointer', fontFamily: SANS }}>
                               ✕ Reject
                             </button>
                           </div>

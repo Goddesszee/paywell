@@ -227,7 +227,7 @@ function AgentChat() {
     addExecutionLog, addAgentSpend,
   } = useAppStore()
   const verifiedCatalog = React.useMemo(() => getVerifiedProducts(pendingListings), [pendingListings])
-  useEffect(() => { fetchPendingListings() }, [fetchPendingListings])
+  useEffect(() => { void fetchPendingListings() }, [fetchPendingListings])
   const { address, chainId } = useAccount()
   const { writeContractAsync } = useWriteContract()
   const [input, setInput] = useState('')
@@ -1181,7 +1181,7 @@ function MultiAgentOrchestrator() {
         policy,
         onProgress: (p: A2AProgress) => setProgress(prev => [...prev, p]),
         onPaymentRecord: (r) => addA2APayment(r),
-        onConfirmationRequired: async (_est) => true, // user confirmed at estimate screen
+        onConfirmationRequired: (_est) => Promise.resolve(true), // user confirmed at estimate screen
         executePayment: address && chainId ? executePayment : undefined,
       })
       setFinalResult(task.finalResult ?? 'Task completed.')

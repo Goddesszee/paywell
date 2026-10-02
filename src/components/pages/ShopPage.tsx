@@ -59,7 +59,7 @@ export function ShopPage() {
   // Load the shared, admin-approved catalog from the server so listings show
   // up for every visitor — not just the browser that approved them.
   useEffect(() => {
-    fetchShopProducts()
+    void fetchShopProducts()
   }, [fetchShopProducts])
 
   // ── Product universe ───────────────────────────────────────────────────────

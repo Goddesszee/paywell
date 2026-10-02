@@ -47,7 +47,7 @@ export function useShopCheckout() {
   const { addActivity, recordFee } = useAppStore()
   const [status, setStatus] = useState<CheckoutStatus>('idle')
   const [txHash, setTxHash] = useState<`0x${string}` | undefined>()
-  const [orderId, setOrderId] = useState<number | undefined>()
+  const [orderId, _setOrderId] = useState<number | undefined>()
   const [error, setError] = useState<string | undefined>()
 
   const { isSuccess } = useWaitForTransactionReceipt({ hash: txHash })

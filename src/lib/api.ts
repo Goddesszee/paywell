@@ -15,18 +15,18 @@ async function apiPost<T>(path: string, body: unknown, token?: string): Promise<
   const res = await fetch(`${BASE}${path}`, {
     method: 'POST', headers, body: JSON.stringify(body),
   })
-  const data = await res.json()
+  const data = await res.json() as { success?: boolean; error?: string }
   if (!res.ok || data?.success === false) throw new Error(data?.error ?? `${path} failed (${res.status})`)
-  return data as T
+  return data as unknown as T
 }
 
 async function apiGet<T>(path: string, token?: string): Promise<T> {
   const headers: Record<string, string> = {}
   if (token) headers['Authorization'] = `Bearer ${token}`
   const res = await fetch(`${BASE}${path}`, { headers })
-  const data = await res.json()
+  const data = await res.json() as { success?: boolean; error?: string }
   if (!res.ok || data?.success === false) throw new Error(data?.error ?? `GET ${path} failed (${res.status})`)
-  return data as T
+  return data as unknown as T
 }
 
 /** Always true — /api/* routes are available on both Vercel (serverless) and local dev (Express proxy) */

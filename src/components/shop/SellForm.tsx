@@ -73,7 +73,7 @@ export function SellForm({ onBack }: SellFormProps) {
   const handleSubmit = () => {
     if (!name || !price || !wallet || !kycFullName || !kycIdNumber) return
     // Submit to admin queue (existing flow)
-    submitListing({
+    void submitListing({
       name, description, price: parseFloat(price),
       category, imageUrl, imageBase64, merchantWallet: wallet,
       kycStatus: 'submitted', kycFullName, kycIdType, kycIdNumber,

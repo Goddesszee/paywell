@@ -4,6 +4,13 @@
  *
  * Requires Upstash Redis (KV_REST_API_URL + KV_REST_API_TOKEN).
  * Add a Vercel KV / Upstash Redis store in the Vercel dashboard → Storage.
+ *
+ * Route dispatch:
+ *   Simple routes:    ?route=feedback          (no :id)
+ *   Parameterised:    ?route=support/tickets/item&_id=TKT-xxx
+ *                     ?route=support/tickets/reply&_id=TKT-xxx
+ *   (Vercel cannot interpolate :id into query strings, so vercel.json passes
+ *   the real id as a separate ?_id= param and uses a simplified route name.)
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import crypto from 'crypto'
@@ -61,13 +68,17 @@ async function resolveSession(authHeader: string | undefined, kv: RedisClient): 
     const stored = await kv.get<Session>(`session:${token}`)
     if (stored?.email) return stored
   } catch { /* fall through */ }
-  // 2. Fallback: base64-decode the token (email:timestamp format from Vercel OTP handler)
+  // 2. Fallback: base64-decode the token (email:timestamp or address:timestamp format).
+  //    OTP-verified users produce email:timestamp; wallet-connected users produce address:timestamp.
   try {
     const decoded = Buffer.from(token, 'base64').toString('utf8')
     const colonIdx = decoded.indexOf(':')
     if (colonIdx > 0) {
-      const email = decoded.slice(0, colonIdx)
-      if (email.includes('@')) return { email, walletAddress: '', walletId: '', createdAt: 0 }
+      const identity = decoded.slice(0, colonIdx)
+      // Accept emails AND 0x wallet addresses — both are valid identity keys
+      if (identity.includes('@') || /^0x[0-9a-fA-F]{40}$/.test(identity)) {
+        return { email: identity, walletAddress: identity.startsWith('0x') ? identity : '', walletId: '', createdAt: 0 }
+      }
     }
   } catch { /* fall through */ }
   return null
@@ -97,14 +108,11 @@ async function routeHandler(req: VercelRequest, res: VercelResponse) {
   const kv = getRedis()
   if (!kv) return res.status(503).json(REDIS_NOT_CONFIGURED)
 
-  // Support both ?route=feedback and path segments passed by Vercel rewrites.
-  // Vercel rewrites with :id pass the real value as req.query[id], not in the route string.
-  const routeParam = (
-    req.query.route ??
-    req.query.path ??
-    ''
-  ) as string
+  // route comes from vercel.json destination query string
+  const routeParam = ((req.query.route ?? req.query.path ?? '') as string)
   const route = routeParam.replace(/^\/+/, '')
+  // _id is the interpolated :id param from Vercel rewrites (cannot be put inline in query strings)
+  const id = (req.query._id as string | undefined) ?? ''
   const auth = req.headers.authorization as string | undefined
   const sess = await resolveSession(auth, kv)
 
@@ -130,8 +138,9 @@ async function routeHandler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).json({ success: true, feedback: all, averageRating: Math.round(avg * 10) / 10, total: all.length })
   }
 
-  if (route.startsWith('admin/feedback/') && route.endsWith('/review') && req.method === 'POST') {
-    const id = route.split('/')[2]
+  // route=admin/feedback/review&_id=fb-xxx
+  if (route === 'admin/feedback/review' && req.method === 'POST') {
+    if (!id) return res.status(400).json({ success: false, error: 'id required' })
     const all = (await kv.lrange<FeedbackEntry>('feedback:all', 0, 499)) ?? []
     const idx = all.findIndex(f => f.id === id)
     if (idx === -1) return res.status(404).json({ success: false, error: 'Not found' })
@@ -169,8 +178,9 @@ async function routeHandler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).json({ success: true, suggestions: all })
   }
 
-  if (route.startsWith('admin/suggestions/') && req.method === 'PATCH') {
-    const id = route.split('/')[2]
+  // route=admin/suggestions/item&_id=sug-xxx
+  if (route === 'admin/suggestions/item' && req.method === 'PATCH') {
+    if (!id) return res.status(400).json({ success: false, error: 'id required' })
     const all = (await kv.lrange<SuggestionEntry>('suggestions:all', 0, 499)) ?? []
     const idx = all.findIndex(s => s.id === id)
     if (idx === -1) return res.status(404).json({ success: false, error: 'Not found' })
@@ -210,13 +220,14 @@ async function routeHandler(req: VercelRequest, res: VercelResponse) {
   if (route === 'support/tickets' && req.method === 'GET') {
     if (!sess) return res.status(401).json({ success: false, error: 'Unauthorized' })
     const ids = (await kv.lrange<string>(`tickets:user:${sess.email}`, 0, 49)) ?? []
-    const tickets = (await Promise.all(ids.map(id => kv.get<SupportTicket>(`ticket:${id}`)))).filter(Boolean) as SupportTicket[]
+    const tickets = (await Promise.all(ids.map(tid => kv.get<SupportTicket>(`ticket:${tid}`)))).filter(Boolean) as SupportTicket[]
     return res.status(200).json({ success: true, tickets: tickets.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()) })
   }
 
-  if (route.startsWith('support/tickets/') && !route.endsWith('/reply') && req.method === 'GET') {
+  // route=support/tickets/item&_id=TKT-xxx  (GET a single ticket)
+  if (route === 'support/tickets/item' && req.method === 'GET') {
     if (!sess) return res.status(401).json({ success: false, error: 'Unauthorized' })
-    const id = route.split('/')[2]
+    if (!id) return res.status(400).json({ success: false, error: 'id required' })
     const ticket = await kv.get<SupportTicket>(`ticket:${id}`)
     if (!ticket) return res.status(404).json({ success: false, error: 'Not found' })
     if (ticket.userEmail !== sess.email) return res.status(403).json({ success: false, error: 'Forbidden' })
@@ -225,9 +236,10 @@ async function routeHandler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).json({ success: true, ticket })
   }
 
-  if (route.startsWith('support/tickets/') && route.endsWith('/reply') && req.method === 'POST') {
+  // route=support/tickets/reply&_id=TKT-xxx  (customer replies)
+  if (route === 'support/tickets/reply' && req.method === 'POST') {
     if (!sess) return res.status(401).json({ success: false, error: 'Unauthorized' })
-    const id = route.split('/')[2]
+    if (!id) return res.status(400).json({ success: false, error: 'id required' })
     const ticket = await kv.get<SupportTicket>(`ticket:${id}`)
     if (!ticket) return res.status(404).json({ success: false, error: 'Not found' })
     if (ticket.userEmail !== sess.email) return res.status(403).json({ success: false, error: 'Forbidden' })
@@ -244,12 +256,13 @@ async function routeHandler(req: VercelRequest, res: VercelResponse) {
 
   if (route === 'admin/support/tickets' && req.method === 'GET') {
     const ids = (await kv.lrange<string>('tickets:all', 0, 199)) ?? []
-    const tickets = (await Promise.all(ids.map(id => kv.get<SupportTicket>(`ticket:${id}`)))).filter(Boolean) as SupportTicket[]
+    const tickets = (await Promise.all(ids.map(tid => kv.get<SupportTicket>(`ticket:${tid}`)))).filter(Boolean) as SupportTicket[]
     return res.status(200).json({ success: true, tickets: tickets.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()) })
   }
 
-  if (route.startsWith('admin/support/tickets/') && route.endsWith('/reply') && req.method === 'POST') {
-    const id = route.split('/')[3]
+  // route=admin/support/tickets/reply&_id=TKT-xxx  (admin replies)
+  if (route === 'admin/support/tickets/reply' && req.method === 'POST') {
+    if (!id) return res.status(400).json({ success: false, error: 'id required' })
     const ticket = await kv.get<SupportTicket>(`ticket:${id}`)
     if (!ticket) return res.status(404).json({ success: false, error: 'Not found' })
     const { message, status } = req.body as { message?: string; status?: SupportTicket['status'] }
@@ -280,12 +293,12 @@ async function routeHandler(req: VercelRequest, res: VercelResponse) {
 
   if (route === 'notifications/read' && req.method === 'POST') {
     if (!sess) return res.status(401).json({ success: false, error: 'Unauthorized' })
-    const { id, all } = req.body as { id?: string; all?: boolean }
+    const { id: notifId, all } = req.body as { id?: string; all?: boolean }
     const key = `notifs:${sess.email}`
     const list = (await kv.lrange<AppNotification>(key, 0, 99)) ?? []
     const updated = all
       ? list.map(n => ({ ...n, read: true }))
-      : list.map(n => (!id || n.id === id) ? { ...n, read: true } : n)
+      : list.map(n => (!notifId || n.id === notifId) ? { ...n, read: true } : n)
     await kv.del(key)
     if (updated.length) await kv.rpush(key, ...updated)
     return res.status(200).json({ success: true })

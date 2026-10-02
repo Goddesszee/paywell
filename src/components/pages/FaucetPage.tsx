@@ -151,7 +151,7 @@ export function FaucetPage() {
         {/* CTA */}
         {!success && (
           <button
-            onClick={handleClaim}
+            onClick={() => { void handleClaim() }}
             disabled={loading || !isConnected}
             style={{
               width: '100%', height: 56, borderRadius: 16,

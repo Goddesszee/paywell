@@ -155,7 +155,7 @@ export function ProfilePage() {
             </div>
             {saveError && <div style={{ background: 'rgba(255,59,59,0.08)', borderRadius: 8, padding: '8px 12px', fontSize: 12, color: '#FF3B3B', marginBottom: 10 }}>{saveError}</div>}
             {saved && <div style={{ background: 'rgba(0,200,83,0.08)', borderRadius: 8, padding: '8px 12px', fontSize: 12, color: '#00C853', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}><CheckCircle size={13} /> Saved!</div>}
-            <button onClick={saveProfile} disabled={saving}
+            <button onClick={() => { void saveProfile() }} disabled={saving}
               style={{ width: '100%', padding: '11px', borderRadius: 10, background: '#0066FF', color: '#fff', border: 'none', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, opacity: saving ? 0.7 : 1 }}>
               <Save size={14} /> {saving ? 'Saving…' : 'Save changes'}
             </button>
@@ -250,7 +250,7 @@ export function ProfilePage() {
                   <div style={{ fontSize: 12, color: C.t3, marginTop: 1 }}>{sub}</div>
                 </div>
                 <button
-                  onClick={() => saveNotifPrefs({ ...profile.notifPrefs, [key]: !on })}
+                  onClick={() => { void saveNotifPrefs({ ...profile.notifPrefs, [key]: !on }) }}
                   style={{ width: 46, height: 26, borderRadius: 13, background: on ? '#0066FF' : C.surf2, border: `1px solid ${on ? '#0066FF' : C.bdr}`, position: 'relative', cursor: 'pointer', transition: 'all 0.25s', flexShrink: 0 }}>
                   <div style={{ position: 'absolute', top: 3, left: on ? 22 : 3, width: 18, height: 18, borderRadius: 9, background: '#fff', transition: 'left 0.25s', boxShadow: '0 1px 4px rgba(0,0,0,0.3)' }} />
                 </button>

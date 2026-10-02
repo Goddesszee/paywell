@@ -50,7 +50,7 @@ sw.addEventListener('fetch', (e) => {
     caches.open(CACHE).then(async cache => {
       const cached = await cache.match(e.request)
       const networkPromise = fetch(e.request).then(res => {
-        if (res.ok) cache.put(e.request, res.clone())
+        if (res.ok) void cache.put(e.request, res.clone())
         return res
       })
       return cached ?? networkPromise

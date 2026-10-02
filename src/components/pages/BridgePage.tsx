@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useAccount, useChainId, useSwitchChain } from 'wagmi'
 import { AppKit } from '@circle-fin/app-kit'
 import { createViemAdapterFromProvider } from '@circle-fin/adapter-viem-v2'
@@ -90,10 +90,9 @@ export function BridgePage() {
   const addActivity = useAppStore(s => s.addActivity)
   const recordFee   = useAppStore(s => s.recordFee)
 
-  // Lazy-instantiate AppKit inside the component so it runs after React mounts
-  const appKitRef = useRef<AppKit | null>(null)
-  if (!appKitRef.current) appKitRef.current = new AppKit()
-  const appKit = appKitRef.current
+  // Lazy-instantiate AppKit — initialised once via useState initialiser so it
+  // never runs during a re-render and avoids the "ref during render" lint error.
+  const [appKit] = useState<AppKit>(() => new AppKit())
 
   const [fromIdx, setFromIdx] = useState(0)
   const [toIdx, setToIdx]     = useState(1)
@@ -119,11 +118,9 @@ export function BridgePage() {
     try {
       const res = await fetch(`${CCTP_FEE_API}/${src}/${dst}`)
       if (!res.ok) throw new Error('fee API error')
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const data: any = await res.json()
-      // Fast Transfer entry has minimumFee in bps
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const fast = Array.isArray(data) ? data.find((f: any) => f.finalityThreshold === 1000 || f.transferType === 'fast') : null
+      type FeeEntry = { finalityThreshold?: number; transferType?: string; minimumFee?: number }
+      const data = await res.json() as FeeEntry[]
+      const fast = Array.isArray(data) ? data.find((f) => f.finalityThreshold === 1000 || f.transferType === 'fast') : null
       if (fast && typeof fast.minimumFee === 'number') {
         const bps = fast.minimumFee
         setLiveFee({ bps, label: `${bps} bps (${(bps / 100).toFixed(3)}%)`, fetched: true })
@@ -183,8 +180,8 @@ export function BridgePage() {
         const burnData = encodeFunctionData({
           abi: TOKEN_MESSENGER_ABI,
           functionName: 'depositForBurn',
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          args: [parsedAmount, toChain.cctpDomain, mintRecipient, USDC_ARC] as any,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
+          args: [parsedAmount, toChain.cctpDomain, mintRecipient, USDC_ARC] as any, // wagmi encodeAbiParameters requires exact type shape
         })
         const burnTx = await circleTx.executeContract({ contractAddress: TOKEN_MESSENGER_ARC, callData: burnData })
         if (!burnTx) { updateStep('burn', { status: 'error' }); setStatus('error'); setErrMsg(circleTx.error ?? 'Burn failed'); return }
@@ -211,10 +208,10 @@ export function BridgePage() {
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const result = await appKit.bridge({
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        from: { adapter, chain: fromChain.kitName as unknown as any },
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        to:   { adapter, chain: toChain.kitName as unknown as any },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
+        from: { adapter, chain: fromChain.kitName as any },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
+        to:   { adapter, chain: toChain.kitName as any },
         amount,
         ...(maxFeeUsdc > 0 ? { maxFee: BigInt(Math.round(maxFeeUsdc * 1_000_000)) } : {}),
       })

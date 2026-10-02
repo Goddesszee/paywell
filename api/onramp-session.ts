@@ -5,9 +5,14 @@ const apiKey = process.env.CIRCLE_STABLECOIN_KIT_API_KEY ?? process.env.CIRCLE_A
 // Domain must match the origin that hosts /api/onramp-session.
 // Set ONRAMP_DOMAIN in your deployment env; falls back to the Vercel URL or the
 // canonical production URL so the handler works in all environments.
+// VERCEL_URL is set automatically by Vercel on every deployment (e.g. "my-app-abc123.vercel.app").
+// ONRAMP_DOMAIN lets you pin a stable custom domain (e.g. "paywell.app") in Vercel env vars.
+// Never fall back to a hardcoded deployment URL — it breaks when the project is redeployed.
 const domain =
   process.env.ONRAMP_DOMAIN ??
-  (process.env.VERCEL_URL ? process.env.VERCEL_URL : 'paywell-puce.vercel.app')
+  process.env.VERCEL_URL ??
+  process.env.VERCEL_BRANCH_URL ??
+  'localhost:5173'
 
 let routeHandler: ((req: Request) => Promise<Response>) | null = null
 

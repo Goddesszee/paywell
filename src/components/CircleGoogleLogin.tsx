@@ -177,7 +177,7 @@ export function CircleGoogleLogin({ onBack, onSuccess }: Props) {
       })
 
       setStep('waiting')
-      sdkRef.current?.performLogin(SocialLoginProvider.GOOGLE)
+      void sdkRef.current?.performLogin(SocialLoginProvider.GOOGLE)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Google login failed')
       setLoading(false)
