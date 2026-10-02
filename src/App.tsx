@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react'
 import { useAppStore } from './store/appStore'
 import { AppShell } from './components/layout/AppShell'
+import { AgentWalletExperience } from './components/pages/AgentWalletExperience'
 import { LandingPage } from './components/pages/LandingPage'
 import { LoginPage } from './components/pages/LoginPage'
 import { OnboardingPage } from './components/pages/OnboardingPage'
@@ -51,6 +52,7 @@ export default function App() {
       {activeView === 'send' && <WalletPage initialSubView="send" />}
       {activeView === 'receive' && <WalletPage initialSubView="receive" />}
       {activeView === 'agent' && <AgentPage />}
+      {activeView === 'agent-wallet' && <AgentWalletExperience />}
       {activeView === 'bridge' && <Suspense fallback={null}><BridgePage /></Suspense>}
       {activeView === 'swap'   && <Suspense fallback={null}><SwapPage /></Suspense>}
       {activeView === 'onramp' && <OnrampPage />}
