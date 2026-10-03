@@ -588,18 +588,20 @@ function DashboardScreen({ C }: { C: ReturnType<typeof useNanTheme> }) {
   const balance    = parseFloat(agentWallet.balance_usdc || '0')
 
   const refresh = useCallback(async () => {
+    const userToken = agentWallet.userToken
+    if (!userToken) { setRefreshing(false); return }
     setRefreshing(true)
     try {
       const r = await fetch('/api/agent-wallet', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'status' }),
+        headers: { 'Content-Type': 'application/json', 'x-user-token': userToken },
+        body: JSON.stringify({ action: 'status', userToken }),
       })
       const d = await r.json() as { provisioned?: boolean; address?: string; walletId?: string; balance_usdc?: string }
       setAgentWallet({ provisioned: d.provisioned ?? false, address: d.address, walletId: d.walletId, balance_usdc: d.balance_usdc ?? '0', lastRefreshed: new Date().toISOString() })
     } catch { /* keep stale state */ }
     setRefreshing(false)
-  }, [setAgentWallet])
+  }, [agentWallet.userToken, setAgentWallet])
 
   // Load balance on mount — deferred so it runs outside the render cycle
   const mountedRef = useRef(false)
@@ -723,7 +725,7 @@ export function AgentWalletExperience() {
       })
       const d = await r.json() as { provisioned?: boolean; address?: string; walletId?: string }
       if (d.provisioned && d.address) {
-        setAgentWallet({ provisioned: true, address: d.address, walletId: d.walletId, balance_usdc: '0', lastRefreshed: new Date().toISOString() })
+        setAgentWallet({ provisioned: true, address: d.address, walletId: d.walletId, balance_usdc: '0', lastRefreshed: new Date().toISOString(), userToken: loginRes.userToken })
         setNewAddress(d.address)
         setNewWalletId(d.walletId ?? '')
         // Clear the session token — no longer needed

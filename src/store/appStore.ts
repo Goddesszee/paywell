@@ -323,6 +323,7 @@ export interface AgentWalletState {
   walletId?: string
   balance_usdc: string
   lastRefreshed?: string
+  userToken?: string        // persisted so dashboard can refresh balance without re-login
 }
 
 export interface AgentSpendEntry {
