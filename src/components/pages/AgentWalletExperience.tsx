@@ -1,27 +1,31 @@
 /**
  * AgentWalletExperience.tsx
  *
- * Full mobile Agent Wallet onboarding + dashboard flow.
+ * Agent Wallet onboarding + dashboard flow.
  *
- * Screens (controlled by local `screen` state):
- *   'detect'   → silently checks wallet status, then routes
- *   'edu'      → educational intro (first-time only)
- *   'setup'    → creation confirmation
- *   'creating' → animated loading state
- *   'success'  → wallet created celebration + address
- *   'dashboard'→ existing wallet: balance, spend log, fund guide
- *   'error'    → creation failed
+ * Screens:
+ *   'detect'    → silently checks wallet status, then routes
+ *   'email'     → enter email (mirrors main app login)
+ *   'otp_sent'  → code sent, tap to open Circle OTP popup
+ *   'verifying' → waiting for Circle SDK callback
+ *   'edu'       → educational intro (first-time only, after auth)
+ *   'setup'     → creation confirmation
+ *   'creating'  → animated loading state
+ *   'success'   → wallet created celebration + address
+ *   'dashboard' → existing wallet: balance, spend log, fund guide
+ *   'error'     → creation failed
  *
- * No developer terminology is surfaced to the user.
- * The existing NAN dark theme, blue accent, and rounded-card language are preserved.
+ * Auth uses the same Circle W3S SDK email OTP flow as the main app login.
+ * No developer terminology surfaced to the user.
  */
 
 import React, { useState, useEffect, useCallback, useRef } from 'react'
+import { W3SSdk } from '@circle-fin/w3s-pw-web-sdk'
 import {
-  ArrowLeft, Wallet, Shield, Zap, BarChart3,
+  ArrowLeft, ArrowRight, Wallet, Shield, Zap, BarChart3,
   Copy, Check, ChevronDown, ChevronRight,
   RefreshCw, AlertTriangle, Coins, Clock,
-  CheckCircle, Wifi,
+  CheckCircle, Wifi, Mail, Loader,
 } from 'lucide-react'
 import { useAppStore, AgentSpendEntry } from '../../store/appStore'
 import { useNanTheme } from '../../hooks/useNanTheme'
@@ -30,14 +34,19 @@ import { useNanTheme } from '../../hooks/useNanTheme'
 
 const F    = "'Inter', -apple-system, sans-serif"
 const MONO = "'JetBrains Mono', 'SF Mono', Menlo, monospace"
-const BLUE = '#0066FF'
+const BLUE  = '#0066FF'
 const GREEN = '#00C853'
 const AMBER = '#FF9500'
 const RED   = '#FF3B3B'
 
-type Screen = 'detect' | 'edu' | 'setup' | 'creating' | 'success' | 'dashboard' | 'error'
+const CIRCLE_APP_ID = import.meta.env.VITE_CIRCLE_APP_ID as string | undefined
 
-// ── creation steps shown during the loading screen ───────────────────────────
+type Screen =
+  | 'detect' | 'email' | 'otp_sent' | 'verifying'
+  | 'edu' | 'setup' | 'creating' | 'success' | 'dashboard' | 'error'
+
+interface LoginResult { userToken: string; encryptionKey: string }
+interface OtpTokens   { deviceToken: string; deviceEncryptionKey: string; otpToken: string }
 
 const CREATION_STEPS = [
   'Setting up wallet',
@@ -71,49 +80,26 @@ function BackButton({ onBack, C }: { onBack: () => void; C: ReturnType<typeof us
   )
 }
 
-// ── Wallet illustration SVG ───────────────────────────────────────────────────
-
 function WalletIllustration({ size = 80 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 80 80" fill="none" aria-hidden="true">
-      {/* outer circle */}
       <circle cx="40" cy="40" r="40" fill="rgba(0,102,255,0.10)" />
-      {/* wallet body */}
       <rect x="16" y="26" width="48" height="32" rx="8" fill="rgba(0,102,255,0.22)" stroke={BLUE} strokeWidth="1.5" />
-      {/* wallet flap */}
       <rect x="16" y="26" width="48" height="12" rx="8" fill="rgba(0,102,255,0.35)" />
-      {/* coin slot */}
       <rect x="44" y="38" width="14" height="8" rx="4" fill={BLUE} opacity="0.85" />
-      {/* AI spark */}
       <circle cx="58" cy="24" r="9" fill="rgba(0,102,255,0.15)" />
-      <path
-        d="M58 19 L59.2 22.8 L63 24 L59.2 25.2 L58 29 L56.8 25.2 L53 24 L56.8 22.8 Z"
-        fill={BLUE}
-        opacity="0.9"
-      />
+      <path d="M58 19 L59.2 22.8 L63 24 L59.2 25.2 L58 29 L56.8 25.2 L53 24 L56.8 22.8 Z" fill={BLUE} opacity="0.9" />
     </svg>
   )
 }
 
-// ── feature card ──────────────────────────────────────────────────────────────
-
-function FeatureCard({
-  Icon, title, body, C,
-}: {
+function FeatureCard({ Icon, title, body, C }: {
   Icon: React.ElementType; title: string; body: string
   C: ReturnType<typeof useNanTheme>
 }) {
   return (
-    <div style={{
-      display: 'flex', gap: 12, padding: '14px 16px',
-      background: C.surf, border: `1px solid ${C.bdr}`,
-      borderRadius: 16,
-    }}>
-      <div style={{
-        width: 38, height: 38, borderRadius: 11, flexShrink: 0,
-        background: 'rgba(0,102,255,0.10)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-      }}>
+    <div style={{ display: 'flex', gap: 12, padding: '14px 16px', background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 16 }}>
+      <div style={{ width: 38, height: 38, borderRadius: 11, flexShrink: 0, background: 'rgba(0,102,255,0.10)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <Icon size={17} color={BLUE} strokeWidth={1.8} />
       </div>
       <div>
@@ -124,11 +110,7 @@ function FeatureCard({
   )
 }
 
-// ── primary CTA button ────────────────────────────────────────────────────────
-
-function PrimaryBtn({
-  label, onClick, disabled, loading, C: _C,
-}: {
+function PrimaryBtn({ label, onClick, disabled, loading, C: _C }: {
   label: string; onClick: () => void; disabled?: boolean; loading?: boolean
   C: ReturnType<typeof useNanTheme>
 }) {
@@ -144,8 +126,7 @@ function PrimaryBtn({
         fontFamily: F, cursor: disabled || loading ? 'not-allowed' : 'pointer',
         boxShadow: disabled || loading ? 'none' : '0 6px 22px rgba(0,102,255,0.40)',
         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-        WebkitTapHighlightColor: 'transparent',
-        transition: 'opacity 0.2s',
+        WebkitTapHighlightColor: 'transparent', transition: 'opacity 0.2s',
       }}
     >
       {loading && (
@@ -159,78 +140,186 @@ function PrimaryBtn({
   )
 }
 
-// ── config row ────────────────────────────────────────────────────────────────
-
 function ConfigRow({ label, value, C }: { label: string; value: string; C: ReturnType<typeof useNanTheme> }) {
   return (
-    <div style={{
-      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-      padding: '11px 0',
-      borderBottom: `1px solid ${C.bdr}`,
-    }}>
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '11px 0', borderBottom: `1px solid ${C.bdr}` }}>
       <span style={{ fontSize: 13, color: C.t2 }}>{label}</span>
       <span style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{value}</span>
     </div>
   )
 }
 
-// ── spend log row ─────────────────────────────────────────────────────────────
-
-function SpendRow({ entry, last, C }: {
-  entry: AgentSpendEntry; last: boolean
-  C: ReturnType<typeof useNanTheme>
-}) {
+function SpendRow({ entry, last, C }: { entry: AgentSpendEntry; last: boolean; C: ReturnType<typeof useNanTheme> }) {
   return (
-    <div style={{
-      display: 'flex', alignItems: 'center', gap: 10,
-      padding: '10px 0',
-      borderBottom: last ? 'none' : `1px solid ${C.bdr}`,
-    }}>
-      <div style={{
-        width: 30, height: 30, borderRadius: 9, flexShrink: 0,
-        background: 'rgba(0,102,255,0.08)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-      }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderBottom: last ? 'none' : `1px solid ${C.bdr}` }}>
+      <div style={{ width: 30, height: 30, borderRadius: 9, flexShrink: 0, background: 'rgba(0,102,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <Coins size={13} color={BLUE} />
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 12, fontWeight: 600, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {entry.service_name}
-        </div>
-        <div style={{ fontSize: 11, color: C.t3, marginTop: 1 }}>
-          {new Date(entry.timestamp).toLocaleString('en', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-        </div>
+        <div style={{ fontSize: 12, fontWeight: 600, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{entry.service_name}</div>
+        <div style={{ fontSize: 11, color: C.t3, marginTop: 1 }}>{new Date(entry.timestamp).toLocaleString('en', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
       </div>
       <div style={{ textAlign: 'right', flexShrink: 0 }}>
-        <div style={{ fontSize: 12, fontWeight: 700, color: BLUE, fontFamily: MONO }}>
-          -{entry.amount_usdc.toFixed(4)}
-        </div>
-        <div style={{ fontSize: 10, color: entry.paid ? GREEN : AMBER, marginTop: 1 }}>
-          {entry.paid ? 'settled' : 'pending'}
-        </div>
+        <div style={{ fontSize: 12, fontWeight: 700, color: BLUE, fontFamily: MONO }}>-{entry.amount_usdc.toFixed(4)}</div>
+        <div style={{ fontSize: 10, color: entry.paid ? GREEN : AMBER, marginTop: 1 }}>{entry.paid ? 'settled' : 'pending'}</div>
       </div>
+    </div>
+  )
+}
+
+// ── SCREEN: Email entry ───────────────────────────────────────────────────────
+
+function EmailScreen({ onBack, onSend, C }: {
+  onBack: () => void
+  onSend: (email: string) => Promise<void>
+  C: ReturnType<typeof useNanTheme>
+}) {
+  const [email, setEmail]   = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError]   = useState('')
+
+  const submit = async () => {
+    if (!email.trim()) return
+    setLoading(true); setError('')
+    try {
+      await onSend(email.trim())
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to send code — please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div style={{ fontFamily: F }}>
+      <BackButton onBack={onBack} C={C} />
+      <h2 style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.025em', marginBottom: 6, color: C.text }}>
+        Enter your email
+      </h2>
+      <p style={{ fontSize: 14, color: C.t2, marginBottom: 22, lineHeight: 1.55 }}>
+        We'll send a verification code to set up your Agent Wallet.
+      </p>
+
+      <div style={{ position: 'relative', marginBottom: 12 }}>
+        <Mail size={15} color={C.t3} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+        <input
+          type="email"
+          placeholder="you@example.com"
+          value={email}
+          onChange={e => setEmail(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && void submit()}
+          autoFocus
+          style={{
+            width: '100%', padding: '13px 16px 13px 40px',
+            border: `1px solid ${C.bdr}`,
+            borderRadius: 12, fontSize: 16, fontFamily: F,
+            color: C.text, background: C.surf, outline: 'none',
+            boxSizing: 'border-box',
+          }}
+        />
+      </div>
+
+      {error && <p style={{ fontSize: 13, color: RED, marginBottom: 8, lineHeight: 1.5 }}>{error}</p>}
+
+      <button
+        onClick={() => void submit()}
+        disabled={loading || !email.trim()}
+        style={{
+          width: '100%', padding: '13px 20px',
+          background: loading || !email.trim() ? C.surf : BLUE,
+          color: loading || !email.trim() ? C.t3 : '#fff',
+          border: loading || !email.trim() ? `1px solid ${C.bdr}` : 'none',
+          borderRadius: 12, fontSize: 15, fontWeight: 600,
+          cursor: loading || !email.trim() ? 'not-allowed' : 'pointer',
+          fontFamily: F, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+          boxShadow: loading || !email.trim() ? 'none' : '0 4px 16px rgba(0,102,255,0.3)',
+          WebkitTapHighlightColor: 'transparent',
+        }}
+      >
+        {loading
+          ? <><Loader size={15} style={{ animation: 'aw-spin 1s linear infinite' }} /> Sending…</>
+          : <><ArrowRight size={15} /> Continue</>}
+      </button>
+    </div>
+  )
+}
+
+// ── SCREEN: OTP sent — tap to open Circle popup ───────────────────────────────
+
+function OtpSentScreen({ email, onVerify, onResend, onChangeEmail, C }: {
+  email: string
+  onVerify: () => void
+  onResend: () => Promise<void>
+  onChangeEmail: () => void
+  C: ReturnType<typeof useNanTheme>
+}) {
+  const [resending, setResending] = useState(false)
+
+  const resend = async () => {
+    setResending(true)
+    try { await onResend() } finally { setResending(false) }
+  }
+
+  return (
+    <div style={{ fontFamily: F }}>
+      <h2 style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.025em', marginBottom: 6, color: C.text }}>
+        Check your inbox
+      </h2>
+      <p style={{ fontSize: 14, color: C.t2, marginBottom: 22, lineHeight: 1.55 }}>
+        A verification code was sent to <strong style={{ color: C.text }}>{email}</strong>.<br />
+        Tap the button below — a popup will open where you enter the code.
+      </p>
+
+      <div style={{ background: 'rgba(0,102,255,0.08)', border: '1px solid rgba(0,102,255,0.2)', borderRadius: 10, padding: '12px 16px', marginBottom: 20, fontSize: 13, color: BLUE, lineHeight: 1.5 }}>
+        Code sent — check your inbox and spam folder.
+      </div>
+
+      <button
+        onClick={onVerify}
+        style={{ width: '100%', padding: '13px 20px', background: BLUE, color: '#fff', border: 'none', borderRadius: 12, fontSize: 15, fontWeight: 600, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, boxShadow: '0 4px 16px rgba(0,102,255,0.3)', WebkitTapHighlightColor: 'transparent' }}
+      >
+        Enter verification code →
+      </button>
+
+      <button
+        onClick={() => void resend()}
+        disabled={resending}
+        style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer', color: C.t2, fontSize: 13, marginTop: 14, fontFamily: F, textDecoration: 'underline', WebkitTapHighlightColor: 'transparent' }}
+      >
+        {resending ? 'Resending…' : 'Resend code'}
+      </button>
+
+      <button
+        onClick={onChangeEmail}
+        style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer', color: C.t3, fontSize: 12, marginTop: 8, fontFamily: F, WebkitTapHighlightColor: 'transparent' }}
+      >
+        ← Use a different email
+      </button>
+    </div>
+  )
+}
+
+// ── SCREEN: Verifying spinner ─────────────────────────────────────────────────
+
+function VerifyingScreen({ C }: { C: ReturnType<typeof useNanTheme> }) {
+  return (
+    <div style={{ fontFamily: F, textAlign: 'center', padding: '40px 0' }}>
+      <Loader size={30} color={BLUE} style={{ animation: 'aw-spin 1s linear infinite', marginBottom: 18 }} />
+      <p style={{ fontSize: 15, color: C.t2, lineHeight: 1.6 }}>Waiting for verification…</p>
     </div>
   )
 }
 
 // ── SCREEN: Educational intro ─────────────────────────────────────────────────
 
-function EduScreen({ onSetup, C }: {
-  onSetup: () => void
-  C: ReturnType<typeof useNanTheme>
-}) {
+function EduScreen({ onSetup, C }: { onSetup: () => void; C: ReturnType<typeof useNanTheme> }) {
   return (
     <div style={{ fontFamily: F }}>
-      {/* hero */}
       <div style={{ textAlign: 'center', marginBottom: 28, paddingTop: 8 }}>
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 18 }}>
           <WalletIllustration size={88} />
         </div>
-        <h1 style={{
-          fontSize: 26, fontWeight: 800, color: C.text,
-          letterSpacing: '-0.03em', margin: '0 0 10px',
-          fontFamily: "'Inter', -apple-system, sans-serif",
-        }}>
+        <h1 style={{ fontSize: 26, fontWeight: 800, color: C.text, letterSpacing: '-0.03em', margin: '0 0 10px', fontFamily: F }}>
           Your Agent Wallet
         </h1>
         <p style={{ fontSize: 14, color: C.t2, lineHeight: 1.6, margin: '0 auto', maxWidth: 320 }}>
@@ -238,26 +327,19 @@ function EduScreen({ onSetup, C }: {
         </p>
       </div>
 
-      {/* feature cards */}
       <div style={{ marginBottom: 20 }}>
         <div style={{ fontSize: 12, fontWeight: 700, color: C.t3, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 12 }}>
           What can you do with an Agent Wallet?
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <FeatureCard Icon={Zap}      title="Pay for Services"      body="Let your agent pay for approved services using USDC." C={C} />
-          <FeatureCard Icon={Clock}    title="Automate Payments"     body="Allow your agent to make authorized payments without manually approving every transaction." C={C} />
-          <FeatureCard Icon={Shield}   title="Set Spending Limits"   body="Control how much your agent can spend." C={C} />
+          <FeatureCard Icon={Zap}       title="Pay for Services"     body="Let your agent pay for approved services using USDC." C={C} />
+          <FeatureCard Icon={Clock}     title="Automate Payments"    body="Allow your agent to make authorized payments without manually approving every transaction." C={C} />
+          <FeatureCard Icon={Shield}    title="Set Spending Limits"  body="Control how much your agent can spend." C={C} />
           <FeatureCard Icon={BarChart3} title="Track Every Payment"  body="See exactly what your agent paid for, when it happened, and how much was spent." C={C} />
         </div>
       </div>
 
-      {/* security reassurance */}
-      <div style={{
-        background: 'rgba(0,200,83,0.06)',
-        border: '1px solid rgba(0,200,83,0.2)',
-        borderRadius: 16, padding: '16px 18px',
-        marginBottom: 24,
-      }}>
+      <div style={{ background: 'rgba(0,200,83,0.06)', border: '1px solid rgba(0,200,83,0.2)', borderRadius: 16, padding: '16px 18px', marginBottom: 24 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
           <Shield size={16} color={GREEN} strokeWidth={2} />
           <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>Your money stays under your control</span>
@@ -267,14 +349,9 @@ function EduScreen({ onSetup, C }: {
         </p>
       </div>
 
-      {/* CTAs */}
       <PrimaryBtn label="Set Up Agent Wallet" onClick={onSetup} C={C} />
       <button
-        style={{
-          width: '100%', marginTop: 14, background: 'none', border: 'none',
-          fontSize: 14, color: C.t2, fontFamily: F, cursor: 'pointer',
-          padding: '8px 0', WebkitTapHighlightColor: 'transparent',
-        }}
+        style={{ width: '100%', marginTop: 14, background: 'none', border: 'none', fontSize: 14, color: C.t2, fontFamily: F, cursor: 'pointer', padding: '8px 0', WebkitTapHighlightColor: 'transparent' }}
         onClick={() => window.open('https://developers.circle.com/agent-stack.md', '_blank')}
       >
         Learn more
@@ -285,10 +362,7 @@ function EduScreen({ onSetup, C }: {
 
 // ── SCREEN: Setup confirmation ────────────────────────────────────────────────
 
-function SetupScreen({ onCreate, C }: {
-  onCreate: () => void
-  C: ReturnType<typeof useNanTheme>
-}) {
+function SetupScreen({ onCreate, C }: { onCreate: () => void; C: ReturnType<typeof useNanTheme> }) {
   return (
     <div style={{ fontFamily: F }}>
       <div style={{ marginBottom: 24 }}>
@@ -300,39 +374,24 @@ function SetupScreen({ onCreate, C }: {
         </p>
       </div>
 
-      {/* config table */}
-      <div style={{
-        background: C.surf, border: `1px solid ${C.bdr}`,
-        borderRadius: 18, padding: '4px 18px',
-        marginBottom: 20,
-      }}>
-        <ConfigRow label="Wallet type"     value="Agent Wallet"                              C={C} />
-        <ConfigRow label="Currency"        value="USDC"                                      C={C} />
-        <ConfigRow label="Network"         value="Arc"                                       C={C} />
+      <div style={{ background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 18, padding: '4px 18px', marginBottom: 20 }}>
+        <ConfigRow label="Wallet type" value="Agent Wallet" C={C} />
+        <ConfigRow label="Currency"    value="USDC"         C={C} />
+        <ConfigRow label="Network"     value="Arc"          C={C} />
         <div style={{ display: 'flex', justifyContent: 'space-between', padding: '11px 0' }}>
           <span style={{ fontSize: 13, color: C.t2 }}>Wallet security</span>
           <span style={{ fontSize: 13, fontWeight: 600, color: C.text, maxWidth: 190, textAlign: 'right', lineHeight: 1.4 }}>
-            Protected by NAN's configured wallet infrastructure
+            Protected by Circle wallet infrastructure
           </span>
         </div>
       </div>
 
-      {/* separation note */}
-      <div style={{
-        background: 'rgba(0,102,255,0.06)',
-        border: '1px solid rgba(0,102,255,0.18)',
-        borderRadius: 14, padding: '14px 16px',
-        marginBottom: 28,
-      }}>
+      <div style={{ background: 'rgba(0,102,255,0.06)', border: '1px solid rgba(0,102,255,0.18)', borderRadius: 14, padding: '14px 16px', marginBottom: 28 }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
           <Wallet size={16} color={BLUE} style={{ flexShrink: 0, marginTop: 1 }} />
           <div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 4 }}>
-              Your main NAN wallet remains separate.
-            </div>
-            <div style={{ fontSize: 12, color: C.t2, lineHeight: 1.5 }}>
-              Your Agent Wallet cannot automatically spend from your main NAN balance. You choose when and how much to fund it.
-            </div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 4 }}>Your main NAN wallet remains separate.</div>
+            <div style={{ fontSize: 12, color: C.t2, lineHeight: 1.5 }}>Your Agent Wallet cannot automatically spend from your main NAN balance. You choose when and how much to fund it.</div>
           </div>
         </div>
       </div>
@@ -363,24 +422,15 @@ function CreatingScreen({ C }: { C: ReturnType<typeof useNanTheme> }) {
 
   return (
     <div style={{ fontFamily: F, display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 32 }}>
-      {/* pulsing wallet */}
-      <div style={{
-        width: 88, height: 88, borderRadius: 28, background: 'rgba(0,102,255,0.12)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        marginBottom: 28,
-        animation: 'aw-pulse 1.6s ease-in-out infinite',
-      }}>
+      <div style={{ width: 88, height: 88, borderRadius: 28, background: 'rgba(0,102,255,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 28, animation: 'aw-pulse 1.6s ease-in-out infinite' }}>
         <Wallet size={38} color={BLUE} strokeWidth={1.5} />
       </div>
-
       <h2 style={{ fontSize: 20, fontWeight: 800, color: C.text, letterSpacing: '-0.02em', marginBottom: 6, textAlign: 'center' }}>
         Creating your Agent Wallet…
       </h2>
       <p style={{ fontSize: 13, color: C.t2, marginBottom: 32, textAlign: 'center', margin: '0 0 32px' }}>
         This only takes a moment.
       </p>
-
-      {/* step list */}
       <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 14 }}>
         {CREATION_STEPS.map((label, i) => {
           const done    = i < step
@@ -389,32 +439,17 @@ function CreatingScreen({ C }: { C: ReturnType<typeof useNanTheme> }) {
             <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <div style={{
                 width: 28, height: 28, borderRadius: 9, flexShrink: 0,
-                background: done
-                  ? 'rgba(0,200,83,0.12)'
-                  : current
-                    ? 'rgba(0,102,255,0.12)'
-                    : C.surf2,
+                background: done ? 'rgba(0,200,83,0.12)' : current ? 'rgba(0,102,255,0.12)' : C.surf2,
                 border: `1.5px solid ${done ? GREEN : current ? BLUE : C.bdr}`,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                transition: 'all 0.3s',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.3s',
               }}>
                 {done
                   ? <Check size={13} color={GREEN} strokeWidth={2.5} />
                   : current
-                    ? (
-                      <svg width="14" height="14" viewBox="0 0 14 14" style={{ animation: 'aw-spin 0.9s linear infinite' }}>
-                        <circle cx="7" cy="7" r="5" fill="none" stroke="rgba(0,102,255,0.25)" strokeWidth="2" />
-                        <path d="M7 2 A5 5 0 0 1 12 7" fill="none" stroke={BLUE} strokeWidth="2" strokeLinecap="round" />
-                      </svg>
-                    )
-                    : <div style={{ width: 6, height: 6, borderRadius: '50%', background: C.t3 }} />
-                }
+                    ? <svg width="14" height="14" viewBox="0 0 14 14" style={{ animation: 'aw-spin 0.9s linear infinite' }}><circle cx="7" cy="7" r="5" fill="none" stroke="rgba(0,102,255,0.25)" strokeWidth="2" /><path d="M7 2 A5 5 0 0 1 12 7" fill="none" stroke={BLUE} strokeWidth="2" strokeLinecap="round" /></svg>
+                    : <div style={{ width: 6, height: 6, borderRadius: '50%', background: C.t3 }} />}
               </div>
-              <span style={{
-                fontSize: 13, fontWeight: done ? 600 : current ? 700 : 500,
-                color: done ? C.t2 : current ? C.text : C.t3,
-                transition: 'color 0.3s',
-              }}>
+              <span style={{ fontSize: 13, fontWeight: done ? 600 : current ? 700 : 500, color: done ? C.t2 : current ? C.text : C.t3, transition: 'color 0.3s' }}>
                 {label}
               </span>
             </div>
@@ -427,13 +462,11 @@ function CreatingScreen({ C }: { C: ReturnType<typeof useNanTheme> }) {
 
 // ── SCREEN: Success ───────────────────────────────────────────────────────────
 
-function SuccessScreen({
-  address, walletId, onDashboard, C,
-}: {
+function SuccessScreen({ address, walletId, onDashboard, C }: {
   address: string; walletId?: string; onDashboard: () => void
   C: ReturnType<typeof useNanTheme>
 }) {
-  const [copied, setCopied] = useState(false)
+  const [copied, setCopied]         = useState(false)
   const [detailsOpen, setDetailsOpen] = useState(false)
 
   const copyAddress = () => {
@@ -444,114 +477,50 @@ function SuccessScreen({
 
   return (
     <div style={{ fontFamily: F }}>
-      {/* success badge */}
       <div style={{ textAlign: 'center', marginBottom: 24 }}>
-        <div style={{
-          width: 68, height: 68, borderRadius: 22, margin: '0 auto 16px',
-          background: 'rgba(0,200,83,0.12)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          border: '2px solid rgba(0,200,83,0.3)',
-        }}>
+        <div style={{ width: 68, height: 68, borderRadius: 22, margin: '0 auto 16px', background: 'rgba(0,200,83,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid rgba(0,200,83,0.3)' }}>
           <CheckCircle size={32} color={GREEN} strokeWidth={1.8} />
         </div>
         <h1 style={{ fontSize: 22, fontWeight: 800, color: C.text, letterSpacing: '-0.02em', margin: '0 0 8px' }}>
           Your Agent Wallet is ready
         </h1>
-        <p style={{ fontSize: 13, color: C.t2, margin: 0 }}>
-          Your NAN Agent now has a dedicated wallet.
-        </p>
+        <p style={{ fontSize: 13, color: C.t2, margin: 0 }}>Your NAN Agent now has a dedicated wallet.</p>
       </div>
 
-      {/* wallet card */}
-      <div style={{
-        background: 'linear-gradient(135deg, rgba(0,102,255,0.18) 0%, rgba(0,102,255,0.06) 100%)',
-        border: '1px solid rgba(0,102,255,0.28)',
-        borderRadius: 22, padding: '20px 20px 16px',
-        marginBottom: 20,
-        position: 'relative', overflow: 'hidden',
-      }}>
-        {/* glow */}
-        <div style={{
-          position: 'absolute', top: -30, right: -30, width: 120, height: 120,
-          borderRadius: '50%', background: 'rgba(0,102,255,0.15)', filter: 'blur(40px)',
-          pointerEvents: 'none',
-        }} />
-
+      <div style={{ background: 'linear-gradient(135deg, rgba(0,102,255,0.18) 0%, rgba(0,102,255,0.06) 100%)', border: '1px solid rgba(0,102,255,0.28)', borderRadius: 22, padding: '20px 20px 16px', marginBottom: 20, position: 'relative', overflow: 'hidden' }}>
+        <div style={{ position: 'absolute', top: -30, right: -30, width: 120, height: 120, borderRadius: '50%', background: 'rgba(0,102,255,0.15)', filter: 'blur(40px)', pointerEvents: 'none' }} />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
           <div>
-            <div style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 3 }}>
-              Agent Wallet
-            </div>
-            <div style={{ fontSize: 28, fontWeight: 800, color: '#fff', fontFamily: MONO, letterSpacing: '-0.02em', lineHeight: 1 }}>
-              0.00
-            </div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 3 }}>Agent Wallet</div>
+            <div style={{ fontSize: 28, fontWeight: 800, color: '#fff', fontFamily: MONO, letterSpacing: '-0.02em', lineHeight: 1 }}>0.00</div>
             <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginTop: 3 }}>USDC · Available balance</div>
           </div>
-          <div style={{
-            background: 'rgba(0,200,83,0.15)', border: '1px solid rgba(0,200,83,0.3)',
-            borderRadius: 8, padding: '4px 10px',
-            display: 'flex', alignItems: 'center', gap: 5,
-          }}>
+          <div style={{ background: 'rgba(0,200,83,0.15)', border: '1px solid rgba(0,200,83,0.3)', borderRadius: 8, padding: '4px 10px', display: 'flex', alignItems: 'center', gap: 5 }}>
             <div style={{ width: 6, height: 6, borderRadius: '50%', background: GREEN }} />
             <span style={{ fontSize: 11, fontWeight: 700, color: GREEN }}>Active</span>
           </div>
         </div>
-
         <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 14 }}>
-          <div style={{
-            flex: 1, background: 'rgba(0,0,0,0.2)', borderRadius: 10, padding: '8px 12px',
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          }}>
-            <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', fontFamily: MONO }}>
-              {shortenAddress(address)}
-            </span>
+          <div style={{ flex: 1, background: 'rgba(0,0,0,0.2)', borderRadius: 10, padding: '8px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', fontFamily: MONO }}>{shortenAddress(address)}</span>
           </div>
-          <button
-            onClick={copyAddress}
-            style={{
-              width: 38, height: 38, borderRadius: 10, flexShrink: 0,
-              background: 'rgba(255,255,255,0.12)', border: 'none', cursor: 'pointer',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              WebkitTapHighlightColor: 'transparent',
-              transition: 'background 0.2s',
-            }}
-            aria-label="Copy address"
-          >
+          <button onClick={copyAddress} style={{ width: 38, height: 38, borderRadius: 10, flexShrink: 0, background: 'rgba(255,255,255,0.12)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitTapHighlightColor: 'transparent' }} aria-label="Copy address">
             {copied ? <Check size={15} color={GREEN} /> : <Copy size={15} color="rgba(255,255,255,0.7)" />}
           </button>
         </div>
-
         <div style={{ display: 'flex', gap: 10, fontSize: 11, color: 'rgba(255,255,255,0.45)' }}>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <Wifi size={11} /> Arc
-          </span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><Wifi size={11} /> Arc</span>
           <span>USDC</span>
         </div>
       </div>
 
-      {/* collapsible details */}
-      <button
-        onClick={() => setDetailsOpen(o => !o)}
-        style={{
-          width: '100%', background: C.surf, border: `1px solid ${C.bdr}`,
-          borderRadius: 14, padding: '12px 16px',
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          cursor: 'pointer', fontFamily: F, marginBottom: 20,
-          WebkitTapHighlightColor: 'transparent',
-        }}
-      >
+      <button onClick={() => setDetailsOpen(o => !o)} style={{ width: '100%', background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 14, padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', fontFamily: F, marginBottom: 20, WebkitTapHighlightColor: 'transparent' }}>
         <span style={{ fontSize: 13, fontWeight: 600, color: C.text }}>Wallet details</span>
-        {detailsOpen
-          ? <ChevronDown size={16} color={C.t3} />
-          : <ChevronRight size={16} color={C.t3} />}
+        {detailsOpen ? <ChevronDown size={16} color={C.t3} /> : <ChevronRight size={16} color={C.t3} />}
       </button>
 
       {detailsOpen && (
-        <div style={{
-          background: C.surf, border: `1px solid ${C.bdr}`,
-          borderRadius: 14, padding: '4px 16px',
-          marginBottom: 20, marginTop: -16,
-        }}>
+        <div style={{ background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 14, padding: '4px 16px', marginBottom: 20, marginTop: -16 }}>
           {[
             { label: 'Wallet address', value: address },
             { label: 'Wallet ID',      value: walletId ?? '—' },
@@ -560,23 +529,9 @@ function SuccessScreen({
             { label: 'Created',        value: new Date().toLocaleDateString('en', { year: 'numeric', month: 'long', day: 'numeric' }) },
             { label: 'Infrastructure', value: 'Circle Agent Wallet' },
           ].map(({ label, value }) => (
-            <div
-              key={label}
-              style={{
-                display: 'flex', justifyContent: 'space-between',
-                alignItems: 'flex-start', gap: 12,
-                padding: '10px 0',
-                borderBottom: label === 'Infrastructure' ? 'none' : `1px solid ${C.bdr}`,
-              }}
-            >
+            <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, padding: '10px 0', borderBottom: label === 'Infrastructure' ? 'none' : `1px solid ${C.bdr}` }}>
               <span style={{ fontSize: 12, color: C.t2, flexShrink: 0 }}>{label}</span>
-              <span style={{
-                fontSize: 12, fontWeight: 600, color: C.text,
-                textAlign: 'right', wordBreak: 'break-all',
-                fontFamily: ['Wallet address', 'Wallet ID'].includes(label) ? MONO : F,
-              }}>
-                {value}
-              </span>
+              <span style={{ fontSize: 12, fontWeight: 600, color: C.text, textAlign: 'right', wordBreak: 'break-all', fontFamily: ['Wallet address', 'Wallet ID'].includes(label) ? MONO : F }}>{value}</span>
             </div>
           ))}
         </div>
@@ -593,12 +548,7 @@ function ErrorScreen({ onRetry, C }: { onRetry: () => void; C: ReturnType<typeof
   const { setActiveView } = useAppStore()
   return (
     <div style={{ fontFamily: F, textAlign: 'center', paddingTop: 24 }}>
-      <div style={{
-        width: 68, height: 68, borderRadius: 22, margin: '0 auto 18px',
-        background: 'rgba(255,59,59,0.10)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        border: '2px solid rgba(255,59,59,0.2)',
-      }}>
+      <div style={{ width: 68, height: 68, borderRadius: 22, margin: '0 auto 18px', background: 'rgba(255,59,59,0.10)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid rgba(255,59,59,0.2)' }}>
         <AlertTriangle size={32} color={RED} strokeWidth={1.8} />
       </div>
       <h2 style={{ fontSize: 20, fontWeight: 800, color: C.text, letterSpacing: '-0.02em', marginBottom: 8 }}>
@@ -608,16 +558,7 @@ function ErrorScreen({ onRetry, C }: { onRetry: () => void; C: ReturnType<typeof
         Something went wrong while setting up your wallet. Your main NAN balance has not been affected.
       </p>
       <PrimaryBtn label="Try Again" onClick={onRetry} C={C} />
-      <button
-        onClick={() => setActiveView('support')}
-        style={{
-          width: '100%', marginTop: 12, background: 'none',
-          border: `1px solid ${C.bdr}`, borderRadius: 14,
-          height: 48, fontSize: 14, fontWeight: 600,
-          color: C.t2, fontFamily: F, cursor: 'pointer',
-          WebkitTapHighlightColor: 'transparent',
-        }}
-      >
+      <button onClick={() => setActiveView('support')} style={{ width: '100%', marginTop: 12, background: 'none', border: `1px solid ${C.bdr}`, borderRadius: 14, height: 48, fontSize: 14, fontWeight: 600, color: C.t2, fontFamily: F, cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}>
         Contact Support
       </button>
     </div>
@@ -629,7 +570,7 @@ function ErrorScreen({ onRetry, C }: { onRetry: () => void; C: ReturnType<typeof
 function DashboardScreen({ C }: { C: ReturnType<typeof useNanTheme> }) {
   const { agentWallet, setAgentWallet, agentSpendLog, auth } = useAppStore()
   const [refreshing, setRefreshing] = useState(false)
-  const [copied, setCopied] = useState(false)
+  const [copied, setCopied]         = useState(false)
 
   const totalSpent = agentSpendLog.reduce((s, e) => s + e.amount_usdc, 0)
   const balance    = parseFloat(agentWallet.balance_usdc || '0')
@@ -637,28 +578,19 @@ function DashboardScreen({ C }: { C: ReturnType<typeof useNanTheme> }) {
   const refresh = useCallback(async () => {
     setRefreshing(true)
     try {
-      const r  = await fetch('/api/agent-wallet', {
+      const r = await fetch('/api/agent-wallet', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'status' }),
       })
-      const d = await r.json() as {
-        provisioned?: boolean; address?: string; walletId?: string; balance_usdc?: string
-      }
-      setAgentWallet({
-        provisioned: d.provisioned ?? false,
-        address: d.address,
-        walletId: d.walletId,
-        balance_usdc: d.balance_usdc ?? '0',
-        lastRefreshed: new Date().toISOString(),
-      })
-    } catch { /* network error — keep stale state */ }
+      const d = await r.json() as { provisioned?: boolean; address?: string; walletId?: string; balance_usdc?: string }
+      setAgentWallet({ provisioned: d.provisioned ?? false, address: d.address, walletId: d.walletId, balance_usdc: d.balance_usdc ?? '0', lastRefreshed: new Date().toISOString() })
+    } catch { /* keep stale state */ }
     setRefreshing(false)
   }, [setAgentWallet])
 
-  // auto-refresh on first mount
   // eslint-disable-next-line react/set-state-in-effect
-  useEffect(() => { void refresh() }, [refresh])
+  useEffect(() => { setTimeout(() => { void refresh() }, 0) }, [refresh])
 
   const copyAddress = () => {
     if (!agentWallet.address) return
@@ -669,76 +601,28 @@ function DashboardScreen({ C }: { C: ReturnType<typeof useNanTheme> }) {
 
   return (
     <div style={{ fontFamily: F, display: 'flex', flexDirection: 'column', gap: 14 }}>
-
       {/* balance card */}
-      <div style={{
-        background: 'linear-gradient(135deg, rgba(0,102,255,0.18) 0%, rgba(0,102,255,0.06) 100%)',
-        border: '1px solid rgba(0,102,255,0.28)',
-        borderRadius: 22, padding: '20px 20px 16px',
-        position: 'relative', overflow: 'hidden',
-      }}>
-        <div style={{
-          position: 'absolute', top: -30, right: -30, width: 120, height: 120,
-          borderRadius: '50%', background: 'rgba(0,102,255,0.15)', filter: 'blur(40px)',
-          pointerEvents: 'none',
-        }} />
-
+      <div style={{ background: 'linear-gradient(135deg, rgba(0,102,255,0.18) 0%, rgba(0,102,255,0.06) 100%)', border: '1px solid rgba(0,102,255,0.28)', borderRadius: 22, padding: '20px 20px 16px', position: 'relative', overflow: 'hidden' }}>
+        <div style={{ position: 'absolute', top: -30, right: -30, width: 120, height: 120, borderRadius: '50%', background: 'rgba(0,102,255,0.15)', filter: 'blur(40px)', pointerEvents: 'none' }} />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
           <div>
-            <div style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 3 }}>
-              Agent Wallet
-            </div>
-            <div style={{ fontSize: 32, fontWeight: 800, color: '#fff', fontFamily: MONO, letterSpacing: '-0.02em', lineHeight: 1 }}>
-              {balance.toFixed(2)}
-            </div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 3 }}>Agent Wallet</div>
+            <div style={{ fontSize: 32, fontWeight: 800, color: '#fff', fontFamily: MONO, letterSpacing: '-0.02em', lineHeight: 1 }}>{balance.toFixed(2)}</div>
             <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginTop: 3 }}>USDC · Available balance</div>
           </div>
-          <button
-            onClick={() => void refresh()}
-            style={{
-              width: 34, height: 34, borderRadius: 10,
-              background: 'rgba(255,255,255,0.1)', border: 'none',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
-            }}
-            aria-label="Refresh balance"
-          >
-            <RefreshCw
-              size={15}
-              color="rgba(255,255,255,0.7)"
-              style={{ animation: refreshing ? 'aw-spin 1s linear infinite' : 'none' }}
-            />
+          <button onClick={() => void refresh()} style={{ width: 34, height: 34, borderRadius: 10, background: 'rgba(255,255,255,0.1)', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }} aria-label="Refresh balance">
+            <RefreshCw size={15} color="rgba(255,255,255,0.7)" style={{ animation: refreshing ? 'aw-spin 1s linear infinite' : 'none' }} />
           </button>
         </div>
-
-        {/* status + address row */}
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <div style={{
-            background: 'rgba(0,200,83,0.15)', border: '1px solid rgba(0,200,83,0.3)',
-            borderRadius: 8, padding: '3px 10px',
-            display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0,
-          }}>
+          <div style={{ background: 'rgba(0,200,83,0.15)', border: '1px solid rgba(0,200,83,0.3)', borderRadius: 8, padding: '3px 10px', display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
             <div style={{ width: 6, height: 6, borderRadius: '50%', background: GREEN }} />
             <span style={{ fontSize: 11, fontWeight: 700, color: GREEN }}>Active</span>
           </div>
-          <div style={{
-            flex: 1, background: 'rgba(0,0,0,0.2)', borderRadius: 10,
-            padding: '7px 10px', overflow: 'hidden',
-          }}>
-            <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', fontFamily: MONO }}>
-              {agentWallet.address ? shortenAddress(agentWallet.address) : '—'}
-            </span>
+          <div style={{ flex: 1, background: 'rgba(0,0,0,0.2)', borderRadius: 10, padding: '7px 10px', overflow: 'hidden' }}>
+            <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', fontFamily: MONO }}>{agentWallet.address ? shortenAddress(agentWallet.address) : '—'}</span>
           </div>
-          <button
-            onClick={copyAddress}
-            style={{
-              width: 34, height: 34, borderRadius: 10, flexShrink: 0,
-              background: 'rgba(255,255,255,0.12)', border: 'none', cursor: 'pointer',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              WebkitTapHighlightColor: 'transparent',
-            }}
-            aria-label="Copy address"
-          >
+          <button onClick={copyAddress} style={{ width: 34, height: 34, borderRadius: 10, flexShrink: 0, background: 'rgba(255,255,255,0.12)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitTapHighlightColor: 'transparent' }} aria-label="Copy address">
             {copied ? <Check size={14} color={GREEN} /> : <Copy size={14} color="rgba(255,255,255,0.7)" />}
           </button>
         </div>
@@ -767,11 +651,8 @@ function DashboardScreen({ C }: { C: ReturnType<typeof useNanTheme> }) {
             <BarChart3 size={14} color={C.t2} />
             <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>Agent Payments</span>
           </div>
-          <span style={{ fontSize: 12, fontWeight: 700, color: C.text, fontFamily: MONO }}>
-            {totalSpent.toFixed(4)} USDC
-          </span>
+          <span style={{ fontSize: 12, fontWeight: 700, color: C.text, fontFamily: MONO }}>{totalSpent.toFixed(4)} USDC</span>
         </div>
-
         {agentSpendLog.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '20px 0' }}>
             <div style={{ width: 34, height: 34, borderRadius: 10, background: C.surf2, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 8px' }}>
@@ -783,17 +664,11 @@ function DashboardScreen({ C }: { C: ReturnType<typeof useNanTheme> }) {
         ) : (
           <div>
             {agentSpendLog.slice(0, 20).map((e, i) => (
-              <SpendRow
-                key={e.id}
-                entry={e}
-                last={i === Math.min(agentSpendLog.length, 20) - 1}
-                C={C}
-              />
+              <SpendRow key={e.id} entry={e} last={i === Math.min(agentSpendLog.length, 20) - 1} C={C} />
             ))}
           </div>
         )}
       </div>
-
     </div>
   )
 }
@@ -804,13 +679,33 @@ export function AgentWalletExperience() {
   const C = useNanTheme()
   const { agentWallet, setAgentWallet, setActiveView } = useAppStore()
 
-  // Start by detecting wallet state, then route
-  const [screen, setScreen] = useState<Screen>('detect')
+  const [screen, setScreen]       = useState<Screen>('detect')
   const [newAddress, setNewAddress] = useState('')
   const [newWalletId, setNewWalletId] = useState('')
 
-  // On mount: check wallet status and route to correct screen.
-  // setState in effect is intentional here — we need async API result to decide initial screen.
+  // Circle SDK + OTP session
+  const sdkRef     = useRef<W3SSdk | null>(null)
+  const emailRef   = useRef('')
+  const otpDataRef = useRef<OtpTokens | null>(null)
+
+  // ── init SDK once ────────────────────────────────────────────────────────────
+  // Use setTimeout(0) so state updates from the SDK callback happen outside
+  // the synchronous effect call stack, avoiding the set-state-in-effect lint rule.
+  useEffect(() => {
+    const appId = CIRCLE_APP_ID ?? 'pending-configuration'
+    const onLoginComplete = (err: unknown, result: unknown) => {
+      if (err) {
+        setTimeout(() => setScreen('error'), 0)
+        return
+      }
+      const res = result as LoginResult
+      void handleProvision(res.userToken, res.encryptionKey)
+    }
+    sdkRef.current = new W3SSdk({ appSettings: { appId } }, onLoginComplete)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // ── on mount: check if already provisioned ────────────────────────────────
   /* eslint-disable react/set-state-in-effect */
   useEffect(() => {
     if (agentWallet.provisioned && agentWallet.address) {
@@ -825,49 +720,67 @@ export function AgentWalletExperience() {
       .then(r => r.json())
       .then((d: { provisioned?: boolean; address?: string; walletId?: string; balance_usdc?: string }) => {
         if (d.provisioned && d.address) {
-          setAgentWallet({
-            provisioned: true,
-            address: d.address,
-            walletId: d.walletId,
-            balance_usdc: d.balance_usdc ?? '0',
-            lastRefreshed: new Date().toISOString(),
-          })
+          setAgentWallet({ provisioned: true, address: d.address, walletId: d.walletId, balance_usdc: d.balance_usdc ?? '0', lastRefreshed: new Date().toISOString() })
           setScreen('dashboard')
         } else {
-          setScreen('edu')
+          setScreen('email')
         }
       })
-      .catch(() => setScreen('edu'))
+      .catch(() => setScreen('email'))
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   /* eslint-enable react/set-state-in-effect */
 
-  // Wallet creation
-  const handleCreate = useCallback(async () => {
+  // ── Step 1: send OTP via Circle SDK ──────────────────────────────────────
+  const handleSendOtp = useCallback(async (email: string) => {
+    emailRef.current = email
+    const sdk = sdkRef.current
+    if (!sdk) throw new Error('SDK not ready — please refresh.')
+    const deviceId = await sdk.getDeviceId()
+    const res  = await fetch('/api/wallet', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'request-otp', deviceId, email }),
+    })
+    const data = await res.json() as OtpTokens & { error?: string }
+    if (data.error) throw new Error(data.error)
+    otpDataRef.current = data
+    sdk.updateConfigs({
+      appSettings: { appId: CIRCLE_APP_ID ?? 'pending-configuration' },
+      loginConfigs: {
+        deviceToken:         data.deviceToken,
+        deviceEncryptionKey: data.deviceEncryptionKey,
+        otpToken:            data.otpToken,
+      },
+    })
+    setScreen('otp_sent')
+  }, [])
+
+  // ── Step 2: open Circle OTP popup ────────────────────────────────────────
+  const handleVerify = useCallback(() => {
+    setScreen('verifying')
+    sdkRef.current?.verifyOtp()
+  }, [])
+
+  // ── Step 3: after Circle auth — provision the agent wallet ────────────────
+  const handleProvision = useCallback(async (userToken: string, _encKey: string) => {
     setScreen('creating')
     try {
-      // Minimum display time so the progress animation completes gracefully
       const [res] = await Promise.all([
         fetch('/api/agent-wallet', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'provision' }),
+          body: JSON.stringify({ action: 'provision', userToken }),
         }),
-        new Promise(r => setTimeout(r, 2800)), // let animation run
+        new Promise(r => setTimeout(r, 2800)),
       ])
-      const d = await (res).json() as {
-        ok?: boolean; address?: string; walletId?: string; walletSetId?: string
-        error?: string; setup_required?: boolean
-      }
-
+      const d = await res.json() as { ok?: boolean; address?: string; walletId?: string; error?: string }
       if (d.ok && d.address) {
         setAgentWallet({ provisioned: true, address: d.address, walletId: d.walletId, balance_usdc: '0' })
         setNewAddress(d.address)
         setNewWalletId(d.walletId ?? '')
         setScreen('success')
       } else {
-        // setup_required means Circle creds not configured on server — still show success
-        // with a note; the wallet isn't actually created yet, route to error
         setScreen('error')
       }
     } catch {
@@ -877,7 +790,6 @@ export function AgentWalletExperience() {
 
   // ── render ────────────────────────────────────────────────────────────────
 
-  // During detection, show a minimal loader
   if (screen === 'detect') {
     return (
       <div style={{ maxWidth: 480, margin: '0 auto', padding: '0 18px', fontFamily: F }}>
@@ -891,11 +803,10 @@ export function AgentWalletExperience() {
     )
   }
 
-  const showBack = screen !== 'dashboard' && screen !== 'creating' && screen !== 'success'
+  const showBack = !['dashboard', 'creating', 'success', 'email', 'otp_sent', 'verifying'].includes(screen)
 
   return (
     <>
-      {/* keyframe animations injected once */}
       <style>{`
         @keyframes aw-spin {
           from { transform: rotate(0deg); }
@@ -908,45 +819,31 @@ export function AgentWalletExperience() {
       `}</style>
 
       <div style={{ maxWidth: 480, margin: '0 auto', padding: '0 18px', fontFamily: F }}>
-        {/* header row */}
+        {/* header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4, paddingTop: 4 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            {showBack ? (
-              <BackButton
-                onBack={() => {
-                  if (screen === 'setup')   setScreen('edu')
-                  else                      setActiveView('home')
-                }}
-                C={C}
-              />
-            ) : (
+          {showBack ? (
+            <BackButton onBack={() => { if (screen === 'setup') setScreen('edu'); else setActiveView('home') }} C={C} />
+          ) : (
+            screen === 'dashboard' && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
-                <div style={{
-                  width: 34, height: 34, borderRadius: 10,
-                  background: 'rgba(0,102,255,0.12)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}>
+                <div style={{ width: 34, height: 34, borderRadius: 10, background: 'rgba(0,102,255,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <Wallet size={17} color={BLUE} strokeWidth={1.8} />
                 </div>
                 <span style={{ fontSize: 16, fontWeight: 800, color: C.text }}>Agent Wallet</span>
               </div>
-            )}
-          </div>
+            )
+          )}
         </div>
 
-        {screen === 'edu'       && <EduScreen      onSetup={() => setScreen('setup')} C={C} />}
-        {screen === 'setup'     && <SetupScreen    onCreate={() => { void handleCreate() }} C={C} />}
-        {screen === 'creating'  && <CreatingScreen                                    C={C} />}
-        {screen === 'success'   && (
-          <SuccessScreen
-            address={newAddress}
-            walletId={newWalletId}
-            onDashboard={() => setScreen('dashboard')}
-            C={C}
-          />
-        )}
+        {screen === 'email'     && <EmailScreen    onBack={() => setActiveView('home')} onSend={handleSendOtp} C={C} />}
+        {screen === 'otp_sent'  && <OtpSentScreen  email={emailRef.current} onVerify={handleVerify} onResend={() => handleSendOtp(emailRef.current)} onChangeEmail={() => setScreen('email')} C={C} />}
+        {screen === 'verifying' && <VerifyingScreen C={C} />}
+        {screen === 'edu'       && <EduScreen       onSetup={() => setScreen('setup')} C={C} />}
+        {screen === 'setup'     && <SetupScreen     onCreate={() => { void handleProvision('', '') }} C={C} />}
+        {screen === 'creating'  && <CreatingScreen  C={C} />}
+        {screen === 'success'   && <SuccessScreen   address={newAddress} walletId={newWalletId} onDashboard={() => setScreen('dashboard')} C={C} />}
         {screen === 'dashboard' && <DashboardScreen C={C} />}
-        {screen === 'error'     && <ErrorScreen onRetry={() => setScreen('setup')} C={C} />}
+        {screen === 'error'     && <ErrorScreen     onRetry={() => setScreen('email')} C={C} />}
       </div>
     </>
   )
