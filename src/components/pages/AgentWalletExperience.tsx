@@ -683,7 +683,12 @@ export function AgentWalletExperience() {
   // Circle SDK refs — mirrors CircleEmailLogin exactly
   const sdkRef      = useRef<W3SSdk | null>(null)
   const emailRef    = useRef('')
-  const loginResRef = useRef<LoginResult | null>(null)
+  // loginRes is also persisted in sessionStorage so a screen re-mount (e.g.
+  // navigating away then back during the edu→setup→create flow) does not wipe
+  // the userToken and force the user to re-enter their email.
+  const loginResRef = useRef<LoginResult | null>(
+    (() => { try { const r = sessionStorage.getItem('aw_login_res'); return r ? (JSON.parse(r) as LoginResult) : null } catch { return null } })()
+  )
 
   // ── fetch wallet address after SDK challenge complete ─────────────────────
   const finishProvision = useCallback(async (loginRes: LoginResult) => {
@@ -700,6 +705,8 @@ export function AgentWalletExperience() {
         setAgentWallet({ provisioned: true, address: d.address, walletId: d.walletId, balance_usdc: '0', lastRefreshed: new Date().toISOString() })
         setNewAddress(d.address)
         setNewWalletId(d.walletId ?? '')
+        // Clear the session token — no longer needed
+        try { sessionStorage.removeItem('aw_login_res') } catch { /* ignore */ }
         setScreen('success')
       } else {
         setErrorMsg('Wallet was created but could not be loaded. Please try again.')
@@ -773,6 +780,7 @@ export function AgentWalletExperience() {
           const res = result as LoginResult | undefined
           if (res?.userToken) {
             loginResRef.current = res
+            try { sessionStorage.setItem('aw_login_res', JSON.stringify(res)) } catch { /* ignore */ }
             // Already initialized — go straight to edu
             setTimeout(() => setScreen('edu'), 0)
             return
@@ -786,6 +794,8 @@ export function AgentWalletExperience() {
       }
       const res = result as LoginResult
       loginResRef.current = res
+      // Persist across potential re-mounts during the edu→setup flow
+      try { sessionStorage.setItem('aw_login_res', JSON.stringify(res)) } catch { /* ignore */ }
       // OTP verified — show edu intro before creating wallet
       setTimeout(() => setScreen('edu'), 0)
     }
@@ -793,13 +803,20 @@ export function AgentWalletExperience() {
     sdkRef.current = new W3SSdk({ appSettings: { appId } }, onLoginComplete)
   }, [])
 
-  // ── on mount: check if already provisioned ────────────────────────────────
+  // ── on mount: route to the right starting screen ─────────────────────────
   useEffect(() => {
+    // Already provisioned in store — go straight to dashboard
     if (agentWallet.provisioned && agentWallet.address) {
       setScreen('dashboard')
       return
     }
-    // No userToken available without login — just go to email screen
+    // OTP already verified this session (sessionStorage survived a re-mount) —
+    // resume at edu so the user doesn't have to enter their email again
+    if (loginResRef.current) {
+      setScreen('edu')
+      return
+    }
+    // Fresh start — enter email
     setScreen('email')
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -887,7 +904,7 @@ export function AgentWalletExperience() {
         {screen === 'creating'     && <CreatingScreen    C={C} />}
         {screen === 'success'      && <SuccessScreen     address={newAddress} walletId={newWalletId} onDashboard={() => setScreen('dashboard')} C={C} />}
         {screen === 'dashboard'    && <DashboardScreen   C={C} />}
-        {screen === 'error'        && <ErrorScreen       message={errorMsg} onRetry={() => { setErrorMsg(''); setScreen('email') }} C={C} />}
+        {screen === 'error'        && <ErrorScreen       message={errorMsg} onRetry={() => { setErrorMsg(''); loginResRef.current = null; try { sessionStorage.removeItem('aw_login_res') } catch { /* ignore */ } setScreen('email') }} C={C} />}
       </div>
     </>
   )
