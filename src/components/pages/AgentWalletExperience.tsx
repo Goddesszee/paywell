@@ -1,25 +1,20 @@
 /**
  * AgentWalletExperience.tsx
  *
- * Agent Wallet onboarding + dashboard flow.
+ * Agent Wallet onboarding + dashboard.
+ * Mirrors the exact Circle flow from CircleEmailLogin:
+ *   1. Email → POST /api/wallet (action=request-otp) → Circle sends OTP
+ *   2. sdk.updateConfigs(tokens) → sdk.verifyOtp() → Circle popup
+ *   3. onLoginComplete(result) → initializeUser(result)
+ *   4. POST /api/agent-wallet (action=provision) → returns challengeId
+ *   5. sdk.setAuthentication() → sdk.execute(challengeId, cb) → PIN popup
+ *   6. cb fires → fetch status → success screen → dashboard
  *
- * Screens:
- *   'detect'    → silently checks wallet status, then routes
- *   'email'     → enter email (mirrors main app login)
- *   'otp_sent'  → code sent, tap to open Circle OTP popup
- *   'verifying' → waiting for Circle SDK callback
- *   'edu'       → educational intro (first-time only, after auth)
- *   'setup'     → creation confirmation
- *   'creating'  → animated loading state
- *   'success'   → wallet created celebration + address
- *   'dashboard' → existing wallet: balance, spend log, fund guide
- *   'error'     → creation failed
- *
- * Auth uses the same Circle W3S SDK email OTP flow as the main app login.
- * No developer terminology surfaced to the user.
+ * Only AgentWalletExperience.tsx and api/agent-wallet.ts are touched.
+ * api/otp.ts, api/_redis.ts, and all main-app files are untouched.
  */
 
-import React, { useState, useEffect, useCallback, useRef } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { W3SSdk } from '@circle-fin/w3s-pw-web-sdk'
 import {
   ArrowLeft, ArrowRight, Wallet, Shield, Zap, BarChart3,
@@ -30,7 +25,7 @@ import {
 import { useAppStore, AgentSpendEntry } from '../../store/appStore'
 import { useNanTheme } from '../../hooks/useNanTheme'
 
-// ── design tokens (match NAN palette) ─────────────────────────────────────────
+// ── design tokens ─────────────────────────────────────────────────────────────
 
 const F    = "'Inter', -apple-system, sans-serif"
 const MONO = "'JetBrains Mono', 'SF Mono', Menlo, monospace"
@@ -42,7 +37,7 @@ const RED   = '#FF3B3B'
 const CIRCLE_APP_ID = import.meta.env.VITE_CIRCLE_APP_ID as string | undefined
 
 type Screen =
-  | 'detect' | 'email' | 'otp_sent' | 'verifying'
+  | 'detect' | 'email' | 'otp_sent' | 'verifying' | 'wallet_setup'
   | 'edu' | 'setup' | 'creating' | 'success' | 'dashboard' | 'error'
 
 interface LoginResult { userToken: string; encryptionKey: string }
@@ -174,9 +169,9 @@ function EmailScreen({ onBack, onSend, C }: {
   onSend: (email: string) => Promise<void>
   C: ReturnType<typeof useNanTheme>
 }) {
-  const [email, setEmail]   = useState('')
+  const [email, setEmail]     = useState('')
   const [loading, setLoading] = useState(false)
-  const [error, setError]   = useState('')
+  const [error, setError]     = useState('')
 
   const submit = async () => {
     if (!email.trim()) return
@@ -244,7 +239,7 @@ function EmailScreen({ onBack, onSend, C }: {
   )
 }
 
-// ── SCREEN: OTP sent — tap to open Circle popup ───────────────────────────────
+// ── SCREEN: OTP sent ──────────────────────────────────────────────────────────
 
 function OtpSentScreen({ email, onVerify, onResend, onChangeEmail, C }: {
   email: string
@@ -299,13 +294,13 @@ function OtpSentScreen({ email, onVerify, onResend, onChangeEmail, C }: {
   )
 }
 
-// ── SCREEN: Verifying spinner ─────────────────────────────────────────────────
+// ── SCREEN: Verifying / wallet setup spinner ──────────────────────────────────
 
-function VerifyingScreen({ C }: { C: ReturnType<typeof useNanTheme> }) {
+function VerifyingScreen({ msg, C }: { msg: string; C: ReturnType<typeof useNanTheme> }) {
   return (
     <div style={{ fontFamily: F, textAlign: 'center', padding: '40px 0' }}>
       <Loader size={30} color={BLUE} style={{ animation: 'aw-spin 1s linear infinite', marginBottom: 18 }} />
-      <p style={{ fontSize: 15, color: C.t2, lineHeight: 1.6 }}>Waiting for verification…</p>
+      <p style={{ fontSize: 15, color: C.t2, lineHeight: 1.6 }}>{msg}</p>
     </div>
   )
 }
@@ -332,10 +327,10 @@ function EduScreen({ onSetup, C }: { onSetup: () => void; C: ReturnType<typeof u
           What can you do with an Agent Wallet?
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <FeatureCard Icon={Zap}       title="Pay for Services"     body="Let your agent pay for approved services using USDC." C={C} />
-          <FeatureCard Icon={Clock}     title="Automate Payments"    body="Allow your agent to make authorized payments without manually approving every transaction." C={C} />
-          <FeatureCard Icon={Shield}    title="Set Spending Limits"  body="Control how much your agent can spend." C={C} />
-          <FeatureCard Icon={BarChart3} title="Track Every Payment"  body="See exactly what your agent paid for, when it happened, and how much was spent." C={C} />
+          <FeatureCard Icon={Zap}       title="Pay for Services"    body="Let your agent pay for approved services using USDC." C={C} />
+          <FeatureCard Icon={Clock}     title="Automate Payments"   body="Allow your agent to make authorized payments without manually approving every transaction." C={C} />
+          <FeatureCard Icon={Shield}    title="Set Spending Limits" body="Control how much your agent can spend." C={C} />
+          <FeatureCard Icon={BarChart3} title="Track Every Payment" body="See exactly what your agent paid for, when it happened, and how much was spent." C={C} />
         </div>
       </div>
 
@@ -350,12 +345,6 @@ function EduScreen({ onSetup, C }: { onSetup: () => void; C: ReturnType<typeof u
       </div>
 
       <PrimaryBtn label="Set Up Agent Wallet" onClick={onSetup} C={C} />
-      <button
-        style={{ width: '100%', marginTop: 14, background: 'none', border: 'none', fontSize: 14, color: C.t2, fontFamily: F, cursor: 'pointer', padding: '8px 0', WebkitTapHighlightColor: 'transparent' }}
-        onClick={() => window.open('https://developers.circle.com/agent-stack.md', '_blank')}
-      >
-        Learn more
-      </button>
     </div>
   )
 }
@@ -466,7 +455,7 @@ function SuccessScreen({ address, walletId, onDashboard, C }: {
   address: string; walletId?: string; onDashboard: () => void
   C: ReturnType<typeof useNanTheme>
 }) {
-  const [copied, setCopied]         = useState(false)
+  const [copied, setCopied]           = useState(false)
   const [detailsOpen, setDetailsOpen] = useState(false)
 
   const copyAddress = () => {
@@ -501,7 +490,7 @@ function SuccessScreen({ address, walletId, onDashboard, C }: {
           </div>
         </div>
         <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 14 }}>
-          <div style={{ flex: 1, background: 'rgba(0,0,0,0.2)', borderRadius: 10, padding: '8px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ flex: 1, background: 'rgba(0,0,0,0.2)', borderRadius: 10, padding: '8px 12px' }}>
             <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', fontFamily: MONO }}>{shortenAddress(address)}</span>
           </div>
           <button onClick={copyAddress} style={{ width: 38, height: 38, borderRadius: 10, flexShrink: 0, background: 'rgba(255,255,255,0.12)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitTapHighlightColor: 'transparent' }} aria-label="Copy address">
@@ -544,7 +533,7 @@ function SuccessScreen({ address, walletId, onDashboard, C }: {
 
 // ── SCREEN: Error ─────────────────────────────────────────────────────────────
 
-function ErrorScreen({ onRetry, C }: { onRetry: () => void; C: ReturnType<typeof useNanTheme> }) {
+function ErrorScreen({ message, onRetry, C }: { message: string; onRetry: () => void; C: ReturnType<typeof useNanTheme> }) {
   const { setActiveView } = useAppStore()
   return (
     <div style={{ fontFamily: F, textAlign: 'center', paddingTop: 24 }}>
@@ -552,10 +541,10 @@ function ErrorScreen({ onRetry, C }: { onRetry: () => void; C: ReturnType<typeof
         <AlertTriangle size={32} color={RED} strokeWidth={1.8} />
       </div>
       <h2 style={{ fontSize: 20, fontWeight: 800, color: C.text, letterSpacing: '-0.02em', marginBottom: 8 }}>
-        We couldn't create your Agent Wallet
+        Something went wrong
       </h2>
       <p style={{ fontSize: 13, color: C.t2, lineHeight: 1.6, marginBottom: 32, maxWidth: 300, margin: '0 auto 32px' }}>
-        Something went wrong while setting up your wallet. Your main NAN balance has not been affected.
+        {message || 'Could not set up your Agent Wallet. Your main NAN balance has not been affected.'}
       </p>
       <PrimaryBtn label="Try Again" onClick={onRetry} C={C} />
       <button onClick={() => setActiveView('support')} style={{ width: '100%', marginTop: 12, background: 'none', border: `1px solid ${C.bdr}`, borderRadius: 14, height: 48, fontSize: 14, fontWeight: 600, color: C.t2, fontFamily: F, cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}>
@@ -589,8 +578,14 @@ function DashboardScreen({ C }: { C: ReturnType<typeof useNanTheme> }) {
     setRefreshing(false)
   }, [setAgentWallet])
 
-  // eslint-disable-next-line react/set-state-in-effect
-  useEffect(() => { setTimeout(() => { void refresh() }, 0) }, [refresh])
+  // Load balance on mount — deferred so it runs outside the render cycle
+  const mountedRef = useRef(false)
+  useEffect(() => {
+    if (mountedRef.current) return
+    mountedRef.current = true
+    const t = setTimeout(() => { void refresh() }, 0)
+    return () => clearTimeout(t)
+  }, [refresh])
 
   const copyAddress = () => {
     if (!agentWallet.address) return
@@ -679,59 +674,137 @@ export function AgentWalletExperience() {
   const C = useNanTheme()
   const { agentWallet, setAgentWallet, setActiveView } = useAppStore()
 
-  const [screen, setScreen]       = useState<Screen>('detect')
+  const [screen, setScreen]         = useState<Screen>('detect')
+  const [statusMsg, setStatusMsg]   = useState('')
+  const [errorMsg, setErrorMsg]     = useState('')
   const [newAddress, setNewAddress] = useState('')
   const [newWalletId, setNewWalletId] = useState('')
 
-  // Circle SDK + OTP session
-  const sdkRef     = useRef<W3SSdk | null>(null)
-  const emailRef   = useRef('')
-  const otpDataRef = useRef<OtpTokens | null>(null)
+  // Circle SDK refs — mirrors CircleEmailLogin exactly
+  const sdkRef      = useRef<W3SSdk | null>(null)
+  const emailRef    = useRef('')
+  const loginResRef = useRef<LoginResult | null>(null)
 
-  // ── init SDK once ────────────────────────────────────────────────────────────
-  // Use setTimeout(0) so state updates from the SDK callback happen outside
-  // the synchronous effect call stack, avoiding the set-state-in-effect lint rule.
+  // ── fetch wallet address after SDK challenge complete ─────────────────────
+  const finishProvision = useCallback(async (loginRes: LoginResult) => {
+    setScreen('creating')
+    setStatusMsg('Fetching wallet…')
+    try {
+      const r = await fetch('/api/agent-wallet', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-user-token': loginRes.userToken },
+        body: JSON.stringify({ action: 'status', userToken: loginRes.userToken }),
+      })
+      const d = await r.json() as { provisioned?: boolean; address?: string; walletId?: string }
+      if (d.provisioned && d.address) {
+        setAgentWallet({ provisioned: true, address: d.address, walletId: d.walletId, balance_usdc: '0', lastRefreshed: new Date().toISOString() })
+        setNewAddress(d.address)
+        setNewWalletId(d.walletId ?? '')
+        setScreen('success')
+      } else {
+        setErrorMsg('Wallet was created but could not be loaded. Please try again.')
+        setScreen('error')
+      }
+    } catch {
+      setErrorMsg('Could not load wallet details. Please try again.')
+      setScreen('error')
+    }
+  }, [setAgentWallet])
+
+  // ── provision: same pattern as CircleEmailLogin.initializeUser ────────────
+  const handleProvision = useCallback(async () => {
+    setScreen('wallet_setup')
+    setStatusMsg('Setting up your Agent Wallet…')
+    const loginRes = loginResRef.current
+    if (!loginRes) { setErrorMsg('Session expired. Please start again.'); setScreen('error'); return }
+    try {
+      const res  = await fetch('/api/agent-wallet', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'provision', userToken: loginRes.userToken }),
+      })
+      const data = await res.json() as { ok?: boolean; challengeId?: string; alreadyInitialized?: boolean; error?: string }
+
+      // Existing user — just load wallets
+      if (data.alreadyInitialized) {
+        await finishProvision(loginRes)
+        return
+      }
+      if (!data.ok || !data.challengeId) {
+        // Check if the error text means "already initialized"
+        if (data.error?.toLowerCase().includes('already') || data.error?.toLowerCase().includes('155106')) {
+          await finishProvision(loginRes)
+          return
+        }
+        throw new Error(data.error ?? 'Provisioning failed')
+      }
+
+      // New user — open Circle PIN setup popup (same as main app initializeUser)
+      setStatusMsg('Complete wallet setup in the popup…')
+      const sdk = sdkRef.current
+      if (!sdk) throw new Error('SDK not initialised')
+      sdk.setAuthentication({ userToken: loginRes.userToken, encryptionKey: loginRes.encryptionKey })
+      sdk.execute(data.challengeId, async (execErr) => {
+        if (execErr) {
+          const msg = execErr instanceof Error ? execErr.message : String(execErr)
+          if (msg.toLowerCase().includes('already') || msg.toLowerCase().includes('155106')) {
+            await finishProvision(loginRes)
+            return
+          }
+          setErrorMsg('Wallet setup failed — please try again.')
+          setScreen('error')
+          return
+        }
+        await finishProvision(loginRes)
+      })
+    } catch (e) {
+      setErrorMsg(e instanceof Error ? e.message : 'Setup error — please try again.')
+      setScreen('error')
+    }
+  }, [finishProvision])
+
+  // ── init SDK once (same as CircleEmailLogin) ──────────────────────────────
   useEffect(() => {
     const appId = CIRCLE_APP_ID ?? 'pending-configuration'
     const onLoginComplete = (err: unknown, result: unknown) => {
       if (err) {
-        setTimeout(() => setScreen('error'), 0)
+        const msg = err instanceof Error ? err.message : JSON.stringify(err)
+        if (msg.toLowerCase().includes('already') || msg.toLowerCase().includes('155106')) {
+          const res = result as LoginResult | undefined
+          if (res?.userToken) {
+            loginResRef.current = res
+            // Already initialized — go straight to edu
+            setTimeout(() => setScreen('edu'), 0)
+            return
+          }
+        }
+        setTimeout(() => {
+          setErrorMsg('Verification failed — please check your code and try again.')
+          setScreen('error')
+        }, 0)
         return
       }
       const res = result as LoginResult
-      void handleProvision(res.userToken, res.encryptionKey)
+      loginResRef.current = res
+      // OTP verified — show edu intro before creating wallet
+      setTimeout(() => setScreen('edu'), 0)
     }
+
     sdkRef.current = new W3SSdk({ appSettings: { appId } }, onLoginComplete)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // ── on mount: check if already provisioned ────────────────────────────────
-  /* eslint-disable react/set-state-in-effect */
   useEffect(() => {
     if (agentWallet.provisioned && agentWallet.address) {
       setScreen('dashboard')
       return
     }
-    fetch('/api/agent-wallet', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'status' }),
-    })
-      .then(r => r.json())
-      .then((d: { provisioned?: boolean; address?: string; walletId?: string; balance_usdc?: string }) => {
-        if (d.provisioned && d.address) {
-          setAgentWallet({ provisioned: true, address: d.address, walletId: d.walletId, balance_usdc: d.balance_usdc ?? '0', lastRefreshed: new Date().toISOString() })
-          setScreen('dashboard')
-        } else {
-          setScreen('email')
-        }
-      })
-      .catch(() => setScreen('email'))
+    // No userToken available without login — just go to email screen
+    setScreen('email')
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-  /* eslint-enable react/set-state-in-effect */
 
-  // ── Step 1: send OTP via Circle SDK ──────────────────────────────────────
+  // ── Step 1: send OTP (same as CircleEmailLogin.sendOtp) ───────────────────
   const handleSendOtp = useCallback(async (email: string) => {
     emailRef.current = email
     const sdk = sdkRef.current
@@ -744,7 +817,6 @@ export function AgentWalletExperience() {
     })
     const data = await res.json() as OtpTokens & { error?: string }
     if (data.error) throw new Error(data.error)
-    otpDataRef.current = data
     sdk.updateConfigs({
       appSettings: { appId: CIRCLE_APP_ID ?? 'pending-configuration' },
       loginConfigs: {
@@ -756,37 +828,12 @@ export function AgentWalletExperience() {
     setScreen('otp_sent')
   }, [])
 
-  // ── Step 2: open Circle OTP popup ────────────────────────────────────────
+  // ── Step 2: open Circle OTP popup (same as CircleEmailLogin.verifyOtp) ────
   const handleVerify = useCallback(() => {
     setScreen('verifying')
+    setStatusMsg('Waiting for verification…')
     sdkRef.current?.verifyOtp()
   }, [])
-
-  // ── Step 3: after Circle auth — provision the agent wallet ────────────────
-  const handleProvision = useCallback(async (userToken: string, _encKey: string) => {
-    setScreen('creating')
-    try {
-      const [res] = await Promise.all([
-        fetch('/api/agent-wallet', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'provision', userToken }),
-        }),
-        new Promise(r => setTimeout(r, 2800)),
-      ])
-      const d = await res.json() as { ok?: boolean; address?: string; walletId?: string; error?: string }
-      if (d.ok && d.address) {
-        setAgentWallet({ provisioned: true, address: d.address, walletId: d.walletId, balance_usdc: '0' })
-        setNewAddress(d.address)
-        setNewWalletId(d.walletId ?? '')
-        setScreen('success')
-      } else {
-        setScreen('error')
-      }
-    } catch {
-      setScreen('error')
-    }
-  }, [setAgentWallet])
 
   // ── render ────────────────────────────────────────────────────────────────
 
@@ -803,7 +850,7 @@ export function AgentWalletExperience() {
     )
   }
 
-  const showBack = !['dashboard', 'creating', 'success', 'email', 'otp_sent', 'verifying'].includes(screen)
+  const showBack = !['dashboard', 'creating', 'success', 'email', 'otp_sent', 'verifying', 'wallet_setup'].includes(screen)
 
   return (
     <>
@@ -820,30 +867,27 @@ export function AgentWalletExperience() {
 
       <div style={{ maxWidth: 480, margin: '0 auto', padding: '0 18px', fontFamily: F }}>
         {/* header */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4, paddingTop: 4 }}>
-          {showBack ? (
-            <BackButton onBack={() => { if (screen === 'setup') setScreen('edu'); else setActiveView('home') }} C={C} />
-          ) : (
-            screen === 'dashboard' && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
-                <div style={{ width: 34, height: 34, borderRadius: 10, background: 'rgba(0,102,255,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Wallet size={17} color={BLUE} strokeWidth={1.8} />
-                </div>
-                <span style={{ fontSize: 16, fontWeight: 800, color: C.text }}>Agent Wallet</span>
-              </div>
-            )
-          )}
-        </div>
+        {showBack && (
+          <BackButton onBack={() => { if (screen === 'setup') setScreen('edu'); else setActiveView('home') }} C={C} />
+        )}
+        {screen === 'dashboard' && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20, paddingTop: 4 }}>
+            <div style={{ width: 34, height: 34, borderRadius: 10, background: 'rgba(0,102,255,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Wallet size={17} color={BLUE} strokeWidth={1.8} />
+            </div>
+            <span style={{ fontSize: 16, fontWeight: 800, color: C.text }}>Agent Wallet</span>
+          </div>
+        )}
 
-        {screen === 'email'     && <EmailScreen    onBack={() => setActiveView('home')} onSend={handleSendOtp} C={C} />}
-        {screen === 'otp_sent'  && <OtpSentScreen  email={emailRef.current} onVerify={handleVerify} onResend={() => handleSendOtp(emailRef.current)} onChangeEmail={() => setScreen('email')} C={C} />}
-        {screen === 'verifying' && <VerifyingScreen C={C} />}
-        {screen === 'edu'       && <EduScreen       onSetup={() => setScreen('setup')} C={C} />}
-        {screen === 'setup'     && <SetupScreen     onCreate={() => { void handleProvision('', '') }} C={C} />}
-        {screen === 'creating'  && <CreatingScreen  C={C} />}
-        {screen === 'success'   && <SuccessScreen   address={newAddress} walletId={newWalletId} onDashboard={() => setScreen('dashboard')} C={C} />}
-        {screen === 'dashboard' && <DashboardScreen C={C} />}
-        {screen === 'error'     && <ErrorScreen     onRetry={() => setScreen('email')} C={C} />}
+        {screen === 'email'        && <EmailScreen      onBack={() => setActiveView('home')} onSend={handleSendOtp} C={C} />}
+        {screen === 'otp_sent'     && <OtpSentScreen    email={emailRef.current} onVerify={handleVerify} onResend={() => handleSendOtp(emailRef.current)} onChangeEmail={() => setScreen('email')} C={C} />}
+        {(screen === 'verifying' || screen === 'wallet_setup') && <VerifyingScreen msg={statusMsg || (screen === 'verifying' ? 'Waiting for verification…' : 'Setting up your wallet…')} C={C} />}
+        {screen === 'edu'          && <EduScreen         onSetup={() => setScreen('setup')} C={C} />}
+        {screen === 'setup'        && <SetupScreen       onCreate={() => { void handleProvision() }} C={C} />}
+        {screen === 'creating'     && <CreatingScreen    C={C} />}
+        {screen === 'success'      && <SuccessScreen     address={newAddress} walletId={newWalletId} onDashboard={() => setScreen('dashboard')} C={C} />}
+        {screen === 'dashboard'    && <DashboardScreen   C={C} />}
+        {screen === 'error'        && <ErrorScreen       message={errorMsg} onRetry={() => { setErrorMsg(''); setScreen('email') }} C={C} />}
       </div>
     </>
   )
