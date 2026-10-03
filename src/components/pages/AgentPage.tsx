@@ -58,6 +58,87 @@ const USDC_TRANSFER_ABI = [{
 
 type AgentTab = 'chat' | 'discover' | 'network' | 'policy' | 'log' | 'wallet'
 
+// ── Payment confirmation card ─────────────────────────────────────────────────
+
+interface PaymentConfirmProps {
+  serviceName: string
+  provider: string
+  costUsdc: number
+  agentBalance: string
+  policyLabel: string
+  onConfirm: () => void
+  onCancel: () => void
+}
+
+function PaymentConfirmCard({ serviceName, provider, costUsdc, agentBalance, policyLabel, onConfirm, onCancel }: PaymentConfirmProps) {
+  const bal = parseFloat(agentBalance || '0')
+  const insufficient = bal < costUsdc
+  return (
+    <div style={{ background: SURF, border: `1px solid ${BDR}`, borderRadius: 16, padding: 16, marginBottom: 10 }}>
+      <div style={{ fontSize: 11, fontWeight: 700, color: TEXT3, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>
+        Agent Payment
+      </div>
+      {[
+        { label: 'Service',             value: serviceName },
+        { label: 'Provider',            value: provider },
+        { label: 'Estimated cost',      value: `${costUsdc.toFixed(4)} USDC` },
+        { label: 'Agent Wallet balance',value: `${bal.toFixed(4)} USDC` },
+        { label: 'Policy',              value: policyLabel },
+        { label: 'Payment method',      value: 'USDC (Agent Wallet)' },
+      ].map(({ label, value }) => (
+        <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderBottom: `1px solid ${BDR}` }}>
+          <span style={{ fontSize: 12, color: TEXT2 }}>{label}</span>
+          <span style={{ fontSize: 12, fontWeight: 600, color: label === 'Policy' ? SUCCESS : TEXT }}>{value}</span>
+        </div>
+      ))}
+      {insufficient && (
+        <div style={{ marginTop: 10, padding: '8px 12px', background: 'rgba(255,59,59,0.07)', border: '1px solid rgba(255,59,59,0.2)', borderRadius: 10, fontSize: 12, color: DANGER }}>
+          Insufficient Agent Wallet balance. Fund your Agent Wallet first.
+        </div>
+      )}
+      <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+        <button
+          onClick={onConfirm}
+          disabled={insufficient}
+          style={{ flex: 1, height: 40, background: insufficient ? 'rgba(0,102,255,0.35)' : BLUE, color: '#fff', border: 'none', borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: insufficient ? 'not-allowed' : 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+        >
+          <Check size={13} /> Continue
+        </button>
+        <button
+          onClick={onCancel}
+          style={{ flex: 1, height: 40, background: SURF, color: TEXT, border: `1px solid ${BDR}`, borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: F }}
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ── Payment success card ──────────────────────────────────────────────────────
+
+function PaymentSuccessCard({ serviceName, costUsdc, txId, C: _C }: { serviceName: string; costUsdc: number; txId?: string; C?: unknown }) {
+  return (
+    <div style={{ background: 'rgba(0,200,83,0.06)', border: '1px solid rgba(0,200,83,0.22)', borderRadius: 14, padding: '12px 14px', marginBottom: 10 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 8 }}>
+        <CheckCircle2 size={14} color={SUCCESS} />
+        <span style={{ fontSize: 13, fontWeight: 700, color: SUCCESS }}>Payment successful</span>
+      </div>
+      {[
+        { label: 'Service', value: serviceName },
+        { label: 'Amount',  value: `${costUsdc.toFixed(4)} USDC` },
+        { label: 'Status',  value: 'Completed' },
+        ...(txId ? [{ label: 'Reference', value: `${txId.slice(0, 14)}…` }] : []),
+      ].map(({ label, value }) => (
+        <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 12 }}>
+          <span style={{ color: TEXT2 }}>{label}</span>
+          <span style={{ fontWeight: 600, color: TEXT, fontFamily: label === 'Reference' ? 'monospace' : F }}>{value}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 interface OrchestratorStep {
   label: string
   detail?: string
@@ -281,7 +362,24 @@ function AgentChat() {
     const svc = best.service
     updateLast({ label: `Found: ${svc.name}`, detail: `${svc.category} · ${svc.price_usdc > 0 ? svc.price_usdc + ' USDC' : 'Free'}`, status: 'done' })
 
-    // Step 3 — policy check
+    // Step 3 — agent wallet balance check (before policy)
+    push({ label: 'Checking Agent Wallet balance…', status: 'running' })
+    await new Promise(r => setTimeout(r, 150))
+    const agentWalletState = useAppStore.getState().agentWallet
+    const agentBalance = parseFloat(agentWalletState.balance_usdc || '0')
+    if (svc.price_usdc > 0 && !agentWalletState.provisioned) {
+      updateLast({ label: 'Agent Wallet not set up', detail: 'Go to Agent Wallet tab to create your wallet.', status: 'error' })
+      addExecutionLog({ taskId: `t-${Date.now()}`, userRequest: text, serviceId: svc.service_id, serviceName: svc.name, status: 'blocked', cost: svc.price_usdc, result: 'Agent Wallet not provisioned' })
+      return false
+    }
+    if (svc.price_usdc > 0 && agentBalance < svc.price_usdc) {
+      updateLast({ label: 'Insufficient Agent Wallet balance', detail: `Need ${svc.price_usdc} USDC — wallet has ${agentBalance.toFixed(4)} USDC. Fund your Agent Wallet first.`, status: 'error' })
+      addExecutionLog({ taskId: `t-${Date.now()}`, userRequest: text, serviceId: svc.service_id, serviceName: svc.name, status: 'blocked', cost: svc.price_usdc, result: 'Insufficient balance' })
+      return false
+    }
+    updateLast({ label: `Balance: ${agentBalance.toFixed(4)} USDC`, detail: svc.price_usdc > 0 ? `Cost: ${svc.price_usdc} USDC` : 'Free service', status: 'done' })
+
+    // Step 4 — policy check
     push({ label: 'Checking spending policy…', status: 'running' })
     await new Promise(r => setTimeout(r, 200))
     const policy: AgentPolicy = {
@@ -326,9 +424,21 @@ function AgentChat() {
     } catch { /* use default result */ }
 
     updateLast({ label: 'Service complete', detail: finalResult.slice(0, 80), status: 'done' })
+    const txRef = `nan-${Date.now().toString(36)}`
     addExecutionLog({ taskId: `t-${Date.now()}`, userRequest: text, serviceId: svc.service_id, serviceName: svc.name, status: 'complete', cost: svc.price_usdc, result: finalResult })
     if (svc.price_usdc > 0) {
-      addAgentSpend({ id: `spend-${Date.now()}`, service_id: svc.service_id, service_name: svc.name, amount_usdc: svc.price_usdc, paid: false, timestamp: new Date().toISOString() })
+      addAgentSpend({ id: `spend-${Date.now()}`, service_id: svc.service_id, service_name: svc.name, amount_usdc: svc.price_usdc, txId: txRef, paid: true, timestamp: new Date().toISOString() })
+      // Refresh agent wallet balance after a paid service call
+      const { agentWallet: aw, setAgentWallet } = useAppStore.getState()
+      if (aw.userToken) {
+        fetch('/api/agent-wallet', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-user-token': aw.userToken },
+          body: JSON.stringify({ action: 'status', userToken: aw.userToken }),
+        }).then(r => r.json()).then((d: { balance_usdc?: string; provisioned?: boolean; address?: string; walletId?: string; blockchain?: string; accountType?: string; custodyType?: string; createDate?: string | null; walletState?: string }) => {
+          setAgentWallet({ balance_usdc: d.balance_usdc ?? aw.balance_usdc, lastRefreshed: new Date().toISOString() })
+        }).catch(() => {})
+      }
     }
     addAgentMessage({ role: 'agent', content: finalResult, action: 'info' })
     setTimeout(() => setOrchSteps([]), 3000)

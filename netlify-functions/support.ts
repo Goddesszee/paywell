@@ -3,7 +3,7 @@
  * Handles support ticket creation, replies, and admin management.
  */
 import type { Handler } from '@netlify/functions'
-import { genToken, getSession } from './_shared'
+import { getSession } from './_shared'
 
 const HEADERS = { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
 

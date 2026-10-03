@@ -739,15 +739,17 @@ function DashboardScreen({ C }: { C: ReturnType<typeof useNanTheme> }) {
       {/* ── Agent Policy ───────────────────────────────────────────────────── */}
       <SectionLabel label="Agent Policy" />
       <div style={{ background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 16, padding: '4px 16px', marginBottom: 8 }}>
-        <InfoRow label="Spending limit"     value="Set by you"          C={C} />
-        <InfoRow label="Transaction limit"  value="No hard limit set"   C={C} />
-        <InfoRow label="Allowed actions"    value="Send · Receive · Pay" C={C} />
+        <InfoRow label="Spending limits"    value="Configured in Agent tab" C={C} />
+        <InfoRow label="Allowed actions"    value="Send · Receive · Pay"    C={C} />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0' }}>
           <span style={{ fontSize: 12, color: C.t2 }}>Policy status</span>
           <span style={{ fontSize: 12, fontWeight: 700, color: isActive ? GREEN : AMBER }}>
             {isActive ? 'Active' : 'Inactive'}
           </span>
         </div>
+      </div>
+      <div style={{ background: 'rgba(255,149,0,0.06)', border: '1px solid rgba(255,149,0,0.2)', borderRadius: 12, padding: '11px 14px', marginBottom: 8, fontSize: 12, color: C.t2, lineHeight: 1.6 }}>
+        On-chain spending policies (per-tx limits, allowlists) require mainnet. On testnet, spending is governed by the limits you set in the Agent tab.
       </div>
       <div style={{ background: 'rgba(0,102,255,0.05)', border: '1px solid rgba(0,102,255,0.14)', borderRadius: 12, padding: '11px 14px', marginBottom: 8, fontSize: 12, color: C.t2, lineHeight: 1.6 }}>
         Your Agent Wallet has a separate balance from your NAN Main Wallet. The NAN Agent can only spend funds available in its Agent Wallet according to its configured policies.

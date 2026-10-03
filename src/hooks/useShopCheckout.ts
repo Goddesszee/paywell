@@ -134,7 +134,7 @@ export function useShopCheckout() {
       setStatus('error')
       return false
     }
-  }, [chainId, writeContractAsync, addActivity])
+  }, [chainId, writeContractAsync, addActivity, recordFee])
 
   const confirmDelivery = useCallback(async (id: number) => {
     try {

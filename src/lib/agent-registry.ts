@@ -16,13 +16,9 @@ export type ServiceCategory =
   | 'travel'
   | 'career'
   | 'supplier'
-  | 'commerce'
   | 'data'
   | 'developer'
   | 'ai'
-  | 'infrastructure'
-  | 'digital_services'
-  | 'other_agents'
 
 export type EndpointType = 'rest' | 'graphql' | 'websocket' | 'x402' | 'agent'
 export type AuthMethod = 'api_key' | 'bearer' | 'none' | 'x402_usdc'
@@ -317,23 +313,23 @@ const SERVICE_REGISTRY: NanService[] = [
     enabled: true,
   },
   {
-    service_id: 'circle-agent-marketplace',
-    name: 'Circle Agent Marketplace',
-    description: "Discover and call other AI agents registered on Circle's agent marketplace.",
-    category: 'other_agents',
-    provider: 'Circle',
-    endpoint: 'https://agents.circle.com/services',
-    endpoint_type: 'agent',
-    capabilities: ['find agents', 'agent marketplace', 'ai agent', 'autonomous service', 'circle agent', 'agent services'],
+    service_id: 'openweather-data',
+    name: 'OpenWeather Data',
+    description: 'Live weather, forecasts, and climate data for any location worldwide.',
+    category: 'data',
+    provider: 'OpenWeather',
+    endpoint: 'https://api.openweathermap.org/data/2.5',
+    endpoint_type: 'rest',
+    capabilities: ['weather', 'forecast', 'temperature', 'climate data', 'weather report', 'current weather'],
     price_usdc: 0,
     currency: 'free',
     payment_method: 'free',
-    supported_chains: ['arc-testnet', 'arc', 'base', 'ethereum'],
-    authentication_method: 'none',
-    avg_response_ms: 500,
-    reliability: 0.95,
+    supported_chains: [],
+    authentication_method: 'api_key',
+    avg_response_ms: 300,
+    reliability: 0.97,
     response_format: 'json',
-    terms: 'Public marketplace. Individual agents may charge USDC via x402.',
+    terms: 'Requires OPENWEATHER_API_KEY. 1000 free calls/day.',
     enabled: true,
   },
 ]
@@ -383,7 +379,7 @@ const AGENT_NETWORK_REGISTRY: NetworkAgent[] = [
     description: 'Find and compare product manufacturers, suppliers, and wholesalers globally.',
     provider: 'NAN Network',
     payment_address: '0x5B12Ce46C7194aD57d143bC22847224047b1Ef42',
-    categories: ['supplier', 'commerce'],
+    categories: ['supplier'],
     capabilities: [
       {
         id: 'cap-supplier-find', name: 'Find Manufacturers',
@@ -624,8 +620,7 @@ export function searchNetworkAgents(query: string): NetworkAgent[] {
 
 export const ALL_CATEGORIES: ServiceCategory[] = [
   'research', 'search', 'travel', 'career', 'supplier',
-  'commerce', 'data', 'developer', 'ai', 'infrastructure',
-  'digital_services', 'other_agents',
+  'data', 'developer', 'ai',
 ]
 
 // ── Circle Agent Marketplace live discovery ───────────────────────────────────
