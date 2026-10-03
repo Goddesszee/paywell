@@ -39,10 +39,22 @@ const CIRCLE_APP_ID = import.meta.env.VITE_CIRCLE_APP_ID as string | undefined
 // SDK lives at module scope — one instance for the lifetime of the page load.
 // This means component re-mounts (navigating away and back) never create a
 // fresh SDK that would lose the OTP session from the previous verifyOtp() call.
+//
+// The callback ref pattern: the SDK constructor takes the callback once, but
+// React re-mounts can change which closure is current. We store the latest
+// callback in _loginCb and the SDK always delegates to it, so every re-mount
+// gets the fresh closure without recreating the SDK.
 let _sdk: W3SSdk | null = null
+let _loginCb: ((err: unknown, result: unknown) => void) | null = null
+
 function getOrCreateSdk(onLoginComplete: (err: unknown, result: unknown) => void): W3SSdk {
+  // Always update the live callback so re-mounts get the fresh closure
+  _loginCb = onLoginComplete
   if (!_sdk) {
-    _sdk = new W3SSdk({ appSettings: { appId: CIRCLE_APP_ID ?? 'pending-configuration' } }, onLoginComplete)
+    _sdk = new W3SSdk(
+      { appSettings: { appId: CIRCLE_APP_ID ?? 'pending-configuration' } },
+      (err, result) => { _loginCb?.(err, result) },
+    )
   }
   return _sdk
 }

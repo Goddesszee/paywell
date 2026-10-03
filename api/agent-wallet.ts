@@ -14,16 +14,18 @@
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { randomUUID } from 'crypto'
+import { initiateUserControlledWalletsClient, Blockchain } from '@circle-fin/user-controlled-wallets'
+// randomUUID removed — no longer needed after switching to user-controlled wallets
 
-// ── SDK initialisation (lazy — only when creds are present) ──────────────────
+// ── SDK initialisation ───────────────────────────────────────────────────────
 
-async function getDevClient() {
-  const apiKey = process.env.CIRCLE_API_KEY ?? process.env.CIRCLE_DEVELOPER_CONTROLLED_API_KEY
-  const entitySecret = process.env.CIRCLE_ENTITY_SECRET ?? process.env.ENTITY_SECRET
-  if (!apiKey || !entitySecret) return null
-  const { initiateDeveloperControlledWalletsClient } = await import('@circle-fin/developer-controlled-wallets')
-  return initiateDeveloperControlledWalletsClient({ apiKey, entitySecret })
+function getUserClient() {
+  const apiKey =
+    process.env.CIRCLE_USER_CONTROLLED_API_KEY ??
+    process.env.CIRCLE_API_KEY ??
+    process.env.CIRCLE_DEVELOPER_CONTROLLED_API_KEY
+  if (!apiKey) return null
+  return initiateUserControlledWalletsClient({ apiKey })
 }
 
 // ── Main handler ─────────────────────────────────────────────────────────────
@@ -40,10 +42,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // ── marketplace — no creds needed ────────────────────────────────────────
   if (action === 'marketplace') {
     try {
-      const r = await fetch('https://agents.circle.com/services', {
-        headers: { Accept: 'application/json' },
-        signal: AbortSignal.timeout(5000),
-      })
+      const ctrl = new AbortController()
+      const t = setTimeout(() => ctrl.abort(), 5000)
+      let r: Response
+      try {
+        r = await fetch('https://agents.circle.com/services', {
+          headers: { Accept: 'application/json' },
+          signal: ctrl.signal,
+        })
+      } finally {
+        clearTimeout(t)
+      }
       if (r.ok) {
         const ct = r.headers.get('content-type') ?? ''
         if (ct.includes('application/json')) {
@@ -69,105 +78,69 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     })
   }
 
-  // All other actions require Circle developer-controlled wallet credentials
-  const client = await getDevClient()
+  const client = getUserClient()
   if (!client) {
     return res.status(503).json({
-      error: 'Agent wallet credentials not configured. Add CIRCLE_API_KEY + CIRCLE_ENTITY_SECRET to Vercel environment variables.',
+      error: 'Circle API key not configured. Add CIRCLE_USER_CONTROLLED_API_KEY to Vercel environment variables.',
       setup_required: true,
     })
   }
 
-  // ── provision — create the agent wallet (one-time) ────────────────────────
+  // ── provision — create user pin + agent wallet (same as main app initialize) ─
   if (action === 'provision') {
+    const { userToken } = body
+    if (!userToken) return res.status(400).json({ error: 'userToken required' })
     try {
-      // 1. Create wallet set
-      const wsRes = await client.createWalletSet({
-        idempotencyKey: randomUUID(),
-        name: 'NAN Agent Wallet Set',
+      const response = await client.createUserPinWithWallets({
+        userToken,
+        blockchains: [Blockchain.ArcTestnet],
+        accountType: 'SCA',
       })
-      const walletSetId = wsRes.data?.walletSet?.id
-      if (!walletSetId) throw new Error('Failed to create wallet set')
-
-      // 2. Create agent wallet on Arc Testnet (EOA — needed for Gateway nanopayments)
-      const wRes = await client.createWallets({
-        idempotencyKey: randomUUID(),
-        // @ts-expect-error SDK enum may vary
-        blockchains: ['ARC-TESTNET'],
-        count: 1,
-        walletSetId,
-        metadata: [{ name: 'NAN Agent Wallet', refId: 'nan-agent-v1' }],
-      })
-      const wallet = wRes.data?.wallets?.[0]
-      if (!wallet) throw new Error('Failed to create agent wallet')
-
-      return res.status(200).json({
-        ok: true,
-        walletId: wallet.id,
-        address: wallet.address,
-        blockchain: wallet.blockchain,
-        walletSetId,
-        message: 'Agent wallet provisioned. Store AGENT_WALLET_ID and AGENT_WALLET_ADDRESS in your Vercel environment variables.',
-      })
+      const challengeId = response.data?.challengeId
+      if (!challengeId) throw new Error('No challengeId returned from Circle')
+      return res.status(200).json({ ok: true, challengeId })
     } catch (e) {
+      const code = (e as { response?: { data?: { code?: number } } })?.response?.data?.code
+      // 155106 = user already initialized — treat as success, just list wallets
+      if (code === 155106) {
+        return res.status(200).json({ ok: true, alreadyInitialized: true })
+      }
       return res.status(500).json({ error: e instanceof Error ? e.message : 'Provisioning failed' })
     }
   }
 
-  // ── status — get balance + spend log ──────────────────────────────────────
+  // ── status — get wallets + balance for a userToken ───────────────────────
   if (action === 'status') {
-    const walletId = process.env.AGENT_WALLET_ID
-    const address = process.env.AGENT_WALLET_ADDRESS
-    if (!walletId || !address) {
-      return res.status(200).json({
-        provisioned: false,
-        message: 'Agent wallet not yet provisioned. Call action=provision to create one.',
-      })
+    const userToken = (req.headers['x-user-token'] as string) ?? body.userToken
+    if (!userToken) {
+      // No token — not yet authenticated
+      return res.status(200).json({ provisioned: false })
     }
     try {
-      const balRes = await client.getWalletTokenBalance({ id: walletId })
-      const balances = balRes.data?.tokenBalances ?? []
-      const usdc = balances.find(b => b.token?.symbol === 'USDC')
+      const response = await client.listWallets({ userToken })
+      const wallets = response.data?.wallets ?? []
+      const wallet = wallets.find(w =>
+        w.blockchain?.toLowerCase().includes('arc') ||
+        w.blockchain?.toLowerCase().includes('testnet')
+      ) ?? wallets[0]
+      if (!wallet) return res.status(200).json({ provisioned: false })
+
+      // Get balance
+      let balance_usdc = '0'
+      try {
+        const balRes = await client.getWalletTokenBalance({ walletId: wallet.id, userToken })
+        const usdc = (balRes.data?.tokenBalances ?? []).find(b => b.token?.symbol === 'USDC')
+        balance_usdc = usdc?.amount ?? '0'
+      } catch { /* leave as 0 */ }
+
       return res.status(200).json({
         provisioned: true,
-        walletId,
-        address,
-        balance_usdc: usdc?.amount ?? '0',
-        balances,
+        walletId: wallet.id,
+        address: wallet.address,
+        balance_usdc,
       })
     } catch (e) {
-      return res.status(500).json({ error: e instanceof Error ? e.message : 'Balance check failed' })
-    }
-  }
-
-  // ── spend — send USDC from agent wallet for a service call ────────────────
-  if (action === 'spend') {
-    const { recipient, amount_usdc, service_id, memo } = body
-    if (!recipient || !amount_usdc) return res.status(400).json({ error: 'recipient and amount_usdc required' })
-
-    const walletId = process.env.AGENT_WALLET_ID
-    if (!walletId) return res.status(400).json({ error: 'AGENT_WALLET_ID not set — run action=provision first' })
-
-    // Safety cap: max $0.10 USDC per service call from agent wallet
-    if (parseFloat(amount_usdc) > 0.10) {
-      return res.status(400).json({ error: 'Agent wallet spend cap is 0.10 USDC per call. Adjust spending policy.' })
-    }
-
-    try {
-      const txRes = await client.createTransaction({
-        idempotencyKey: randomUUID(),
-        walletId,
-        destinationAddress: recipient,
-        // tokenAddress: '' means native token (USDC on Arc)
-        tokenAddress: '',
-        amount: [amount_usdc],
-        fee: { type: 'level', config: { feeLevel: 'MEDIUM' } },
-        refId: memo ?? `NAN Agent payment for ${service_id ?? 'service'}`,
-      })
-      const txId = txRes.data?.id
-      return res.status(200).json({ ok: true, txId, service_id, amount_usdc })
-    } catch (e) {
-      return res.status(500).json({ error: e instanceof Error ? e.message : 'Spend failed' })
+      return res.status(500).json({ error: e instanceof Error ? e.message : 'Status check failed' })
     }
   }
 
