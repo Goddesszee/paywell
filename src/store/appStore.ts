@@ -324,6 +324,11 @@ export interface AgentWalletState {
   balance_usdc: string
   lastRefreshed?: string
   userToken?: string        // persisted so dashboard can refresh balance without re-login
+  blockchain?: string
+  accountType?: string
+  custodyType?: string
+  createDate?: string | null
+  walletState?: string
 }
 
 export interface AgentSpendEntry {

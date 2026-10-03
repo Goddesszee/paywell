@@ -134,10 +134,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       } catch { /* leave as 0 */ }
 
       return res.status(200).json({
-        provisioned: true,
-        walletId: wallet.id,
-        address: wallet.address,
+        provisioned:  true,
+        walletId:     wallet.id,
+        address:      wallet.address,
         balance_usdc,
+        blockchain:   wallet.blockchain ?? 'ARC-TESTNET',
+        accountType:  wallet.accountType ?? 'SCA',
+        custodyType:  wallet.custodyType ?? 'ENDUSER',
+        createDate:   wallet.createDate ?? null,
+        walletState:  wallet.state ?? 'LIVE',
       })
     } catch (e) {
       return res.status(500).json({ error: e instanceof Error ? e.message : 'Status check failed' })

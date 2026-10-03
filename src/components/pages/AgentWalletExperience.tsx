@@ -579,13 +579,51 @@ function ErrorScreen({ message, onRetry, C }: { message: string; onRetry: () => 
 
 // ── SCREEN: Dashboard ─────────────────────────────────────────────────────────
 
+function SectionLabel({ label }: { label: string }) {
+  return (
+    <div style={{ fontSize: 11, fontWeight: 700, color: '#50556A', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10, marginTop: 4 }}>
+      {label}
+    </div>
+  )
+}
+
+function InfoRow({ label, value, mono, C }: { label: string; value: string; mono?: boolean; C: ReturnType<typeof useNanTheme> }) {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, padding: '10px 0', borderBottom: `1px solid ${C.bdr}` }}>
+      <span style={{ fontSize: 12, color: C.t2, flexShrink: 0 }}>{label}</span>
+      <span style={{ fontSize: 12, fontWeight: 600, color: C.text, textAlign: 'right', wordBreak: 'break-all', fontFamily: mono ? MONO : F }}>{value}</span>
+    </div>
+  )
+}
+
+function CapabilityRow({ label, supported, note, C }: { label: string; supported: boolean; note?: string; C: ReturnType<typeof useNanTheme> }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '9px 0', borderBottom: `1px solid ${C.bdr}` }}>
+      <div>
+        <span style={{ fontSize: 13, color: supported ? C.text : C.t3, fontWeight: supported ? 600 : 400 }}>{label}</span>
+        {note && <div style={{ fontSize: 11, color: C.t3, marginTop: 2 }}>{note}</div>}
+      </div>
+      <div style={{
+        fontSize: 11, fontWeight: 700, padding: '3px 9px', borderRadius: 6,
+        background: supported ? 'rgba(0,200,83,0.10)' : 'rgba(255,255,255,0.05)',
+        color: supported ? GREEN : C.t3,
+        border: `1px solid ${supported ? 'rgba(0,200,83,0.25)' : C.bdr}`,
+      }}>
+        {supported ? 'Enabled' : 'Not configured'}
+      </div>
+    </div>
+  )
+}
+
 function DashboardScreen({ C }: { C: ReturnType<typeof useNanTheme> }) {
   const { agentWallet, setAgentWallet, agentSpendLog, auth } = useAppStore()
   const [refreshing, setRefreshing] = useState(false)
   const [copied, setCopied]         = useState(false)
+  const [detailsOpen, setDetailsOpen] = useState(false)
 
   const totalSpent = agentSpendLog.reduce((s, e) => s + e.amount_usdc, 0)
   const balance    = parseFloat(agentWallet.balance_usdc || '0')
+  const isActive   = agentWallet.walletState === 'LIVE' || !agentWallet.walletState
 
   const refresh = useCallback(async () => {
     const userToken = agentWallet.userToken
@@ -597,8 +635,21 @@ function DashboardScreen({ C }: { C: ReturnType<typeof useNanTheme> }) {
         headers: { 'Content-Type': 'application/json', 'x-user-token': userToken },
         body: JSON.stringify({ action: 'status', userToken }),
       })
-      const d = await r.json() as { provisioned?: boolean; address?: string; walletId?: string; balance_usdc?: string }
-      setAgentWallet({ provisioned: d.provisioned ?? false, address: d.address, walletId: d.walletId, balance_usdc: d.balance_usdc ?? '0', lastRefreshed: new Date().toISOString() })
+      const d = await r.json() as {
+        provisioned?: boolean; address?: string; walletId?: string; balance_usdc?: string
+        blockchain?: string; accountType?: string; custodyType?: string; createDate?: string | null; walletState?: string
+      }
+      setAgentWallet({
+        provisioned: d.provisioned ?? false,
+        address: d.address, walletId: d.walletId,
+        balance_usdc: d.balance_usdc ?? '0',
+        lastRefreshed: new Date().toISOString(),
+        blockchain: d.blockchain,
+        accountType: d.accountType,
+        custodyType: d.custodyType,
+        createDate: d.createDate,
+        walletState: d.walletState,
+      })
     } catch { /* keep stale state */ }
     setRefreshing(false)
   }, [agentWallet.userToken, setAgentWallet])
@@ -619,53 +670,106 @@ function DashboardScreen({ C }: { C: ReturnType<typeof useNanTheme> }) {
     setTimeout(() => setCopied(false), 2000)
   }
 
+  // Format blockchain name for display
+  const chainLabel = agentWallet.blockchain
+    ? agentWallet.blockchain.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+    : 'Arc Testnet'
+
+  // Format date
+  const createdLabel = agentWallet.createDate
+    ? new Date(agentWallet.createDate).toLocaleDateString('en', { year: 'numeric', month: 'short', day: 'numeric' })
+    : '—'
+
   return (
-    <div style={{ fontFamily: F, display: 'flex', flexDirection: 'column', gap: 14 }}>
-      {/* balance card */}
-      <div style={{ background: 'linear-gradient(135deg, rgba(0,102,255,0.18) 0%, rgba(0,102,255,0.06) 100%)', border: '1px solid rgba(0,102,255,0.28)', borderRadius: 22, padding: '20px 20px 16px', position: 'relative', overflow: 'hidden' }}>
-        <div style={{ position: 'absolute', top: -30, right: -30, width: 120, height: 120, borderRadius: '50%', background: 'rgba(0,102,255,0.15)', filter: 'blur(40px)', pointerEvents: 'none' }} />
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
+    <div style={{ fontFamily: F, display: 'flex', flexDirection: 'column', gap: 6 }}>
+
+      {/* ── Circle Agent Stack identity banner ─────────────────────────────── */}
+      <div style={{ background: 'rgba(0,102,255,0.06)', border: '1px solid rgba(0,102,255,0.16)', borderRadius: 14, padding: '12px 16px', marginBottom: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
-            <div style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 3 }}>Agent Wallet</div>
-            <div style={{ fontSize: 32, fontWeight: 800, color: '#fff', fontFamily: MONO, letterSpacing: '-0.02em', lineHeight: 1 }}>{balance.toFixed(2)}</div>
-            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginTop: 3 }}>USDC · Available balance</div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: BLUE, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2 }}>
+              NAN Agent Wallet
+            </div>
+            <div style={{ fontSize: 12, color: C.t2 }}>Powered by Circle Agent Stack</div>
           </div>
-          <button onClick={() => void refresh()} style={{ width: 34, height: 34, borderRadius: 10, background: 'rgba(255,255,255,0.1)', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }} aria-label="Refresh balance">
-            <RefreshCw size={15} color="rgba(255,255,255,0.7)" style={{ animation: refreshing ? 'aw-spin 1s linear infinite' : 'none' }} />
-          </button>
-        </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <div style={{ background: 'rgba(0,200,83,0.15)', border: '1px solid rgba(0,200,83,0.3)', borderRadius: 8, padding: '3px 10px', display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
-            <div style={{ width: 6, height: 6, borderRadius: '50%', background: GREEN }} />
-            <span style={{ fontSize: 11, fontWeight: 700, color: GREEN }}>Active</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div style={{ width: 7, height: 7, borderRadius: '50%', background: isActive ? GREEN : AMBER, boxShadow: isActive ? `0 0 6px ${GREEN}` : 'none' }} />
+            <span style={{ fontSize: 12, fontWeight: 700, color: isActive ? GREEN : AMBER }}>
+              {isActive ? 'Connected' : 'Inactive'}
+            </span>
           </div>
-          <div style={{ flex: 1, background: 'rgba(0,0,0,0.2)', borderRadius: 10, padding: '7px 10px', overflow: 'hidden' }}>
-            <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', fontFamily: MONO }}>{agentWallet.address ? shortenAddress(agentWallet.address) : '—'}</span>
-          </div>
-          <button onClick={copyAddress} style={{ width: 34, height: 34, borderRadius: 10, flexShrink: 0, background: 'rgba(255,255,255,0.12)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitTapHighlightColor: 'transparent' }} aria-label="Copy address">
-            {copied ? <Check size={14} color={GREEN} /> : <Copy size={14} color="rgba(255,255,255,0.7)" />}
-          </button>
         </div>
       </div>
 
-      {/* fund guide */}
-      <div style={{ background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 16, padding: '14px 16px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-          <Coins size={14} color={BLUE} />
-          <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>How to fund your Agent Wallet</span>
+      {/* ── Balance card ───────────────────────────────────────────────────── */}
+      <SectionLabel label="Overview" />
+      <div style={{ background: 'linear-gradient(135deg, rgba(0,102,255,0.20) 0%, rgba(0,102,255,0.07) 100%)', border: '1px solid rgba(0,102,255,0.28)', borderRadius: 22, padding: '20px 20px 16px', position: 'relative', overflow: 'hidden', marginBottom: 8 }}>
+        <div style={{ position: 'absolute', top: -30, right: -30, width: 120, height: 120, borderRadius: '50%', background: 'rgba(0,102,255,0.15)', filter: 'blur(40px)', pointerEvents: 'none' }} />
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,0.45)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>Available Balance</div>
+            <div style={{ fontSize: 34, fontWeight: 800, color: '#fff', fontFamily: MONO, letterSpacing: '-0.02em', lineHeight: 1 }}>{balance.toFixed(2)}</div>
+            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)', marginTop: 4 }}>USDC · {chainLabel}</div>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
+            <div style={{ background: 'rgba(0,200,83,0.15)', border: '1px solid rgba(0,200,83,0.3)', borderRadius: 8, padding: '4px 10px', display: 'flex', alignItems: 'center', gap: 5 }}>
+              <div style={{ width: 6, height: 6, borderRadius: '50%', background: GREEN }} />
+              <span style={{ fontSize: 11, fontWeight: 700, color: GREEN }}>Active</span>
+            </div>
+            <button onClick={() => void refresh()} style={{ width: 32, height: 32, borderRadius: 9, background: 'rgba(255,255,255,0.08)', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }} aria-label="Refresh">
+              <RefreshCw size={13} color="rgba(255,255,255,0.6)" style={{ animation: refreshing ? 'aw-spin 1s linear infinite' : 'none' }} />
+            </button>
+          </div>
         </div>
-        <p style={{ fontSize: 12, color: C.t2, lineHeight: 1.6, margin: '0 0 10px' }}>
-          Send USDC to the address above from your NAN wallet or any external wallet. The agent uses this as its spend budget — it never touches your main balance.
-        </p>
-        {auth?.walletAddress && (
-          <div style={{ paddingTop: 10, borderTop: `1px solid ${C.bdr}`, fontSize: 12, color: C.t3 }}>
-            From NAN Wallet → Send → paste Agent Wallet address
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <div style={{ flex: 1, background: 'rgba(0,0,0,0.22)', borderRadius: 10, padding: '8px 12px', overflow: 'hidden' }}>
+            <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', fontFamily: MONO }}>{agentWallet.address ? shortenAddress(agentWallet.address) : '—'}</span>
+          </div>
+          <button onClick={copyAddress} style={{ width: 36, height: 36, borderRadius: 10, flexShrink: 0, background: 'rgba(255,255,255,0.10)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitTapHighlightColor: 'transparent' }} aria-label="Copy address">
+            {copied ? <Check size={14} color={GREEN} /> : <Copy size={14} color="rgba(255,255,255,0.65)" />}
+          </button>
+        </div>
+        {agentWallet.lastRefreshed && (
+          <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.28)', marginTop: 10 }}>
+            Updated {new Date(agentWallet.lastRefreshed).toLocaleTimeString('en', { hour: '2-digit', minute: '2-digit' })}
           </div>
         )}
       </div>
 
-      {/* spend log */}
-      <div style={{ background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 16, padding: '14px 16px' }}>
+      {/* ── Agent Policy ───────────────────────────────────────────────────── */}
+      <SectionLabel label="Agent Policy" />
+      <div style={{ background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 16, padding: '4px 16px', marginBottom: 8 }}>
+        <InfoRow label="Spending limit"     value="Set by you"          C={C} />
+        <InfoRow label="Transaction limit"  value="No hard limit set"   C={C} />
+        <InfoRow label="Allowed actions"    value="Send · Receive · Pay" C={C} />
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0' }}>
+          <span style={{ fontSize: 12, color: C.t2 }}>Policy status</span>
+          <span style={{ fontSize: 12, fontWeight: 700, color: isActive ? GREEN : AMBER }}>
+            {isActive ? 'Active' : 'Inactive'}
+          </span>
+        </div>
+      </div>
+      <div style={{ background: 'rgba(0,102,255,0.05)', border: '1px solid rgba(0,102,255,0.14)', borderRadius: 12, padding: '11px 14px', marginBottom: 8, fontSize: 12, color: C.t2, lineHeight: 1.6 }}>
+        Your Agent Wallet has a separate balance from your NAN Main Wallet. The NAN Agent can only spend funds available in its Agent Wallet according to its configured policies.
+      </div>
+
+      {/* ── Agent Capabilities ─────────────────────────────────────────────── */}
+      <SectionLabel label="What NAN Agent Can Do" />
+      <div style={{ background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 16, padding: '4px 16px', marginBottom: 8 }}>
+        <CapabilityRow label="Hold USDC"                supported={true}  C={C} />
+        <CapabilityRow label="Receive USDC"             supported={true}  C={C} />
+        <CapabilityRow label="Send USDC"                supported={true}  note="To permitted addresses"  C={C} />
+        <CapabilityRow label="Agent Payments"           supported={true}  note="Pay for services on your behalf" C={C} />
+        <CapabilityRow label="Bridge"                   supported={false} note="Coming soon" C={C} />
+        <CapabilityRow label="Swap"                     supported={false} note="Coming soon" C={C} />
+        <div style={{ padding: '10px 0' }}>
+          <CapabilityRow label="Automated Recurring Pay" supported={false} note="Coming soon" C={C} />
+        </div>
+      </div>
+
+      {/* ── Agent Activity ─────────────────────────────────────────────────── */}
+      <SectionLabel label="Agent Activity" />
+      <div style={{ background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 16, padding: '14px 16px', marginBottom: 8 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
             <BarChart3 size={14} color={C.t2} />
@@ -678,17 +782,65 @@ function DashboardScreen({ C }: { C: ReturnType<typeof useNanTheme> }) {
             <div style={{ width: 34, height: 34, borderRadius: 10, background: C.surf2, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 8px' }}>
               <Clock size={15} color={C.t3} />
             </div>
-            <div style={{ fontSize: 12, fontWeight: 600, color: C.text, marginBottom: 3 }}>No payments yet</div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: C.text, marginBottom: 3 }}>No activity yet</div>
             <div style={{ fontSize: 11, color: C.t3 }}>Agent payments appear here automatically</div>
           </div>
         ) : (
-          <div>
-            {agentSpendLog.slice(0, 20).map((e, i) => (
-              <SpendRow key={e.id} entry={e} last={i === Math.min(agentSpendLog.length, 20) - 1} C={C} />
-            ))}
+          agentSpendLog.slice(0, 20).map((e, i) => (
+            <SpendRow key={e.id} entry={e} last={i === Math.min(agentSpendLog.length, 20) - 1} C={C} />
+          ))
+        )}
+      </div>
+
+      {/* ── Funding ────────────────────────────────────────────────────────── */}
+      <SectionLabel label="Funding" />
+      <div style={{ background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 16, padding: '14px 16px', marginBottom: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+          <Coins size={14} color={BLUE} />
+          <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>How to fund your Agent Wallet</span>
+        </div>
+        <p style={{ fontSize: 12, color: C.t2, lineHeight: 1.6, margin: '0 0 10px' }}>
+          Send USDC to the Agent Wallet address. The agent uses this as its spend budget and never touches your main NAN Wallet balance.
+        </p>
+        {auth?.walletAddress && (
+          <div style={{ paddingTop: 10, borderTop: `1px solid ${C.bdr}`, fontSize: 12, color: C.t3 }}>
+            From NAN Wallet → Send → paste Agent Wallet address
           </div>
         )}
       </div>
+
+      {/* ── Circle Agent Stack connection + wallet details ─────────────────── */}
+      <SectionLabel label="Circle Agent Stack" />
+      <div style={{ background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 16, padding: '14px 16px', marginBottom: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, paddingBottom: 12, borderBottom: `1px solid ${C.bdr}` }}>
+          <div style={{ width: 8, height: 8, borderRadius: '50%', background: GREEN, boxShadow: `0 0 6px ${GREEN}` }} />
+          <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>Connected</span>
+          <span style={{ fontSize: 12, color: C.t3, marginLeft: 'auto' }}>Agent Wallet: Active</span>
+        </div>
+        <button
+          onClick={() => setDetailsOpen(o => !o)}
+          style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 0, fontFamily: F, WebkitTapHighlightColor: 'transparent' }}
+        >
+          <span style={{ fontSize: 13, fontWeight: 600, color: C.text }}>Wallet details</span>
+          {detailsOpen ? <ChevronDown size={15} color={C.t3} /> : <ChevronRight size={15} color={C.t3} />}
+        </button>
+        {detailsOpen && (
+          <div style={{ marginTop: 12 }}>
+            <InfoRow label="Wallet address" value={agentWallet.address ?? '—'}  mono C={C} />
+            <InfoRow label="Wallet ID"      value={agentWallet.walletId ?? '—'} mono C={C} />
+            <InfoRow label="Network"        value={chainLabel}                        C={C} />
+            <InfoRow label="Asset"          value="USDC"                              C={C} />
+            <InfoRow label="Account type"   value={agentWallet.accountType ?? '—'}    C={C} />
+            <InfoRow label="Wallet status"  value={agentWallet.walletState ?? 'LIVE'} C={C} />
+            <InfoRow label="Infrastructure" value="Circle Agent Stack"                C={C} />
+            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0' }}>
+              <span style={{ fontSize: 12, color: C.t2 }}>Created</span>
+              <span style={{ fontSize: 12, fontWeight: 600, color: C.text }}>{createdLabel}</span>
+            </div>
+          </div>
+        )}
+      </div>
+
     </div>
   )
 }
