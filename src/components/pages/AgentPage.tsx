@@ -586,6 +586,160 @@ function OrchestratorStream({ steps, onConfirm, onCancel, awaitingConfirmation }
   )
 }
 
+// ── InlineChatSwap — swap flow embedded directly in the conversation ─────────
+
+interface InlineSwapProps {
+  fromToken: string
+  toToken: string
+  amount: string
+  agentUserToken: string
+  agentAddress: string
+  agentBalance: string
+  onDone: (msg: string) => void
+  onCancel: () => void
+}
+
+function InlineChatSwap({ fromToken, toToken, amount, agentUserToken, agentAddress, agentBalance, onDone, onCancel }: InlineSwapProps) {
+  type Phase = 'quoting' | 'quoted' | 'swapping' | 'done' | 'error'
+  const [phase, setPhase]   = useState<Phase>('quoting')
+  const [quote, setQuote]   = useState<{ fromAmount: string; toAmount: string; rate: string; fee?: string; provider: string } | null>(null)
+  const [errMsg, setErrMsg] = useState('')
+  const [txHash, setTxHash] = useState('')
+  const balance = parseFloat(agentBalance || '0')
+  const gross   = parseFloat(amount) || 0
+  const canAfford = gross <= balance && gross > 0
+
+  // Auto-fetch quote on mount
+  useEffect(() => {
+    let cancelled = false
+    const go = async () => {
+      try {
+        const r = await fetch('/api/agent-wallet', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'swap-quote', fromToken, toToken, fromChain: 'Arc Testnet', toChain: 'Arc Testnet', amount, agentAddress }),
+        })
+        const d = await r.json() as { ok?: boolean; error?: string; not_configured?: boolean; quote?: { fromAmount: string; toAmount: string; rate: string; fee?: string; provider: string } }
+        if (cancelled) return
+        if (d.not_configured) { setErrMsg('Swap backend not configured. Set CIRCLE_API_KEY, AGENT_WALLET_ID in Vercel environment variables.'); setPhase('error'); return }
+        if (!r.ok || d.error || !d.quote) throw new Error(d.error ?? 'Could not get a quote right now.')
+        setQuote(d.quote); setPhase('quoted')
+      } catch (e) {
+        if (!cancelled) { setErrMsg(e instanceof Error ? e.message : 'Could not get a quote.'); setPhase('error') }
+      }
+    }
+    void go()
+    return () => { cancelled = true }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const executeSwap = async () => {
+    if (!quote || !canAfford) return
+    setPhase('swapping')
+    try {
+      const r = await fetch('/api/agent-wallet', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-user-token': agentUserToken },
+        body: JSON.stringify({ action: 'swap', userToken: agentUserToken, fromToken, toToken, fromChain: 'Arc Testnet', toChain: 'Arc Testnet', amount, agentAddress }),
+      })
+      const d = await r.json() as { ok?: boolean; error?: string; not_configured?: boolean; txHash?: string; toAmount?: string }
+      if (d.not_configured) { setErrMsg('Swap backend not configured.'); setPhase('error'); return }
+      if (!r.ok || d.error) throw new Error(d.error ?? 'Swap failed.')
+      setTxHash(d.txHash ?? '')
+      setPhase('done')
+      onDone(`Swap complete — ${amount} ${fromToken} → ${d.toAmount ?? quote.toAmount} ${toToken}${d.txHash ? ` · tx: ${d.txHash.slice(0,10)}…` : ''}`)
+    } catch (e) {
+      setErrMsg(e instanceof Error ? e.message : 'Swap failed.')
+      setPhase('error')
+    }
+  }
+
+  const BLUE = '#0066FF'; const GREEN = '#00C853'
+
+  if (phase === 'quoting') return (
+    <div style={{ background: SURF, border: `1px solid ${BDR}`, borderRadius: 16, padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 10, fontFamily: F }}>
+      <div style={{ fontSize: 12, fontWeight: 700, color: TEXT3, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Swap Quote</div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: TEXT2 }}>
+        <div style={{ width: 14, height: 14, border: `2px solid ${BLUE}`, borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite', flexShrink: 0 }} />
+        Getting the best rate for {amount} {fromToken} → {toToken}…
+      </div>
+    </div>
+  )
+
+  if (phase === 'error') return (
+    <div style={{ background: 'rgba(255,59,59,0.06)', border: '1px solid rgba(255,59,59,0.2)', borderRadius: 16, padding: '16px 18px', fontFamily: F }}>
+      <div style={{ fontSize: 13, fontWeight: 700, color: '#FF3B3B', marginBottom: 6 }}>Couldn't complete the swap.</div>
+      <div style={{ fontSize: 12, color: TEXT2, marginBottom: 12 }}>{errMsg}</div>
+      <button onClick={onCancel} style={{ padding: '7px 16px', background: SURF, border: `1px solid ${BDR}`, borderRadius: 10, fontSize: 12, fontWeight: 600, color: TEXT, cursor: 'pointer', fontFamily: F }}>Dismiss</button>
+    </div>
+  )
+
+  if (phase === 'swapping') return (
+    <div style={{ background: SURF, border: `1px solid ${BDR}`, borderRadius: 16, padding: '16px 18px', display: 'flex', alignItems: 'center', gap: 10, fontFamily: F }}>
+      <div style={{ width: 14, height: 14, border: `2px solid ${BLUE}`, borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite', flexShrink: 0 }} />
+      <span style={{ fontSize: 13, color: TEXT2 }}>Processing your swap…</span>
+    </div>
+  )
+
+  if (phase === 'done') return (
+    <div style={{ background: 'rgba(0,200,83,0.06)', border: '1px solid rgba(0,200,83,0.2)', borderRadius: 16, padding: '16px 18px', fontFamily: F }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 4 }}>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={GREEN} strokeWidth="2.5"><path d="M20 6L9 17l-5-5"/></svg>
+        <span style={{ fontSize: 13, fontWeight: 700, color: GREEN }}>Swap complete</span>
+      </div>
+      {txHash && <div style={{ fontSize: 11, color: BLUE, fontFamily: "'JetBrains Mono',monospace" }}>{txHash.slice(0, 18)}…</div>}
+    </div>
+  )
+
+  // phase === 'quoted'
+  return (
+    <div style={{ background: SURF, border: `1px solid ${BDR}`, borderRadius: 16, padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 12, fontFamily: F }}>
+      <div style={{ fontSize: 12, fontWeight: 700, color: TEXT3, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Swap Quote</div>
+
+      {/* Big visual rate */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-start' }}>
+        <div style={{ fontSize: 22, fontWeight: 800, color: TEXT, fontFamily: "'JetBrains Mono',monospace" }}>{quote?.fromAmount} {fromToken}</div>
+        <div style={{ fontSize: 13, color: TEXT3 }}>↓</div>
+        <div style={{ fontSize: 22, fontWeight: 800, color: BLUE, fontFamily: "'JetBrains Mono',monospace" }}>{quote?.toAmount} {toToken}</div>
+      </div>
+
+      {/* Details */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, borderTop: `1px solid ${BDR}`, paddingTop: 10 }}>
+        {[
+          { label: 'Rate', value: quote?.rate ?? '—' },
+          { label: 'Fee', value: quote?.fee ?? 'None' },
+          { label: 'Provider', value: quote?.provider ?? '—' },
+          { label: 'Agent Wallet balance', value: `${balance.toFixed(4)} USDC` },
+        ].map(row => (
+          <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0' }}>
+            <span style={{ fontSize: 11, color: TEXT2 }}>{row.label}</span>
+            <span style={{ fontSize: 11, fontWeight: 600, color: TEXT }}>{row.value}</span>
+          </div>
+        ))}
+      </div>
+
+      {!canAfford && <div style={{ fontSize: 12, color: '#FF9500', background: 'rgba(255,149,0,0.08)', borderRadius: 8, padding: '7px 10px' }}>Your Agent Wallet doesn't have enough USDC for this swap.</div>}
+
+      {/* Actions */}
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button
+          onClick={() => void executeSwap()}
+          disabled={!canAfford}
+          style={{ flex: 2, height: 42, background: canAfford ? BLUE : SURF2, color: canAfford ? '#fff' : TEXT3, border: 'none', borderRadius: 12, fontSize: 13, fontWeight: 700, cursor: canAfford ? 'pointer' : 'not-allowed', fontFamily: F }}
+        >
+          Confirm swap
+        </button>
+        <button
+          onClick={onCancel}
+          style={{ flex: 1, height: 42, background: 'transparent', color: TEXT2, border: `1px solid ${BDR}`, borderRadius: 12, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: F }}
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  )
+}
+
 // ── Main chat tab ─────────────────────────────────────────────────────────────
 
 function AgentChat({ onNavigate }: { onNavigate?: (page: string, query?: string) => void }) {
@@ -617,6 +771,8 @@ function AgentChat({ onNavigate }: { onNavigate?: (page: string, query?: string)
   const isNearBottom = useRef(true)
   const sellerAddress = import.meta.env.VITE_X402_SELLER_ADDRESS as string | undefined
   const [serviceExecState, setServiceExecState] = useState<ServiceExecState>({ phase: 'idle' })
+  // Inline swap state — drives InlineChatSwap rendered at bottom of message list
+  const [inlineSwap, setInlineSwap] = useState<{ fromToken: string; toToken: string; amount: string } | null>(null)
   // Pending confirmation params — stored so confirm button can re-call with confirmed=1
   const pendingServiceRef = useRef<{ svcId: string | null; endpoint: string | null; query: string } | null>(null)
 
@@ -1025,7 +1181,14 @@ function AgentChat({ onNavigate }: { onNavigate?: (page: string, query?: string)
         if (res.action) {
           const parsed = parseAction(res.action)
           if (parsed) {
-            if (!requiresConfirmation(parsed)) {
+            // swap_start → inline swap flow in chat (never navigate away)
+            if (parsed.action === 'swap_start') {
+              setInlineSwap({
+                fromToken: parsed.params.fromToken ?? 'USDC',
+                toToken:   parsed.params.toToken   ?? 'USDC',
+                amount:    parsed.params.amount     ?? '',
+              })
+            } else if (!requiresConfirmation(parsed)) {
               // Execute immediately (navigate, toggle, search)
               try {
                 const store = useAppStore.getState()
@@ -1199,6 +1362,37 @@ function AgentChat({ onNavigate }: { onNavigate?: (page: string, query?: string)
               <span style={{ width:7, height:7, borderRadius:'50%', background:TEXT3, display:'inline-block', animation:'nanTyping 1.2s ease-in-out infinite', animationDelay:'0.2s' }} />
               <span style={{ width:7, height:7, borderRadius:'50%', background:TEXT3, display:'inline-block', animation:'nanTyping 1.2s ease-in-out infinite', animationDelay:'0.4s' }} />
             </div>
+          </div>
+        )}
+        {/* ── Inline swap UI — appears in conversation after swap_start ── */}
+        {inlineSwap && !agentWallet.provisioned && (
+          <div style={{ display:'flex', justifyContent:'flex-start', paddingLeft:36 }}>
+            <div style={{ background:'rgba(255,149,0,0.08)', border:'1px solid rgba(255,149,0,0.2)', borderRadius:14, padding:'12px 14px', fontSize:13, color:'#FF9500', fontFamily:F, maxWidth:'85%' }}>
+              Set up your Agent Wallet first to use swaps.
+            </div>
+          </div>
+        )}
+        {inlineSwap && agentWallet.provisioned && (
+          <div style={{ paddingLeft:36, paddingRight:4 }}>
+            <InlineChatSwap
+              fromToken={inlineSwap.fromToken}
+              toToken={inlineSwap.toToken}
+              amount={inlineSwap.amount}
+              agentUserToken={agentWallet.userToken ?? ''}
+              agentAddress={agentWallet.address ?? ''}
+              agentBalance={agentWallet.balance_usdc ?? '0'}
+              onDone={(msg) => {
+                setInlineSwap(null)
+                addAgentMessage({ role:'agent', content: msg, action:'info' })
+                const store = useAppStore.getState()
+                store.addAgentSpend({ id:`spend-${Date.now()}`, service_id:'agent-swap', service_name:`Swap ${inlineSwap.amount} ${inlineSwap.fromToken} → ${inlineSwap.toToken}`, amount_usdc: parseFloat(inlineSwap.amount)||0, paid:true, timestamp:new Date().toISOString() })
+                store.addActivity({ type:'swap', description:`Agent Swap: ${inlineSwap.amount} ${inlineSwap.fromToken} → ${inlineSwap.toToken}`, amount:parseFloat(inlineSwap.amount)||0, sign:'-', status:'confirmed', counterparty:inlineSwap.toToken })
+              }}
+              onCancel={() => {
+                setInlineSwap(null)
+                addAgentMessage({ role:'agent', content:'Swap cancelled.', action:'info' })
+              }}
+            />
           </div>
         )}
         {/* Scroll anchor */}

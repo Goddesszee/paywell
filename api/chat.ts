@@ -247,9 +247,10 @@ Example trigger: "send 2 USDC from my agent wallet to 0xABC"
 {"action":"bridge_start","params":{"amount":"<number string>","toChain":"<chain name>"}}
 Example trigger: "bridge 50 USDC to Base Sepolia", "bridge to Ethereum"
 
-**SWAP TOKENS (opens Swap tab pre-filled):**
+**SWAP TOKENS (executes inline in chat — do NOT say "opening Swap tab"):**
 {"action":"swap_start","params":{"fromToken":"USDC","toToken":"<token>","amount":"<number string>"}}
 Example trigger: "swap 10 USDC to EURC", "convert 5 USDC to ETH"
+IMPORTANT: When you emit swap_start, tell the user "Sure, let me get you a quote." — the swap quote card will appear directly below your message. Never say "I'm opening the Swap tab" or "complete this in the Swap tab".
 
 **RECURRING PAYMENT — add a new scheduled USDC payment:**
 {"action":"add_recurring","params":{"name":"<label>","recipient":"<0x address>","amount":"<number string>","frequency":"manual|daily|weekly|monthly"}}
