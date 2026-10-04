@@ -301,7 +301,22 @@ export function SwapPage() {
     if (!circleWalletAddress) return
     setPhase('estimating'); setErrMsg('')
     const userToken = auth?.userToken
-    const walletId  = auth?.circleWalletId
+    let walletId    = auth?.circleWalletId
+
+    // walletId can be an empty string after a page reload if the wallet list
+    // fetch completed before the store persisted the wallet. Re-fetch it now.
+    if (userToken && !walletId) {
+      try {
+        const r = await fetch('/api/wallet', { headers: { 'x-user-token': userToken } })
+        const d = await r.json() as { wallets?: { id: string; address: string }[] }
+        const w = d.wallets?.[0]
+        if (w?.id) {
+          walletId = w.id
+          useAppStore.getState().setAuth({ ...auth, circleWalletId: w.id, circleWalletAddress: w.address, walletId: w.id, walletAddress: w.address })
+        }
+      } catch { /* fall through to error below */ }
+    }
+
     if (!userToken || !walletId) { setPhase('error'); setErrMsg('SESSION_EXPIRED'); return }
     try {
       const resp = await fetch('/api/wallet', {
@@ -329,7 +344,10 @@ export function SwapPage() {
       setPhase('error'); setErrMsg('SESSION_EXPIRED'); return
     }
     if (!encryptionKey) {
-      setPhase('error'); setErrMsg('Your session key expired after the page reloaded. Please log out and log in again to swap.'); return
+      // encryptionKey is in-memory only and is lost on page reload.
+      // userToken is still valid — the user just needs to re-authenticate
+      // to get a fresh encryptionKey without losing their wallet.
+      setPhase('error'); setErrMsg('SESSION_EXPIRED'); return
     }
     try {
       // Step 1: server starts the swap and returns a challengeId
@@ -560,10 +578,10 @@ export function SwapPage() {
           <div className="nan-error-box" style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 10 }}>
             <AlertCircle size={14} style={{ flexShrink: 0, marginTop: 1 }} />
             <div>
-              <div style={{ fontWeight: 600, marginBottom: 4 }}>Session expired</div>
-              <div style={{ fontSize: 12, marginBottom: 8 }}>Your Circle login session has expired. Please log in again to swap.</div>
+              <div style={{ fontWeight: 600, marginBottom: 4 }}>Re-authentication needed</div>
+              <div style={{ fontSize: 12, marginBottom: 8 }}>To sign swap transactions, please log in again. Your wallet and balance are safe.</div>
               <button
-                onClick={() => { useAppStore.getState().setAuth(null); useAppStore.getState().setActiveView('login') }}
+                onClick={() => { useAppStore.getState().setAuth({ ...useAppStore.getState().auth!, userToken: undefined, encryptionKey: undefined }); useAppStore.getState().setActiveView('login') }}
                 className="nan-btn nan-btn-primary"
                 style={{ fontSize: 12, padding: '6px 14px', height: 'auto', borderRadius: 8 }}>
                 Log in again

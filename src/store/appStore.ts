@@ -456,11 +456,12 @@ export const useAppStore = create<AppState>()(
       }),
       merge: (persisted, current) => {
         const p = persisted as Partial<AppState>
-        // encryptionKey and userToken are ephemeral Circle UCW session values.
-        // encryptionKey must never survive a page reload (security).
-        // userToken expires after ~60 min — clearing it forces a fresh login
-        // rather than letting a stale token silently fail mid-swap/bridge.
-        if (p.auth) p.auth = { ...p.auth, encryptionKey: undefined, userToken: undefined }
+        // encryptionKey must never survive a page reload (security — it is the
+        // W3S PIN-derived key and must only live in memory for the current session).
+        // userToken is kept across reloads: it is a valid Circle UCW session token
+        // for the full login session. Swap estimation works with userToken alone;
+        // swap execution needs encryptionKey too and will prompt re-login if missing.
+        if (p.auth) p.auth = { ...p.auth, encryptionKey: undefined }
         return {
           ...current,
           ...p,
