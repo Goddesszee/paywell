@@ -523,6 +523,9 @@ function AgentChat({ onNavigate }: { onNavigate?: (page: string, query?: string)
           if (onNavigate) onNavigate(page, query)
         },
         agentWalletUserToken: agentWallet.userToken,
+        writeContractAsync,
+        connectedAddress: address,
+        chainId,
       })
       setActionResult(result)
       addAgentMessage({ role: 'agent', content: `Done: ${result}`, action: 'info' })
@@ -554,12 +557,15 @@ function AgentChat({ onNavigate }: { onNavigate?: (page: string, query?: string)
           ...agentMessages.filter(m=>m.role==='user'||m.role==='agent').slice(-10).map<{role:'user'|'assistant';content:string}>(m=>({role:(m.role==='agent'?'assistant':'user'),content:m.content})),
           {role:'user',content:text},
         ]
+        const storeSnap = useAppStore.getState()
         const res = await nanChat({
           messages: msgs,
-          usdcBal: String(agentPermissions.dailyLimit ?? 0),
-          userAddress: auth.walletAddress ?? '',
+          usdcBal: storeSnap.mainWalletBalance,
+          userAddress: address ?? auth.walletAddress ?? '',
           sessionToken: auth.sessionToken,
           context: {
+            mainBalance: storeSnap.mainWalletBalance,
+            mainAddress: address ?? auth.walletAddress ?? '',
             agentBalance: agentWallet.balance_usdc ?? '0',
             agentAddress: agentWallet.address,
             dailyLimit: agentPermissions.dailyLimit,
@@ -596,6 +602,9 @@ function AgentChat({ onNavigate }: { onNavigate?: (page: string, query?: string)
                   store,
                   navigate: (page: string, query?: string) => { if (onNavigate) onNavigate(page, query) },
                   agentWalletUserToken: agentWallet.userToken,
+                  writeContractAsync,
+                  connectedAddress: address,
+                  chainId,
                 })
                 addAgentMessage({ role:'agent', content: result, action:'info' })
               } catch (e) {

@@ -94,9 +94,20 @@ export function BridgePage() {
   // never runs during a re-render and avoids the "ref during render" lint error.
   const [appKit] = useState<AppKit>(() => new AppKit())
 
+  const bridgePrefill    = useAppStore(s => s.bridgePrefill)
+  const setBridgePrefill = useAppStore(s => s.setBridgePrefill)
+
   const [fromIdx, setFromIdx] = useState(0)
   const [toIdx, setToIdx]     = useState(1)
   const [amount, setAmount]   = useState('')
+
+  // Apply agent-chat prefill once on mount, then clear it
+  useEffect(() => {
+    if (!bridgePrefill) return
+    if (bridgePrefill.amount) setAmount(bridgePrefill.amount)
+    setBridgePrefill(null)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   const [steps, setSteps]     = useState<StepState[]>(INITIAL_STEPS)
   const [status, setStatus]   = useState<'idle'|'bridging'|'done'|'error'>('idle')
   const [errMsg, setErrMsg]   = useState('')

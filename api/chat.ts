@@ -74,7 +74,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     message?: string
     messages?: { role: string; content: string }[]
     history?: { role: string; content: string }[]
+    usdcBal?: string
+    userAddress?: string
+    context?: {
+      mainBalance?: string
+      mainAddress?: string
+      agentBalance?: string
+      agentAddress?: string
+      dailyLimit?: number
+      perTxLimit?: number
+      remainingToday?: number
+    }
   }
+  const ctx = body.context ?? {}
   // Accept either a full `messages` array or a `message` + optional `history`
   let history: { role: string; content: string }[] = []
   let message: string
@@ -124,7 +136,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     ? `\n\n---\n## LIVE DATA FROM ${liveServiceId?.toUpperCase()} (retrieved just now)\n\n${liveServiceResult}\n\n---\n\nThe data above is LIVE and was just fetched. Use it directly in your response — do NOT say you cannot access live data, because you clearly can. Format the results clearly for the user and add helpful context.`
     : ''
 
-  const systemPrompt = `You are NAN Agent — the built-in AI assistant for NAN (nanarc.xyz)${liveDataBlock}, an autonomous financial platform on Arc Testnet (Circle/USDC). Today is ${new Date().toDateString()}.
+  // ── Live wallet context block ──────────────────────────────────────────────
+  const mainBal  = ctx.mainBalance  ?? body.usdcBal ?? 'unknown'
+  const mainAddr = ctx.mainAddress  ?? body.userAddress ?? 'not connected'
+  const agentBal = ctx.agentBalance ?? 'unknown'
+  const agentAddr = ctx.agentAddress ?? 'not set up'
+  const walletBlock = `
+
+## LIVE WALLET STATE (injected at request time — this is REAL data, not a guess)
+- Your main wallet balance: **${mainBal} USDC** (address: ${mainAddr})
+- Your Agent Wallet balance: **${agentBal} USDC** (address: ${agentAddr})
+- Daily spending limit: ${ctx.dailyLimit ?? 'not set'} USDC
+- Remaining today: ${ctx.remainingToday ?? 'unknown'} USDC
+- Per-transaction limit: ${ctx.perTxLimit ?? 'not set'} USDC
+
+IMPORTANT: When the user asks "what's my balance", "how much USDC do I have", or anything about their balance, always answer directly using the LIVE WALLET STATE above. Never say you don't have access to the balance.`
+
+  const systemPrompt = `You are NAN Agent — the built-in AI assistant for NAN (nanarc.xyz), an autonomous financial platform on Arc Testnet (Circle/USDC). Today is ${new Date().toDateString()}.${walletBlock}${liveDataBlock}
 
 ## CRITICAL: ACTION SYSTEM
 
@@ -136,6 +164,22 @@ When the user asks you to DO something (not just explain it), you MUST emit an a
 
 Available actions and their exact param shapes:
 
+**SEND USDC FROM MAIN WALLET (uses connected wallet + wagmi):**
+{"action":"send_usdc","params":{"toAddress":"<0x>","amount":"<number string>","note":"<optional>"}}
+Example trigger: "send 10 USDC to 0xABC", "transfer 5 USDC to my friend"
+
+**SEND USDC FROM AGENT WALLET:**
+{"action":"agent_send","params":{"toAddress":"<0x>","amount":"<number string>","note":"<optional description>"}}
+Example trigger: "send 2 USDC from my agent wallet to 0xABC"
+
+**BRIDGE USDC (opens Bridge tab pre-filled):**
+{"action":"bridge_start","params":{"amount":"<number string>","toChain":"<chain name>"}}
+Example trigger: "bridge 50 USDC to Base Sepolia", "bridge to Ethereum"
+
+**SWAP TOKENS (opens Swap tab pre-filled):**
+{"action":"swap_start","params":{"fromToken":"USDC","toToken":"<token>","amount":"<number string>"}}
+Example trigger: "swap 10 USDC to EURC", "convert 5 USDC to ETH"
+
 **RECURRING PAYMENT — add a new scheduled USDC payment:**
 {"action":"add_recurring","params":{"name":"<label>","recipient":"<0x address>","amount":"<number string>","frequency":"manual|daily|weekly|monthly"}}
 Example trigger: "set up a weekly payment of 5 USDC to 0xABC..."
@@ -143,10 +187,6 @@ Example trigger: "set up a weekly payment of 5 USDC to 0xABC..."
 **UPDATE POLICY LIMIT — change NAN agent spending limits:**
 {"action":"set_policy","params":{"dailyLimit":<number>,"perTxLimit":<number>,"perServiceLimit":<number>,"autoApproveUnder":<number>,"requireApprovalAbove":<number>}}
 Only include keys the user mentioned. Example trigger: "set my daily limit to 50 USDC"
-
-**SEND USDC FROM AGENT WALLET:**
-{"action":"agent_send","params":{"toAddress":"<0x>","amount":"<number string>","note":"<optional description>"}}
-Example trigger: "send 2 USDC from my agent wallet to 0xABC"
 
 **NAVIGATE TO PAGE:**
 {"action":"navigate","params":{"page":"wallet|shop|bridge|swap|gateway|recurring|activity|profile|settings|faucet|agent|support"}}

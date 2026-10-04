@@ -11,7 +11,15 @@
  * - No action touches wallet credentials or secrets.
  */
 
+import { parseUnits } from 'viem'
+import { getUsdc } from '../onchain-facts'
 import type { AppState, RecurringFrequency } from '../store/appStore'
+
+const USDC_TRANSFER_ABI = [{
+  name: 'transfer', type: 'function', stateMutability: 'nonpayable',
+  inputs: [{ name: 'to', type: 'address' }, { name: 'value', type: 'uint256' }],
+  outputs: [{ name: '', type: 'bool' }],
+}] as const
 
 // ── Action type union ──────────────────────────────────────────────────────────
 
@@ -19,11 +27,14 @@ export type NanActionType =
   | 'add_recurring'
   | 'add_agent_recurring'
   | 'set_policy'
+  | 'send_usdc'
   | 'agent_send'
   | 'navigate'
   | 'toggle_agent'
   | 'shop_search'
+  | 'bridge_start'
   | 'bridge_info'
+  | 'swap_start'
 
 export interface AddRecurringAction {
   action: 'add_recurring'
@@ -57,12 +68,41 @@ export interface SetPolicyAction {
   }
 }
 
+// Send USDC from the user's main connected wallet (wagmi writeContract)
+export interface SendUsdcAction {
+  action: 'send_usdc'
+  params: {
+    toAddress: string
+    amount: string
+    note?: string
+  }
+}
+
 export interface AgentSendAction {
   action: 'agent_send'
   params: {
     toAddress: string
     amount: string
     note?: string
+  }
+}
+
+// Navigate to Bridge tab with prefill
+export interface BridgeStartAction {
+  action: 'bridge_start'
+  params: {
+    amount?: string
+    toChain?: string
+  }
+}
+
+// Navigate to Swap tab with prefill
+export interface SwapStartAction {
+  action: 'swap_start'
+  params: {
+    fromToken?: string
+    toToken?: string
+    amount?: string
   }
 }
 
@@ -100,11 +140,14 @@ export type NanAction =
   | AddRecurringAction
   | AddAgentRecurringAction
   | SetPolicyAction
+  | SendUsdcAction
   | AgentSendAction
   | NavigateAction
   | ToggleAgentAction
   | ShopSearchAction
+  | BridgeStartAction
   | BridgeInfoAction
+  | SwapStartAction
 
 // ── Parser — converts raw LLM JSON into a typed NanAction ────────────────────
 
@@ -142,12 +185,25 @@ export function parseAction(raw: Record<string, unknown>): NanAction | null {
       if (Object.keys(p).length === 0) return null
       return { action: 'set_policy', params: p }
     }
+    case 'send_usdc': {
+      const toAddress = s(params.toAddress)
+      const amount    = s(params.amount)
+      if (!toAddress || !amount) return null
+      const note = s(params.note) || undefined
+      return { action: 'send_usdc', params: { toAddress, amount, note } }
+    }
     case 'agent_send': {
       const toAddress = s(params.toAddress)
       const amount    = s(params.amount)
       if (!toAddress || !amount) return null
       const note = s(params.note) || undefined
       return { action: 'agent_send', params: { toAddress, amount, note } }
+    }
+    case 'bridge_start': {
+      return { action: 'bridge_start', params: { amount: s(params.amount) || undefined, toChain: s(params.toChain) || undefined } }
+    }
+    case 'swap_start': {
+      return { action: 'swap_start', params: { fromToken: s(params.fromToken) || undefined, toToken: s(params.toToken) || undefined, amount: s(params.amount) || undefined } }
     }
     case 'navigate': {
       const page = s(params.page)
@@ -203,6 +259,16 @@ export function describeAction(action: NanAction): { title: string; lines: Array
       }))
       return { title: 'Update Spending Policy', lines }
     }
+    case 'send_usdc':
+      return {
+        title: 'Send USDC from Your Wallet',
+        lines: [
+          { label: 'To',     value: action.params.toAddress },
+          { label: 'Amount', value: `${action.params.amount} USDC` },
+          ...(action.params.note ? [{ label: 'Note', value: action.params.note }] : []),
+          { label: 'Source', value: 'Your Connected Wallet' },
+        ],
+      }
     case 'agent_send':
       return {
         title: 'Send USDC from Agent Wallet',
@@ -211,6 +277,25 @@ export function describeAction(action: NanAction): { title: string; lines: Array
           { label: 'Amount', value: `${action.params.amount} USDC` },
           ...(action.params.note ? [{ label: 'Note', value: action.params.note }] : []),
           { label: 'Source', value: 'Agent Wallet' },
+        ],
+      }
+    case 'bridge_start':
+      return {
+        title: 'Bridge USDC',
+        lines: [
+          ...(action.params.amount ? [{ label: 'Amount', value: `${action.params.amount} USDC` }] : []),
+          ...(action.params.toChain ? [{ label: 'To Chain', value: action.params.toChain }] : []),
+          { label: 'Note', value: 'Opens Bridge tab pre-filled — you confirm there' },
+        ],
+      }
+    case 'swap_start':
+      return {
+        title: 'Swap Tokens',
+        lines: [
+          ...(action.params.fromToken ? [{ label: 'From', value: action.params.fromToken }] : []),
+          ...(action.params.toToken   ? [{ label: 'To',   value: action.params.toToken }] : []),
+          ...(action.params.amount    ? [{ label: 'Amount', value: `${action.params.amount} USDC` }] : []),
+          { label: 'Note', value: 'Opens Swap tab pre-filled — you confirm there' },
         ],
       }
     case 'navigate':
@@ -247,13 +332,16 @@ export function requiresConfirmation(action: NanAction): boolean {
   switch (action.action) {
     case 'add_recurring':
     case 'add_agent_recurring':
+    case 'send_usdc':
     case 'agent_send':
     case 'set_policy':
       return true
     case 'navigate':
     case 'toggle_agent':
     case 'shop_search':
+    case 'bridge_start':
     case 'bridge_info':
+    case 'swap_start':
       return false
   }
 }
@@ -265,6 +353,15 @@ export type ExecutorContext = {
   store: AppState
   navigate: (page: string, query?: string) => void
   agentWalletUserToken?: string
+  // For send_usdc: caller provides the wagmi writeContractAsync bound to the connected wallet
+  writeContractAsync?: (args: {
+    address: `0x${string}`
+    abi: readonly object[]
+    functionName: string
+    args: readonly unknown[]
+  }) => Promise<`0x${string}`>
+  connectedAddress?: string
+  chainId?: number
 }
 
 export async function executeAction(action: NanAction, ctx: ExecutorContext): Promise<string> {
@@ -302,6 +399,22 @@ export async function executeAction(action: NanAction, ctx: ExecutorContext): Pr
       return `Policy updated: ${Object.entries(action.params).map(([k, v]) => `${k}=${v}`).join(', ')}`
     }
 
+    case 'send_usdc': {
+      const { toAddress, amount, note } = action.params
+      if (!ctx.writeContractAsync) throw new Error('Wallet not connected. Please connect your wallet first.')
+      if (!ctx.chainId) throw new Error('No chain connected.')
+      const usdc = getUsdc(ctx.chainId)
+      if (!usdc) throw new Error(`USDC not supported on chain ${ctx.chainId}.`)
+      const txHash = await ctx.writeContractAsync({
+        address: usdc.address as `0x${string}`,
+        abi: USDC_TRANSFER_ABI,
+        functionName: 'transfer',
+        args: [toAddress, parseUnits(amount, usdc.decimals)],
+      })
+      store.addActivity({ type: 'sent', description: note ?? 'Agent-initiated send', amount: parseFloat(amount), sign: '-', status: 'confirmed', counterparty: toAddress.slice(0, 10) + '…', txHash })
+      return `Sent ${amount} USDC to ${toAddress.slice(0, 10)}… — tx: ${txHash.slice(0, 12)}…`
+    }
+
     case 'agent_send': {
       const { toAddress, amount, note } = action.params
       const userToken = ctx.agentWalletUserToken
@@ -335,9 +448,21 @@ export async function executeAction(action: NanAction, ctx: ExecutorContext): Pr
       return `Opening shop with search: "${action.params.query}"`
     }
 
+    case 'bridge_start': {
+      store.setBridgePrefill({ amount: action.params.amount, toChain: action.params.toChain })
+      navigate('bridge')
+      return `Opening Bridge tab${action.params.amount ? ` with ${action.params.amount} USDC` : ''}${action.params.toChain ? ` → ${action.params.toChain}` : ''}. Complete the transaction there.`
+    }
+
     case 'bridge_info': {
       navigate('bridge')
       return `Opening Bridge tab — bridge ${action.params.amount} USDC from ${action.params.fromChain} to ${action.params.toChain}. Confirm the transaction in the Bridge tab.`
+    }
+
+    case 'swap_start': {
+      store.setSwapPrefill({ fromToken: action.params.fromToken, toToken: action.params.toToken, amount: action.params.amount })
+      navigate('swap')
+      return `Opening Swap tab${action.params.amount ? ` with ${action.params.amount} USDC` : ''}. Complete the swap there.`
     }
   }
 }

@@ -228,9 +228,23 @@ export function SwapPage() {
   const addActivity = useAppStore(s => s.addActivity)
   const recordFee   = useAppStore(s => s.recordFee)
 
+  const swapPrefill    = useAppStore(s => s.swapPrefill)
+  const setSwapPrefill = useAppStore(s => s.setSwapPrefill)
+
   const [tokenIn,  setTokenIn]  = useState<Token>('USDC')
   const [tokenOut, setTokenOut] = useState<Token>('EURC')
   const [amountIn, setAmountIn] = useState('')
+
+  // Apply agent-chat prefill once on mount, then clear it
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  React.useEffect(() => {
+    if (!swapPrefill) return
+    if (swapPrefill.amount) setAmountIn(swapPrefill.amount)
+    if (swapPrefill.fromToken && (swapPrefill.fromToken === 'USDC' || swapPrefill.fromToken === 'EURC')) setTokenIn(swapPrefill.fromToken)
+    if (swapPrefill.toToken   && (swapPrefill.toToken   === 'USDC' || swapPrefill.toToken   === 'EURC')) setTokenOut(swapPrefill.toToken)
+    setSwapPrefill(null)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   const [reviewed, setReviewed] = useState<ReviewedSwap | null>(null)
   const [phase,    setPhase]    = useState<Phase>('idle')
   const [errMsg,   setErrMsg]   = useState('')

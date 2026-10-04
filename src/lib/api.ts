@@ -164,6 +164,8 @@ export async function nanChat(opts: {
   userAddress?: string
   sessionToken?: string
   context?: {
+    mainBalance?: string
+    mainAddress?: string
     agentBalance?: string
     agentAddress?: string
     dailyLimit?: number

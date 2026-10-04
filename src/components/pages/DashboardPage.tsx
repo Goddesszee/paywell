@@ -121,6 +121,14 @@ export function DashboardPage() {
     : '0.00'
   const numVal = parseFloat(formatted)
 
+  // Sync live balance into the global store so AgentChat can read it
+  const setMainWalletBalance = useAppStore(s => s.setMainWalletBalance)
+  useEffect(() => {
+    if (rawBalance !== undefined && address) {
+      setMainWalletBalance(formatted, address)
+    }
+  }, [formatted, address, rawBalance, setMainWalletBalance])
+
   // Build sparkline from activity history (fallback: empty → shows placeholder)
   const [sparkPoints, setSparkPoints] = useState<number[]>([])
   /* eslint-disable react/set-state-in-effect */

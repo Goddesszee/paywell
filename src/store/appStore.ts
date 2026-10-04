@@ -322,6 +322,17 @@ export interface AppState {
   selectService: (id: string) => void
   deselectService: (id: string) => void
   isServiceSelected: (id: string) => boolean
+
+  // ── Live main wallet balance (synced from wagmi, never persisted) ──────────
+  mainWalletBalance: string   // formatted USDC string, e.g. "313.37"
+  mainWalletAddress: string   // connected wallet address
+  setMainWalletBalance: (balance: string, address: string) => void
+
+  // ── Chat-initiated prefill for Bridge / Swap pages ─────────────────────────
+  bridgePrefill: { amount?: string; toChain?: string } | null
+  setBridgePrefill: (p: { amount?: string; toChain?: string } | null) => void
+  swapPrefill: { fromToken?: string; toToken?: string; amount?: string } | null
+  setSwapPrefill: (p: { fromToken?: string; toToken?: string; amount?: string } | null) => void
 }
 
 export interface AgentWalletState {
@@ -848,6 +859,17 @@ export const useAppStore = create<AppState>()(
           selectedServiceIds: s.selectedServiceIds.filter((x) => x !== id),
         })),
       isServiceSelected: (id) => get().selectedServiceIds.includes(id),
+
+      // ── Live main wallet balance ─────────────────────────────────────────────
+      mainWalletBalance: '0',
+      mainWalletAddress: '',
+      setMainWalletBalance: (balance, address) => set({ mainWalletBalance: balance, mainWalletAddress: address }),
+
+      // ── Chat prefill for Bridge / Swap ───────────────────────────────────────
+      bridgePrefill: null,
+      setBridgePrefill: (p) => set({ bridgePrefill: p }),
+      swapPrefill: null,
+      setSwapPrefill: (p) => set({ swapPrefill: p }),
     }),
     {
       name: 'paywell-state-v2',
