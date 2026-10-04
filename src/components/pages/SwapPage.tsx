@@ -5,7 +5,7 @@ import { createViemAdapterFromProvider } from '@circle-fin/adapter-viem-v2'
 import { erc20Abi, type EIP1193Provider } from 'viem'
 import { ArrowDown, Settings, CheckCircle, ExternalLink, RefreshCw, AlertCircle, X, Search } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
-import { swapFee, SWAP_FEE_BPS, bpsToPercent, FEE_WALLET } from '../../lib/fees'
+import { swapFee, SWAP_FEE_BPS, bpsToPercent } from '../../lib/fees'
 import { useNanTheme } from '../../hooks/useNanTheme'
 
 const CHAIN_ID  = 5042002
@@ -226,7 +226,7 @@ export function SwapPage() {
   const chainId = useChainId()
   const { switchChainAsync } = useSwitchChain()
   const addActivity = useAppStore(s => s.addActivity)
-  const recordFee   = useAppStore(s => s.recordFee)
+
 
   const swapPrefill    = useAppStore(s => s.swapPrefill)
   const setSwapPrefill = useAppStore(s => s.setSwapPrefill)
@@ -329,9 +329,9 @@ export function SwapPage() {
       const rUrl  = data.result?.explorerUrl ?? ''
       setTxHash(rHash); setExplorerUrl(rUrl); setPhase('done')
       const gross = parseFloat(reviewed.amountIn)
-      const fee   = swapFee(gross)
+      void swapFee(gross)
       addActivity({ type: 'swap', description: `Swap ${reviewed.tokenIn} → ${reviewed.tokenOut}`, amount: gross, sign: '-', status: 'confirmed', counterparty: reviewed.tokenOut, txHash: rHash })
-      if (fee > 0) recordFee({ source: 'swap', grossAmount: gross, feeAmount: fee, feeWallet: FEE_WALLET, txHash: rHash, description: `Swap ${reviewed.tokenIn} → ${reviewed.tokenOut}` })
+
     } catch (e: unknown) {
       setPhase('error'); setErrMsg(e instanceof Error ? e.message : 'Swap failed.')
     }
@@ -372,9 +372,9 @@ export function SwapPage() {
       const rUrl  = (result as { explorerUrl?: string }).explorerUrl ?? ''
       setTxHash(rHash); setExplorerUrl(rUrl); setPhase('done')
       const gross = parseFloat(reviewed.amountIn)
-      const fee   = swapFee(gross)
+      void swapFee(gross)
       addActivity({ type: 'swap', description: `Swap ${reviewed.tokenIn} → ${reviewed.tokenOut}`, amount: gross, sign: '-', status: 'confirmed', counterparty: reviewed.tokenOut, txHash: rHash })
-      if (fee > 0) recordFee({ source: 'swap', grossAmount: gross, feeAmount: fee, feeWallet: FEE_WALLET, txHash: rHash, description: `Swap ${reviewed.tokenIn} → ${reviewed.tokenOut}` })
+
     } catch (e: unknown) {
       setPhase('error'); setErrMsg(e instanceof Error ? e.message : 'Swap failed.')
     }

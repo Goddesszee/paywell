@@ -6,7 +6,7 @@ import type { EIP1193Provider } from 'viem'
 import { encodeFunctionData, erc20Abi, parseUnits } from 'viem'
 import { ArrowLeftRight, ArrowRight, CheckCircle, ExternalLink, Loader, Info } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
-import { bridgeFee, BRIDGE_FEE_BPS, bpsToPercent, BRIDGE_FEE_MIN_USDC, FEE_WALLET } from '../../lib/fees'
+import { bridgeFee, BRIDGE_FEE_BPS, bpsToPercent, BRIDGE_FEE_MIN_USDC } from '../../lib/fees'
 import { useCircleTransaction } from '../../hooks/useCircleTransaction'
 
 const S  = 'var(--nan-surface)'
@@ -88,7 +88,7 @@ export function BridgePage() {
   const chainId = useChainId()
   const { switchChainAsync } = useSwitchChain()
   const addActivity = useAppStore(s => s.addActivity)
-  const recordFee   = useAppStore(s => s.recordFee)
+
 
   // Lazy-instantiate AppKit — initialised once via useState initialiser so it
   // never runs during a re-render and avoids the "ref during render" lint error.
@@ -201,7 +201,7 @@ export function BridgePage() {
         updateStep('mint', { status: 'done' })
         setStatus('done')
         addActivity({ type:'bridge', description:`Bridge to ${toChain.label}`, amount:gross, sign:'-', status:'confirmed', counterparty:toChain.label, txHash:burnTx })
-        recordFee({ source:'bridge', grossAmount:gross, feeAmount:platformFee, feeWallet:FEE_WALLET, txHash:burnTx, description:`Bridge ${fromChain.label} → ${toChain.label}` })
+
       } catch (e: unknown) {
         setStatus('error')
         setErrMsg(e instanceof Error ? e.message : 'Bridge failed.')
@@ -236,7 +236,7 @@ export function BridgePage() {
         setStatus('done')
         const mintHash = result.steps?.find(s => s.name === 'mint')?.txHash
         addActivity({ type:'bridge', description:`Bridge to ${toChain.label}`, amount:gross, sign:'-', status:'confirmed', counterparty:toChain.label, txHash:mintHash })
-        recordFee({ source:'bridge', grossAmount:gross, feeAmount:platformFee, feeWallet:FEE_WALLET, txHash:mintHash, description:`Bridge ${fromChain.label} → ${toChain.label}` })
+
       } else {
         setStatus('error')
         setErrMsg('Bridge returned non-success state.')

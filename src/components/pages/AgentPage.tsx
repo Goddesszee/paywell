@@ -12,9 +12,8 @@ import { parseUnits } from 'viem'
 
 import { LoadingDots } from '../ui/Spinner'
 import { useAppStore } from '../../store/appStore'
-import type { AgentMessage, AgentPermissions } from '../../store/appStore'
-import { Product } from '../../data/products'
-import { getVerifiedProducts } from '../../utils/listings'
+import type { AgentMessage } from '../../store/appStore'
+
 import { formatUSDC, formatRelativeTime } from '../../utils/format'
 import { nanChat, backendConfigured } from '../../lib/api'
 import { getUsdc } from '../../onchain-facts'
@@ -210,43 +209,7 @@ type _X402Service = {
   endpoint: string; calls: number; earned: string; active: boolean
 }
 
-function simulateAgentResponse(
-  userMessage: string,
-  permissions: AgentPermissions,
-  dailyUsed: number,
-  catalog: Product[]
-): Omit<AgentMessage, 'id' | 'timestamp'> {
-  const msg = userMessage.toLowerCase()
-  const dailyRemaining = permissions.dailyLimit - dailyUsed
-  const priceMatch = msg.match(/under\s+(\d+)|less than\s+(\d+)|max\s+(\d+)|budget.*?(\d+)/)
-  const maxPrice = priceMatch ? parseInt(priceMatch[1] || priceMatch[2] || priceMatch[3] || priceMatch[4]) : null
-  const keywords = ['keyboard','headphone','laptop','stand','lamp','backpack','wallet','cable','hub','charger','notebook','template','font','icon']
-  const matchedKeyword = keywords.find(k => msg.includes(k))
-  const categoryKeywords: Record<string,string> = { tech:'tech', digital:'digital', home:'home', fashion:'fashion', clothes:'fashion', template:'digital', design:'digital' }
-  const matchedCategory = Object.keys(categoryKeywords).find(k => msg.includes(k))
-  let candidates = catalog.filter(p => {
-    if (!permissions.allowedCategories.includes(p.category)) return false
-    if (maxPrice !== null && p.price > maxPrice) return false
-    if (p.price > permissions.perTxLimit) return false
-    if (!p.inStock) return false
-    if (matchedKeyword && p.name.toLowerCase().includes(matchedKeyword)) return true
-    if (matchedCategory && p.category === categoryKeywords[matchedCategory]) return true
-    return true
-  })
-  if (matchedKeyword) candidates = candidates.filter(p => p.name.toLowerCase().includes(matchedKeyword)).concat(candidates.filter(p => !p.name.toLowerCase().includes(matchedKeyword)))
-  candidates = candidates.slice(0, 3)
-  if (candidates.length === 0) {
-    if (dailyRemaining <= 0) return { role:'agent', content:`Daily limit of ${permissions.dailyLimit} USDC reached. Resets tomorrow.`, action:'info' }
-    return { role:'agent', content:`No products found within your limits (max ${formatUSDC(permissions.perTxLimit)} USDC, categories: ${permissions.allowedCategories.join(', ')}).`, action:'info' }
-  }
-  const top = candidates[0]
-  const canAuto = !permissions.requireApproval && top.price <= permissions.autoApproveUnder
-  if (msg.includes('buy') || msg.includes('purchase') || msg.includes('get me') || msg.includes('order')) {
-    if (top.price > dailyRemaining) return { role:'agent', content:`Found ${top.name} for ${top.price} USDC but only ${formatUSDC(dailyRemaining)} USDC remains today.`, products:[top], action:'info' }
-    return { role:'agent', content: canAuto ? `Purchasing ${top.name} from ${top.merchant} for ${top.price} USDC (auto-approved).` : `Purchase ${top.name} from ${top.merchant} for ${top.price} USDC?`, products:[top], action:'purchase_request', purchaseProductId:top.id, purchaseAmount:top.price }
-  }
-  return { role:'agent', content:`Found ${candidates.length} option${candidates.length>1?'s':''} within your limits:`, products:candidates, action:'search' }
-}
+
 
 export function AgentPage() {
   const [tab, setTab] = useState<AgentTab>('chat')
@@ -364,12 +327,11 @@ function AgentChat({ onNavigate }: { onNavigate?: (page: string, query?: string)
   const {
     agentMessages, addAgentMessage, agentPermissions, agentDailyUsed,
     approveAgentPurchase, rejectAgentPurchase, clearAgentMessages,
-    auth, pendingListings, fetchPendingListings,
+    auth,
     addExecutionLog, addAgentSpend,
     agentWallet,
   } = useAppStore()
-  const verifiedCatalog = React.useMemo(() => getVerifiedProducts(pendingListings), [pendingListings])
-  useEffect(() => { void fetchPendingListings() }, [fetchPendingListings])
+
   const { address, chainId } = useAccount()
   const { writeContractAsync } = useWriteContract()
   const [input, setInput] = useState('')
@@ -629,7 +591,7 @@ function AgentChat({ onNavigate }: { onNavigate?: (page: string, query?: string)
     }
     await new Promise(r => setTimeout(r, 800 + Math.random()*500))
     setTyping(false)
-    addAgentMessage(simulateAgentResponse(text, agentPermissions, agentDailyUsed, verifiedCatalog))
+    addAgentMessage({ role: 'agent', content: 'Sorry, I was unable to reach the AI backend. Please check your API configuration.' })
   }
 
   const QUICK = [
@@ -735,7 +697,7 @@ function MsgBubble({ msg, onApprove, onReject }: { msg:AgentMessage; onApprove:(
       </div>
       <div style={{ flex:1, maxWidth:'90%', display:'flex', flexDirection:'column', gap:8 }}>
         <div style={{ background:SURF, border:`1px solid ${BDR}`, borderRadius:16, borderTopLeftRadius:4, padding:'10px 14px', fontSize:13, color:BLACK }}>{msg.content}</div>
-        {msg.products && msg.products.length > 0 && msg.products.map(p => <ProductPill key={p.id} product={p} />)}
+
         {msg.action==='purchase_request' && msg.approved===undefined && (
           <div style={{ display:'flex', gap:8 }}>
             <button onClick={() => onApprove(msg.id)} style={{ flex:1, height:34, background:BLUE, color:'#fff', border:'none', borderRadius:10, fontSize:12, fontWeight:600, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:6, fontFamily:F }}>
@@ -761,18 +723,7 @@ function MsgBubble({ msg, onApprove, onReject }: { msg:AgentMessage; onApprove:(
   )
 }
 
-function ProductPill({ product }: { product: Product }) {
-  return (
-    <div style={{ background:SURF, border:`1px solid ${BDR}`, borderRadius:12, padding:'10px 12px', display:'flex', alignItems:'center', gap:10 }}>
-      <img src={product.imageUrl} alt={product.name} style={{ width:36, height:36, borderRadius:8, objectFit:'cover', background:SURFACE, flexShrink:0 }} />
-      <div style={{ flex:1, minWidth:0 }}>
-        <div style={{ fontSize:12, fontWeight:700, color:BLACK, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{product.name}</div>
-        <div style={{ fontSize:11, color:TEXT2 }}>{product.merchant}</div>
-      </div>
-      <div style={{ fontSize:13, fontWeight:700, color:BLACK, flexShrink:0 }}>{product.price} <span style={{ fontSize:10, fontWeight:500, color:TEXT2 }}>USDC</span></div>
-    </div>
-  )
-}
+
 
 // ── Service Discovery Tab ─────────────────────────────────────────────────────
 

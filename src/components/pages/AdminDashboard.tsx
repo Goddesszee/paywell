@@ -1,10 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
 import { useAppStore } from '../../store/appStore'
-import { useShopStore } from '../../store/shopStore'
-import type { DeliveryMethod, ConditionLabel, ShopProduct } from '../../store/shopStore'
-import { FEE_WALLET, MARKETPLACE_FEE_BPS, SWAP_FEE_BPS, BRIDGE_FEE_BPS, bpsToPercent } from '../../lib/fees'
 
-import { BarChart3, Users, ShoppingBag, Zap, ArrowUpRight, ArrowDownLeft, RefreshCw, Shield, Globe, Cpu, CheckCircle, XCircle, Activity, ArrowLeft, TrendingUp, Send, Plus, Trash2, Edit3, Save, X, Info, ChevronRight, ChevronLeft } from 'lucide-react'
+
+import { BarChart3, Users, Zap, ArrowUpRight, ArrowDownLeft, RefreshCw, Shield, Globe, Cpu, CheckCircle, XCircle, Activity, ArrowLeft, Send, Plus, Trash2, Edit3, Save, X, Info, ChevronRight, ChevronLeft } from 'lucide-react'
 
 const SANS = "'Inter', -apple-system, sans-serif"
 const S = 'var(--nan-surface)'
@@ -846,78 +844,15 @@ function InfraCard({ name, status, desc, icon }: InfraItem) {
 }
 
 export function AdminDashboard() {
-  const { activity, pendingListings, approveListing, rejectListing, setActiveView, feeRevenue, fetchPendingListings } = useAppStore()
-  const { addShopProduct, setShopProducts, fetchShopProducts } = useShopStore()
-  const [tab, setTab] = useState<'overview' | 'support' | 'faqs' | 'about' | 'listings' | 'activity' | 'revenue' | 'circle' | 'users' | 'feedback' | 'suggestions' | 'audit'>('overview')
+  const { activity, setActiveView } = useAppStore()
+  const [tab, setTab] = useState<'overview' | 'support' | 'faqs' | 'about' | 'activity' | 'circle' | 'users' | 'feedback' | 'suggestions' | 'audit'>('overview')
   const [now] = useState(new Date())
-
-  // Pull the shared, server-side listing queue and catalog — without this,
-  // Admin would only ever see submissions made from this same browser.
-  useEffect(() => {
-    void fetchPendingListings()
-    void fetchShopProducts()
-  }, [fetchPendingListings, fetchShopProducts])
 
   // Computed stats from real activity store
   const totalVol = activity.reduce((s, a) => s + (a.amount || 0), 0)
   const sends = activity.filter(a => a.type === 'sent').length
   const shops = activity.filter(a => a.type === 'purchase').length
-
-  // Approve a listing: publish it server-side (shared across every visitor),
-  // then resync both stores from the server response.
-  const handleApprove = async (id: string) => {
-    const listing = pendingListings.find(l => l.id === id)
-    if (!listing) return
-
-    const shopProduct = {
-      name: listing.name,
-      description: listing.description || '',
-      price: listing.price,
-      merchant: listing.kycFullName || 'Seller',
-      merchantId: listing.merchantWallet,
-      merchantWallet: listing.merchantWallet,
-      merchantVerified: true,
-      merchantRating: 0,
-      merchantCompletedTx: 0,
-      merchantLocation: undefined,
-      merchantResponseRate: undefined,
-      merchantJoined: new Date().toISOString(),
-      category: listing.category,
-      condition: 'good' as ConditionLabel,
-      images: listing.imageBase64
-        ? [listing.imageBase64]
-        : listing.imageUrl
-        ? [listing.imageUrl]
-        : [],
-      rating: 0,
-      reviewCount: 0,
-      inStock: true,
-      quantity: 1,
-      tags: [listing.category],
-      location: undefined,
-      deliveryOptions: ['standard'] as DeliveryMethod[],
-      deliveryDays: undefined,
-      isVerifiedListing: true,
-      agentSearchable: true,
-      agentKeywords: [listing.name, listing.category],
-    }
-
-    try {
-      const res = await fetch('/api/listings', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ action: 'approve', id, shopProduct }),
-      })
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      const data = await res.json() as { pending: unknown[]; approved: ShopProduct[] }
-      setShopProducts(data.approved)
-      approveListing(id) // local optimistic marker; server is already the source of truth
-    } catch (err) {
-      console.error('Failed to approve listing on server, applying locally only', err)
-      approveListing(id)
-      addShopProduct(shopProduct)
-    }
-  }
+  void now
 
   // Env var check (Vite exposes VITE_ vars)
   const hasGroq = Boolean(import.meta.env.VITE_GROQ_API_KEY)
@@ -935,12 +870,6 @@ export function AdminDashboard() {
     { name: 'Permit2', status: 'live', desc: '0x0000...D473 · gasless USDC approvals', icon: <Shield size={16} /> },
   ]
 
-  // Revenue computed stats
-  const totalFeeRevenue = feeRevenue.reduce((s, f) => s + f.feeAmount, 0)
-  const marketplaceFeeTotal = feeRevenue.filter(f => f.source === 'marketplace').reduce((s, f) => s + f.feeAmount, 0)
-  const swapFeeTotal = feeRevenue.filter(f => f.source === 'swap').reduce((s, f) => s + f.feeAmount, 0)
-  const bridgeFeeTotal = feeRevenue.filter(f => f.source === 'bridge').reduce((s, f) => s + f.feeAmount, 0)
-
   const tabs = [
     { id: 'overview',    label: 'Overview' },
     { id: 'support',     label: 'Support' },
@@ -948,9 +877,7 @@ export function AdminDashboard() {
     { id: 'suggestions', label: 'Suggestions' },
     { id: 'faqs',        label: 'FAQs' },
     { id: 'about',       label: 'About' },
-    { id: 'listings',    label: `Listings${pendingListings.filter(l=>l.status==='pending').length > 0 ? ` (${pendingListings.filter(l=>l.status==='pending').length})` : ''}` },
     { id: 'activity',    label: 'Activity' },
-    { id: 'revenue',     label: `Revenue${feeRevenue.length > 0 ? ` (${feeRevenue.length})` : ''}` },
     { id: 'circle',      label: 'Circle Infra' },
     { id: 'users',       label: 'Users' },
     { id: 'audit',       label: 'Audit Log' },
@@ -1000,7 +927,7 @@ export function AdminDashboard() {
               <MetricCard label="Total Volume" value={`$${totalVol.toFixed(2)}`} sub="USDC on Arc Testnet" icon={<BarChart3 size={16} />} trend={activity.length > 0 ? '+active' : '—'} />
               <MetricCard label="Transactions" value={String(activity.length)} sub="All time" icon={<Activity size={16} />} />
               <MetricCard label="Sends" value={String(sends)} sub="Outgoing transfers" icon={<ArrowUpRight size={16} />} />
-              <MetricCard label="Purchases" value={String(shops)} sub="Shop checkouts" icon={<ShoppingBag size={16} />} />
+              <MetricCard label="Purchases" value={String(shops)} sub="Transactions" icon={<Activity size={16} />} />
             </div>
 
             {/* Circle infra summary */}
@@ -1062,63 +989,7 @@ export function AdminDashboard() {
         {/* ── ABOUT ── */}
         {tab === 'about' && <AdminAboutPanel />}
 
-        {/* ── LISTINGS ── */}
-        {tab === 'listings' && (
-          <div>
-            <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: '-0.02em', marginBottom: 4 }}>Product Listings</div>
-            <div style={{ fontSize: 13, color: 'var(--nan-text2)', marginBottom: 20 }}>Review and approve merchant product submissions</div>
-            {pendingListings.length === 0 ? (
-              <div style={{ background: 'var(--nan-surface)', border: '1px solid var(--nan-bdr)', borderRadius: 14, padding: '48px 20px', textAlign: 'center', color: 'var(--nan-text2)', fontSize: 13 }}>
-                No listings submitted yet. Merchants can list products from the Shop page.
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                {pendingListings.map(l => (
-                  <div key={l.id} style={{ background: 'var(--nan-surface)', border: '1px solid var(--nan-bdr)', borderRadius: 14, padding: '16px 18px' }}>
-                    <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
-                      {(l.imageBase64 || l.imageUrl) && (
-                        <img src={l.imageBase64 || l.imageUrl} alt={l.name} style={{ width: 64, height: 64, borderRadius: 10, objectFit: 'cover', flexShrink: 0 }} onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
-                      )}
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 4 }}>
-                          <div style={{ fontSize: 15, fontWeight: 700 }}>{l.name}</div>
-                          <span style={{ fontSize: 11, fontWeight: 700, flexShrink: 0, padding: '2px 8px', borderRadius: 20,
-                            color: '#ffffff',
-                            background: 'var(--nan-surface)',
-                          }}>{l.status}</span>
-                        </div>
-                        <div style={{ fontSize: 13, color: 'var(--nan-text2)', marginBottom: 4 }}>{l.description || 'No description'}</div>
-                        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 8 }}>
-                          <span style={{ fontSize: 12, fontWeight: 700 }}>{l.price} USDC</span>
-                          <span style={{ fontSize: 12, color: 'var(--nan-text3)' }}>{l.category}</span>
-                          <span style={{ fontSize: 11, fontFamily: 'monospace', color: 'var(--nan-text3)' }}>{l.merchantWallet.slice(0,8)}...{l.merchantWallet.slice(-4)}</span>
-                        </div>
-                        {/* KYC info */}
-                        {l.kycFullName && (
-                          <div style={{ background: 'var(--nan-surface)', borderRadius: 8, padding: '8px 10px', marginBottom: 8 }}>
-                            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--nan-text3)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>KYC Details</div>
-                            <div style={{ fontSize: 12, color: '#ffffff' }}>{l.kycFullName}</div>
-                            <div style={{ fontSize: 11, color: 'var(--nan-text2)' }}>{l.kycIdType} · {l.kycIdNumber}</div>
-                          </div>
-                        )}
-                        {l.status === 'pending' && (
-                          <div style={{ display: 'flex', gap: 8 }}>
-                            <button onClick={() => { void handleApprove(l.id) }} style={{ height: 32, padding: '0 16px', borderRadius: 8, background: '#0066FF', color: '#fff', fontSize: 12, fontWeight: 600, border: 'none', cursor: 'pointer', fontFamily: SANS }}>
-                              ✓ Approve
-                            </button>
-                            <button onClick={() => { void rejectListing(l.id) }} style={{ height: 32, padding: '0 16px', borderRadius: 8, background: 'var(--nan-surface2)', color: 'var(--nan-text)', fontSize: 12, fontWeight: 600, border: '1px solid var(--nan-bdr)', cursor: 'pointer', fontFamily: SANS }}>
-                              ✕ Reject
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
+
 
         {/* ── ACTIVITY ── */}
         {tab === 'activity' && (
@@ -1185,82 +1056,7 @@ export function AdminDashboard() {
           </div>
         )}
 
-        {/* ── REVENUE ── */}
-        {tab === 'revenue' && (
-          <div>
-            <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: '-0.02em', marginBottom: 4 }}>Revenue</div>
-            <div style={{ fontSize: 13, color: 'var(--nan-text2)', marginBottom: 20 }}>Platform fees collected across all services</div>
 
-            {/* Fee wallet */}
-            <div style={{ background: 'var(--nan-surface)', border: '1px solid var(--nan-bdr)', borderRadius: 14, padding: '14px 16px', marginBottom: 20 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--nan-text3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Fee wallet</div>
-              <div style={{ fontSize: 12, fontFamily: 'monospace', color: 'var(--nan-text)', wordBreak: 'break-all' }}>{FEE_WALLET}</div>
-              <div style={{ fontSize: 11, color: 'var(--nan-text3)', marginTop: 4 }}>All platform fees are sent to this address on Arc Testnet</div>
-            </div>
-
-            {/* Fee schedule */}
-            <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 10 }}>Fee schedule</div>
-            <div style={{ background: 'var(--nan-surface)', border: '1px solid var(--nan-bdr)', borderRadius: 14, overflow: 'hidden', marginBottom: 20 }}>
-              {[
-                { label: 'Marketplace sale', rate: bpsToPercent(MARKETPLACE_FEE_BPS), total: marketplaceFeeTotal, icon: <ShoppingBag size={14} /> },
-                { label: 'Swap', rate: bpsToPercent(SWAP_FEE_BPS), total: swapFeeTotal, icon: <RefreshCw size={14} /> },
-                { label: 'Bridge', rate: bpsToPercent(BRIDGE_FEE_BPS) + ' (min $0.10)', total: bridgeFeeTotal, icon: <ArrowUpRight size={14} /> },
-                { label: 'Send / Receive', rate: 'Free', total: null, icon: <ArrowDownLeft size={14} /> },
-              ].map(({ label, rate, total, icon }, i) => (
-                <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', borderBottom: i < 3 ? `1px solid ${B}` : 'none' }}>
-                  <div style={{ width: 30, height: 30, borderRadius: 8, background: S, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{icon}</div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13, fontWeight: 600 }}>{label}</div>
-                    <div style={{ fontSize: 11, color: 'var(--nan-text3)' }}>{rate}</div>
-                  </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: 13, fontWeight: 700 }}>{total !== null ? `${total.toFixed(4)} USDC` : '—'}</div>
-                    <div style={{ fontSize: 11, color: 'var(--nan-text3)' }}>collected</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Total banner */}
-            <div style={{ background: 'var(--nan-blue,#0066FF)', borderRadius: 14, padding: '16px 20px', marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <TrendingUp size={18} color='#fff' />
-                <span style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>Total revenue</span>
-              </div>
-              <span style={{ fontSize: 22, fontWeight: 800, color: '#fff', fontVariantNumeric: 'tabular-nums' }}>
-                {totalFeeRevenue.toFixed(4)} USDC
-              </span>
-            </div>
-
-            {/* Fee event log */}
-            <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 10 }}>Fee log</div>
-            {feeRevenue.length === 0 ? (
-              <div style={{ background: 'var(--nan-surface)', border: '1px solid var(--nan-bdr)', borderRadius: 14, padding: '48px 20px', textAlign: 'center', color: 'var(--nan-text2)', fontSize: 13 }}>
-                No fees collected yet. They appear here after marketplace sales, swaps, and bridges.
-              </div>
-            ) : (
-              <div style={{ background: 'var(--nan-surface)', border: '1px solid var(--nan-bdr)', borderRadius: 14, overflow: 'hidden' }}>
-                {feeRevenue.slice(0, 50).map((f, i) => (
-                  <div key={f.id} style={{ display: 'grid', gridTemplateColumns: '80px 1fr 90px', gap: 8, padding: '11px 16px', borderBottom: i < feeRevenue.length - 1 ? `1px solid ${B}` : 'none', alignItems: 'center' }}>
-                    <span style={{ fontSize: 11, fontWeight: 700, background: 'var(--nan-surface)', color: '#ffffff', padding: '2px 7px', borderRadius: 20, textAlign: 'center', textTransform: 'capitalize' }}>
-                      {f.source}
-                    </span>
-                    <div style={{ minWidth: 0 }}>
-                      <div style={{ fontSize: 12, fontWeight: 600, color: '#ffffff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.description}</div>
-                      <div style={{ fontSize: 11, color: 'var(--nan-text3)' }}>
-                        {new Date(f.timestamp).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                      </div>
-                    </div>
-                    <div style={{ textAlign: 'right' }}>
-                      <div style={{ fontSize: 13, fontWeight: 700 }}>+{f.feeAmount.toFixed(4)}</div>
-                      <div style={{ fontSize: 11, color: 'var(--nan-text3)' }}>USDC</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
 
         {/* ── FEEDBACK ── */}
         {tab === 'feedback' && <AdminFeedbackPanel />}
