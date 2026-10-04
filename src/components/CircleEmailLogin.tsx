@@ -1,22 +1,23 @@
 /**
  * Circle User-Controlled Wallet — Email OTP login
  *
- * Correct flow per Circle docs:
- *  1. Enter email → POST /api/wallet (action=request-otp)
- *     Circle sends OTP email. Returns deviceToken, deviceEncryptionKey, otpToken.
- *  2. Feed tokens into W3SSdk via updateConfigs then call sdk.verifyOtp()
- *     Circle opens its hosted OTP entry popup. User types the code there.
- *  3. SDK fires onLoginComplete callback with userToken + encryptionKey
- *  4. POST /api/wallet (action=initialize) — creates wallet for new users
- *     code 155106 = existing user, skip to step 5
- *  5. GET /api/wallet → load wallets → done
+ * Strictly follows the Circle reference implementation:
+ * https://developers.circle.com/wallets/user-controlled/create-user-wallets-with-email
  *
- * Required env vars (Vercel):
- *   VITE_CIRCLE_APP_ID
- *   CIRCLE_USER_CONTROLLED_API_KEY (or CIRCLE_API_KEY)
+ * Step 1  Enter email → handleRequestOtp  → POST /api/wallet (action=request-otp)
+ *         Returns deviceToken, deviceEncryptionKey, otpToken → fed into sdk.updateConfigs
+ * Step 2  Tap "Enter code" → handleVerifyOtp → sdk.verifyOtp()
+ *         Circle popup opens. User enters OTP. SDK fires onLoginComplete(err, result).
+ *         onLoginComplete ONLY stores result in loginResultRef and advances step.
+ *         No async work, no changing deps — SDK is never recreated.
+ * Step 3  onLoginComplete fires → handleInitializeUser → POST /api/wallet (action=initialize)
+ *         code 155106 = existing user → skip to step 4 (load wallets)
+ *         otherwise → returns challengeId
+ * Step 4  sdk.setAuthentication + sdk.execute(challengeId) → wallet created
+ *         → handleFinishAuth → GET /api/wallet → onSuccess
  */
 
-import React, { useState, useEffect, useRef, useCallback } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { W3SSdk } from '@circle-fin/w3s-pw-web-sdk'
 import { useAppStore } from '../store/appStore'
 import { ArrowLeft, ArrowRight, Loader, Mail } from 'lucide-react'
@@ -32,6 +33,7 @@ const BDR   = 'var(--nan-bdr2)'
 const CIRCLE_APP_ID = import.meta.env.VITE_CIRCLE_APP_ID as string | undefined
 
 type Step = 'email' | 'otp_sent' | 'verifying' | 'wallet_setup' | 'done' | 'error'
+
 interface LoginResult { userToken: string; encryptionKey: string }
 interface OtpTokens   { deviceToken: string; deviceEncryptionKey: string; otpToken: string }
 
@@ -42,8 +44,19 @@ interface Props {
 
 export function CircleEmailLogin({ onBack, onSuccess }: Props) {
   const { setAuth, profile } = useAppStore()
-  const sdkRef      = useRef<W3SSdk | null>(null)
-  const otpDataRef  = useRef<OtpTokens | null>(null)
+
+  // Refs — never cause re-renders, safe to use inside SDK callbacks
+  const sdkRef          = useRef<W3SSdk | null>(null)
+  const loginResultRef  = useRef<LoginResult | null>(null)
+  const otpTokensRef    = useRef<OtpTokens | null>(null)
+  const emailRef        = useRef('')
+  const encKeyRef       = useRef<string | undefined>()
+  const onSuccessRef    = useRef(onSuccess)
+  const setAuthRef      = useRef(setAuth)
+
+  // Keep refs in sync with latest props/store without changing SDK deps
+  useEffect(() => { onSuccessRef.current = onSuccess }, [onSuccess])
+  useEffect(() => { setAuthRef.current   = setAuth   }, [setAuth])
 
   const [email,     setEmail]     = useState('')
   const [step,      setStep]      = useState<Step>('email')
@@ -51,13 +64,13 @@ export function CircleEmailLogin({ onBack, onSuccess }: Props) {
   const [loading,   setLoading]   = useState(false)
   const [statusMsg, setStatusMsg] = useState('')
 
-  // ── finish: load wallets and call onSuccess ────────────────────────────────
-  const encKeyRef = useRef<string | undefined>()
+  // Keep emailRef in sync with controlled input
+  useEffect(() => { emailRef.current = email }, [email])
 
-  const finishAuth = useCallback(async (userToken: string, encryptionKey?: string) => {
+  // ── Step 4b: load wallets and call onSuccess ──────────────────────────────
+  const handleFinishAuth = async (userToken: string, encryptionKey?: string) => {
     setStep('wallet_setup')
     setStatusMsg('Loading your wallet…')
-    // Persist encryptionKey from login callback for later sdk.execute() calls
     if (encryptionKey) encKeyRef.current = encryptionKey
     try {
       const res  = await fetch('/api/wallet', {
@@ -72,8 +85,9 @@ export function CircleEmailLogin({ onBack, onSuccess }: Props) {
       const addr   = wallet?.address ?? ''
       const wid    = wallet?.id      ?? ''
       const ek     = encKeyRef.current
-      setAuth({
-        email,
+      const em     = emailRef.current
+      setAuthRef.current({
+        email:               em,
         sessionToken:        userToken,
         userToken,
         encryptionKey:       ek,
@@ -83,15 +97,37 @@ export function CircleEmailLogin({ onBack, onSuccess }: Props) {
         walletId:            wid,
       })
       setStep('done')
-      onSuccess(addr, userToken, email, ek)
+      onSuccessRef.current(addr, userToken, em, ek)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not load wallet. Please try again.')
       setStep('error')
     }
-  }, [email, onSuccess, setAuth])
+  }
 
-  // ── initialize: new user gets wallet challenge, existing user skips ────────
-  const initializeUser = useCallback(async (loginRes: LoginResult) => {
+  // ── Step 4a: execute wallet creation challenge ────────────────────────────
+  const handleCreateWallet = (loginRes: LoginResult, challengeId: string) => {
+    const sdk = sdkRef.current
+    if (!sdk) { setError('SDK not ready — please refresh.'); setStep('error'); return }
+    setStatusMsg('Complete wallet setup in the popup…')
+    sdk.setAuthentication({ userToken: loginRes.userToken, encryptionKey: loginRes.encryptionKey })
+    sdk.execute(challengeId, (execErr) => {
+      if (execErr) {
+        const msg = execErr instanceof Error ? execErr.message : String(execErr)
+        if (msg.toLowerCase().includes('already') || msg.toLowerCase().includes('155106')) {
+          void handleFinishAuth(loginRes.userToken, loginRes.encryptionKey)
+          return
+        }
+        setError('Wallet setup failed — please try again.')
+        setStep('error')
+        return
+      }
+      void handleFinishAuth(loginRes.userToken, loginRes.encryptionKey)
+    })
+  }
+
+  // ── Step 3: initialize user ───────────────────────────────────────────────
+  const handleInitializeUser = async (loginRes: LoginResult) => {
+    setStep('wallet_setup')
     setStatusMsg('Setting up your account…')
     try {
       const res  = await fetch('/api/wallet', {
@@ -101,54 +137,42 @@ export function CircleEmailLogin({ onBack, onSuccess }: Props) {
       })
       const data = await res.json() as { challengeId?: string; code?: number; error?: string }
 
-      // Existing user — just load their wallets
+      // Existing user (error 155106) — load wallets directly
       if (data.code === 155106) {
-        await finishAuth(loginRes.userToken, loginRes.encryptionKey)
+        await handleFinishAuth(loginRes.userToken, loginRes.encryptionKey)
+        return
+      }
+      if (data.error?.toLowerCase().includes('already') || data.error?.toLowerCase().includes('initialized')) {
+        await handleFinishAuth(loginRes.userToken, loginRes.encryptionKey)
         return
       }
       if (data.error || !data.challengeId) {
-        if (data.error?.toLowerCase().includes('already') || data.error?.toLowerCase().includes('initialized')) {
-          await finishAuth(loginRes.userToken, loginRes.encryptionKey)
-          return
-        }
         throw new Error(data.error ?? 'Wallet initialization failed')
       }
 
-      // New user — execute wallet creation challenge via SDK
-      setStatusMsg('Complete wallet setup in the popup…')
-      const sdk = sdkRef.current
-      if (!sdk) throw new Error('SDK not initialised')
-      sdk.setAuthentication({ userToken: loginRes.userToken, encryptionKey: loginRes.encryptionKey })
-      sdk.execute(data.challengeId, async (execErr) => {
-        if (execErr) {
-          const msg = execErr instanceof Error ? execErr.message : String(execErr)
-          if (msg.toLowerCase().includes('already') || msg.toLowerCase().includes('155106')) {
-            await finishAuth(loginRes.userToken, loginRes.encryptionKey)
-            return
-          }
-          setError('Wallet setup failed — please try again.')
-          setStep('error')
-          return
-        }
-        await finishAuth(loginRes.userToken, loginRes.encryptionKey)
-      })
+      // New user — execute wallet creation challenge
+      handleCreateWallet(loginRes, data.challengeId)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Setup error — please try again.')
       setStep('error')
     }
-  }, [finishAuth])
+  }
 
-  // ── init SDK once ──────────────────────────────────────────────────────────
+  // ── SDK init — stable empty deps, onLoginComplete never causes re-init ────
+  // Per Circle reference: SDK created once. onLoginComplete ONLY stores the
+  // result and advances the step — no async calls, no changing deps.
   useEffect(() => {
     const appId = CIRCLE_APP_ID ?? 'pending-configuration'
 
     const onLoginComplete = (err: unknown, result: unknown) => {
       if (err) {
-        const msg = err instanceof Error ? err.message : String(err)
+        const msg = err instanceof Error ? err.message : JSON.stringify(err)
+        // "already initialized" error still gives us a valid userToken
         if (msg.toLowerCase().includes('already') || msg.toLowerCase().includes('155106')) {
           const res = result as LoginResult | undefined
           if (res?.userToken) {
-            void finishAuth(res.userToken, res.encryptionKey)
+            loginResultRef.current = res
+            void handleFinishAuth(res.userToken, res.encryptionKey)
             return
           }
         }
@@ -157,19 +181,25 @@ export function CircleEmailLogin({ onBack, onSuccess }: Props) {
         return
       }
       const res = result as LoginResult
-      void initializeUser(res)
+      loginResultRef.current = res
+      // Advance to initialize — async work done outside this callback
+      void handleInitializeUser(res)
     }
 
     const sdk = new W3SSdk({ appSettings: { appId } }, onLoginComplete)
     sdkRef.current = sdk
-  }, [initializeUser, finishAuth])
 
-  // ── Step 1: send OTP ───────────────────────────────────────────────────────
+    // Eagerly establish device session per Circle docs
+    void sdk.getDeviceId()
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []) // STABLE empty deps — SDK never recreated
+
+  // ── Step 1: send OTP ──────────────────────────────────────────────────────
   const sendOtp = async () => {
     if (!email.trim()) return
     setLoading(true); setError('')
 
-    // Get deviceId from SDK
     const sdk = sdkRef.current
     if (!sdk) { setError('SDK not ready — please refresh the page.'); setLoading(false); return }
 
@@ -191,15 +221,14 @@ export function CircleEmailLogin({ onBack, onSuccess }: Props) {
       const data = await res.json() as OtpTokens & { error?: string }
       if (data.error) throw new Error(data.error)
 
-      otpDataRef.current = data
+      otpTokensRef.current = data
 
-      // Feed tokens into SDK
       sdk.updateConfigs({
         appSettings: { appId: CIRCLE_APP_ID ?? 'pending-configuration' },
         loginConfigs: {
-          deviceToken:          data.deviceToken,
-          deviceEncryptionKey:  data.deviceEncryptionKey,
-          otpToken:             data.otpToken,
+          deviceToken:         data.deviceToken,
+          deviceEncryptionKey: data.deviceEncryptionKey,
+          otpToken:            data.otpToken,
         },
       })
       setStep('otp_sent')
@@ -210,8 +239,9 @@ export function CircleEmailLogin({ onBack, onSuccess }: Props) {
     }
   }
 
-  // ── Step 2: open Circle OTP popup ─────────────────────────────────────────
+  // ── Step 2: open Circle OTP popup ────────────────────────────────────────
   const verifyOtp = () => {
+    if (!otpTokensRef.current) { setError('Please request a code first.'); return }
     setStep('verifying')
     setStatusMsg('Waiting for verification…')
     sdkRef.current?.verifyOtp()
@@ -230,7 +260,7 @@ export function CircleEmailLogin({ onBack, onSuccess }: Props) {
         </button>
       )}
 
-      {/* ── email entry ────────────────────────────────────────────────────── */}
+      {/* ── email entry ──────────────────────────────────────────────────── */}
       {step === 'email' && (
         <>
           <h2 style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.025em', marginBottom: 6, color: TEXT }}>
@@ -342,11 +372,11 @@ export function CircleEmailLogin({ onBack, onSuccess }: Props) {
         </div>
       )}
 
-      {/* ── error ──────────────────────────────────────────────────────────── */}
+      {/* ── error ────────────────────────────────────────────────────────── */}
       {step === 'error' && (
         <>
           <p style={errS}>{error}</p>
-          <button onClick={() => { setStep('email'); setError('') }}
+          <button onClick={() => { setStep('email'); setError(''); loginResultRef.current = null; otpTokensRef.current = null }}
             style={{ ...btnS(SURF, TEXT, BDR), marginTop: 16 }}>
             Try again
           </button>
