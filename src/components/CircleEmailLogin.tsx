@@ -64,8 +64,13 @@ export function CircleEmailLogin({ onBack, onSuccess }: Props) {
   const [error,     setError]     = useState('')
   const [loading,   setLoading]   = useState(false)
   const [statusMsg, setStatusMsg] = useState('')
+  const [trace,     setTrace]     = useState('')
+  const traceRef      = useRef<((e: MessageEvent) => void) | null>(null)
 
-  useEffect(() => () => { if (watchRef.current) clearInterval(watchRef.current) }, [])
+  useEffect(() => () => {
+    if (watchRef.current) clearInterval(watchRef.current)
+    if (traceRef.current) window.removeEventListener('message', traceRef.current)
+  }, [])
 
   // Keep emailRef in sync with controlled input
   useEffect(() => { emailRef.current = email }, [email])
@@ -180,8 +185,13 @@ export function CircleEmailLogin({ onBack, onSuccess }: Props) {
             return
           }
         }
+        // Circle keeps its popup open on a wrong code — stay on this screen, let them retype
+        if (document.getElementById('sdkIframe')) {
+          setStatusMsg(`${msg || 'Verification failed'} — please try again in the popup.`)
+          return
+        }
         setError('Verification failed — please check your code and try again.')
-        setStep('error')
+        setStep('otp_sent')
         return
       }
       const res = result as LoginResult
@@ -244,6 +254,19 @@ export function CircleEmailLogin({ onBack, onSuccess }: Props) {
   }
 
   // ── Step 2: open Circle OTP popup ────────────────────────────────────────
+  const stopTrace = () => {
+    if (traceRef.current) { window.removeEventListener('message', traceRef.current); traceRef.current = null }
+  }
+  const startTrace = () => {
+    stopTrace(); setTrace('')
+    const fn = (e: MessageEvent) => {
+      if (e.origin !== 'https://pw-auth.circle.com') return
+      const keys = Object.keys((e.data ?? {}) as object).filter(k => k !== 'w3s')
+      if (keys.length) setTrace(t => (t ? t + ' → ' : '') + keys.join(','))
+    }
+    traceRef.current = fn
+    window.addEventListener('message', fn)
+  }
   const stopWatch = () => { if (watchRef.current) { clearInterval(watchRef.current); watchRef.current = null } }
 
   const verifyOtp = () => {
@@ -268,6 +291,7 @@ export function CircleEmailLogin({ onBack, onSuccess }: Props) {
       setStep('otp_sent')
     }
 
+    startTrace()
     sdk.verifyOtp()
 
     // Popup closed (or never appeared) without a result → don't spin forever
@@ -397,6 +421,9 @@ export function CircleEmailLogin({ onBack, onSuccess }: Props) {
           <p style={{ fontSize: 15, color: TEXT2, lineHeight: 1.6 }}>
             {step === 'verifying' ? 'Waiting for verification…' : statusMsg || 'Setting up your wallet…'}
           </p>
+          {step === 'verifying' && trace && (
+            <p style={{ fontSize: 11, color: TEXT3, marginTop: 10, wordBreak: 'break-word' }}>Circle: {trace}</p>
+          )}
           {step === 'verifying' && (
             <button onClick={() => { stopWatch(); document.getElementById('sdkIframe')?.remove(); setStep('otp_sent') }}
               style={{ background: 'none', border: 'none', cursor: 'pointer', color: TEXT2,
