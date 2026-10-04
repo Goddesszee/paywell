@@ -499,16 +499,47 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       </div>
 
+      {/* Mobile sticky topbar — hidden on agent (it has its own header) */}
+      {activeView !== 'agent' && (
+        <header style={{
+          flexShrink: 0,
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          paddingTop: 'max(10px,env(safe-area-inset-top))',
+          paddingBottom: 10,
+          paddingLeft: 'max(16px,env(safe-area-inset-left))',
+          paddingRight: 'max(16px,env(safe-area-inset-right))',
+          background: C.isDark ? '#08090B' : '#FFFFFF',
+          borderBottom: `1px solid ${C.bdr}`,
+          zIndex: 50,
+        }}>
+          <button onClick={handleLogoTap} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', WebkitTapHighlightColor: 'transparent', minHeight: 'unset', minWidth: 'unset' }}>
+            <NanLogo height={26} />
+          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <NotificationBell color={C.t2} />
+            <button
+              onClick={() => setPaletteOpen(true)}
+              style={{ width: 36, height: 36, borderRadius: 10, background: C.surf2, border: `1px solid ${C.bdr}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', minHeight: 'unset', minWidth: 'unset' }}
+              aria-label="Search"
+            >
+              <Search size={15} color={C.t2} />
+            </button>
+          </div>
+        </header>
+      )}
+
+      {paletteOpen && <CommandPalette onClose={() => setPaletteOpen(false)} onGo={go} />}
+
       {/* Mobile main content — agent view gets overflow:hidden so it self-manages scroll */}
       <main style={{
         flex: 1,
         minHeight: 0,           /* critical: lets flex item shrink below content height */
         overflowY: activeView === 'agent' ? 'hidden' : 'auto',
         overflowX: 'hidden',
-        paddingTop: activeView === 'agent' ? 0 : 10,
+        paddingTop: activeView === 'agent' ? 0 : 12,
         paddingLeft: activeView === 'agent' ? 0 : 'max(14px,env(safe-area-inset-left))',
         paddingRight: activeView === 'agent' ? 0 : 'max(14px,env(safe-area-inset-right))',
-        paddingBottom: activeView === 'agent' ? 0 : 60,
+        paddingBottom: activeView === 'agent' ? 0 : 'max(20px,env(safe-area-inset-bottom))',
         scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch',
         msOverflowStyle: 'none',
         display: 'flex', flexDirection: 'column',
@@ -531,9 +562,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             return (
               <button key={id} onClick={() => go(id)} aria-label={label} style={{
                 flex: 1, display: 'flex', flexDirection: 'column',
-                alignItems: 'center', justifyContent: 'center', gap: 2,
-                padding: '6px 2px 7px',
-                minHeight: 46, border: 'none', background: 'transparent',
+                alignItems: 'center', justifyContent: 'center', gap: 3,
+                padding: '8px 2px 8px',
+                minHeight: 52, border: 'none', background: 'transparent',
                 cursor: 'pointer', transition: 'color 0.12s',
                 fontFamily: F, WebkitTapHighlightColor: 'transparent', position: 'relative',
               }}>
@@ -545,9 +576,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           })}
           <button onClick={() => setDrawerOpen(v => !v)} aria-label="More" style={{
             flex: 1, display: 'flex', flexDirection: 'column',
-            alignItems: 'center', justifyContent: 'center', gap: 2,
-            padding: '6px 2px 7px',
-            minHeight: 46, border: 'none', background: 'transparent',
+            alignItems: 'center', justifyContent: 'center', gap: 3,
+            padding: '8px 2px 8px',
+            minHeight: 52, border: 'none', background: 'transparent',
             cursor: 'pointer', transition: 'color 0.12s',
             fontFamily: F, WebkitTapHighlightColor: 'transparent',
           }}>

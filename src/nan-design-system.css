@@ -183,6 +183,12 @@
 /* ── Reset ── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+html {
+  /* Prevent iOS from inflating font sizes in landscape */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 html, body, #root {
   height: 100%;
   background: var(--nan-bg) !important;
@@ -191,6 +197,26 @@ html, body, #root {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+  /* Prevent pull-to-refresh and over-scroll glow on the root */
+  overscroll-behavior: none;
+}
+
+/* Remove 300ms tap delay on all interactive elements */
+a, button, [role="button"], input, select, textarea, label {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Prevent iOS from zooming on input focus — minimum 16px */
+input, select, textarea {
+  font-size: max(16px, 1em);
+}
+
+/* Ensure interactive elements have comfortable minimum tap targets on mobile */
+@media (max-width: 768px) {
+  button:not([data-compact]):not([style*="height"]):not([style*="width"]):not([style*="padding"]) {
+    min-height: 44px;
+  }
 }
 
 /* ── Typography scale ── */

@@ -140,7 +140,7 @@ export function HomePage() {
   const recent = activity.slice(0, 4)
 
   return (
-    <div style={{ maxWidth: 480, margin: '0 auto', fontFamily: F }}>
+    <div style={{ maxWidth: 480, width: '100%', margin: '0 auto', fontFamily: F }}>
 
       {/* ── Greeting + Add Money ── */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, gap: 10 }}>
