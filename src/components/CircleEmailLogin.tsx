@@ -54,9 +54,11 @@ const _sdk = new W3SSdk(
 export function CircleEmailLogin({ onBack, onSuccess }: Props) {
   const { setAuth, profile } = useAppStore()
 
-  // email stored in a ref so finishAuth/initializeUser don't re-create on every keystroke
+  // Refs — same pattern as AgentWalletExperience
   const emailRef    = useRef('')
   const encKeyRef   = useRef<string | undefined>()
+  // loginResRef persists the OTP result so async work always has a fresh copy
+  const loginResRef = useRef<LoginResult | null>(null)
 
   const [email,     setEmail]     = useState('')
   const [step,      setStep]      = useState<Step>('email')
@@ -104,6 +106,11 @@ export function CircleEmailLogin({ onBack, onSuccess }: Props) {
     }
   }, [onSuccess, setAuth])
 
+  // Keep a ref to finishAuth so initializeUser (and _loginCb) always call the
+  // latest closure — mirrors AgentWalletExperience.finishProvisionRef pattern
+  const finishAuthRef = useRef(finishAuth)
+  useEffect(() => { finishAuthRef.current = finishAuth }, [finishAuth])
+
   // ── initialize: new user gets wallet challenge, existing user skips ────────
   const initializeUser = useCallback(async (loginRes: LoginResult) => {
     setStatusMsg('Setting up your account…')
@@ -117,12 +124,12 @@ export function CircleEmailLogin({ onBack, onSuccess }: Props) {
 
       // Existing user — just load their wallets
       if (data.code === 155106) {
-        await finishAuth(loginRes.userToken, loginRes.encryptionKey)
+        await finishAuthRef.current(loginRes.userToken, loginRes.encryptionKey)
         return
       }
       if (data.error || !data.challengeId) {
         if (data.error?.toLowerCase().includes('already') || data.error?.toLowerCase().includes('initialized')) {
-          await finishAuth(loginRes.userToken, loginRes.encryptionKey)
+          await finishAuthRef.current(loginRes.userToken, loginRes.encryptionKey)
           return
         }
         throw new Error(data.error ?? 'Wallet initialization failed')
@@ -135,22 +142,29 @@ export function CircleEmailLogin({ onBack, onSuccess }: Props) {
         if (execErr) {
           const msg = execErr instanceof Error ? execErr.message : String(execErr)
           if (msg.toLowerCase().includes('already') || msg.toLowerCase().includes('155106')) {
-            await finishAuth(loginRes.userToken, loginRes.encryptionKey)
+            await finishAuthRef.current(loginRes.userToken, loginRes.encryptionKey)
             return
           }
           setError('Wallet setup failed — please try again.')
           setStep('error')
           return
         }
-        await finishAuth(loginRes.userToken, loginRes.encryptionKey)
+        await finishAuthRef.current(loginRes.userToken, loginRes.encryptionKey)
       })
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Setup error — please try again.')
       setStep('error')
     }
-  }, [finishAuth])
+  }, [])  // no deps — uses finishAuthRef.current, never stale
 
-  // ── Wire _loginCb on mount — same pattern as AgentWalletExperience ─────────
+  // Keep a ref to initializeUser too
+  const initializeUserRef = useRef(initializeUser)
+  useEffect(() => { initializeUserRef.current = initializeUser }, [initializeUser])
+
+  // ── Wire _loginCb with EMPTY DEPS — exact AgentWalletExperience pattern ────
+  // _loginCb stores the result in loginResRef then calls setStep via setTimeout.
+  // The async work (initializeUser) is called via ref so it is never stale.
+  // Empty deps means this NEVER tears down and rewires during an active OTP flow.
   useEffect(() => {
     _loginCb = (err: unknown, result: unknown) => {
       if (err) {
@@ -158,19 +172,24 @@ export function CircleEmailLogin({ onBack, onSuccess }: Props) {
         if (msg.toLowerCase().includes('already') || msg.toLowerCase().includes('155106')) {
           const res = result as LoginResult | undefined
           if (res?.userToken) {
-            void finishAuth(res.userToken, res.encryptionKey)
+            loginResRef.current = res
+            setTimeout(() => { void initializeUserRef.current(res) }, 0)
             return
           }
         }
-        setError('Verification failed — please check your code and try again.')
-        setStep('error')
+        setTimeout(() => {
+          setError('Verification failed — please check your code and try again.')
+          setStep('error')
+        }, 0)
         return
       }
       const res = result as LoginResult
-      void initializeUser(res)
+      loginResRef.current = res
+      setTimeout(() => { void initializeUserRef.current(res) }, 0)
     }
     return () => { _loginCb = null }
-  }, [initializeUser, finishAuth])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])  // EMPTY DEPS — same as AgentWalletExperience line 1343
 
   // ── Step 1: send OTP ───────────────────────────────────────────────────────
   const sendOtp = async () => {
