@@ -16,6 +16,8 @@ import type { AgentMessage } from '../../store/appStore'
 
 import { formatUSDC, formatRelativeTime } from '../../utils/format'
 import { nanChat, backendConfigured } from '../../lib/api'
+import type { MarketplaceServiceCard } from '../../lib/api'
+import { ServiceDiscoveryCard } from '../ServiceDiscoveryCard'
 import { getUsdc } from '../../onchain-facts'
 import {
   classifyIntent, checkPolicy, orchestrate,
@@ -551,7 +553,13 @@ function AgentChat({ onNavigate }: { onNavigate?: (page: string, query?: string)
           'openai-completion': 'OpenAI',
         }
         const serviceLabel = res.service_used ? (SERVICE_LABELS[res.service_used] ?? res.service_used) : undefined
-        addAgentMessage({ role:'agent', content:clean || res.reply, action:'info', serviceSource: serviceLabel })
+        addAgentMessage({
+          role: 'agent',
+          content: clean || res.reply,
+          action: 'info',
+          serviceSource: serviceLabel,
+          marketplaceServices: res.marketplace_services,
+        })
         // Parse and handle action block
         if (res.action) {
           const parsed = parseAction(res.action)
@@ -601,6 +609,9 @@ function AgentChat({ onNavigate }: { onNavigate?: (page: string, query?: string)
     'Take me to the bridge page',
     'Enable the NAN Agent',
     'What is the current Bitcoin price?',
+    'Find me a web research service',
+    'Find a data enrichment service',
+    'What services can my agent use?',
   ]
 
   return (
@@ -616,7 +627,28 @@ function AgentChat({ onNavigate }: { onNavigate?: (page: string, query?: string)
       )}
       <div style={{ flex:1, overflowY:'auto', display:'flex', flexDirection:'column', gap:12, marginBottom:10, paddingRight:2 }}>
         {agentMessages.map(msg => (
-          <MsgBubble key={msg.id} msg={msg} onApprove={approveAgentPurchase} onReject={rejectAgentPurchase} />
+          <MsgBubble
+            key={msg.id}
+            msg={msg}
+            onApprove={approveAgentPurchase}
+            onReject={rejectAgentPurchase}
+            onUseService={(s) => {
+              addAgentMessage({ role: 'user', content: `Use ${s.provider} with NAN Agent` })
+              addAgentMessage({
+                role: 'agent',
+                content: `Got it — I'll use **${s.provider}** (${s.category_label}) for your requests. It costs ${s.pricing} and payments go through ${s.payment_scheme === 'x402' ? 'Circle x402 nanopayments' : s.payment_scheme === 'free' ? 'no payment (free)' : 'USDC'}. Your Agent Wallet is ready. Just ask me to perform a task and I'll route it through this service.`,
+                action: 'info',
+              })
+            }}
+            onInspectService={(s) => {
+              addAgentMessage({ role: 'user', content: `Inspect ${s.provider}` })
+              addAgentMessage({
+                role: 'agent',
+                content: `**${s.provider}**\n\nCategory: ${s.category_label}\n${s.description}\n\nEndpoint: ${s.method} ${s.endpoint}\nPricing: ${s.pricing}\nPayment: ${s.payment_scheme === 'x402' ? 'Circle x402 Nanopayment (Base network)' : s.payment_scheme}\n${s.payment_address ? `Payment address: ${s.payment_address.slice(0, 8)}...${s.payment_address.slice(-6)}` : ''}${s.provider_docs ? `\nDocs: ${s.provider_docs}` : ''}`,
+                action: 'info',
+              })
+            }}
+          />
         ))}
         {orchSteps.length > 0 && (
           <OrchestratorStream
@@ -684,7 +716,13 @@ function AgentChat({ onNavigate }: { onNavigate?: (page: string, query?: string)
   )
 }
 
-function MsgBubble({ msg, onApprove, onReject }: { msg:AgentMessage; onApprove:(id:string)=>void; onReject:(id:string)=>void }) {
+function MsgBubble({ msg, onApprove, onReject, onUseService, onInspectService }: {
+  msg: AgentMessage
+  onApprove: (id: string) => void
+  onReject: (id: string) => void
+  onUseService?: (s: MarketplaceServiceCard) => void
+  onInspectService?: (s: MarketplaceServiceCard) => void
+}) {
   if (msg.role === 'user') return (
     <div style={{ display:'flex', justifyContent:'flex-end' }}>
       <div style={{ background:BLUE, color:'#fff', fontSize:13, borderRadius:16, borderTopRightRadius:4, padding:'10px 14px', maxWidth:'78%' }}>{msg.content}</div>
@@ -710,11 +748,27 @@ function MsgBubble({ msg, onApprove, onReject }: { msg:AgentMessage; onApprove:(
         )}
         {msg.action==='purchase_request' && msg.approved===true && <div style={{ fontSize:11, color:BLACK, fontWeight:600, display:'flex', alignItems:'center', gap:4 }}><Check size={11} /> Approved</div>}
         {msg.action==='purchase_request' && msg.approved===false && <div style={{ fontSize:11, color:TEXT3, fontWeight:500, display:'flex', alignItems:'center', gap:4 }}><X size={11} /> Declined</div>}
+        {/* Live marketplace results — rendered inline below the reply text */}
+        {msg.marketplaceServices && msg.marketplaceServices.length >= 0 && onUseService && onInspectService && (
+          <div className="mt-1">
+            <ServiceDiscoveryCard
+              services={msg.marketplaceServices}
+              onUseService={onUseService}
+              onInspectService={onInspectService}
+            />
+          </div>
+        )}
+
         <div style={{ display:'flex', alignItems:'center', gap:6, flexWrap:'wrap' }}>
           <div style={{ fontSize:10, color:TEXT3 }}>{formatRelativeTime(msg.timestamp)}</div>
           {msg.serviceSource && (
             <div style={{ fontSize:10, fontWeight:600, color:'#0066FF', background:'rgba(0,102,255,0.08)', border:'1px solid rgba(0,102,255,0.2)', borderRadius:6, padding:'1px 7px', display:'flex', alignItems:'center', gap:3 }}>
               <Zap size={9} color='#0066FF' /> {msg.serviceSource}
+            </div>
+          )}
+          {msg.marketplaceServices && msg.marketplaceServices.length > 0 && (
+            <div style={{ fontSize:10, fontWeight:600, color:'#10B981', background:'rgba(16,185,129,0.08)', border:'1px solid rgba(16,185,129,0.2)', borderRadius:6, padding:'1px 7px', display:'flex', alignItems:'center', gap:3 }}>
+              <Zap size={9} color='#10B981' /> Circle Marketplace
             </div>
           )}
         </div>

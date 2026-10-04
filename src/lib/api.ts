@@ -7,6 +7,26 @@
 
 const BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? ''
 
+// ── Marketplace types (mirrors api/agent-marketplace.ts) ─────────────────────
+export interface MarketplaceServiceCard {
+  id: string
+  provider: string
+  provider_website?: string
+  provider_docs?: string
+  category: string
+  category_label: string
+  description: string
+  endpoint: string
+  method: string
+  pricing: string
+  price_raw?: string
+  payment_scheme: string
+  payment_address?: string
+  payment_network?: string
+  tags: string[]
+  last_updated?: string
+}
+
 // ── helpers ────────────────────────────────────────────────────────────────────
 
 async function apiPost<T>(path: string, body: unknown, token?: string): Promise<T> {
@@ -172,9 +192,9 @@ export async function nanChat(opts: {
     perTxLimit?: number
     remainingToday?: number
   }
-}): Promise<{ reply: string; service_used?: string | null; action?: Record<string, unknown> | null }> {
+}): Promise<{ reply: string; service_used?: string | null; action?: Record<string, unknown> | null; marketplace_services?: MarketplaceServiceCard[] }> {
   const last = opts.messages[opts.messages.length - 1]?.content ?? ''
-  return apiPost<{ reply: string; service_used?: string | null; action?: Record<string, unknown> | null }>('/api/chat', {
+  return apiPost<{ reply: string; service_used?: string | null; action?: Record<string, unknown> | null; marketplace_services?: MarketplaceServiceCard[] }>('/api/chat', {
     message: last,
     messages: opts.messages,
     history: opts.messages.slice(0, -1),

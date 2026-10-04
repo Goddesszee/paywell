@@ -16,6 +16,53 @@ function extractAction(raw: string): { text: string; action: Record<string, unkn
   }
 }
 
+// ── Marketplace intent detection ──────────────────────────────────────────────
+function detectMarketplaceIntent(message: string): string | null {
+  const m = message.toLowerCase()
+  // Explicit discovery phrases
+  if (/find (me )?(a |an |some )?service|search (for )?service|what services|which services|services.*agent (can |use|do)|show.*services|browse services|discover services|list.*services|available services/.test(m)) {
+    // Extract the meaningful query part after "find a service that..."
+    const afterThat = m.match(/service[s]?\s+(that\s+)?(can\s+)?(.+)/)
+    if (afterThat?.[3]) return afterThat[3].replace(/\?/g, '').trim()
+    // "find me a web research service" → "web research"
+    const beforeService = m.match(/find\s+(?:me\s+)?(?:a\s+|an\s+|some\s+)?(.+?)\s+service/)
+    if (beforeService?.[1] && beforeService[1] !== 'a' && beforeService[1] !== 'an') return beforeService[1].trim()
+    return 'general'
+  }
+  // "find a service for X" or "find something that can X"
+  if (/find\s+(?:a\s+)?(?:service|something|tool|api)\s+(?:for|that|to)\s+(.+)/.test(m)) {
+    const match = m.match(/find\s+(?:a\s+)?(?:service|something|tool|api)\s+(?:for|that|to)\s+(.+)/)
+    return match?.[1]?.replace(/\?/g, '').trim() ?? 'general'
+  }
+  // "I need a data enrichment service" / "I need help with web research"
+  if (/(?:i need|looking for|help with|want)\s+(?:a\s+|an\s+)?(.+?)\s+service/.test(m)) {
+    const match = m.match(/(?:i need|looking for|help with|want)\s+(?:a\s+|an\s+)?(.+?)\s+service/)
+    return match?.[1]?.trim() ?? 'general'
+  }
+  // "compare services" / "compare these services"
+  if (/compare\s+(?:these\s+)?services/.test(m)) return 'general'
+  // "best research service" / "best suitable service for X"
+  if (/best\s+(?:suitable\s+)?(?:\w+\s+)?service\s+(?:for\s+)?(.*)/.test(m)) {
+    const match = m.match(/best\s+(?:suitable\s+)?(?:(\w+)\s+)?service/)
+    return match?.[1] ?? 'general'
+  }
+  return null
+}
+
+async function fetchMarketplaceServices(query: string, baseUrl: string): Promise<import('./agent-marketplace').MarketplaceServiceCard[]> {
+  try {
+    const r = await fetch(`${baseUrl}/api/agent-marketplace`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'search', query }),
+      signal: AbortSignal.timeout(18000),
+    })
+    if (!r.ok) return []
+    const d = await r.json() as { ok?: boolean; services?: import('./agent-marketplace').MarketplaceServiceCard[] }
+    return d.services ?? []
+  } catch { return [] }
+}
+
 // ── Intent classifier (mirrors src/lib/agent-orchestrator.ts) ─────────────────
 type ServiceIntent = { service_id: string; query: string } | null
 
@@ -100,18 +147,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
   if (!message) return res.status(400).json({ error: 'message required' })
 
+  const host = req.headers.host ?? 'localhost:3001'
+  const proto = host.includes('localhost') ? 'http' : 'https'
+  const baseUrl = `${proto}://${host}`
+
+  // ── Marketplace discovery intent ──────────────────────────────────────────────
+  // Check BEFORE live service calls — marketplace queries don't need agent execution
+  const marketplaceQuery = detectMarketplaceIntent(message)
+  let marketplaceServices: import('./agent-marketplace').MarketplaceServiceCard[] = []
+  if (marketplaceQuery) {
+    const q = marketplaceQuery === 'general' ? 'services' : marketplaceQuery
+    marketplaceServices = await fetchMarketplaceServices(q, baseUrl)
+  }
+
   // ── Live service call ─────────────────────────────────────────────────────────
   // Classify intent and call the real external service if applicable.
   // The result is injected into the system prompt so the LLM synthesises it.
   let liveServiceResult: string | null = null
   let liveServiceId: string | null = null
-  const serviceIntent = classifyToService(message)
-  if (serviceIntent) {
-    const host = req.headers.host ?? 'localhost:3001'
-    const proto = host.includes('localhost') ? 'http' : 'https'
-    const baseUrl = `${proto}://${host}`
-    liveServiceResult = await callAgentExecute(serviceIntent.service_id, serviceIntent.query, baseUrl)
-    liveServiceId = serviceIntent.service_id
+  // Skip service execution when this is a discovery request
+  if (!marketplaceQuery) {
+    const serviceIntent = classifyToService(message)
+    if (serviceIntent) {
+      liveServiceResult = await callAgentExecute(serviceIntent.service_id, serviceIntent.query, baseUrl)
+      liveServiceId = serviceIntent.service_id
+    }
   }
 
   // x402 gate — if SELLER_ADDRESS set, require payment header
@@ -136,6 +196,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     ? `\n\n---\n## LIVE DATA FROM ${liveServiceId?.toUpperCase()} (retrieved just now)\n\n${liveServiceResult}\n\n---\n\nThe data above is LIVE and was just fetched. Use it directly in your response — do NOT say you cannot access live data, because you clearly can. Format the results clearly for the user and add helpful context.`
     : ''
 
+  // Marketplace results block — injected when service discovery was triggered
+  const marketplaceBlock = marketplaceServices.length > 0
+    ? `\n\n---\n## LIVE CIRCLE AGENT MARKETPLACE RESULTS (fetched just now — ${marketplaceServices.length} services found)\n\n${
+        marketplaceServices.slice(0, 6).map((s, i) =>
+          `${i + 1}. **${s.provider}** — ${s.category_label}\n   ${s.description}\n   Pricing: ${s.pricing} | Payment: ${s.payment_scheme.toUpperCase()} | Endpoint: ${s.endpoint}`
+        ).join('\n\n')
+      }\n\n---\n\nThe services above are REAL results from Circle Agent Marketplace. Reference them by name in your reply. Be friendly and helpful — say something like "I found X services" and briefly describe what each does. Do NOT fabricate additional services or pricing.`
+    : marketplaceQuery
+      ? `\n\n---\n## CIRCLE AGENT MARKETPLACE SEARCH: no results found for "${marketplaceQuery}"\n---\n\nTell the user honestly: "I searched Circle Agent Marketplace but couldn't find a matching service for that request." Do not invent services.`
+      : ''
+
   // ── Live wallet context block ──────────────────────────────────────────────
   const mainBal  = ctx.mainBalance  ?? body.usdcBal ?? 'unknown'
   const mainAddr = ctx.mainAddress  ?? body.userAddress ?? 'not connected'
@@ -152,7 +223,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
 IMPORTANT: When the user asks "what's my balance", "how much USDC do I have", or anything about their balance, always answer directly using the LIVE WALLET STATE above. Never say you don't have access to the balance.`
 
-  const systemPrompt = `You are NAN Agent — the built-in AI assistant for NAN (nanarc.xyz), an autonomous financial platform on Arc Testnet (Circle/USDC). Today is ${new Date().toDateString()}.${walletBlock}${liveDataBlock}
+  const systemPrompt = `You are NAN Agent — the built-in AI assistant for NAN (nanarc.xyz), an autonomous financial platform on Arc Testnet (Circle/USDC). Today is ${new Date().toDateString()}.${walletBlock}${liveDataBlock}${marketplaceBlock}
 
 ## CRITICAL: ACTION SYSTEM
 
@@ -330,7 +401,12 @@ RULES:
       if (openaiData.error) throw new Error(openaiData.error.message)
       const rawReply = openaiData.choices?.[0]?.message?.content ?? 'Sorry, try again.'
       const { text: replyText, action: replyAction } = extractAction(rawReply)
-      return res.status(200).json({ reply: replyText, action: replyAction, service_used: liveServiceId })
+      return res.status(200).json({
+        reply: replyText,
+        action: replyAction,
+        service_used: liveServiceId,
+        marketplace_services: marketplaceServices.length > 0 ? marketplaceServices : undefined,
+      })
     } catch (e) {
       console.error('OpenAI error:', e)
     }
@@ -350,7 +426,12 @@ RULES:
     })
     const rawGroq = completion.choices[0]?.message?.content ?? 'Sorry, try again.'
     const { text: groqText, action: groqAction } = extractAction(rawGroq)
-    return res.status(200).json({ reply: groqText, action: groqAction, service_used: liveServiceId })
+    return res.status(200).json({
+      reply: groqText,
+      action: groqAction,
+      service_used: liveServiceId,
+      marketplace_services: marketplaceServices.length > 0 ? marketplaceServices : undefined,
+    })
   }
 
   // Smart fallback

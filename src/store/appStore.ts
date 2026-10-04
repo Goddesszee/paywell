@@ -81,6 +81,7 @@ export interface AgentMessage {
   approved?: boolean
   serviceSource?: string
   nanAction?: Record<string, unknown>
+  marketplaceServices?: import('../lib/api').MarketplaceServiceCard[]
 }
 
 export interface OnboardingState {

@@ -15,6 +15,7 @@
     { "source": "/api/agent-execute",                            "destination": "/api/agent-execute" },
     { "source": "/api/agent-registry",                           "destination": "/api/agent-registry" },
     { "source": "/api/agent-wallet",                             "destination": "/api/agent-wallet" },
+    { "source": "/api/agent-marketplace",                       "destination": "/api/agent-marketplace" },
     { "source": "/api/feedback",                                 "destination": "/api/community?route=feedback" },
     { "source": "/api/admin/feedback",                           "destination": "/api/community?route=admin/feedback" },
     { "source": "/api/admin/feedback/:id/review",                "destination": "/api/community?route=admin/feedback/review&_id=:id" },
