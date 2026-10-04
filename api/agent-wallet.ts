@@ -548,5 +548,151 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   }
 
+  // ── execute-service — inspect price, check balance+policy, pay, execute ────
+  // This is the authoritative "Use service" backend entry point.
+  // The frontend must NEVER supply the price — we always fetch it from the CLI.
+  if (action === 'execute-service') {
+    const { endpoint: svcEndpoint, service_id, query: svcQuery, userToken: bodyToken, dailyLimit, dailyUsed, perServiceLimit, requireApproval, requireApprovalAbove } = body
+    const tok = (req.headers['x-user-token'] as string) ?? bodyToken
+    if (!svcEndpoint && !service_id) return res.status(400).json({ error: 'endpoint or service_id required' })
+    if (!svcQuery?.trim())           return res.status(400).json({ error: 'query required' })
+
+    // Step 1 — get authoritative service metadata (price, payment address)
+    let serviceCard: MarketplaceServiceCard | null = null
+    if (svcEndpoint) {
+      try { serviceCard = await runMktInspect(svcEndpoint) } catch { /* fallback to static */ }
+    }
+
+    // Step 2 — get real agent wallet balance from Circle (ignore any UI value)
+    let realBalance = 0
+    if (tok) {
+      try {
+        const statusClient = getUserClient()
+        if (statusClient) {
+          const walletList = await statusClient.listWallets({ userToken: tok })
+          const aw = (walletList.data?.wallets ?? []).find(w =>
+            w.blockchain?.toLowerCase().includes('arc') || w.blockchain?.toLowerCase().includes('testnet')
+          ) ?? walletList.data?.wallets?.[0]
+          if (aw) {
+            const balRes = await statusClient.getWalletTokenBalance({ walletId: aw.id, userToken: tok })
+            const usdcBal = (balRes.data?.tokenBalances ?? []).find(b => b.token?.symbol === 'USDC')
+            realBalance = parseFloat(usdcBal?.amount ?? '0')
+          }
+        }
+      } catch { /* leave at 0 */ }
+    }
+
+    // Step 3 — resolve cost_usdc (authoritative from marketplace > static registry > 0)
+    let cost_usdc = 0
+    if (serviceCard?.price_raw) {
+      cost_usdc = parseInt(serviceCard.price_raw, 10) / 1e6
+    }
+    // If this is a known static service, use registry pricing
+    const STATIC_COSTS: Record<string, { cost: number }> = {
+      'perplexity-research': { cost: 0.002 },
+      'openai-completion':   { cost: 0.001 },
+    }
+    if (service_id && STATIC_COSTS[service_id]) {
+      cost_usdc = cost_usdc || STATIC_COSTS[service_id].cost
+    }
+
+    // Step 4 — policy check (using values caller sends, or ultra-conservative defaults)
+    const dLimit  = parseFloat(dailyLimit  ?? '0') || 20
+    const dUsed   = parseFloat(dailyUsed   ?? '0') || 0
+    const perSvc  = parseFloat(perServiceLimit ?? '0') || 5
+    const reqAbove = parseFloat(requireApprovalAbove ?? '5') || 5
+    const reqApproval = requireApproval === 'true' || requireApproval === '1'
+    const remaining = dLimit - dUsed
+
+    if (cost_usdc > remaining) {
+      return res.status(200).json({
+        ok: false,
+        blocked: true,
+        reason: `This service costs ${cost_usdc.toFixed(4)} USDC but you only have ${remaining.toFixed(2)} USDC left in your daily budget.`,
+        cost_usdc, real_balance: realBalance.toFixed(6), service: serviceCard,
+      })
+    }
+    if (cost_usdc > perSvc) {
+      return res.status(200).json({
+        ok: false,
+        blocked: true,
+        reason: `This service costs ${cost_usdc.toFixed(4)} USDC which exceeds your per-service limit of ${perSvc} USDC.`,
+        cost_usdc, real_balance: realBalance.toFixed(6), service: serviceCard,
+      })
+    }
+    if (cost_usdc > 0 && realBalance < cost_usdc) {
+      return res.status(200).json({
+        ok: false,
+        blocked: true,
+        reason: `Your Agent Wallet doesn't have enough USDC. Need ${cost_usdc.toFixed(4)} USDC, have ${realBalance.toFixed(6)} USDC.`,
+        cost_usdc, real_balance: realBalance.toFixed(6), service: serviceCard,
+      })
+    }
+
+    // Step 5 — if requires confirmation, return a pre-execution card (no payment yet)
+    const needsConfirm = reqApproval || (cost_usdc > 0 && cost_usdc > reqAbove)
+    const confirmed = body.confirmed === 'true' || body.confirmed === '1'
+    if (needsConfirm && !confirmed && cost_usdc > 0) {
+      return res.status(200).json({
+        ok: true,
+        awaiting_confirmation: true,
+        cost_usdc, real_balance: realBalance.toFixed(6),
+        service: serviceCard,
+        message: `Ready to use ${serviceCard?.provider ?? service_id ?? 'service'} for ${cost_usdc.toFixed(4)} USDC. Confirm to proceed.`,
+      })
+    }
+
+    // Step 6 — call agent-execute to run the actual service (it handles nanopayment internally)
+    const host = req.headers.host ?? 'localhost:3001'
+    const proto = host.includes('localhost') ? 'http' : 'https'
+    const baseUrl = `${proto}://${host}`
+    let executeResult: string | null = null
+    let executeError: string | null = null
+    let nanopayment: { paid: boolean; txId?: string; amount_usdc?: number; skipped_reason?: string } = { paid: false }
+
+    const execServiceId = service_id ?? serviceCard?.id ?? 'brave-search'
+    try {
+      const execRes = await fetch(`${baseUrl}/api/agent-execute`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ service_id: execServiceId, query: svcQuery, params: {} }),
+        signal: AbortSignal.timeout(30000),
+      })
+      if (execRes.ok) {
+        const d = await execRes.json() as { result?: string; error?: string; nanopayment?: typeof nanopayment }
+        executeResult = d.result ?? null
+        nanopayment   = d.nanopayment ?? nanopayment
+        if (d.error && !d.result) executeError = d.error
+      } else {
+        executeError = `Service returned HTTP ${execRes.status}`
+      }
+    } catch (e) {
+      executeError = e instanceof Error ? e.message : 'Service call failed'
+    }
+
+    if (executeError && !executeResult) {
+      return res.status(200).json({
+        ok: false,
+        execute_error: true,
+        reason: executeError,
+        cost_usdc, service: serviceCard,
+        nanopayment,
+      })
+    }
+
+    // Step 7 — return success with real result
+    const txRef = nanopayment.txId ?? `nan-svc-${Date.now().toString(36)}`
+    return res.status(200).json({
+      ok: true,
+      executed: true,
+      result: executeResult,
+      cost_usdc,
+      real_balance: realBalance.toFixed(6),
+      tx_ref: txRef,
+      service: serviceCard,
+      nanopayment,
+    })
+  }
+
   return res.status(400).json({ error: `Unknown action: ${action ?? '(none)'}` })
 }

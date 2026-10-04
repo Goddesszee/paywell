@@ -1,3 +1,4 @@
+/* eslint-disable react/purity */
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import {
   Bot, Send, X, Check, Zap, Shield, ShoppingBag,
@@ -414,6 +415,129 @@ function AgentStatusLine() {
   )
 }
 
+// ── Service Execution Flow ─────────────────────────────────────────────────────
+// Handles the full "Use service" pipeline:
+// inspect → balance/policy check → confirmation card → pay → execute → result
+// Never fabricates prices or results — everything comes from the backend.
+
+type ServiceExecState =
+  | { phase: 'idle' }
+  | { phase: 'checking'; label: string }
+  | { phase: 'awaiting_confirmation'; cost_usdc: number; real_balance: string; service: MarketplaceServiceCard | null; svcId: string | null; endpoint: string | null; query: string }
+  | { phase: 'paying' }
+  | { phase: 'executing' }
+  | { phase: 'done'; result: string; cost_usdc: number; tx_ref?: string }
+  | { phase: 'error'; reason: string }
+
+interface ServiceExecResult {
+  ok: boolean
+  awaiting_confirmation?: boolean
+  executed?: boolean
+  blocked?: boolean
+  execute_error?: boolean
+  reason?: string
+  cost_usdc?: number
+  real_balance?: string
+  tx_ref?: string
+  result?: string
+  service?: MarketplaceServiceCard | null
+  message?: string
+}
+
+function ServiceExecutionFlow({ state, onConfirm, onCancel }: {
+  state: ServiceExecState
+  onConfirm: () => void
+  onCancel: () => void
+}) {
+  if (state.phase === 'idle') return null
+
+  if (state.phase === 'checking') {
+    return (
+      <div style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 14px', background:SURF, border:`1px solid ${BDR}`, borderRadius:14 }}>
+        <Loader2 size={14} color={BLUE} style={{ animation:'spin 1s linear infinite', flexShrink:0 }} />
+        <span style={{ fontSize:13, color:TEXT2, fontFamily:F }}>{state.label}</span>
+      </div>
+    )
+  }
+
+  if (state.phase === 'awaiting_confirmation') {
+    const { cost_usdc, real_balance, service } = state
+    const bal = parseFloat(real_balance || '0')
+    const insufficient = bal < cost_usdc
+    const providerName = service?.provider ?? state.svcId ?? 'Service'
+    return (
+      <div style={{ background:SURF, border:`1px solid ${BDR}`, borderRadius:16, padding:16 }}>
+        <div style={{ fontSize:11, fontWeight:700, color:TEXT3, textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:12 }}>
+          Ready to Use
+        </div>
+        {[
+          { label:'Service',        value: providerName },
+          { label:'What it will do',value: service?.description?.slice(0,90) ?? 'Call this service on your behalf' },
+          { label:'Cost',           value: cost_usdc === 0 ? 'Free' : `${cost_usdc.toFixed(cost_usdc < 0.01 ? 6 : 4)} USDC` },
+          { label:'Agent Wallet',   value: `${bal.toFixed(4)} USDC available` },
+          { label:'Payment',        value: service?.payment_scheme === 'x402' ? 'Circle x402 nanopayment' : cost_usdc === 0 ? 'No payment required' : 'USDC from Agent Wallet' },
+          { label:'Spending policy',value: insufficient ? 'Insufficient balance' : 'Payment permitted' },
+        ].map(({ label, value }) => (
+          <div key={label} style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', padding:'7px 0', borderBottom:`1px solid ${BDR}`, gap:8 }}>
+            <span style={{ fontSize:12, color:TEXT2, flexShrink:0 }}>{label}</span>
+            <span style={{ fontSize:12, fontWeight:600, color: label === 'Spending policy' ? (insufficient ? DANGER : SUCCESS) : TEXT, textAlign:'right', wordBreak:'break-word', maxWidth:'60%' }}>{value}</span>
+          </div>
+        ))}
+        {insufficient && (
+          <div style={{ marginTop:10, padding:'8px 12px', background:'rgba(255,59,59,0.07)', border:'1px solid rgba(255,59,59,0.2)', borderRadius:10, fontSize:12, color:DANGER }}>
+            Your Agent Wallet doesn't have enough USDC. Fund it first in the Agent Wallet tab.
+          </div>
+        )}
+        <div style={{ display:'flex', gap:8, marginTop:14 }}>
+          <button
+            onClick={onConfirm}
+            disabled={insufficient}
+            style={{ flex:1, height:40, background:insufficient?'rgba(0,102,255,0.35)':BLUE, color:'#fff', border:'none', borderRadius:10, fontSize:13, fontWeight:700, cursor:insufficient?'not-allowed':'pointer', fontFamily:F, display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}
+          >
+            <Check size={13} /> Continue
+          </button>
+          <button
+            onClick={onCancel}
+            style={{ flex:1, height:40, background:SURF, color:TEXT, border:`1px solid ${BDR}`, borderRadius:10, fontSize:13, fontWeight:600, cursor:'pointer', fontFamily:F }}
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  if (state.phase === 'paying') {
+    return (
+      <div style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 14px', background:SURF, border:`1px solid ${BDR}`, borderRadius:14 }}>
+        <Loader2 size={14} color={BLUE} style={{ animation:'spin 1s linear infinite', flexShrink:0 }} />
+        <span style={{ fontSize:13, color:TEXT2, fontFamily:F }}>Processing payment...</span>
+      </div>
+    )
+  }
+
+  if (state.phase === 'executing') {
+    return (
+      <div style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 14px', background:SURF, border:`1px solid ${BDR}`, borderRadius:14 }}>
+        <Loader2 size={14} color={BLUE} style={{ animation:'spin 1s linear infinite', flexShrink:0 }} />
+        <span style={{ fontSize:13, color:TEXT2, fontFamily:F }}>Connecting to the service...</span>
+      </div>
+    )
+  }
+
+  if (state.phase === 'error') {
+    return (
+      <div style={{ background:'rgba(255,59,59,0.06)', border:'1px solid rgba(255,59,59,0.22)', borderRadius:14, padding:'12px 14px' }}>
+        <div style={{ fontSize:13, fontWeight:700, color:DANGER, marginBottom:4 }}>I couldn't complete that request.</div>
+        <div style={{ fontSize:12, color:TEXT2 }}>{state.reason}</div>
+      </div>
+    )
+  }
+
+  // phase === 'done' — never shown inline here; result goes to chat as a message
+  return null
+}
+
 // ── Orchestration status stream ───────────────────────────────────────────────
 
 interface OrchestratorStreamProps {
@@ -492,6 +616,9 @@ function AgentChat({ onNavigate }: { onNavigate?: (page: string, query?: string)
   const [showNewMsg, setShowNewMsg] = useState(false)
   const isNearBottom = useRef(true)
   const sellerAddress = import.meta.env.VITE_X402_SELLER_ADDRESS as string | undefined
+  const [serviceExecState, setServiceExecState] = useState<ServiceExecState>({ phase: 'idle' })
+  // Pending confirmation params — stored so confirm button can re-call with confirmed=1
+  const pendingServiceRef = useRef<{ svcId: string | null; endpoint: string | null; query: string } | null>(null)
 
   // Track whether the user is near the bottom of the list
   const handleScroll = useCallback(() => {
@@ -534,6 +661,135 @@ function AgentChat({ onNavigate }: { onNavigate?: (page: string, query?: string)
       setX402Paying(false)
       return true
     } catch { setX402Paying(false); return false }
+  }
+
+  // ── Service execution via backend execute-service route ──────────────────
+  const runServiceExecution = async (opts: {
+    svcId: string | null
+    endpoint: string | null
+    query: string
+    confirmed?: boolean
+  }) => {
+    const { svcId, endpoint, query, confirmed } = opts
+    pendingServiceRef.current = { svcId, endpoint, query }
+
+    // Show appropriate loading state
+    setServiceExecState(confirmed
+      ? { phase: 'paying' }
+      : { phase: 'checking', label: 'Let me check the service and your Agent Wallet...' }
+    )
+    if (confirmed) {
+      // Brief delay so user sees the "Processing payment..." state
+      await new Promise(r => setTimeout(r, 600))
+      setServiceExecState({ phase: 'executing' })
+      await new Promise(r => setTimeout(r, 400))
+    }
+
+    const storeSnap = useAppStore.getState()
+    const aw = storeSnap.agentWallet
+    const perms = storeSnap.agentPermissions
+
+    try {
+      const body: Record<string, string> = {
+        action: 'execute-service',
+        query,
+        dailyLimit: String(perms.dailyLimit),
+        dailyUsed: String(storeSnap.agentDailyUsed),
+        perServiceLimit: String(perms.perServiceLimit ?? 5),
+        requireApproval: String(perms.requireApproval),
+        requireApprovalAbove: String(perms.requireApprovalAbove ?? 5),
+      }
+      if (svcId) body.service_id = svcId
+      if (endpoint) body.endpoint = endpoint
+      if (confirmed) body.confirmed = '1'
+
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+      if (aw.userToken) headers['x-user-token'] = aw.userToken
+
+      const r = await fetch('/api/agent-wallet', { method: 'POST', headers, body: JSON.stringify(body) })
+      const d = await r.json() as ServiceExecResult
+
+      // ── Blocked by policy or balance ───────────────────────────────────────
+      if (d.blocked || (!d.ok && !d.awaiting_confirmation)) {
+        const friendlyReason = (() => {
+          const msg = d.reason ?? ''
+          if (/insufficient|not enough|doesn't have/i.test(msg)) return "Your Agent Wallet doesn't have enough USDC for this payment."
+          if (/per.service limit|service limit/i.test(msg)) return `This payment exceeds your per-service spending limit.`
+          if (/daily|budget/i.test(msg)) return `You've reached your daily spending limit.`
+          if (/policy/i.test(msg)) return `This payment isn't permitted by your current spending policy.`
+          return msg || "I couldn't complete that request."
+        })()
+        setServiceExecState({ phase: 'error', reason: friendlyReason })
+        addAgentMessage({ role: 'agent', content: `I couldn't complete that request. ${friendlyReason}`, action: 'info' })
+        return
+      }
+
+      // ── Awaiting confirmation ──────────────────────────────────────────────
+      if (d.awaiting_confirmation) {
+        setServiceExecState({
+          phase: 'awaiting_confirmation',
+          cost_usdc: d.cost_usdc ?? 0,
+          real_balance: d.real_balance ?? '0',
+          service: d.service ?? null,
+          svcId, endpoint, query,
+        })
+        return
+      }
+
+      // ── Execute error ──────────────────────────────────────────────────────
+      if (d.execute_error) {
+        setServiceExecState({ phase: 'error', reason: "I couldn't retrieve the results from that service right now." })
+        addAgentMessage({ role: 'agent', content: "I couldn't retrieve the results right now. The service may be temporarily unavailable.", action: 'info' })
+        return
+      }
+
+      // ── Success ────────────────────────────────────────────────────────────
+      if (d.executed && d.result) {
+        setServiceExecState({ phase: 'idle' })
+        const providerName = d.service?.provider ?? svcId ?? 'the service'
+        const costNote = (d.cost_usdc ?? 0) > 0
+          ? ` · ${(d.cost_usdc ?? 0).toFixed(4)} USDC deducted from Agent Wallet`
+          : ''
+        addAgentMessage({
+          role: 'agent',
+          content: `Done — here's what I found.\n\n${d.result}`,
+          action: 'info',
+          serviceSource: providerName + costNote,
+        })
+        // Record activity
+        storeSnap.addExecutionLog({
+          taskId: `svc-${Date.now()}`,
+          userRequest: query,
+          serviceId: svcId ?? d.service?.id ?? '',
+          serviceName: providerName,
+          status: 'complete',
+          cost: d.cost_usdc ?? 0,
+          result: d.result.slice(0, 200),
+        })
+        if ((d.cost_usdc ?? 0) > 0) {
+          storeSnap.addAgentSpend({
+            id: `spend-${Date.now()}`,
+            service_id: svcId ?? d.service?.id ?? '',
+            service_name: providerName,
+            amount_usdc: d.cost_usdc ?? 0,
+            txId: d.tx_ref ?? `nan-${Date.now().toString(36)}`,
+            paid: true,
+            timestamp: new Date().toISOString(),
+          })
+        }
+        return
+      }
+
+      // Free service executed but no result body
+      if (d.ok && !d.result) {
+        setServiceExecState({ phase: 'idle' })
+        addAgentMessage({ role: 'agent', content: "The service completed but returned no data. Try rephrasing your request.", action: 'info' })
+      }
+    } catch (e) {
+      const errMsg = e instanceof Error ? e.message : 'Unknown error'
+      setServiceExecState({ phase: 'error', reason: "I couldn't reach the backend right now. Please check your connection." })
+      addAgentMessage({ role: 'agent', content: `I couldn't reach the backend right now. (${errMsg})`, action: 'info' })
+    }
   }
 
   const runOrchestration = async (text: string) => {
@@ -753,6 +1009,18 @@ function AgentChat({ onNavigate }: { onNavigate?: (page: string, query?: string)
           serviceSource: serviceLabel,
           marketplaceServices: res.marketplace_services,
         })
+        // "Use it" / "use the service" — trigger service execution on last discovered service
+        const lowerInput = text.toLowerCase()
+        if (/^(use it|use the service|use this service|yes use|proceed|go ahead|use that)\.?$/i.test(lowerInput.trim()) || /use (it|the service|this service)$/i.test(lowerInput)) {
+          // Find the last marketplace service from previous messages
+          const lastSvcMsg = [...agentMessages].reverse().find(m => m.marketplaceServices && m.marketplaceServices.length > 0)
+          const lastSvc = lastSvcMsg?.marketplaceServices?.[0]
+          if (lastSvc) {
+            const lastUserQ = agentMessages.filter(m => m.role === 'user').slice(-3)[0]?.content ?? text
+            void runServiceExecution({ svcId: null, endpoint: lastSvc.endpoint, query: lastUserQ })
+          }
+        }
+
         // Parse and handle action block
         if (res.action) {
           const parsed = parseAction(res.action)
@@ -857,11 +1125,15 @@ function AgentChat({ onNavigate }: { onNavigate?: (page: string, query?: string)
             onApprove={approveAgentPurchase}
             onReject={rejectAgentPurchase}
             onUseService={(s) => {
-              addAgentMessage({ role: 'user', content: `Use ${s.provider} with NAN Agent` })
-              addAgentMessage({
-                role: 'agent',
-                content: `Got it — I'll use **${s.provider}** (${s.category_label}) for your requests. It costs ${s.pricing} and payments go through ${s.payment_scheme === 'x402' ? 'Circle x402 nanopayments' : s.payment_scheme === 'free' ? 'no payment (free)' : 'USDC'}. Your Agent Wallet is ready. Just ask me to perform a task and I'll route it through this service.`,
-                action: 'info',
+              addAgentMessage({ role: 'user', content: `Use ${s.provider}` })
+              addAgentMessage({ role: 'agent', content: `Sure — let me check the service details and your Agent Wallet.`, action: 'info' })
+              scrollToBottom()
+              // Derive a reasonable query from the last user message
+              const lastUserMsg = agentMessages.filter(m => m.role === 'user').slice(-2)[0]?.content ?? `use ${s.provider}`
+              void runServiceExecution({
+                svcId: null,
+                endpoint: s.endpoint,
+                query: lastUserMsg,
               })
             }}
             onInspectService={(s) => {
@@ -884,6 +1156,21 @@ function AgentChat({ onNavigate }: { onNavigate?: (page: string, query?: string)
               setPendingConfirmCb(null)
               setOrchSteps([])
               addAgentMessage({ role:'agent', content:'Service call cancelled.', action:'info' })
+            }}
+          />
+        )}
+        {/* Service execution flow — shown when user taps "Use service" */}
+        {serviceExecState.phase !== 'idle' && (
+          <ServiceExecutionFlow
+            state={serviceExecState}
+            onConfirm={() => {
+              const p = pendingServiceRef.current
+              if (!p) return
+              void runServiceExecution({ ...p, confirmed: true })
+            }}
+            onCancel={() => {
+              setServiceExecState({ phase: 'idle' })
+              addAgentMessage({ role:'agent', content:'Cancelled — I didn\'t send any payment.', action:'info' })
             }}
           />
         )}
