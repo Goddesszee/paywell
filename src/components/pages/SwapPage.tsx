@@ -301,7 +301,7 @@ export function SwapPage() {
     setPhase('estimating'); setErrMsg('')
     const userToken = auth?.userToken
     const walletId  = auth?.circleWalletId
-    if (!userToken || !walletId) { setPhase('error'); setErrMsg('Circle session expired — please log in again.'); return }
+    if (!userToken || !walletId) { setPhase('error'); setErrMsg('Please log in to get a swap quote.'); return }
     try {
       const resp = await fetch('/api/wallet', {
         method: 'POST',
@@ -324,8 +324,11 @@ export function SwapPage() {
     const encryptionKey = auth?.encryptionKey
     const walletId      = auth?.circleWalletId
     const appId         = import.meta.env.VITE_CIRCLE_APP_ID as string | undefined
-    if (!userToken || !encryptionKey || !walletId || !appId) {
-      setPhase('error'); setErrMsg('Circle session expired — please log in again.'); return
+    if (!userToken || !walletId || !appId) {
+      setPhase('error'); setErrMsg('Please log in again to execute swaps.'); return
+    }
+    if (!encryptionKey) {
+      setPhase('error'); setErrMsg('Your session key expired after the page reloaded. Please log out and log in again to swap.'); return
     }
     try {
       // Step 1: server starts the swap and returns a challengeId

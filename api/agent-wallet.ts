@@ -189,36 +189,100 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     })
   }
 
-  // ── provision — create user pin + agent wallet (same as main app initialize) ─
+  // ── provision — create a DEVELOPER-CONTROLLED agent wallet (separate from user wallet) ─
+  // Uses CIRCLE_API_KEY + CIRCLE_ENTITY_SECRET so the agent wallet is owned by the
+  // app entity, not by the user. This guarantees a different address from the user's wallet.
   if (action === 'provision') {
-    const { userToken } = body
-    if (!userToken) return res.status(400).json({ error: 'userToken required' })
-    try {
-      const response = await client.createUserPinWithWallets({
-        userToken,
-        blockchains: [Blockchain.ArcTestnet],
-        accountType: 'SCA',
+    const devKey       = process.env.CIRCLE_API_KEY ?? process.env.CIRCLE_DEVELOPER_CONTROLLED_API_KEY
+    const entitySecret = process.env.CIRCLE_ENTITY_SECRET ?? process.env.ENTITY_SECRET
+    if (!devKey || !entitySecret) {
+      return res.status(503).json({
+        error: 'Agent wallet requires CIRCLE_API_KEY and CIRCLE_ENTITY_SECRET in environment variables.',
+        setup_required: true,
       })
-      const challengeId = response.data?.challengeId
-      if (!challengeId) throw new Error('No challengeId returned from Circle')
-      return res.status(200).json({ ok: true, challengeId })
-    } catch (e) {
-      const code = (e as { response?: { data?: { code?: number } } })?.response?.data?.code
-      // 155106 = user already initialized — treat as success, just list wallets
-      if (code === 155106) {
-        return res.status(200).json({ ok: true, alreadyInitialized: true })
+    }
+    try {
+      const { initiateDeveloperControlledWalletsClient } = await import('@circle-fin/developer-controlled-wallets')
+      const dcw = initiateDeveloperControlledWalletsClient({ apiKey: devKey, entitySecret })
+
+      // Create a dedicated wallet set for agent wallets (idempotent by name)
+      let walletSetId: string | undefined
+      try {
+        const wsResp = await dcw.createWalletSet({ name: 'NAN Agent Wallets' })
+        walletSetId = wsResp.data?.walletSet?.id
+      } catch {
+        // May already exist — list and find it
+        const wsListResp = await dcw.listWalletSets({})
+        const existing = (wsListResp.data?.walletSets ?? []).find(ws => ws.name === 'NAN Agent Wallets')
+        walletSetId = existing?.id
       }
+      if (!walletSetId) return res.status(500).json({ error: 'Could not create or find NAN Agent wallet set' })
+
+      // Create the agent wallet
+      const walletResp = await dcw.createWallets({
+        walletSetId,
+        blockchains: ['ARC-TESTNET'],
+        count: 1,
+        accountType: 'EOA',
+      })
+      const wallet = walletResp.data?.wallets?.[0]
+      if (!wallet) return res.status(500).json({ error: 'Wallet creation returned no wallet' })
+
+      return res.status(200).json({
+        ok: true,
+        walletId: wallet.id,
+        address: wallet.address,
+        blockchain: wallet.blockchain,
+        custodyType: 'DEVELOPER',
+      })
+    } catch (e) {
       return res.status(500).json({ error: e instanceof Error ? e.message : 'Provisioning failed' })
     }
   }
 
-  // ── status — get wallets + balance for a userToken ───────────────────────
+  // ── status — get agent wallet address + balance ───────────────────────────
+  // Prefers the developer-controlled agent wallet (AGENT_WALLET_ID env var).
+  // Falls back to a user-token wallet lookup only if no dev wallet is configured.
   if (action === 'status') {
-    const userToken = (req.headers['x-user-token'] as string) ?? body.userToken
-    if (!userToken) {
-      // No token — not yet authenticated
-      return res.status(200).json({ provisioned: false })
+    const agentWalletId = process.env.AGENT_WALLET_ID
+    const devKey        = process.env.CIRCLE_API_KEY ?? process.env.CIRCLE_DEVELOPER_CONTROLLED_API_KEY
+    const entitySecret  = process.env.CIRCLE_ENTITY_SECRET ?? process.env.ENTITY_SECRET
+
+    // ── Dev-controlled agent wallet path ─────────────────────────────────────
+    if (agentWalletId && devKey && entitySecret) {
+      try {
+        const { initiateDeveloperControlledWalletsClient } = await import('@circle-fin/developer-controlled-wallets')
+        const dcw = initiateDeveloperControlledWalletsClient({ apiKey: devKey, entitySecret })
+        const walletResp = await dcw.getWallet({ id: agentWalletId })
+        const wallet = walletResp.data?.wallet
+        if (!wallet) return res.status(200).json({ provisioned: false })
+
+        let balance_usdc = '0'
+        try {
+          const balRes = await dcw.getWalletTokenBalance({ id: agentWalletId })
+          const usdc = (balRes.data?.tokenBalances ?? []).find(b => b.token?.symbol === 'USDC')
+          balance_usdc = usdc?.amount ?? '0'
+        } catch { /* leave as 0 */ }
+
+        return res.status(200).json({
+          provisioned:  true,
+          walletId:     wallet.id,
+          address:      wallet.address,
+          balance_usdc,
+          blockchain:   wallet.blockchain ?? 'ARC-TESTNET',
+          accountType:  wallet.accountType ?? 'EOA',
+          custodyType:  'DEVELOPER',
+          createDate:   wallet.createDate ?? null,
+          walletState:  wallet.state ?? 'LIVE',
+        })
+      } catch (e) {
+        return res.status(500).json({ error: e instanceof Error ? e.message : 'Status check failed' })
+      }
     }
+
+    // ── UCW fallback (no dev wallet configured yet) ───────────────────────────
+    const userToken = (req.headers['x-user-token'] as string) ?? body.userToken
+    if (!userToken) return res.status(200).json({ provisioned: false })
     try {
       const response = await client.listWallets({ userToken })
       const wallets = response.data?.wallets ?? []
@@ -228,7 +292,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       ) ?? wallets[0]
       if (!wallet) return res.status(200).json({ provisioned: false })
 
-      // Get balance
       let balance_usdc = '0'
       try {
         const balRes = await client.getWalletTokenBalance({ walletId: wallet.id, userToken })

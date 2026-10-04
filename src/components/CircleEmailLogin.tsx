@@ -202,7 +202,7 @@ export function CircleEmailLogin({ onBack, onSuccess }: Props) {
       void handleInitializeUser(res)
     }
 
-    loginCbRef.current = onLoginComplete as (err: unknown, result: unknown) => void
+    loginCbRef.current = onLoginComplete
     // W3SSdk is a SINGLETON: if another component (e.g. AgentWalletExperience, created
     // at module load) built it first, this constructor returns THAT instance and drops
     // onLoginComplete — so the callback is re-registered via updateConfigs() before
@@ -300,7 +300,7 @@ export function CircleEmailLogin({ onBack, onSuccess }: Props) {
     }
 
     // re-claim the singleton SDK's login callback right before opening the popup
-    if (cfgRef.current && loginCbRef.current) sdk.updateConfigs(cfgRef.current, loginCbRef.current as never)
+    if (cfgRef.current && loginCbRef.current) sdk.updateConfigs(cfgRef.current, loginCbRef.current)
     startTrace()
     sdk.verifyOtp()
 

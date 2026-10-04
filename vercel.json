@@ -3,6 +3,16 @@
   "outputDirectory": "dist",
   "installCommand": "bun install",
   "framework": "vite",
+  "functions": {
+    "api/wallet.ts": {
+      "includeFiles": "node_modules/@circle-fin/**",
+      "memory": 1024,
+      "maxDuration": 30
+    },
+    "api/agent-execute.ts": {
+      "includeFiles": "node_modules/@circle-fin/**"
+    }
+  },
   "headers": [
     {
       "source": "/assets/(.*)",
