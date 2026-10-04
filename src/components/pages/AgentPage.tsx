@@ -18,7 +18,7 @@ import { nanChat, backendConfigured } from '../../lib/api'
 import type { MarketplaceServiceCard } from '../../lib/api'
 import {
   BalanceCard, SpendingCard, TransactionCard,
-  AddressRevealCard, ErrorCard, LoadingCard,
+  AddressRevealCard, ErrorCard,
   PurchaseApprovalCard,
 } from './NanFinancialCards'
 import { ServiceDiscoveryCard } from '../ServiceDiscoveryCard'
@@ -66,8 +66,55 @@ const USDC_TRANSFER_ABI = [{
   outputs: [{ name: '', type: 'bool' }],
 }] as const
 
-// AgentTab kept for internal navigation (not exposed as a tab bar)
 type AgentTab = 'chat' | 'discover' | 'network' | 'policy' | 'log' | 'wallet'
+
+// ── MoreMenu — slides up from header when user taps ⋮ ────────────────────────
+function MoreMenu({ active, onSelect, onClose }: {
+  active: AgentTab
+  onSelect: (t: AgentTab) => void
+  onClose: () => void
+}) {
+  const items: { id: AgentTab; label: string; icon: React.ElementType }[] = [
+    { id: 'wallet',   label: 'Agent Wallet',    icon: Coins },
+    { id: 'discover', label: 'Services',         icon: Globe },
+    { id: 'network',  label: 'Agent Network',    icon: Network },
+    { id: 'policy',   label: 'Spending Policy',  icon: Shield },
+    { id: 'log',      label: 'Execution Log',    icon: Activity },
+  ]
+  return (
+    <>
+      <div onClick={onClose} style={{ position:'fixed', inset:0, zIndex:200 }} />
+      <div style={{
+        position: 'absolute', top: '100%', right: 10, zIndex: 201,
+        background: SURF, border: `1px solid ${BDR}`,
+        borderRadius: 14, overflow: 'hidden',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
+        minWidth: 200,
+      }}>
+        {items.map(item => {
+          const Icon = item.icon
+          const isActive = active === item.id
+          return (
+            <button
+              key={item.id}
+              onClick={() => { onSelect(item.id); onClose() }}
+              style={{
+                width: '100%', display: 'flex', alignItems: 'center', gap: 10,
+                padding: '11px 16px', border: 'none',
+                background: isActive ? 'rgba(0,102,255,0.08)' : 'transparent',
+                cursor: 'pointer', fontFamily: F, textAlign: 'left',
+                borderBottom: `1px solid ${BDR}`,
+              }}
+            >
+              <Icon size={14} color={isActive ? BLUE : TEXT2} />
+              <span style={{ fontSize: 13, fontWeight: isActive ? 700 : 500, color: isActive ? BLUE : TEXT }}>{item.label}</span>
+            </button>
+          )
+        })}
+      </div>
+    </>
+  )
+}
 
 // ── Payment confirmation card ─────────────────────────────────────────────────
 
@@ -220,15 +267,9 @@ type _X402Service = {
 
 export function AgentPage() {
   const [tab, setTab] = useState<AgentTab>('chat')
+  const [menuOpen, setMenuOpen] = useState(false)
   const { setActiveView } = useAppStore()
-  const TABS: { id: AgentTab; label: string }[] = [
-    { id: 'chat',     label: 'Chat' },
-    { id: 'wallet',   label: 'Wallet' },
-    { id: 'discover', label: 'Services' },
-    { id: 'network',  label: 'Network' },
-    { id: 'policy',   label: 'Policy' },
-    { id: 'log',      label: 'Log' },
-  ]
+
   return (
     /* Fill 100% of AppShell's <main> with no padding — chat manages its own insets */
     <div style={{
@@ -236,55 +277,108 @@ export function AgentPage() {
       display: 'flex',
       flexDirection: 'column',
       flex: 1,
-      minHeight: 0,            /* flex child must shrink below its content height */
+      minHeight: 0,
       overflow: 'hidden',
+      position: 'relative',
     }}>
-      {/* ── Fixed header row ── */}
+
+      {/* ── WhatsApp-style fixed conversation header ── */}
       <div style={{
         flexShrink: 0,
-        display: 'flex', alignItems: 'center', gap: 10,
-        padding: '14px 16px 10px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10,
+        padding: '8px 12px',
+        paddingTop: 'max(8px, env(safe-area-inset-top))',
         borderBottom: `1px solid ${BDR}`,
         background: SURF,
+        position: 'relative',
+        zIndex: 10,
       }}>
-        <div style={{ width:36, height:36, borderRadius:10, background:BLUE, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-          <Bot size={18} color="#fff" />
+        {/* ← back to Home */}
+        <button
+          onClick={() => setActiveView('home')}
+          style={{
+            width: 36, height: 36, borderRadius: '50%',
+            background: 'transparent', border: 'none',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer', flexShrink: 0, padding: 0,
+          }}
+          aria-label="Back"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={TEXT2} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
+        </button>
+
+        {/* Avatar */}
+        <div style={{
+          width: 38, height: 38, borderRadius: '50%',
+          background: `linear-gradient(135deg, ${BLUE} 0%, #5B9FFF 100%)`,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          flexShrink: 0,
+          boxShadow: '0 2px 8px rgba(0,102,255,0.2)',
+        }}>
+          <Bot size={19} color="#fff" />
         </div>
+
+        {/* Name + status */}
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize:17, fontWeight:700, color:TEXT, letterSpacing:'-0.02em' }}>NAN Agent</div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: TEXT, letterSpacing: '-0.01em', lineHeight: 1.2 }}>
+            NAN Agent
+          </div>
           <AgentStatusLine />
         </div>
+
+        {/* Back to chat pill — only when on a non-chat tab */}
+        {tab !== 'chat' && (
+          <button
+            onClick={() => setTab('chat')}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 4,
+              height: 28, padding: '0 10px',
+              background: 'rgba(0,102,255,0.1)',
+              border: '1px solid rgba(0,102,255,0.25)',
+              borderRadius: 20, cursor: 'pointer',
+              fontSize: 11, fontWeight: 600, color: BLUE,
+              fontFamily: F, flexShrink: 0,
+            }}
+          >
+            ← Chat
+          </button>
+        )}
+
+        {/* ⋮ menu button */}
+        <button
+          onClick={() => setMenuOpen(v => !v)}
+          style={{
+            width: 36, height: 36, borderRadius: '50%',
+            background: menuOpen ? 'rgba(0,102,255,0.08)' : 'transparent',
+            border: 'none', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            flexShrink: 0,
+          }}
+        >
+          <span style={{ fontSize: 20, color: TEXT2, lineHeight: 1, letterSpacing: 2, fontWeight: 700 }}>⋮</span>
+        </button>
+
+        {/* Dropdown */}
+        {menuOpen && (
+          <MoreMenu
+            active={tab}
+            onSelect={t => { setTab(t); setMenuOpen(false) }}
+            onClose={() => setMenuOpen(false)}
+          />
+        )}
       </div>
 
-      {/* ── Fixed tab bar ── */}
-      <div style={{
-        flexShrink: 0,
-        display: 'flex', background: SURFACE, borderRadius: 0,
-        padding: '6px 12px', gap: 2,
-        borderBottom: `1px solid ${BDR}`,
-      }}>
-        {TABS.map(t => {
-          const isActive = tab === t.id
-          return (
-            <button key={t.id} onClick={() => setTab(t.id)} style={{
-              flex:1, padding:'7px 4px', border:'none', borderRadius:9, cursor:'pointer',
-              fontFamily:F, fontSize:12, fontWeight:isActive?700:500,
-              background:isActive?BLUE:'transparent',
-              color:isActive?'#fff':TEXT2,
-              transition:'all 0.15s', whiteSpace:'nowrap',
-            }}>{t.label}</button>
-          )
-        })}
-      </div>
-
-      {/* ── Scrollable content area — chat fills, non-chat pages scroll ── */}
+      {/* ── Content area — chat fills the remaining height; other tabs scroll ── */}
       <div style={{
         flex: 1,
         minHeight: 0,
         overflow: tab === 'chat' ? 'hidden' : 'auto',
         display: 'flex',
         flexDirection: 'column',
-        /* non-chat tabs get padding + bottom spacing so content clears the nav */
         ...(tab !== 'chat' && {
           padding: '12px 16px',
           paddingBottom: 'max(80px, calc(env(safe-area-inset-bottom) + 80px))',
@@ -307,14 +401,15 @@ function AgentStatusLine() {
   const { agentPermissions, agentDailyUsed } = useAppStore()
   const remaining = agentPermissions.dailyLimit - agentDailyUsed
   if (!agentPermissions.enabled) return (
-    <div style={{ fontSize:11, color:DANGER, fontWeight:600, display:'flex', alignItems:'center', gap:4 }}>
-      <span style={{ width:6, height:6, borderRadius:'50%', background:DANGER, display:'inline-block' }} />Disabled
+    <div style={{ fontSize: 11, color: DANGER, display: 'flex', alignItems: 'center', gap: 4, marginTop: 1 }}>
+      <span style={{ width: 6, height: 6, borderRadius: '50%', background: DANGER, display: 'inline-block', flexShrink: 0 }} />
+      <span>Offline</span>
     </div>
   )
   return (
-    <div style={{ fontSize:11, color:SUCCESS, fontWeight:600, display:'flex', alignItems:'center', gap:4 }}>
-      <span style={{ width:6, height:6, borderRadius:'50%', background:SUCCESS, display:'inline-block' }} />
-      Active · {formatUSDC(remaining)} USDC remaining today
+    <div style={{ fontSize: 11, color: SUCCESS, display: 'flex', alignItems: 'center', gap: 4, marginTop: 1 }}>
+      <span style={{ width: 6, height: 6, borderRadius: '50%', background: SUCCESS, display: 'inline-block', flexShrink: 0 }} />
+      <span>Your financial assistant · {formatUSDC(remaining)} USDC today</span>
     </div>
   )
 }
@@ -382,7 +477,7 @@ function AgentChat({ onNavigate }: { onNavigate?: (page: string, query?: string)
   const { writeContractAsync } = useWriteContract()
   const [input, setInput] = useState('')
   const [typing, setTyping] = useState(false)
-  const [loadingMessage, setLoadingMessage] = useState('Let me check on that...')
+  const [_loadingMessage, setLoadingMessage] = useState('Let me check on that...')
   const [x402Paying, setX402Paying] = useState(false)
   const [orchSteps, setOrchSteps] = useState<OrchestratorStep[]>([])
   const [awaitingConfirmation, setAwaitingConfirmation] = useState(false)
@@ -737,8 +832,8 @@ function AgentChat({ onNavigate }: { onNavigate?: (page: string, query?: string)
           overflowX: 'hidden',
           display: 'flex',
           flexDirection: 'column',
-          gap: 12,
-          padding: '12px 14px 4px',
+          gap: 6,
+          padding: '10px 12px 6px',
           scrollbarWidth: 'none',
           WebkitOverflowScrolling: 'touch' as React.CSSProperties['WebkitOverflowScrolling'],
           msOverflowStyle: 'none',
@@ -806,12 +901,16 @@ function AgentChat({ onNavigate }: { onNavigate?: (page: string, query?: string)
           />
         )}
         {typing && (
-          <div style={{ display:'flex', alignItems:'flex-start', gap:8 }}>
-            <div style={{ width:28, height:28, borderRadius:'50%', background:SURFACE, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, marginTop:2 }}>
-              <Bot size={13} color={BLACK} />
+          <div style={{ display:'flex', alignItems:'flex-end', gap:7 }}>
+            {/* NAN avatar */}
+            <div style={{ width:28, height:28, borderRadius:'50%', background:`linear-gradient(135deg,${BLUE} 0%,#5B9FFF 100%)`, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+              <Bot size={13} color="#fff" />
             </div>
-            <div style={{ flex:1 }}>
-              <LoadingCard message={loadingMessage} />
+            {/* Typing bubble */}
+            <div style={{ background:SURF, border:`1px solid ${BDR}`, borderRadius:18, borderBottomLeftRadius:4, padding:'11px 16px', display:'flex', alignItems:'center', gap:5 }}>
+              <span style={{ width:7, height:7, borderRadius:'50%', background:TEXT3, display:'inline-block', animation:'nanTyping 1.2s ease-in-out infinite', animationDelay:'0s' }} />
+              <span style={{ width:7, height:7, borderRadius:'50%', background:TEXT3, display:'inline-block', animation:'nanTyping 1.2s ease-in-out infinite', animationDelay:'0.2s' }} />
+              <span style={{ width:7, height:7, borderRadius:'50%', background:TEXT3, display:'inline-block', animation:'nanTyping 1.2s ease-in-out infinite', animationDelay:'0.4s' }} />
             </div>
           </div>
         )}
@@ -846,44 +945,72 @@ function AgentChat({ onNavigate }: { onNavigate?: (page: string, query?: string)
         </button>
       )}
 
-      {/* ── Fixed composer ── */}
+      {/* ── WhatsApp-style fixed composer ── */}
       <div style={{
         flexShrink: 0,
         display: 'flex',
+        alignItems: 'center',
         gap: 8,
-        padding: '10px 14px',
-        paddingBottom: 'max(10px, env(safe-area-inset-bottom))',
-        borderTop: `1px solid ${BORDER}`,
+        padding: '8px 12px',
+        paddingBottom: 'max(12px, env(safe-area-inset-bottom))',
         background: SURF,
+        borderTop: `1px solid ${BORDER}`,
       }}>
-        <input
-          value={input}
-          onChange={e => setInput(e.target.value)}
-          onKeyDown={e => { if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();void send()} }}
-          placeholder="Ask NAN anything about your money…"
+        {/* Clear button */}
+        <button
+          onClick={clearAgentMessages}
           style={{
-            flex: 1,
-            padding: '11px 14px',
-            border: `1px solid ${BORDER}`,
-            borderRadius: 12,
-            fontFamily: F, fontSize: 14,
-            outline: 'none',
-            background: WHITE, color: BLACK,
-            minWidth: 0,
+            width: 40, height: 40, borderRadius: '50%',
+            background: SURF2, border: `1px solid ${BORDER}`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer', flexShrink: 0,
           }}
-        />
+          title="Clear chat"
+        >
+          <X size={15} color={TEXT2} />
+        </button>
+
+        {/* Pill input */}
+        <div style={{
+          flex: 1, minWidth: 0,
+          display: 'flex', alignItems: 'center',
+          background: SURF2,
+          border: `1.5px solid ${BORDER}`,
+          borderRadius: 24,
+          padding: '0 14px',
+          height: 44,
+        }}>
+          <input
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void send() } }}
+            placeholder="Ask NAN anything about your money…"
+            style={{
+              flex: 1, border: 'none', outline: 'none',
+              background: 'transparent',
+              fontFamily: F, fontSize: 14, color: BLACK,
+              minWidth: 0,
+            }}
+          />
+          {x402Paying && <Loader2 size={13} color={TEXT3} style={{ flexShrink:0, animation:'spin 1s linear infinite' }} />}
+        </div>
+
+        {/* Send button — round, blue, glows when active */}
         <button
           onClick={() => void send()}
           disabled={!input.trim() || typing || x402Paying}
-          style={{ width:44, height:44, borderRadius:12, background:BLUE, border:'none', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', flexShrink:0, opacity:(!input.trim()||typing||x402Paying)?0.4:1 }}
+          style={{
+            width: 44, height: 44, borderRadius: '50%',
+            background: input.trim() && !typing && !x402Paying ? BLUE : SURF2,
+            border: `1.5px solid ${input.trim() && !typing && !x402Paying ? BLUE : BORDER}`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: input.trim() && !typing ? 'pointer' : 'default',
+            flexShrink: 0,
+            transition: 'background 0.15s, border-color 0.15s',
+            boxShadow: input.trim() && !typing && !x402Paying ? '0 2px 12px rgba(0,102,255,0.35)' : 'none',
+          }}
         >
-          {x402Paying ? <Loader2 size={16} color={WHITE} style={{animation:'spin 1s linear infinite'}} /> : <Send size={16} color='#fff' />}
-        </button>
-        <button
-          onClick={clearAgentMessages}
-          style={{ width:44, height:44, borderRadius:12, background:SURFACE, border:`1px solid ${BORDER}`, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', flexShrink:0 }}
-        >
-          <X size={16} color={TEXT2} />
+          <Send size={16} color={input.trim() && !typing && !x402Paying ? '#fff' : TEXT3} style={{ marginLeft: 2 }} />
         </button>
       </div>
     </div>
@@ -956,8 +1083,13 @@ function MsgBubble({ msg, onApprove, onReject, onUseService, onInspectService }:
   const { agentPermissions, agentDailyUsed, agentWallet, setActiveView, crossChainBalances } = useAppStore()
 
   if (msg.role === 'user') return (
-    <div style={{ display:'flex', justifyContent:'flex-end' }}>
-      <div style={{ background:BLUE, color:'#fff', fontSize:13, borderRadius:16, borderTopRightRadius:4, padding:'10px 14px', maxWidth:'78%', lineHeight:1.5 }}>{msg.content}</div>
+    <div style={{ display:'flex', justifyContent:'flex-end', paddingLeft: 48 }}>
+      <div style={{
+        background: BLUE, color:'#fff', fontSize:14,
+        borderRadius:20, borderTopRightRadius:4,
+        padding:'10px 14px', maxWidth:'82%', lineHeight:1.55,
+        wordBreak:'break-word',
+      }}>{msg.content}</div>
     </div>
   )
 
@@ -978,15 +1110,26 @@ function MsgBubble({ msg, onApprove, onReject, onUseService, onInspectService }:
   }
 
   return (
-    <div style={{ display:'flex', alignItems:'flex-start', gap:8 }}>
-      <div style={{ width:28, height:28, borderRadius:'50%', background:SURFACE, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, marginTop:2 }}>
-        <Bot size={13} color={BLACK} />
+    <div style={{ display:'flex', alignItems:'flex-end', gap:7, paddingRight: 48 }}>
+      {/* NAN avatar — only shown on last bubble in a run */}
+      <div style={{
+        width:28, height:28, borderRadius:'50%',
+        background:`linear-gradient(135deg,${BLUE} 0%,#5B9FFF 100%)`,
+        display:'flex', alignItems:'center', justifyContent:'center',
+        flexShrink:0,
+      }}>
+        <Bot size={13} color="#fff" />
       </div>
-      <div style={{ flex:1, maxWidth:'92%', display:'flex', flexDirection:'column', gap:8 }}>
+      <div style={{ flex:1, display:'flex', flexDirection:'column', gap:6 }}>
 
         {/* Main text bubble — hide if empty or fully replaced by a card */}
         {displayText.length > 0 && !showError && (
-          <div style={{ background:SURF, border:`1px solid ${BDR}`, borderRadius:16, borderTopLeftRadius:4, padding:'10px 14px', fontSize:13, color:BLACK, lineHeight:1.6, whiteSpace:'pre-wrap' }}>
+          <div style={{
+            background:SURF, border:`1px solid ${BDR}`,
+            borderRadius:20, borderBottomLeftRadius:4,
+            padding:'10px 14px', fontSize:14, color:BLACK,
+            lineHeight:1.6, whiteSpace:'pre-wrap', wordBreak:'break-word',
+          }}>
             {displayText}
           </div>
         )}

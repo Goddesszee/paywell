@@ -516,13 +516,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         {children}
       </main>
 
-      {/* Mobile bottom nav */}
+      {/* Mobile bottom nav — hidden on agent view so chat fills the full screen */}
       <nav style={{
         flexShrink: 0, zIndex: 100,
         background: C.isDark ? '#08090B' : '#FFFFFF',
         borderTop: `1px solid ${C.bdr}`,
         paddingBottom: 'env(safe-area-inset-bottom,0px)',
         transition: 'background 0.25s',
+        display: activeView === 'agent' ? 'none' : undefined,
       }}>
         <div style={{ display: 'flex', maxWidth: 480, margin: '0 auto' }}>
           {NAV_ITEMS.map(({ id, label, Icon }) => {
