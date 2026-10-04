@@ -420,7 +420,7 @@ function SetupScreen({ onCreate, C }: { onCreate: () => void; C: ReturnType<type
 
 // ── SCREEN: Creating (animated progress) ─────────────────────────────────────
 
-function CreatingScreen({ C }: { C: ReturnType<typeof useNanTheme> }) {
+function CreatingScreen({ C, statusMsg }: { C: ReturnType<typeof useNanTheme>; statusMsg?: string }) {
   const [step, setStep] = useState(0)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -446,7 +446,7 @@ function CreatingScreen({ C }: { C: ReturnType<typeof useNanTheme> }) {
         Creating your Agent Wallet…
       </h2>
       <p style={{ fontSize: 13, color: C.t2, marginBottom: 32, textAlign: 'center', margin: '0 0 32px' }}>
-        This only takes a moment.
+        {statusMsg || 'This only takes a moment.'}
       </p>
       <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 14 }}>
         {CREATION_STEPS.map((label, i) => {
@@ -1237,31 +1237,61 @@ export function AgentWalletExperience() {
   )
 
   // ── fetch wallet address after SDK challenge complete ─────────────────────
+  // Circle's wallet provisioning is async server-side — the wallet can take
+  // 1-5 seconds to appear in listWallets after the PIN challenge completes.
+  // We retry up to 10 times with 2s gaps (20s total) before giving up.
   const finishProvision = useCallback(async (loginRes: LoginResult) => {
     setScreen('creating')
-    setStatusMsg('Fetching wallet…')
-    try {
-      const r = await fetch('/api/agent-wallet', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-user-token': loginRes.userToken },
-        body: JSON.stringify({ action: 'status', userToken: loginRes.userToken }),
-      })
-      const d = await r.json() as { provisioned?: boolean; address?: string; walletId?: string }
-      if (d.provisioned && d.address) {
-        setAgentWallet({ provisioned: true, address: d.address, walletId: d.walletId, balance_usdc: '0', lastRefreshed: new Date().toISOString(), userToken: loginRes.userToken })
-        setNewAddress(d.address)
-        setNewWalletId(d.walletId ?? '')
-        // Clear the session token — no longer needed
-        try { sessionStorage.removeItem('aw_login_res') } catch { /* ignore */ }
-        setScreen('success')
-      } else {
-        setErrorMsg('Wallet was created but could not be loaded. Please try again.')
-        setScreen('error')
+
+    const MAX_ATTEMPTS = 10
+    const DELAY_MS     = 2000
+
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      const dots = '.'.repeat(attempt % 4)
+      setStatusMsg(`Setting up your wallet${dots}`)
+
+      try {
+        const r = await fetch('/api/agent-wallet', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-user-token': loginRes.userToken },
+          body: JSON.stringify({ action: 'status', userToken: loginRes.userToken }),
+        })
+        const d = await r.json() as { provisioned?: boolean; address?: string; walletId?: string; error?: string }
+
+        if (d.provisioned && d.address) {
+          setAgentWallet({
+            provisioned: true,
+            address: d.address,
+            walletId: d.walletId,
+            balance_usdc: '0',
+            lastRefreshed: new Date().toISOString(),
+            userToken: loginRes.userToken,
+          })
+          setNewAddress(d.address)
+          setNewWalletId(d.walletId ?? '')
+          try { sessionStorage.removeItem('aw_login_res') } catch { /* ignore */ }
+          setScreen('success')
+          return
+        }
+
+        // Hard error from the server — no point retrying
+        if (d.error && !d.error.toLowerCase().includes('not found')) {
+          setErrorMsg(d.error)
+          setScreen('error')
+          return
+        }
+      } catch {
+        // Network error — keep retrying
       }
-    } catch {
-      setErrorMsg('Could not load wallet details. Please try again.')
-      setScreen('error')
+
+      if (attempt < MAX_ATTEMPTS) {
+        await new Promise(resolve => setTimeout(resolve, DELAY_MS))
+      }
     }
+
+    // All retries exhausted
+    setErrorMsg('Your wallet is taking longer than expected. Please go back and try again — it may already be ready.')
+    setScreen('error')
   }, [setAgentWallet])
 
   // ── provision: same pattern as CircleEmailLogin.initializeUser ────────────
@@ -1444,7 +1474,7 @@ export function AgentWalletExperience() {
         {(screen === 'verifying' || screen === 'wallet_setup') && <VerifyingScreen msg={statusMsg || (screen === 'verifying' ? 'Waiting for verification…' : 'Setting up your wallet…')} C={C} />}
         {screen === 'edu'          && <EduScreen         onSetup={() => setScreen('setup')} C={C} />}
         {screen === 'setup'        && <SetupScreen       onCreate={() => { void handleProvision() }} C={C} />}
-        {screen === 'creating'     && <CreatingScreen    C={C} />}
+        {screen === 'creating'     && <CreatingScreen    C={C} statusMsg={statusMsg} />}
         {screen === 'success'      && <SuccessScreen     address={newAddress} walletId={newWalletId} onDashboard={() => setScreen('dashboard')} C={C} />}
         {screen === 'dashboard'    && <DashboardScreen   C={C} />}
         {screen === 'error'        && <ErrorScreen       message={errorMsg} onRetry={() => { setErrorMsg(''); loginResRef.current = null; try { sessionStorage.removeItem('aw_login_res') } catch { /* ignore */ } setScreen('email') }} C={C} />}
