@@ -176,6 +176,9 @@ export function BridgePage() {
     if (isCircleUser && wagmiAddress === undefined) {
       const userAddress = auth?.circleWalletAddress
       if (!userAddress) { setErrMsg('No Circle wallet address found.'); setStatus('error'); return }
+      // Guard: userToken and encryptionKey are cleared on page reload (session-only).
+      // Catch this before starting any steps rather than letting useCircleTransaction fail mid-flow.
+      if (!auth?.userToken || !auth?.encryptionKey) { setErrMsg('SESSION_EXPIRED'); setStatus('error'); return }
       if (fromChain.chainId !== 5042002) { setErrMsg('Circle wallet bridge is only supported from Arc Testnet. Connect a browser wallet to bridge from other chains.'); setStatus('error'); return }
       const parsedAmount = parseUnits(amount, 6)
       const mintRecipient = `0x${userAddress.replace('0x','').padStart(64,'0')}`
@@ -393,9 +396,20 @@ export function BridgePage() {
 
       {/* Error */}
       {status==='error' && errMsg && (
-        <div style={{ background:WH, border:`1px solid ${B}`, borderRadius:10, padding:'10px 14px', marginBottom:16, fontSize:13, color:T }}>
-          <strong>Bridge failed:</strong> {errMsg}
-        </div>
+        errMsg === 'SESSION_EXPIRED' ? (
+          <div style={{ background:WH, border:`1px solid ${B}`, borderRadius:10, padding:'12px 14px', marginBottom:16, fontSize:13, color:T }}>
+            <div style={{ fontWeight:600, marginBottom:4 }}>Session expired</div>
+            <div style={{ fontSize:12, color:T2, marginBottom:10 }}>Your Circle login session has expired. Please log in again to bridge.</div>
+            <button onClick={() => { useAppStore.getState().setAuth(null); useAppStore.getState().setActiveView('login') }}
+              style={{ padding:'7px 16px', background:BK, border:'none', borderRadius:8, color:'#fff', fontSize:13, fontWeight:600, cursor:'pointer', fontFamily:SANS }}>
+              Log in again
+            </button>
+          </div>
+        ) : (
+          <div style={{ background:WH, border:`1px solid ${B}`, borderRadius:10, padding:'10px 14px', marginBottom:16, fontSize:13, color:T }}>
+            <strong>Bridge failed:</strong> {errMsg}
+          </div>
+        )
       )}
 
       {/* CTA */}

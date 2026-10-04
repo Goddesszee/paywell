@@ -456,7 +456,11 @@ export const useAppStore = create<AppState>()(
       }),
       merge: (persisted, current) => {
         const p = persisted as Partial<AppState>
-        if (p.auth) p.auth = { ...p.auth, encryptionKey: undefined }
+        // encryptionKey and userToken are ephemeral Circle UCW session values.
+        // encryptionKey must never survive a page reload (security).
+        // userToken expires after ~60 min — clearing it forces a fresh login
+        // rather than letting a stale token silently fail mid-swap/bridge.
+        if (p.auth) p.auth = { ...p.auth, encryptionKey: undefined, userToken: undefined }
         return {
           ...current,
           ...p,

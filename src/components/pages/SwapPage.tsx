@@ -302,7 +302,7 @@ export function SwapPage() {
     setPhase('estimating'); setErrMsg('')
     const userToken = auth?.userToken
     const walletId  = auth?.circleWalletId
-    if (!userToken || !walletId) { setPhase('error'); setErrMsg('Please log in to get a swap quote.'); return }
+    if (!userToken || !walletId) { setPhase('error'); setErrMsg('SESSION_EXPIRED'); return }
     try {
       const resp = await fetch('/api/wallet', {
         method: 'POST',
@@ -326,7 +326,7 @@ export function SwapPage() {
     const walletId      = auth?.circleWalletId
     const appId         = import.meta.env.VITE_CIRCLE_APP_ID as string | undefined
     if (!userToken || !walletId || !appId) {
-      setPhase('error'); setErrMsg('Please log in again to execute swaps.'); return
+      setPhase('error'); setErrMsg('SESSION_EXPIRED'); return
     }
     if (!encryptionKey) {
       setPhase('error'); setErrMsg('Your session key expired after the page reloaded. Please log out and log in again to swap.'); return
@@ -556,9 +556,25 @@ export function SwapPage() {
 
       {/* ── Error ── */}
       {phase === 'error' && errMsg && (
-        <div className="nan-error-box" style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 10 }}>
-          <AlertCircle size={14} style={{ flexShrink: 0, marginTop: 1 }} /><span>{errMsg}</span>
-        </div>
+        errMsg === 'SESSION_EXPIRED' ? (
+          <div className="nan-error-box" style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 10 }}>
+            <AlertCircle size={14} style={{ flexShrink: 0, marginTop: 1 }} />
+            <div>
+              <div style={{ fontWeight: 600, marginBottom: 4 }}>Session expired</div>
+              <div style={{ fontSize: 12, marginBottom: 8 }}>Your Circle login session has expired. Please log in again to swap.</div>
+              <button
+                onClick={() => { useAppStore.getState().setAuth(null); useAppStore.getState().setActiveView('login') }}
+                className="nan-btn nan-btn-primary"
+                style={{ fontSize: 12, padding: '6px 14px', height: 'auto', borderRadius: 8 }}>
+                Log in again
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="nan-error-box" style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 10 }}>
+            <AlertCircle size={14} style={{ flexShrink: 0, marginTop: 1 }} /><span>{errMsg}</span>
+          </div>
+        )
       )}
 
       {/* ── CTA ── */}
