@@ -329,7 +329,7 @@ export function SwapPage() {
       setReviewed({ estimate: data.estimate as import('@circle-fin/app-kit').SwapEstimate, tokenIn, tokenOut, amountIn, slippageBps, account: circleWalletAddress })
       setPhase('reviewed')
     } catch (e: unknown) {
-      setPhase('error'); setErrMsg(e instanceof Error ? e.message : 'Estimation failed.')
+      setPhase('error'); setErrMsg(friendlySwapError(e))
     }
   }
 
@@ -396,6 +396,16 @@ export function SwapPage() {
     }
   }
 
+  // ── Normalise raw Circle service errors into friendly messages ───────────
+  const friendlySwapError = (e: unknown): string => {
+    const msg = e instanceof Error ? e.message : String(e)
+    if (msg.toLowerCase().includes('no route') || msg.toLowerCase().includes('route or resource not found'))
+      return `No swap route found for ${tokenIn} → ${tokenOut} on Arc Testnet right now. Circle's swap service may not yet support this pair on testnet. Try again later or bridge to a mainnet chain to swap there.`
+    if (msg.toLowerCase().includes('insufficient')) return `Insufficient balance to swap ${amountIn} ${tokenIn}.`
+    if (msg.toLowerCase().includes('slippage')) return `Price moved too much. Try raising the slippage tolerance in settings.`
+    return msg
+  }
+
   // ── EIP-1193 browser wallet path ──────────────────────────────────────────
   const reviewSwap = async () => {
     if (!canReview) return
@@ -411,7 +421,7 @@ export function SwapPage() {
       setReviewed({ estimate, tokenIn, tokenOut, amountIn, slippageBps, account: address })
       setPhase('reviewed')
     } catch (e: unknown) {
-      setPhase('error'); setErrMsg(e instanceof Error ? e.message : 'Estimation failed.')
+      setPhase('error'); setErrMsg(friendlySwapError(e))
     }
   }
 
@@ -435,7 +445,7 @@ export function SwapPage() {
       addActivity({ type: 'swap', description: `Swap ${reviewed.tokenIn} → ${reviewed.tokenOut}`, amount: gross, sign: '-', status: 'confirmed', counterparty: reviewed.tokenOut, txHash: rHash })
 
     } catch (e: unknown) {
-      setPhase('error'); setErrMsg(e instanceof Error ? e.message : 'Swap failed.')
+      setPhase('error'); setErrMsg(friendlySwapError(e))
     }
   }
 
