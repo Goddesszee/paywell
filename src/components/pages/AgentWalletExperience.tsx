@@ -616,13 +616,13 @@ function CapabilityRow({ label, status, note, C, noBorder }: {
     ? { bg: C.surf2, color: C.t3, border: C.bdr, text: 'Not configured in NAN' }
     : { bg: 'rgba(255,149,0,0.08)', color: AMBER, border: 'rgba(255,149,0,0.25)', text: 'Coming soon' }
   return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '9px 0', borderBottom: noBorder ? 'none' : `1px solid ${C.bdr}` }}>
-      <div>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '9px 0', borderBottom: noBorder ? 'none' : `1px solid ${C.bdr}` }}>
+      <div style={{ flex: 1, minWidth: 0 }}>
         <span style={{ fontSize: 13, color: status === 'enabled' ? C.text : C.t3, fontWeight: status === 'enabled' ? 600 : 400 }}>{label}</span>
-        {note && <div style={{ fontSize: 11, color: C.t3, marginTop: 2 }}>{note}</div>}
+        {note && <div style={{ fontSize: 11, color: C.t3, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{note}</div>}
       </div>
       <div style={{
-        fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 6, whiteSpace: 'nowrap', flexShrink: 0, marginLeft: 8,
+        fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 6, whiteSpace: 'nowrap', flexShrink: 0,
         background: badge.bg, color: badge.color, border: `1px solid ${badge.border}`,
       }}>
         {badge.text}
@@ -997,10 +997,10 @@ function DashboardScreen({ C }: { C: ReturnType<typeof useNanTheme> }) {
   }
 
   return (
-    <div style={{ fontFamily: F, display: 'flex', flexDirection: 'column', gap: 6 }}>
+    <div style={{ fontFamily: F, display: 'flex', flexDirection: 'column', gap: 6, width: '100%', maxWidth: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
 
-      {/* ── Tab bar: Overview / Services ───────────────────────────────────── */}
-      <div style={{ display: 'flex', background: C.surf, borderRadius: 12, padding: 3, marginBottom: 8, gap: 2, overflowX: 'auto', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none' }}>
+      {/* ── Tab bar: swipeable, never causes page overflow ──────────────────── */}
+      <div style={{ display: 'flex', background: C.surf, borderRadius: 12, padding: 3, marginBottom: 8, gap: 2, overflowX: 'auto', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
         {DASH_TABS.map(t => {
           const active = dashTab === t.id
           return (
@@ -1053,15 +1053,15 @@ function DashboardScreen({ C }: { C: ReturnType<typeof useNanTheme> }) {
 
       {/* ── Balance card ───────────────────────────────────────────────────── */}
       <SectionLabel label="Overview" />
-      <div style={{ background: 'linear-gradient(135deg, rgba(0,102,255,0.20) 0%, rgba(0,102,255,0.07) 100%)', border: '1px solid rgba(0,102,255,0.28)', borderRadius: 22, padding: '20px 20px 16px', position: 'relative', overflow: 'hidden', marginBottom: 8 }}>
+      <div style={{ background: 'linear-gradient(135deg, rgba(0,102,255,0.20) 0%, rgba(0,102,255,0.07) 100%)', border: '1px solid rgba(0,102,255,0.28)', borderRadius: 22, padding: '16px 16px 14px', position: 'relative', overflow: 'hidden', marginBottom: 8, width: '100%', boxSizing: 'border-box' }}>
         <div style={{ position: 'absolute', top: -30, right: -30, width: 120, height: 120, borderRadius: '50%', background: 'rgba(0,102,255,0.15)', filter: 'blur(40px)', pointerEvents: 'none' }} />
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
-          <div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14, gap: 8 }}>
+          <div style={{ minWidth: 0, flex: 1 }}>
             <div style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,0.45)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>Available Balance</div>
-            <div style={{ fontSize: 34, fontWeight: 800, color: '#fff', fontFamily: MONO, letterSpacing: '-0.02em', lineHeight: 1 }}>{balance.toFixed(2)}</div>
-            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)', marginTop: 4 }}>USDC · {chainLabel}</div>
+            <div style={{ fontSize: 'clamp(24px, 7vw, 34px)', fontWeight: 800, color: '#fff', fontFamily: MONO, letterSpacing: '-0.02em', lineHeight: 1 }}>{balance.toFixed(2)}</div>
+            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)', marginTop: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>USDC · {chainLabel}</div>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8, flexShrink: 0, marginLeft: 8 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8, flexShrink: 0 }}>
             <div style={{ background: 'rgba(0,200,83,0.15)', border: '1px solid rgba(0,200,83,0.3)', borderRadius: 8, padding: '4px 10px', display: 'flex', alignItems: 'center', gap: 5 }}>
               <div style={{ width: 6, height: 6, borderRadius: '50%', background: GREEN }} />
               <span style={{ fontSize: 11, fontWeight: 700, color: GREEN }}>Active</span>
@@ -1088,21 +1088,21 @@ function DashboardScreen({ C }: { C: ReturnType<typeof useNanTheme> }) {
 
       {/* ── Agent Spending Policy ──────────────────────────────────────────── */}
       <SectionLabel label="Agent Spending Policy" />
-      <div style={{ background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 16, padding: '4px 16px', marginBottom: 8 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: `1px solid ${C.bdr}` }}>
-          <span style={{ fontSize: 12, color: C.t2 }}>Status</span>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 700, color: isActive ? GREEN : AMBER }}>
+      <div style={{ background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 16, padding: '4px 16px', marginBottom: 8, width: '100%', boxSizing: 'border-box' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, padding: '10px 0', borderBottom: `1px solid ${C.bdr}` }}>
+          <span style={{ fontSize: 12, color: C.t2, flexShrink: 0 }}>Status</span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 700, color: isActive ? GREEN : AMBER, flexShrink: 0 }}>
             <span style={{ width: 7, height: 7, borderRadius: '50%', background: isActive ? GREEN : AMBER, display: 'inline-block' }} />
             {isActive ? 'Active' : 'Inactive'}
           </span>
         </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: `1px solid ${C.bdr}` }}>
-          <span style={{ fontSize: 12, color: C.t2 }}>Limits</span>
-          <span style={{ fontSize: 12, color: C.t3 }}>Open Manage Policy to view</span>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, padding: '10px 0', borderBottom: `1px solid ${C.bdr}` }}>
+          <span style={{ fontSize: 12, color: C.t2, flexShrink: 0 }}>Limits</span>
+          <span style={{ fontSize: 12, color: C.t3, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>Tap Manage Policy</span>
         </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0' }}>
-          <span style={{ fontSize: 12, color: C.t2 }}>Source of truth</span>
-          <span style={{ fontSize: 12, fontWeight: 600, color: BLUE }}>Circle Agent Wallet</span>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, padding: '10px 0' }}>
+          <span style={{ fontSize: 12, color: C.t2, flexShrink: 0 }}>Source</span>
+          <span style={{ fontSize: 12, fontWeight: 600, color: BLUE, flexShrink: 0 }}>Circle Agent Wallet</span>
         </div>
       </div>
       <button
@@ -1400,7 +1400,7 @@ export function AgentWalletExperience() {
 
   if (screen === 'detect') {
     return (
-      <div style={{ maxWidth: 480, margin: '0 auto', padding: '0 18px', fontFamily: F }}>
+      <div style={{ maxWidth: 480, width: '100%', margin: '0 auto', padding: 0, fontFamily: F, boxSizing: 'border-box' }}>
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 320 }}>
           <svg width="28" height="28" viewBox="0 0 28 28" style={{ animation: 'aw-spin 0.9s linear infinite' }}>
             <circle cx="14" cy="14" r="11" fill="none" stroke="rgba(0,102,255,0.2)" strokeWidth="3" />
@@ -1426,7 +1426,7 @@ export function AgentWalletExperience() {
         }
       `}</style>
 
-      <div style={{ maxWidth: 480, margin: '0 auto', padding: '0 18px', fontFamily: F }}>
+      <div style={{ maxWidth: 480, width: '100%', margin: '0 auto', padding: 0, fontFamily: F, boxSizing: 'border-box', overflowX: 'hidden' }}>
         {/* header */}
         {showBack && (
           <BackButton onBack={() => { if (screen === 'setup') setScreen('edu'); else setActiveView('home') }} C={C} />
