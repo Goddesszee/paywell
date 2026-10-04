@@ -263,7 +263,7 @@ export const useAppStore = create<AppState>()(
       agentMessages: [{
         id: 'msg-welcome',
         role: 'agent',
-        content: "Hi! I'm NAN Agent — your autonomous financial assistant. I can send USDC, bridge, swap, set recurring payments, manage your spending policy, and answer questions about your wallet. What would you like to do?",
+        content: "Hi! I'm NAN — your financial assistant. I can check your balances, send USDC, bridge, swap, set up recurring payments, and manage your spending policy. What would you like to do?",
         timestamp: new Date(Date.now() - 1000 * 60 * 5),
       }],
       addAgentMessage: (msg) =>
@@ -278,7 +278,7 @@ export const useAppStore = create<AppState>()(
           agentMessages: [{
             id: 'msg-welcome-reset',
             role: 'agent',
-            content: "Hi! I'm NAN Agent — your autonomous financial assistant. I can send USDC, bridge, swap, set recurring payments, manage your spending policy, and answer questions about your wallet. What would you like to do?",
+            content: "Sure, starting fresh. What would you like to do?",
             timestamp: new Date(),
           }],
         }),

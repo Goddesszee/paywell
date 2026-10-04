@@ -10,13 +10,17 @@ import {
 import { useWriteContract, useAccount } from 'wagmi'
 import { parseUnits } from 'viem'
 
-import { LoadingDots } from '../ui/Spinner'
 import { useAppStore } from '../../store/appStore'
 import type { AgentMessage } from '../../store/appStore'
 
 import { formatUSDC, formatRelativeTime } from '../../utils/format'
 import { nanChat, backendConfigured } from '../../lib/api'
 import type { MarketplaceServiceCard } from '../../lib/api'
+import {
+  BalanceCard, SpendingCard, TransactionCard,
+  AddressRevealCard, ErrorCard, LoadingCard,
+  PurchaseApprovalCard,
+} from './NanFinancialCards'
 import { ServiceDiscoveryCard } from '../ServiceDiscoveryCard'
 import { getUsdc } from '../../onchain-facts'
 import {
@@ -62,6 +66,7 @@ const USDC_TRANSFER_ABI = [{
   outputs: [{ name: '', type: 'bool' }],
 }] as const
 
+// AgentTab kept for internal navigation (not exposed as a tab bar)
 type AgentTab = 'chat' | 'discover' | 'network' | 'policy' | 'log' | 'wallet'
 
 // ── Payment confirmation card ─────────────────────────────────────────────────
@@ -338,6 +343,7 @@ function AgentChat({ onNavigate }: { onNavigate?: (page: string, query?: string)
   const { writeContractAsync } = useWriteContract()
   const [input, setInput] = useState('')
   const [typing, setTyping] = useState(false)
+  const [loadingMessage, setLoadingMessage] = useState('Let me check on that...')
   const [x402Paying, setX402Paying] = useState(false)
   const [orchSteps, setOrchSteps] = useState<OrchestratorStep[]>([])
   const [awaitingConfirmation, setAwaitingConfirmation] = useState(false)
@@ -492,7 +498,7 @@ function AgentChat({ onNavigate }: { onNavigate?: (page: string, query?: string)
         chainId,
       })
       setActionResult(result)
-      addAgentMessage({ role: 'agent', content: `Done: ${result}`, action: 'info' })
+      addAgentMessage({ role: 'agent', content: `Done — ${result}`, action: 'info' })
     } catch (e) {
       setActionError(e instanceof Error ? e.message : 'Action failed')
     } finally {
@@ -511,6 +517,17 @@ function AgentChat({ onNavigate }: { onNavigate?: (page: string, query?: string)
       if (!paid) { addAgentMessage({ role:'agent', content:'Payment of 0.001 USDC required. Approve in your wallet.', action:'info' }); return }
     }
     addAgentMessage({ role:'user', content:text })
+
+    // Choose a contextual loading message
+    const lower = text.toLowerCase()
+    if (/balance|wallet|usdc|fund/.test(lower))      setLoadingMessage('Checking your balance...')
+    else if (/swap|quote|rate|convert/.test(lower))   setLoadingMessage('Getting the latest quote...')
+    else if (/send|transfer|pay/.test(lower))         setLoadingMessage('Checking your Agent Wallet...')
+    else if (/policy|limit|spending/.test(lower))     setLoadingMessage('Checking your spending policy...')
+    else if (/bridge|cctp/.test(lower))               setLoadingMessage('Connecting to the bridge...')
+    else if (/service|search|find|research/.test(lower)) setLoadingMessage('Finding the right service...')
+    else                                               setLoadingMessage('Let me check on that...')
+
     setTyping(true)
     setOrchSteps([])
 
@@ -599,7 +616,7 @@ function AgentChat({ onNavigate }: { onNavigate?: (page: string, query?: string)
     }
     await new Promise(r => setTimeout(r, 800 + Math.random()*500))
     setTyping(false)
-    addAgentMessage({ role: 'agent', content: 'Sorry, I was unable to reach the AI backend. Please check your API configuration.' })
+    addAgentMessage({ role: 'agent', content: "I couldn't reach the backend right now. Please check your connection or API configuration." })
   }
 
   const QUICK = [
@@ -677,12 +694,12 @@ function AgentChat({ onNavigate }: { onNavigate?: (page: string, query?: string)
           />
         )}
         {typing && (
-          <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-            <div style={{ width:28, height:28, borderRadius:'50%', background:SURFACE, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+          <div style={{ display:'flex', alignItems:'flex-start', gap:8 }}>
+            <div style={{ width:28, height:28, borderRadius:'50%', background:SURFACE, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, marginTop:2 }}>
               <Bot size={13} color={BLACK} />
             </div>
-            <div style={{ background:WHITE, border:`1px solid ${BORDER}`, borderRadius:16, padding:'10px 14px' }}>
-              <LoadingDots />
+            <div style={{ flex:1 }}>
+              <LoadingCard message={loadingMessage} />
             </div>
           </div>
         )}
@@ -716,6 +733,62 @@ function AgentChat({ onNavigate }: { onNavigate?: (page: string, query?: string)
   )
 }
 
+// ── Pattern detection helpers ─────────────────────────────────────────────────
+
+// Detects patterns like "main wallet balance: 0 usdc" or "main wallet\n0.00 usdc"
+function extractBalances(text: string): { main?: string; agent?: string } | null {
+  const lower = text.toLowerCase()
+  // Must mention both wallets to count as a dual-balance message
+  if (!lower.includes('main') && !lower.includes('agent')) return null
+  if (!lower.includes('usdc')) return null
+  const mainMatch = lower.match(/main[^0-9]*(\d+(?:\.\d+)?)\s*usdc/)
+  const agentMatch = lower.match(/agent[^0-9]*(\d+(?:\.\d+)?)\s*usdc/)
+  if (!mainMatch && !agentMatch) return null
+  return { main: mainMatch?.[1], agent: agentMatch?.[1] }
+}
+
+function isAddressRequest(text: string): boolean {
+  const lower = text.toLowerCase()
+  return lower.includes('address') && (lower.includes('agent wallet') || lower.includes('wallet address') || lower.includes('my address'))
+}
+
+function extractAddress(text: string): { label: string; address: string } | null {
+  const match = text.match(/0x[0-9a-fA-F]{40}/)
+  if (!match) return null
+  const lower = text.toLowerCase()
+  const label = lower.includes('agent') ? 'Agent Wallet Address' : lower.includes('main') ? 'Main Wallet Address' : 'Wallet Address'
+  return { label, address: match[0] }
+}
+
+function isErrorMessage(text: string): boolean {
+  const lower = text.toLowerCase()
+  return lower.startsWith('error') || lower.includes('failed') || lower.includes("couldn't") || lower.includes('could not') || lower.includes('unable to')
+}
+
+function isSuccessMessage(text: string): boolean {
+  const lower = text.toLowerCase()
+  return (lower.includes('done') || lower.includes('complete') || lower.includes('sent') || lower.includes('succeeded') || lower.includes('payment went through')) && lower.includes('usdc')
+}
+
+// Strip raw financial technical text the LLM may leak
+function sanitiseContent(text: string): string {
+  return text
+    // "Main Wallet Balance: 0 USDC (address: 0x...)"
+    .replace(/main wallet balance:\s*\d+(?:\.\d+)?\s*usdc\s*\(address:\s*0x[0-9a-fA-F]+\)/gi, '')
+    // "Agent Wallet Balance: 149.167003 USDC (address: 0x...)"
+    .replace(/agent wallet balance:\s*\d+(?:\.\d+)?\s*usdc\s*\(address:\s*0x[0-9a-fA-F]+\)/gi, '')
+    // "Your current balances are as follows:" intro line
+    .replace(/your current balances are as follows[:\s]*/gi, '')
+    // Bare wallet addresses (only strip if not at start of message where user asked)
+    .replace(/\(address:\s*0x[0-9a-fA-F]{40}\)/gi, '')
+    // "Network: arc-testnet / chain id: 5042002" etc.
+    .replace(/network:\s*[^\n]+/gi, '')
+    .replace(/chain\s*id:\s*\d+/gi, '')
+    // Remove double blank lines left by substitutions
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+}
+
 function MsgBubble({ msg, onApprove, onReject, onUseService, onInspectService }: {
   msg: AgentMessage
   onApprove: (id: string) => void
@@ -723,34 +796,109 @@ function MsgBubble({ msg, onApprove, onReject, onUseService, onInspectService }:
   onUseService?: (s: MarketplaceServiceCard) => void
   onInspectService?: (s: MarketplaceServiceCard) => void
 }) {
+  const { agentPermissions, agentDailyUsed, agentWallet, setActiveView } = useAppStore()
+
   if (msg.role === 'user') return (
     <div style={{ display:'flex', justifyContent:'flex-end' }}>
-      <div style={{ background:BLUE, color:'#fff', fontSize:13, borderRadius:16, borderTopRightRadius:4, padding:'10px 14px', maxWidth:'78%' }}>{msg.content}</div>
+      <div style={{ background:BLUE, color:'#fff', fontSize:13, borderRadius:16, borderTopRightRadius:4, padding:'10px 14px', maxWidth:'78%', lineHeight:1.5 }}>{msg.content}</div>
     </div>
   )
+
+  const clean = sanitiseContent(msg.content)
+  const balances = extractBalances(msg.content)
+  const addressInfo = isAddressRequest(msg.content) ? extractAddress(msg.content) : null
+  const showError = isErrorMessage(clean)
+  const showSuccess = isSuccessMessage(clean)
+
+  // Determine a friendly display text (stripped of raw technical content)
+  let displayText = clean
+
+  // If it was a balance response, replace the stripped content with a friendly intro
+  if (balances && (balances.main !== undefined || balances.agent !== undefined)) {
+    displayText = "Here's your current balance."
+  } else if (addressInfo) {
+    displayText = ''
+  }
+
   return (
     <div style={{ display:'flex', alignItems:'flex-start', gap:8 }}>
-      <div style={{ width:28, height:28, borderRadius:'50%', background:SURFACE, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+      <div style={{ width:28, height:28, borderRadius:'50%', background:SURFACE, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, marginTop:2 }}>
         <Bot size={13} color={BLACK} />
       </div>
-      <div style={{ flex:1, maxWidth:'90%', display:'flex', flexDirection:'column', gap:8 }}>
-        <div style={{ background:SURF, border:`1px solid ${BDR}`, borderRadius:16, borderTopLeftRadius:4, padding:'10px 14px', fontSize:13, color:BLACK }}>{msg.content}</div>
+      <div style={{ flex:1, maxWidth:'92%', display:'flex', flexDirection:'column', gap:8 }}>
 
-        {msg.action==='purchase_request' && msg.approved===undefined && (
-          <div style={{ display:'flex', gap:8 }}>
-            <button onClick={() => onApprove(msg.id)} style={{ flex:1, height:34, background:BLUE, color:'#fff', border:'none', borderRadius:10, fontSize:12, fontWeight:600, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:6, fontFamily:F }}>
-              <Check size={12} /> Approve
-            </button>
-            <button onClick={() => onReject(msg.id)} style={{ flex:1, height:34, background:SURF, color:TEXT, border:`1px solid ${BDR}`, borderRadius:10, fontSize:12, fontWeight:600, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:6, fontFamily:F }}>
-              <X size={12} /> Decline
-            </button>
+        {/* Main text bubble — hide if empty or fully replaced by a card */}
+        {displayText.length > 0 && !showError && (
+          <div style={{ background:SURF, border:`1px solid ${BDR}`, borderRadius:16, borderTopLeftRadius:4, padding:'10px 14px', fontSize:13, color:BLACK, lineHeight:1.6, whiteSpace:'pre-wrap' }}>
+            {displayText}
           </div>
         )}
-        {msg.action==='purchase_request' && msg.approved===true && <div style={{ fontSize:11, color:BLACK, fontWeight:600, display:'flex', alignItems:'center', gap:4 }}><Check size={11} /> Approved</div>}
-        {msg.action==='purchase_request' && msg.approved===false && <div style={{ fontSize:11, color:TEXT3, fontWeight:500, display:'flex', alignItems:'center', gap:4 }}><X size={11} /> Declined</div>}
-        {/* Live marketplace results — rendered inline below the reply text */}
+
+        {/* Balance card — rendered when backend sends balance info */}
+        {balances && (balances.main !== undefined || balances.agent !== undefined) && (
+          <BalanceCard data={{
+            mainBalance: balances.main ?? '0',
+            agentBalance: balances.agent ?? agentWallet.balance_usdc ?? '0',
+            onViewWallet: () => setActiveView('wallet'),
+          }} />
+        )}
+
+        {/* Address reveal — only shown when user explicitly asked */}
+        {addressInfo && (
+          <AddressRevealCard data={addressInfo} />
+        )}
+
+        {/* Spending card — when message is about spending / daily limit */}
+        {/spending|daily limit|remaining today|usdc remaining/i.test(msg.content) && !balances && (
+          <SpendingCard data={{
+            dailyLimit: agentPermissions.dailyLimit,
+            dailyUsed: agentDailyUsed,
+          }} />
+        )}
+
+        {/* Success transaction card */}
+        {showSuccess && (() => {
+          const amtMatch = msg.content.match(/(\d+(?:\.\d+)?)\s*usdc/i)
+          const amount = amtMatch ? parseFloat(amtMatch[1]) : 0
+          return (
+            <TransactionCard data={{
+              type: 'Agent Payment',
+              amount,
+              status: 'completed',
+              showTxId: false,
+            }} />
+          )
+        })()}
+
+        {/* Error card */}
+        {showError && (
+          <ErrorCard data={{
+            message: (() => {
+              const lower = clean.toLowerCase()
+              if (lower.includes('insufficient') || lower.includes('not enough')) return "Your Agent Wallet doesn't have enough USDC for this payment."
+              if (lower.includes('not set up') || lower.includes('not provisioned')) return "Your Agent Wallet isn't set up yet."
+              if (lower.includes('policy') || lower.includes('limit exceeded')) return "This request was blocked by your spending policy."
+              if (lower.includes('wallet not connected')) return "Please connect your wallet to continue."
+              return "I couldn't complete that request."
+            })(),
+            technical: clean.length > 20 ? clean : undefined,
+          }} />
+        )}
+
+        {/* Purchase approval card */}
+        {msg.action === 'purchase_request' && (
+          <PurchaseApprovalCard data={{
+            description: msg.content,
+            amount: (() => { const m = msg.content.match(/(\d+(?:\.\d+)?)\s*usdc/i); return m ? parseFloat(m[1]) : 0 })(),
+            approved: msg.approved,
+            onApprove: () => onApprove(msg.id),
+            onReject:  () => onReject(msg.id),
+          }} />
+        )}
+
+        {/* Live marketplace results */}
         {msg.marketplaceServices && msg.marketplaceServices.length >= 0 && onUseService && onInspectService && (
-          <div className="mt-1">
+          <div>
             <ServiceDiscoveryCard
               services={msg.marketplaceServices}
               onUseService={onUseService}
@@ -759,6 +907,7 @@ function MsgBubble({ msg, onApprove, onReject, onUseService, onInspectService }:
           </div>
         )}
 
+        {/* Timestamp + service tag */}
         <div style={{ display:'flex', alignItems:'center', gap:6, flexWrap:'wrap' }}>
           <div style={{ fontSize:10, color:TEXT3 }}>{formatRelativeTime(msg.timestamp)}</div>
           {msg.serviceSource && (
