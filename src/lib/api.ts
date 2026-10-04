@@ -156,6 +156,12 @@ export async function nanChat(opts: {
     dailyLimit?: number
     perTxLimit?: number
     remainingToday?: number
+    /** Per-chain USDC balances, e.g. { "Arc Testnet": "12.50", "Base Sepolia": "0.00" } */
+    crossChainBalances?: Record<string, string>
+    /** Human-readable summary: "Arc Testnet: 12.50 USDC, Base Sepolia: 3.00 USDC" */
+    crossChainSummary?: string
+    /** Sum of all cross-chain USDC balances */
+    totalCrossChainBalance?: string
   }
 }): Promise<{ reply: string; service_used?: string | null; action?: Record<string, unknown> | null; marketplace_services?: MarketplaceServiceCard[] }> {
   const last = opts.messages[opts.messages.length - 1]?.content ?? ''

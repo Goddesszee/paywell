@@ -606,6 +606,16 @@ function AgentChat({ onNavigate }: { onNavigate?: (page: string, query?: string)
           {role:'user',content:text},
         ]
         const storeSnap = useAppStore.getState()
+        // Build cross-chain summary string for the LLM
+        const crossChainEntries = Object.entries(storeSnap.crossChainBalances)
+          .filter(([, bal]) => parseFloat(bal) > 0)
+        const crossChainSummary = crossChainEntries.length > 0
+          ? crossChainEntries.map(([chain, bal]) => `${chain}: ${bal} USDC`).join(', ')
+          : 'no balances on other chains yet'
+        const totalCrossChain = crossChainEntries
+          .reduce((sum, [, bal]) => sum + parseFloat(bal), 0)
+          .toFixed(2)
+
         const res = await nanChat({
           messages: msgs,
           usdcBal: storeSnap.mainWalletBalance,
@@ -619,6 +629,10 @@ function AgentChat({ onNavigate }: { onNavigate?: (page: string, query?: string)
             dailyLimit: agentPermissions.dailyLimit,
             perTxLimit: agentPermissions.perTxLimit,
             remainingToday: Math.max(0, agentPermissions.dailyLimit - agentDailyUsed),
+            // Cross-chain balances so NAN knows about bridged USDC on other networks
+            crossChainBalances: storeSnap.crossChainBalances,
+            crossChainSummary,
+            totalCrossChainBalance: totalCrossChain,
           },
         })
         setTyping(false)
@@ -939,7 +953,7 @@ function MsgBubble({ msg, onApprove, onReject, onUseService, onInspectService }:
   onUseService?: (s: MarketplaceServiceCard) => void
   onInspectService?: (s: MarketplaceServiceCard) => void
 }) {
-  const { agentPermissions, agentDailyUsed, agentWallet, setActiveView } = useAppStore()
+  const { agentPermissions, agentDailyUsed, agentWallet, setActiveView, crossChainBalances } = useAppStore()
 
   if (msg.role === 'user') return (
     <div style={{ display:'flex', justifyContent:'flex-end' }}>
@@ -982,6 +996,7 @@ function MsgBubble({ msg, onApprove, onReject, onUseService, onInspectService }:
           <BalanceCard data={{
             mainBalance: balances.main ?? '0',
             agentBalance: balances.agent ?? agentWallet.balance_usdc ?? '0',
+            crossChainBalances,
             onViewWallet: () => setActiveView('wallet'),
           }} />
         )}

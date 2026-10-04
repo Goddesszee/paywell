@@ -11,6 +11,7 @@ import { useAppStore, ActivityItem } from '../../store/appStore'
 import { getUsdc } from '../../onchain-facts'
 import { useNanTheme, NanTheme } from '../../hooks/useNanTheme'
 import { TokenLogo } from '../ui/TokenLogo'
+import { useSyncMultiChainBalances } from '../../hooks/useMultiChainBalances'
 
 const F    = "'Inter', -apple-system, sans-serif"
 const MONO = "'JetBrains Mono', 'SF Mono', Menlo, monospace"
@@ -85,7 +86,7 @@ function ActionBtn({ Icon, label, primary, onClick, C }: {
 export function HomePage() {
   const C = useNanTheme()
   const { address: wagmiAddress, isConnected } = useAccount()
-  const { activity, setActiveView, auth, profile, setMainWalletBalance } = useAppStore()
+  const { activity, setActiveView, auth, profile, setMainWalletBalance, setCrossChainBalances } = useAppStore()
 
   // Circle wallet users don't connect via wagmi — fall back to their Circle wallet address
   const address = wagmiAddress ?? (auth?.circleWalletAddress as `0x${string}` | undefined)
@@ -128,6 +129,9 @@ export function HomePage() {
       setMainWalletBalance(usdcNum.toFixed(2), address)
     }
   }, [rawBalance, address, usdcNum, setMainWalletBalance])
+
+  // Sync multi-chain USDC balances so the agent has a full cross-chain picture
+  useSyncMultiChainBalances(address, setCrossChainBalances)
 
   const firstName = profile.displayName?.split(' ')[0]
     || auth?.email?.split('@')[0]

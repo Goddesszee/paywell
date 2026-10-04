@@ -57,10 +57,20 @@ function CopyButton({ value }: { value: string }) {
 export interface BalanceCardData {
   mainBalance: string      // human-readable e.g. "42.50"
   agentBalance: string
+  /** Per-chain USDC balances, e.g. { "Arc Testnet": "12.50", "Base Sepolia": "3.00" } */
+  crossChainBalances?: Record<string, string>
   onViewWallet?: () => void
 }
 
 export function BalanceCard({ data }: { data: BalanceCardData }) {
+  const [showChains, setShowChains] = useState(false)
+
+  // Only show chains that have a non-zero balance (or all if user expands)
+  const chainEntries = Object.entries(data.crossChainBalances ?? {})
+  const nonZeroChains = chainEntries.filter(([, bal]) => parseFloat(bal) > 0)
+  const totalCrossChain = chainEntries.reduce((s, [, b]) => s + parseFloat(b), 0)
+  const hasCrossChain = chainEntries.length > 0
+
   return (
     <div style={{ background:SURF, border:`1px solid ${BDR}`, borderRadius:16, overflow:'hidden', marginBottom:2 }}>
       {/* header label */}
@@ -69,11 +79,50 @@ export function BalanceCard({ data }: { data: BalanceCardData }) {
         <span style={{ fontSize:11, fontWeight:700, color:TEXT3, textTransform:'uppercase', letterSpacing:'0.07em' }}>Your balances</span>
       </div>
 
-      {/* balance rows */}
+      {/* main wallets */}
       <div style={{ padding:'8px 14px 2px', display:'flex', flexDirection:'column', gap:1 }}>
         <BalanceRow label="Main Wallet" amount={data.mainBalance} />
         <div style={{ height:1, background:BDR, margin:'4px 0' }} />
         <BalanceRow label="Agent Wallet" amount={data.agentBalance} accent />
+
+        {/* Cross-chain section */}
+        {hasCrossChain && (
+          <>
+            <div style={{ height:1, background:BDR, margin:'4px 0' }} />
+            <button
+              onClick={() => setShowChains(v => !v)}
+              style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'7px 0', background:'none', border:'none', cursor:'pointer', fontFamily:F, width:'100%' }}
+            >
+              <div style={{ display:'flex', alignItems:'center', gap:5 }}>
+                <Zap size={11} color={BLUE} />
+                <span style={{ fontSize:12, fontWeight:600, color:TEXT2 }}>Cross-chain USDC</span>
+                {nonZeroChains.length > 0 && (
+                  <span style={{ fontSize:10, fontWeight:700, color:BLUE, background:'rgba(0,102,255,0.1)', borderRadius:6, padding:'1px 6px' }}>
+                    {nonZeroChains.length} chain{nonZeroChains.length > 1 ? 's' : ''}
+                  </span>
+                )}
+              </div>
+              <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+                <span style={{ fontSize:14, fontWeight:700, color:TEXT, fontFamily:F, fontVariantNumeric:'tabular-nums' }}>
+                  {fmt2(totalCrossChain)} <span style={{ fontSize:11, fontWeight:500, color:TEXT3 }}>USDC</span>
+                </span>
+                {showChains ? <ChevronUp size={13} color={TEXT3} /> : <ChevronDown size={13} color={TEXT3} />}
+              </div>
+            </button>
+            {showChains && (
+              <div style={{ paddingBottom:4 }}>
+                {chainEntries.map(([chain, bal]) => (
+                  <div key={chain} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'5px 0 5px 16px' }}>
+                    <span style={{ fontSize:12, color: parseFloat(bal) > 0 ? TEXT2 : TEXT3 }}>{chain}</span>
+                    <span style={{ fontSize:13, fontWeight:600, color: parseFloat(bal) > 0 ? TEXT : TEXT3, fontVariantNumeric:'tabular-nums' }}>
+                      {fmt2(bal)} <span style={{ fontSize:11, fontWeight:400, color:TEXT3 }}>USDC</span>
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
       </div>
 
       {/* footer action */}

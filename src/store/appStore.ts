@@ -226,6 +226,10 @@ export interface AppState {
   mainWalletAddress: string
   setMainWalletBalance: (balance: string, address: string) => void
 
+  /** USDC balance on each chain keyed by chain name, e.g. { "Arc Testnet": "12.50", "Base Sepolia": "0.00" } */
+  crossChainBalances: Record<string, string>
+  setCrossChainBalances: (balances: Record<string, string>) => void
+
   bridgePrefill: { amount?: string; toChain?: string } | null
   setBridgePrefill: (p: { amount?: string; toChain?: string } | null) => void
   swapPrefill: { fromToken?: string; toToken?: string; amount?: string } | null
@@ -422,6 +426,9 @@ export const useAppStore = create<AppState>()(
       mainWalletBalance: '0',
       mainWalletAddress: '',
       setMainWalletBalance: (balance, address) => set({ mainWalletBalance: balance, mainWalletAddress: address }),
+
+      crossChainBalances: {},
+      setCrossChainBalances: (balances) => set({ crossChainBalances: balances }),
 
       bridgePrefill: null,
       setBridgePrefill: (p) => set({ bridgePrefill: p }),
