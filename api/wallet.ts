@@ -353,5 +353,33 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   }
 
+  // ── bridge (developer-controlled wallets) ─────────────────────────────────
+  // Uses AppKit + createCircleWalletsAdapter — requires dev-controlled wallet.
+  if (action === 'bridge') {
+    const { walletAddress, fromChain, toChain, toAddress, amount } = body
+    if (!walletAddress || !fromChain || !toChain || !amount)
+      return res.status(400).json({ error: 'walletAddress, fromChain, toChain, amount required' })
+
+    const devKey = process.env.CIRCLE_DEVELOPER_CONTROLLED_API_KEY ?? process.env.CIRCLE_API_KEY
+    const entitySecret = process.env.CIRCLE_ENTITY_SECRET
+    if (!devKey || !entitySecret)
+      return res.status(503).json({ error: 'Circle developer-controlled wallet credentials not configured on this server.' })
+
+    try {
+      const { AppKit } = await import('@circle-fin/app-kit')
+      const { createCircleWalletsAdapter } = await import('@circle-fin/adapter-circle-wallets')
+      const kit = new AppKit()
+      const adapter = createCircleWalletsAdapter({ apiKey: devKey, entitySecret })
+      const result = await kit.bridge({
+        from: { adapter, chain: fromChain, address: walletAddress },
+        to:   { adapter, chain: toChain, address: toAddress ?? walletAddress },
+        amount,
+      })
+      return res.json({ result })
+    } catch (err: unknown) {
+      return res.status(500).json({ error: err instanceof Error ? err.message : 'Bridge failed' })
+    }
+  }
+
   return res.status(400).json({ error: `Unknown action: ${action ?? '(none)'}` })
 }

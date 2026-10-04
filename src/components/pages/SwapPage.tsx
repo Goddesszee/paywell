@@ -290,6 +290,7 @@ export function SwapPage() {
 
   const getAdapter = async () => {
     if (!connector) throw new Error('Wallet not connected')
+    // Switch wallet to Arc Testnet before creating the adapter
     if (chainId !== CHAIN_ID) await switchChainAsync({ chainId: CHAIN_ID })
     const provider = (await connector.getProvider()) as EIP1193Provider
     return createViemAdapterFromProvider({ provider })

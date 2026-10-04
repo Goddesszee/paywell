@@ -43,7 +43,7 @@ const CHAINS: BridgeChain[] = [
   { label:'Base Sepolia',       kitName:'Base_Sepolia',       chainId:84532,    cctpDomain:6,  explorer:'https://sepolia.basescan.org/tx/',                    gasToken:'ETH',  gasIsUsdc:false, paymasterSupported:true,  paymasterNote:'Paymaster v0.7 + v0.8 — pay gas in USDC (10% surcharge, ERC-4337 required)' },
   { label:'Arbitrum Sepolia',   kitName:'Arbitrum_Sepolia',   chainId:421614,   cctpDomain:3,  explorer:'https://sepolia.arbiscan.io/tx/',                     gasToken:'ETH',  gasIsUsdc:false, paymasterSupported:true,  paymasterNote:'Paymaster v0.7 + v0.8 — pay gas in USDC (10% surcharge, ERC-4337 required)' },
   { label:'OP Sepolia',         kitName:'Optimism_Sepolia',   chainId:11155420, cctpDomain:2,  explorer:'https://sepolia-optimism.etherscan.io/tx/',           gasToken:'ETH',  gasIsUsdc:false, paymasterSupported:true,  paymasterNote:'Paymaster v0.8 — pay gas in USDC (ERC-4337 wallet required)' },
-  { label:'Polygon Amoy',       kitName:'Polygon_Amoy',       chainId:80002,    cctpDomain:7,  explorer:'https://www.oklink.com/amoy/tx/',                     gasToken:'MATIC',gasIsUsdc:false, paymasterSupported:true,  paymasterNote:'Paymaster v0.8 — pay gas in USDC (ERC-4337 wallet required)' },
+  { label:'Polygon Amoy',       kitName:'Polygon_Amoy_Testnet',chainId:80002,   cctpDomain:7,  explorer:'https://www.oklink.com/amoy/tx/',                     gasToken:'POL',  gasIsUsdc:false, paymasterSupported:true,  paymasterNote:'Paymaster v0.8 — pay gas in USDC (ERC-4337 wallet required)' },
   { label:'Avalanche Fuji',     kitName:'Avalanche_Fuji',     chainId:43113,    cctpDomain:1,  explorer:'https://testnet.snowtrace.io/tx/',                    gasToken:'AVAX', gasIsUsdc:false, paymasterSupported:true,  paymasterNote:'Paymaster v0.8 — pay gas in USDC (ERC-4337 wallet required)' },
   { label:'Unichain Sepolia',   kitName:'Unichain_Sepolia',   chainId:1301,     cctpDomain:10, explorer:'https://sepolia.uniscan.xyz/tx/',                     gasToken:'ETH',  gasIsUsdc:false, paymasterSupported:true,  paymasterNote:'Paymaster v0.8 — pay gas in USDC (ERC-4337 wallet required)' },
   { label:'Linea Sepolia',      kitName:'Linea_Sepolia',      chainId:59141,    cctpDomain:-1, explorer:'https://sepolia.lineascan.build/tx/',                 gasToken:'ETH',  gasIsUsdc:false, paymasterSupported:false },
@@ -212,9 +212,11 @@ export function BridgePage() {
     // ── Wagmi browser wallet path ───────────────────────────────────────────
     if (!connector || !isConnected) return
     try {
+      // Switch wallet to source chain before creating the adapter
       if (chainId !== fromChain.chainId) await switchChainAsync({ chainId: fromChain.chainId })
       const provider = (await connector.getProvider()) as EIP1193Provider
       const adapter  = await createViemAdapterFromProvider({ provider })
+
       updateStep('approve', { status: 'active' })
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

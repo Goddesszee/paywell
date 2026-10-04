@@ -40,6 +40,12 @@ export default defineConfig({
       'clsx',
       'tailwind-merge',
       'zustand',
+      // Circle App Kit + adapters — pre-bundle so they share the same React instance
+      // as the rest of the app (prevents "Invalid hook call" on lazy-loaded pages).
+      '@circle-fin/app-kit',
+      '@circle-fin/app-kit/chains',
+      '@circle-fin/adapter-viem-v2',
+      '@circle-fin/adapter-circle-wallets',
       'vite-plugin-node-polyfills/shims/buffer',
       'vite-plugin-node-polyfills/shims/global',
       'vite-plugin-node-polyfills/shims/process',
