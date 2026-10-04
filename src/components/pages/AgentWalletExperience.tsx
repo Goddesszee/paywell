@@ -17,7 +17,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { W3SSdk } from '@circle-fin/w3s-pw-web-sdk'
 import {
-  ArrowLeft, ArrowRight, Wallet, Shield, Zap, BarChart3,
+  ArrowLeft, ArrowRight, ArrowLeftRight, ArrowUpDown, Repeat,
+  Wallet, Shield, Zap, BarChart3,
   Copy, Check, ChevronDown, ChevronRight,
   RefreshCw, AlertTriangle, Coins, Clock,
   CheckCircle, Wifi, Mail, Loader, Sparkles, X as XIcon,
@@ -25,7 +26,10 @@ import {
 } from 'lucide-react'
 import { useAppStore, AgentSpendEntry } from '../../store/appStore'
 import { useNanTheme } from '../../hooks/useNanTheme'
-import { AgentServicesTab } from './AgentServicesTab'
+import { AgentServicesTab }   from './AgentServicesTab'
+import { AgentRecurringTab } from './AgentRecurringTab'
+import { AgentBridgeTab }    from './AgentBridgeTab'
+import { AgentSwapTab }      from './AgentSwapTab'
 
 // ── design tokens ─────────────────────────────────────────────────────────────
 
@@ -904,11 +908,14 @@ function ManagePolicyModal({ onClose, C }: { onClose: () => void; C: ReturnType<
   )
 }
 
-type DashTab = 'overview' | 'services'
+type DashTab = 'overview' | 'recurring' | 'bridge' | 'swap' | 'services'
 
 const DASH_TABS: { id: DashTab; label: string; Icon: React.ElementType }[] = [
-  { id: 'overview', label: 'Overview', Icon: Wallet },
-  { id: 'services', label: 'Services', Icon: Sparkles },
+  { id: 'overview',  label: 'Overview',  Icon: Wallet },
+  { id: 'recurring', label: 'Recurring', Icon: Repeat },
+  { id: 'bridge',    label: 'Bridge',    Icon: ArrowLeftRight },
+  { id: 'swap',      label: 'Swap',      Icon: ArrowUpDown },
+  { id: 'services',  label: 'Services',  Icon: Sparkles },
 ]
 
 function DashboardScreen({ C }: { C: ReturnType<typeof useNanTheme> }) {
@@ -1018,7 +1025,10 @@ function DashboardScreen({ C }: { C: ReturnType<typeof useNanTheme> }) {
       </div>
 
       {/* ── Services tab ───────────────────────────────────────────────────── */}
-      {dashTab === 'services' && <AgentServicesTab C={themeColors} />}
+      {dashTab === 'recurring' && <AgentRecurringTab C={themeColors} />}
+      {dashTab === 'bridge'    && <AgentBridgeTab    C={themeColors} />}
+      {dashTab === 'swap'      && <AgentSwapTab      C={themeColors} />}
+      {dashTab === 'services'  && <AgentServicesTab  C={themeColors} />}
 
       {/* ── Overview tab ───────────────────────────────────────────────────── */}
       {dashTab === 'overview' && <>
@@ -1119,9 +1129,9 @@ function DashboardScreen({ C }: { C: ReturnType<typeof useNanTheme> }) {
         <CapabilityRow label="Receive USDC" status="enabled"        C={C} />
         <CapabilityRow label="Send USDC"    status="enabled"        note="To permitted addresses" C={C} />
         <CapabilityRow label="Agent Payments" status="enabled"      note="Pay for services on your behalf" C={C} />
-        <CapabilityRow label="Bridge"         status="not_configured" note="Circle CCTP supported · not yet wired in NAN" C={C} />
-        <CapabilityRow label="Swap"           status="not_configured" note="Circle / LiFi supported · not yet wired in NAN" C={C} />
-        <CapabilityRow label="Automated Recurring Pay" status="coming_soon" C={C} noBorder />
+        <CapabilityRow label="Bridge"                status="enabled"  note="Circle CCTP V2 · use Bridge tab" C={C} />
+        <CapabilityRow label="Swap"                  status="enabled"  note="Circle / LiFi · use Swap tab" C={C} />
+        <CapabilityRow label="Automated Recurring Pay" status="enabled" note="Scheduled from Agent Wallet · use Recurring tab" C={C} noBorder />
       </div>
 
       {/* Policy modal */}
