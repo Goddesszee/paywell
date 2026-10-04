@@ -20,10 +20,11 @@ import {
   ArrowLeft, ArrowRight, Wallet, Shield, Zap, BarChart3,
   Copy, Check, ChevronDown, ChevronRight,
   RefreshCw, AlertTriangle, Coins, Clock,
-  CheckCircle, Wifi, Mail, Loader,
+  CheckCircle, Wifi, Mail, Loader, Sparkles,
 } from 'lucide-react'
 import { useAppStore, AgentSpendEntry } from '../../store/appStore'
 import { useNanTheme } from '../../hooks/useNanTheme'
+import { AgentServicesTab } from './AgentServicesTab'
 
 // ── design tokens ─────────────────────────────────────────────────────────────
 
@@ -615,8 +616,16 @@ function CapabilityRow({ label, supported, note, C }: { label: string; supported
   )
 }
 
+type DashTab = 'overview' | 'services'
+
+const DASH_TABS: { id: DashTab; label: string; Icon: React.ElementType }[] = [
+  { id: 'overview', label: 'Overview', Icon: Wallet },
+  { id: 'services', label: 'Services', Icon: Sparkles },
+]
+
 function DashboardScreen({ C }: { C: ReturnType<typeof useNanTheme> }) {
   const { agentWallet, setAgentWallet, agentSpendLog, auth } = useAppStore()
+  const [dashTab, setDashTab]       = useState<DashTab>('overview')
   const [refreshing, setRefreshing] = useState(false)
   const [copied, setCopied]         = useState(false)
   const [detailsOpen, setDetailsOpen] = useState(false)
@@ -680,8 +689,50 @@ function DashboardScreen({ C }: { C: ReturnType<typeof useNanTheme> }) {
     ? new Date(agentWallet.createDate).toLocaleDateString('en', { year: 'numeric', month: 'short', day: 'numeric' })
     : '—'
 
+  // Build a ThemeColors-compatible object from the NAN theme tokens
+  const themeColors = {
+    bg:    C.bg   ?? 'var(--nan-bg)',
+    surf:  C.surf,
+    surf2: C.surf2,
+    bdr:   C.bdr,
+    text:  C.text,
+    t2:    C.t2,
+    t3:    C.t3,
+  }
+
   return (
     <div style={{ fontFamily: F, display: 'flex', flexDirection: 'column', gap: 6 }}>
+
+      {/* ── Tab bar: Overview / Services ───────────────────────────────────── */}
+      <div style={{ display: 'flex', background: C.surf, borderRadius: 12, padding: 3, marginBottom: 8, gap: 2 }}>
+        {DASH_TABS.map(t => {
+          const active = dashTab === t.id
+          return (
+            <button
+              key={t.id}
+              onClick={() => setDashTab(t.id)}
+              style={{
+                flex: 1, padding: '8px 6px', border: 'none', borderRadius: 9,
+                cursor: 'pointer', fontFamily: F, fontSize: 13, fontWeight: active ? 700 : 500,
+                background: active ? BLUE : 'transparent',
+                color: active ? '#fff' : C.t2,
+                transition: 'all 0.15s', display: 'flex', alignItems: 'center',
+                justifyContent: 'center', gap: 5,
+                WebkitTapHighlightColor: 'transparent',
+              }}
+            >
+              <t.Icon size={13} color={active ? '#fff' : C.t3} strokeWidth={2} />
+              {t.label}
+            </button>
+          )
+        })}
+      </div>
+
+      {/* ── Services tab ───────────────────────────────────────────────────── */}
+      {dashTab === 'services' && <AgentServicesTab C={themeColors} />}
+
+      {/* ── Overview tab ───────────────────────────────────────────────────── */}
+      {dashTab === 'overview' && <>
 
       {/* ── Circle Agent Stack identity banner ─────────────────────────────── */}
       <div style={{ background: 'rgba(0,102,255,0.06)', border: '1px solid rgba(0,102,255,0.16)', borderRadius: 14, padding: '12px 16px', marginBottom: 8 }}>
@@ -842,6 +893,8 @@ function DashboardScreen({ C }: { C: ReturnType<typeof useNanTheme> }) {
           </div>
         )}
       </div>
+
+      </> /* end overview tab */}
 
     </div>
   )

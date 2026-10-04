@@ -315,6 +315,12 @@ interface AppState {
   setAgentWallet: (w: Partial<AgentWalletState>) => void
   agentSpendLog: AgentSpendEntry[]
   addAgentSpend: (e: AgentSpendEntry) => void
+
+  // ── Selected agent services ────────────────────────────────────────────────
+  selectedServiceIds: string[]
+  selectService: (id: string) => void
+  deselectService: (id: string) => void
+  isServiceSelected: (id: string) => boolean
 }
 
 export interface AgentWalletState {
@@ -827,6 +833,20 @@ export const useAppStore = create<AppState>()(
       agentSpendLog: [],
       addAgentSpend: (e) =>
         set((s) => ({ agentSpendLog: [e, ...s.agentSpendLog].slice(0, 200) })),
+
+      // ── Selected agent services ────────────────────────────────────────────
+      selectedServiceIds: [],
+      selectService: (id) =>
+        set((s) => ({
+          selectedServiceIds: s.selectedServiceIds.includes(id)
+            ? s.selectedServiceIds
+            : [...s.selectedServiceIds, id],
+        })),
+      deselectService: (id) =>
+        set((s) => ({
+          selectedServiceIds: s.selectedServiceIds.filter((x) => x !== id),
+        })),
+      isServiceSelected: (id) => get().selectedServiceIds.includes(id),
     }),
     {
       name: 'paywell-state-v2',
@@ -850,6 +870,7 @@ export const useAppStore = create<AppState>()(
         a2aTasks: s.a2aTasks,
         agentWallet: s.agentWallet,
         agentSpendLog: s.agentSpendLog,
+        selectedServiceIds: s.selectedServiceIds,
       }),
       merge: (persisted, current) => {
         const p = persisted as Partial<AppState>
@@ -894,6 +915,7 @@ export const useAppStore = create<AppState>()(
           a2aTasks: p.a2aTasks ?? current.a2aTasks ?? [],
           agentWallet: p.agentWallet ?? current.agentWallet ?? { provisioned: false, balance_usdc: '0' },
           agentSpendLog: p.agentSpendLog ?? current.agentSpendLog ?? [],
+          selectedServiceIds: p.selectedServiceIds ?? current.selectedServiceIds ?? [],
         }
       },
     }
