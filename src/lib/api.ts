@@ -163,13 +163,22 @@ export async function nanChat(opts: {
   usdcBal?: string
   userAddress?: string
   sessionToken?: string
+  context?: {
+    agentBalance?: string
+    agentAddress?: string
+    dailyLimit?: number
+    perTxLimit?: number
+    remainingToday?: number
+  }
 }): Promise<{ reply: string; service_used?: string | null; action?: Record<string, unknown> | null }> {
   const last = opts.messages[opts.messages.length - 1]?.content ?? ''
   return apiPost<{ reply: string; service_used?: string | null; action?: Record<string, unknown> | null }>('/api/chat', {
     message: last,
     messages: opts.messages,
+    history: opts.messages.slice(0, -1),
     usdcBal: opts.usdcBal,
     userAddress: opts.userAddress,
+    context: opts.context,
   }, opts.sessionToken)
 }
 

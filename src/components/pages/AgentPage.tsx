@@ -12,7 +12,7 @@ import { parseUnits } from 'viem'
 
 import { LoadingDots } from '../ui/Spinner'
 import { useAppStore } from '../../store/appStore'
-import type { AgentMessage, AgentPermissions, AgentSpendEntry } from '../../store/appStore'
+import type { AgentMessage, AgentPermissions } from '../../store/appStore'
 import { Product } from '../../data/products'
 import { getVerifiedProducts } from '../../utils/listings'
 import { formatUSDC, formatRelativeTime } from '../../utils/format'
@@ -37,6 +37,7 @@ import {
   parseAction, describeAction, requiresConfirmation, executeAction,
   type NanAction,
 } from '../../lib/agent-actions'
+import { AgentWalletExperience } from './AgentWalletExperience'
 
 const F       = "'Inter', -apple-system, sans-serif"
 const TEXT    = 'var(--nan-text)'
@@ -284,7 +285,7 @@ export function AgentPage() {
         })}
       </div>
       {tab === 'chat'     && <AgentChat onNavigate={(page, _query) => { setActiveView(page); setTab('chat') }} />}
-      {tab === 'wallet'   && <AgentWalletTab />}
+      {tab === 'wallet'   && <AgentWalletExperience />}
       {tab === 'discover' && <DiscoverTab />}
       {tab === 'network'  && <NetworkTab />}
       {tab === 'policy'   && <PolicyTab />}
@@ -553,7 +554,19 @@ function AgentChat({ onNavigate }: { onNavigate?: (page: string, query?: string)
           ...agentMessages.filter(m=>m.role==='user'||m.role==='agent').slice(-10).map<{role:'user'|'assistant';content:string}>(m=>({role:(m.role==='agent'?'assistant':'user'),content:m.content})),
           {role:'user',content:text},
         ]
-        const res = await nanChat({ messages:msgs, usdcBal:String(agentPermissions.dailyLimit ?? 0), userAddress:auth.walletAddress ?? '', sessionToken:auth.sessionToken })
+        const res = await nanChat({
+          messages: msgs,
+          usdcBal: String(agentPermissions.dailyLimit ?? 0),
+          userAddress: auth.walletAddress ?? '',
+          sessionToken: auth.sessionToken,
+          context: {
+            agentBalance: agentWallet.balance_usdc ?? '0',
+            agentAddress: agentWallet.address,
+            dailyLimit: agentPermissions.dailyLimit,
+            perTxLimit: agentPermissions.perTxLimit,
+            remainingToday: Math.max(0, agentPermissions.dailyLimit - agentDailyUsed),
+          },
+        })
         setTyping(false)
         // Sanitise any leaked internal command syntax before showing to user
         const clean = res.reply.replace(/__[A-Z_]+__:[a-z\-]+/g, '').trim()
@@ -748,168 +761,6 @@ function ProductPill({ product }: { product: Product }) {
         <div style={{ fontSize:11, color:TEXT2 }}>{product.merchant}</div>
       </div>
       <div style={{ fontSize:13, fontWeight:700, color:BLACK, flexShrink:0 }}>{product.price} <span style={{ fontSize:10, fontWeight:500, color:TEXT2 }}>USDC</span></div>
-    </div>
-  )
-}
-
-// ── Agent Wallet Tab (Circle Agent Stack) ─────────────────────────────────────
-
-function AgentWalletTab() {
-  const { agentWallet, setAgentWallet, agentSpendLog, auth } = useAppStore()
-  const [loading, setLoading] = useState(false)
-  const [provisioning, setProvisioning] = useState(false)
-  const [msg, setMsg] = useState('')
-
-  const refreshStatus = async () => {
-    setLoading(true)
-    try {
-      const r = await fetch('/api/agent-wallet', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'status' }) })
-      const d = await r.json() as { provisioned?: boolean; address?: string; walletId?: string; balance_usdc?: string }
-      setAgentWallet({ provisioned: d.provisioned ?? false, address: d.address, walletId: d.walletId, balance_usdc: d.balance_usdc ?? '0', lastRefreshed: new Date().toISOString() })
-    } catch { setMsg('Could not reach agent wallet API') }
-    setLoading(false)
-  }
-
-  const provision = async () => {
-    setProvisioning(true); setMsg('')
-    try {
-      const r = await fetch('/api/agent-wallet', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'provision' }) })
-      const d = await r.json() as { ok?: boolean; address?: string; walletId?: string; walletSetId?: string; error?: string; setup_required?: boolean }
-      if (d.setup_required) { setMsg('Add CIRCLE_API_KEY + CIRCLE_ENTITY_SECRET to Vercel env vars first.'); setProvisioning(false); return }
-      if (d.error) { setMsg(d.error); setProvisioning(false); return }
-      if (d.ok && d.address) {
-        setAgentWallet({ provisioned: true, address: d.address, walletId: d.walletId, balance_usdc: '0' })
-        setMsg(`Agent wallet created! Address: ${d.address.slice(0, 10)}… Add AGENT_WALLET_ID=${d.walletId} and AGENT_WALLET_ADDRESS=${d.address} to Vercel env vars.`)
-      }
-    } catch (e) { setMsg(e instanceof Error ? e.message : 'Provisioning failed') }
-    setProvisioning(false)
-  }
-
-  const totalSpent = agentSpendLog.reduce((s, e) => s + e.amount_usdc, 0)
-
-  return (
-    <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
-      {/* Header card */}
-      <div style={{ background:'rgba(0,102,255,0.08)', border:'1px solid rgba(0,102,255,0.2)', borderRadius:16, padding:16 }}>
-        <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:10 }}>
-          <div style={{ width:38, height:38, borderRadius:10, background:BLUE, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-            <Coins size={18} color="#fff" />
-          </div>
-          <div>
-            <div style={{ fontSize:14, fontWeight:700, color:TEXT }}>Circle Agent Wallet</div>
-            <div style={{ fontSize:11, color:TEXT2 }}>Developer-controlled · autonomous spending</div>
-          </div>
-        </div>
-        {agentWallet.provisioned ? (
-          <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-              <span style={{ fontSize:12, color:TEXT2 }}>Balance</span>
-              <span style={{ fontSize:22, fontWeight:800, color:TEXT }}>{parseFloat(agentWallet.balance_usdc || '0').toFixed(4)} <span style={{ fontSize:12, color:TEXT3 }}>USDC</span></span>
-            </div>
-            <div style={{ fontSize:11, color:TEXT3, wordBreak:'break-all' }}>{agentWallet.address}</div>
-            <div style={{ display:'flex', gap:6, alignItems:'center' }}>
-              <span style={{ fontSize:10, fontWeight:600, color:'#00C853', background:'rgba(0,200,83,0.1)', border:'1px solid rgba(0,200,83,0.25)', borderRadius:6, padding:'2px 8px', display:'flex', alignItems:'center', gap:4 }}>
-                <CheckCircle2 size={9} /> Active
-              </span>
-              <span style={{ fontSize:10, color:TEXT3 }}>Arc Testnet · EOA</span>
-              <button onClick={() => void refreshStatus()} style={{ marginLeft:'auto', height:26, padding:'0 10px', background:SURF2, border:`1px solid ${BDR}`, borderRadius:8, fontSize:11, color:TEXT2, cursor:'pointer', fontFamily:F, display:'flex', alignItems:'center', gap:4 }}>
-                {loading ? <Loader2 size={10} style={{ animation:'spin 1s linear infinite' }} /> : null} Refresh
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-            <div style={{ fontSize:12, color:TEXT2, lineHeight:1.5 }}>
-              The NAN Agent gets its own dedicated USDC wallet — separate from yours. Fund it as a "spend budget" and the agent pays for services autonomously without touching your main balance.
-            </div>
-            <div style={{ fontSize:11, color:TEXT3, background:SURF2, borderRadius:10, padding:10, lineHeight:1.6 }}>
-              <strong style={{ color:TEXT }}>Requires:</strong> CIRCLE_API_KEY + CIRCLE_ENTITY_SECRET in Vercel environment variables.
-            </div>
-            <button onClick={() => void provision()} disabled={provisioning}
-              style={{ height:44, background:BLUE, color:'#fff', border:'none', borderRadius:12, fontSize:13, fontWeight:700, cursor:'pointer', fontFamily:F, display:'flex', alignItems:'center', justifyContent:'center', gap:8, opacity:provisioning?0.6:1 }}>
-              {provisioning ? <><Loader2 size={14} style={{ animation:'spin 1s linear infinite' }} /> Provisioning…</> : <><Zap size={14} /> Provision Agent Wallet</>}
-            </button>
-          </div>
-        )}
-      </div>
-
-      {msg && (
-        <div style={{ background:'rgba(0,102,255,0.06)', border:'1px solid rgba(0,102,255,0.2)', borderRadius:10, padding:12, fontSize:12, color:TEXT2, lineHeight:1.5 }}>
-          {msg}
-        </div>
-      )}
-
-      {/* How to fund */}
-      {agentWallet.provisioned && (
-        <div style={{ background:SURF, border:`1px solid ${BDR}`, borderRadius:14, padding:14 }}>
-          <div style={{ fontSize:12, fontWeight:700, color:TEXT, marginBottom:8, display:'flex', alignItems:'center', gap:6 }}>
-            <TrendingUp size={13} color={BLUE} /> How to fund the agent wallet
-          </div>
-          <div style={{ fontSize:11, color:TEXT2, lineHeight:1.6 }}>
-            Send USDC to the address above from your NAN wallet or any external wallet. The agent uses this budget autonomously for paid service calls (Perplexity research: $0.002, OpenAI tasks: $0.001). Spending never touches your main balance.
-          </div>
-          {auth?.walletAddress && (
-            <div style={{ marginTop:10, paddingTop:10, borderTop:`1px solid ${BDR}`, fontSize:11, color:TEXT3 }}>
-              Your NAN wallet: <span style={{ fontWeight:600, color:TEXT }}>{auth.walletAddress.slice(0, 10)}…</span> → Wallet tab → Send → paste agent address
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Spend log */}
-      <div style={{ background:SURF, border:`1px solid ${BDR}`, borderRadius:14, padding:14 }}>
-        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10 }}>
-          <div style={{ fontSize:12, fontWeight:700, color:TEXT, display:'flex', alignItems:'center', gap:6 }}>
-            <Activity size={13} color={TEXT2} /> Agent spend log
-          </div>
-          <span style={{ fontSize:11, fontWeight:700, color:TEXT }}>{totalSpent.toFixed(4)} USDC total</span>
-        </div>
-        {agentSpendLog.length === 0 ? (
-          <div style={{ fontSize:12, color:TEXT3, textAlign:'center', padding:'20px 0' }}>No agent payments yet. Paid services appear here.</div>
-        ) : (
-          <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-            {agentSpendLog.slice(0, 20).map((e: AgentSpendEntry) => (
-              <div key={e.id} style={{ display:'flex', alignItems:'center', gap:10, paddingBottom:8, borderBottom:`1px solid ${BDR}` }}>
-                <div style={{ width:28, height:28, borderRadius:8, background:'rgba(0,102,255,0.1)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-                  <Coins size={12} color={BLUE} />
-                </div>
-                <div style={{ flex:1, minWidth:0 }}>
-                  <div style={{ fontSize:12, fontWeight:600, color:TEXT, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{e.service_name}</div>
-                  <div style={{ fontSize:10, color:TEXT3 }}>{new Date(e.timestamp).toLocaleString()}</div>
-                </div>
-                <div style={{ flexShrink:0, textAlign:'right' }}>
-                  <div style={{ fontSize:12, fontWeight:700, color:BLUE }}>−{e.amount_usdc} USDC</div>
-                  {e.txId && <div style={{ fontSize:10, color:TEXT3 }}>{e.txId.slice(0, 8)}…</div>}
-                  {!e.paid && <div style={{ fontSize:10, color:'#FF9500' }}>pending wallet</div>}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Circle Agent Stack info */}
-      <div style={{ background:'rgba(0,102,255,0.04)', border:'1px solid rgba(0,102,255,0.12)', borderRadius:12, padding:14 }}>
-        <div style={{ fontSize:11, fontWeight:700, color:TEXT3, textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:8 }}>Circle Agent Stack</div>
-        <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
-          {[
-            { label: 'Agent Wallet', desc: 'Developer-controlled EOA on Arc Testnet', ok: agentWallet.provisioned },
-            { label: 'Nanopayments', desc: 'Gateway-batched x402 payments for paid services', ok: agentWallet.provisioned },
-            { label: 'Agent Marketplace', desc: 'Live service discovery from agents.circle.com', ok: true },
-            { label: 'Spending Policy', desc: 'Daily + per-service limits from Policy tab', ok: true },
-          ].map(item => (
-            <div key={item.label} style={{ display:'flex', alignItems:'center', gap:8 }}>
-              {item.ok
-                ? <CheckCircle2 size={12} color='#00C853' />
-                : <AlertTriangle size={12} color='#FF9500' />}
-              <div style={{ flex:1 }}>
-                <span style={{ fontSize:12, fontWeight:600, color:TEXT }}>{item.label}</span>
-                <span style={{ fontSize:11, color:TEXT3 }}> — {item.desc}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
     </div>
   )
 }
