@@ -15,7 +15,11 @@
 
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { initiateUserControlledWalletsClient, Blockchain } from '@circle-fin/user-controlled-wallets'
+import { execFile } from 'child_process'
+import { promisify } from 'util'
 // randomUUID removed — no longer needed after switching to user-controlled wallets
+
+const execFileAsync = promisify(execFile)
 
 // ── SDK initialisation ───────────────────────────────────────────────────────
 
@@ -146,6 +150,72 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       })
     } catch (e) {
       return res.status(500).json({ error: e instanceof Error ? e.message : 'Status check failed' })
+    }
+  }
+
+  // ── policy-read — read Circle on-chain spending limits via CLI ───────────
+  // Mainnet-only: Circle returns an error for testnet addresses.
+  // We run `circle wallet limit --output json` and return the raw result.
+  if (action === 'policy-read') {
+    const { address, chain } = body
+    if (!address || !chain) return res.status(400).json({ error: 'address and chain required' })
+
+    // Reject testnet chains — Circle CLI rejects them anyway, but we return a
+    // clear message so the UI can show an honest "mainnet only" gate.
+    const isTestnet = /testnet|sepolia|amoy|fuji|devnet/i.test(chain)
+    if (isTestnet) {
+      return res.status(200).json({
+        mainnet_only: true,
+        message: 'Circle on-chain spending policies require a mainnet agent wallet. Your wallet is on a testnet.',
+        chain,
+      })
+    }
+
+    try {
+      const circleBin = process.env.CIRCLE_CLI_PATH ?? 'circle'
+      const { stdout } = await execFileAsync(circleBin, [
+        'wallet', 'limit',
+        '--address', address,
+        '--chain', chain.toUpperCase(),
+        '--output', 'json',
+      ], { timeout: 12000 })
+      let parsed: unknown
+      try { parsed = JSON.parse(stdout.trim()) } catch { parsed = { raw: stdout.trim() } }
+      return res.status(200).json({ ok: true, policy: parsed, chain, address })
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e)
+      // Surface the CLI error clearly — e.g. "not authenticated", "wallet not found"
+      return res.status(200).json({ ok: false, cli_error: msg, chain, address })
+    }
+  }
+
+  // ── policy-budget — read remaining spending budgets via CLI ───────────────
+  if (action === 'policy-budget') {
+    const { address, chain } = body
+    if (!address) return res.status(400).json({ error: 'address required' })
+
+    const isTestnet = /testnet|sepolia|amoy|fuji|devnet/i.test(chain ?? '')
+    if (isTestnet) {
+      return res.status(200).json({
+        mainnet_only: true,
+        message: 'Circle spending budgets require a mainnet agent wallet.',
+        chain,
+      })
+    }
+
+    try {
+      const circleBin = process.env.CIRCLE_CLI_PATH ?? 'circle'
+      const { stdout } = await execFileAsync(circleBin, [
+        'wallet', 'limit', 'budget',
+        '--address', address,
+        '--output', 'json',
+      ], { timeout: 12000 })
+      let parsed: unknown
+      try { parsed = JSON.parse(stdout.trim()) } catch { parsed = { raw: stdout.trim() } }
+      return res.status(200).json({ ok: true, budget: parsed })
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e)
+      return res.status(200).json({ ok: false, cli_error: msg })
     }
   }
 

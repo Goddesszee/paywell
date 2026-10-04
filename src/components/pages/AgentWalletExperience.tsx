@@ -20,7 +20,8 @@ import {
   ArrowLeft, ArrowRight, Wallet, Shield, Zap, BarChart3,
   Copy, Check, ChevronDown, ChevronRight,
   RefreshCw, AlertTriangle, Coins, Clock,
-  CheckCircle, Wifi, Mail, Loader, Sparkles,
+  CheckCircle, Wifi, Mail, Loader, Sparkles, X as XIcon,
+  Settings, Info,
 } from 'lucide-react'
 import { useAppStore, AgentSpendEntry } from '../../store/appStore'
 import { useNanTheme } from '../../hooks/useNanTheme'
@@ -597,20 +598,307 @@ function InfoRow({ label, value, mono, C }: { label: string; value: string; mono
   )
 }
 
-function CapabilityRow({ label, supported, note, C }: { label: string; supported: boolean; note?: string; C: ReturnType<typeof useNanTheme> }) {
+// status: 'enabled' | 'not_configured' | 'coming_soon'
+function CapabilityRow({ label, status, note, C, noBorder }: {
+  label: string
+  status: 'enabled' | 'not_configured' | 'coming_soon'
+  note?: string
+  C: ReturnType<typeof useNanTheme>
+  noBorder?: boolean
+}) {
+  const badge = status === 'enabled'
+    ? { bg: 'rgba(0,200,83,0.10)', color: GREEN, border: 'rgba(0,200,83,0.25)', text: 'Enabled' }
+    : status === 'not_configured'
+    ? { bg: C.surf2, color: C.t3, border: C.bdr, text: 'Not configured in NAN' }
+    : { bg: 'rgba(255,149,0,0.08)', color: AMBER, border: 'rgba(255,149,0,0.25)', text: 'Coming soon' }
   return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '9px 0', borderBottom: `1px solid ${C.bdr}` }}>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '9px 0', borderBottom: noBorder ? 'none' : `1px solid ${C.bdr}` }}>
       <div>
-        <span style={{ fontSize: 13, color: supported ? C.text : C.t3, fontWeight: supported ? 600 : 400 }}>{label}</span>
+        <span style={{ fontSize: 13, color: status === 'enabled' ? C.text : C.t3, fontWeight: status === 'enabled' ? 600 : 400 }}>{label}</span>
         {note && <div style={{ fontSize: 11, color: C.t3, marginTop: 2 }}>{note}</div>}
       </div>
       <div style={{
-        fontSize: 11, fontWeight: 700, padding: '3px 9px', borderRadius: 6,
-        background: supported ? 'rgba(0,200,83,0.10)' : 'rgba(255,255,255,0.05)',
-        color: supported ? GREEN : C.t3,
-        border: `1px solid ${supported ? 'rgba(0,200,83,0.25)' : C.bdr}`,
+        fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 6, whiteSpace: 'nowrap', flexShrink: 0, marginLeft: 8,
+        background: badge.bg, color: badge.color, border: `1px solid ${badge.border}`,
       }}>
-        {supported ? 'Enabled' : 'Not configured'}
+        {badge.text}
+      </div>
+    </div>
+  )
+}
+
+// ── Manage Policy Modal ───────────────────────────────────────────────────────
+// Reads live Circle on-chain policy via the backend CLI route.
+// Setting policy requires `circle wallet limit set` (interactive OTP —
+// mainnet only). We show the exact CLI command to copy/run, then re-read
+// policy from Circle once the user confirms they ran it.
+
+interface CirclePolicy {
+  per_tx?: string | number
+  daily?: string | number
+  weekly?: string | number
+  monthly?: string | number
+  origin?: string
+  [k: string]: unknown
+}
+
+function ManagePolicyModal({ onClose, C }: { onClose: () => void; C: ReturnType<typeof useNanTheme> }) {
+  const { agentWallet } = useAppStore()
+
+  const address   = agentWallet.address   ?? ''
+  const blockchain = agentWallet.blockchain ?? ''
+  // Circle policies: mainnet only. Testnet = ARC-TESTNET, etc.
+  const isTestnet  = /testnet|sepolia|amoy|fuji|devnet/i.test(blockchain) || !blockchain
+  const chainKey   = blockchain.replace(/-TESTNET|-SEPOLIA|-AMOY|-FUJI|-DEVNET/i, '').toUpperCase() || 'ARC'
+
+  const [loading,    setLoading]    = useState(true)
+  const [policy,     setPolicy]     = useState<CirclePolicy | null>(null)
+  const [cliError,   setCliError]   = useState<string | null>(null)
+  const [showCmd,    setShowCmd]    = useState(false)
+
+  // Form fields for the "copy CLI command" helper
+  const [perTx,    setPerTx]    = useState('100')
+  const [daily,    setDaily]    = useState('500')
+  const [weekly,   setWeekly]   = useState('2000')
+  const [monthly,  setMonthly]  = useState('5000')
+  const [cmdCopied, setCmdCopied] = useState(false)
+
+  const validateForm = (): string[] => {
+    const errs: string[] = []
+    const tx = parseFloat(perTx) || 0
+    const d  = parseFloat(daily) || 0
+    const w  = parseFloat(weekly) || 0
+    const m  = parseFloat(monthly) || 0
+    if (tx <= 0) errs.push('Per-transaction limit must be greater than 0.')
+    if (d <= 0)  errs.push('Daily limit must be greater than 0.')
+    if (w <= 0)  errs.push('Weekly limit must be greater than 0.')
+    if (m <= 0)  errs.push('Monthly limit must be greater than 0.')
+    if (tx > d)  errs.push('Per-transaction cannot exceed daily.')
+    if (d > w)   errs.push('Daily cannot exceed weekly.')
+    if (w > m)   errs.push('Weekly cannot exceed monthly.')
+    return errs
+  }
+
+  const abortRef = useRef<AbortController | null>(null)
+
+  const fetchPolicy = useCallback(async () => {
+    if (abortRef.current) abortRef.current.abort()
+    const ctrl = new AbortController()
+    abortRef.current = ctrl
+    if (!address) { setLoading(false); return }
+    setLoading(true); setCliError(null)
+    try {
+      const r = await fetch('/api/agent-wallet', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'policy-read', address, chain: chainKey }),
+        signal: ctrl.signal,
+      })
+      if (ctrl.signal.aborted) return
+      const d = await r.json() as {
+        mainnet_only?: boolean; message?: string; ok?: boolean
+        policy?: CirclePolicy; cli_error?: string
+      }
+      if (ctrl.signal.aborted) return
+      if (d.mainnet_only) {
+        setPolicy(null); setCliError(null)
+      } else if (d.ok && d.policy) {
+        setPolicy(d.policy)
+      } else {
+        setCliError(d.cli_error ?? 'Could not read policy from Circle.')
+      }
+    } catch (e) {
+      if (!ctrl.signal.aborted) setCliError(e instanceof Error ? e.message : 'Network error')
+    } finally {
+      if (!ctrl.signal.aborted) setLoading(false)
+    }
+  }, [address, chainKey])
+
+  const didMountRef = useRef(false)
+  useEffect(() => {
+    if (!didMountRef.current) { didMountRef.current = true; void fetchPolicy() }
+    return () => { abortRef.current?.abort() }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const cliCmd = address
+    ? `circle wallet limit set \\\n  --address ${address} \\\n  --chain ${chainKey} \\\n  --policy-type stablecoin \\\n  --per-tx ${perTx} \\\n  --daily ${daily} \\\n  --weekly ${weekly} \\\n  --monthly ${monthly}`
+    : ''
+
+  const copyCmd = () => {
+    void navigator.clipboard.writeText(cliCmd)
+    setCmdCopied(true)
+    setTimeout(() => setCmdCopied(false), 2000)
+  }
+
+  const formErrors = showCmd ? validateForm() : []
+
+  const policyRow = (label: string, value: string | number | undefined) => (
+    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: `1px solid ${C.bdr}` }}>
+      <span style={{ fontSize: 12, color: C.t2 }}>{label}</span>
+      <span style={{ fontSize: 12, fontWeight: 700, color: value ? C.text : C.t3, fontFamily: MONO }}>
+        {value ? `${value} USDC` : 'Not set (default)'}
+      </span>
+    </div>
+  )
+
+  return (
+    <div
+      style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}
+      onClick={e => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <div style={{ width: '100%', maxWidth: 520, background: C.bg, borderRadius: '22px 22px 0 0', padding: '24px 20px 40px', maxHeight: '92vh', overflowY: 'auto' }}>
+
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(0,102,255,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Shield size={17} color={BLUE} strokeWidth={1.8} />
+            </div>
+            <div>
+              <div style={{ fontSize: 15, fontWeight: 800, color: C.text, letterSpacing: '-0.02em' }}>Agent Spending Policy</div>
+              <div style={{ fontSize: 11, color: C.t3 }}>Source of truth: Circle Agent Wallet</div>
+            </div>
+          </div>
+          <button onClick={onClose} style={{ width: 34, height: 34, borderRadius: 9, background: C.surf2, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitTapHighlightColor: 'transparent' }}>
+            <XIcon size={15} color={C.t2} />
+          </button>
+        </div>
+
+        {/* Mainnet-only gate */}
+        {isTestnet && (
+          <div style={{ background: 'rgba(255,149,0,0.06)', border: '1px solid rgba(255,149,0,0.22)', borderRadius: 14, padding: '14px 16px', marginBottom: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+              <Info size={14} color={AMBER} />
+              <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>Custom spending policies require Mainnet</span>
+            </div>
+            <div style={{ fontSize: 12, color: C.t2, lineHeight: 1.6 }}>
+              Your wallet is on <strong style={{ color: C.text }}>{blockchain || 'Arc Testnet'}</strong>.
+              Circle on-chain spending policies (per-tx, daily, weekly, monthly limits and allowlists) are supported for mainnet agent wallets only.
+              Move your agent wallet to a supported mainnet to configure Circle-enforced limits.
+            </div>
+            <div style={{ marginTop: 10, padding: '8px 12px', background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 10, fontSize: 11, color: C.t3 }}>
+              Supported mainnet chains: ARC, BASE, ETH, MATIC, ARB, AVAX, OP, UNI
+            </div>
+          </div>
+        )}
+
+        {/* Live policy read */}
+        {!isTestnet && (
+          <>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: C.t2, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Current Circle Policy</span>
+              <button
+                onClick={() => void fetchPolicy()}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: BLUE, fontSize: 11, display: 'flex', alignItems: 'center', gap: 4, padding: '4px 8px', borderRadius: 7, WebkitTapHighlightColor: 'transparent' }}
+              >
+                <RefreshCw size={11} /> Refresh
+              </button>
+            </div>
+
+            <div style={{ background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 16, padding: '0 16px', marginBottom: 16 }}>
+              {loading ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '16px 0', color: C.t3, fontSize: 13 }}>
+                  <Loader size={14} style={{ animation: 'spin 1s linear infinite' }} /> Reading from Circle...
+                </div>
+              ) : cliError ? (
+                <div style={{ padding: '12px 0' }}>
+                  <div style={{ fontSize: 12, color: RED, marginBottom: 6 }}>Could not read Circle policy:</div>
+                  <div style={{ fontSize: 11, color: C.t3, fontFamily: MONO, wordBreak: 'break-all' }}>{cliError}</div>
+                  <div style={{ fontSize: 11, color: C.t3, marginTop: 6 }}>
+                    Make sure your Circle CLI session is active: <code style={{ fontFamily: MONO }}>circle login</code>
+                  </div>
+                </div>
+              ) : policy ? (
+                <>
+                  {policyRow('Per transaction', policy.per_tx)}
+                  {policyRow('Daily',  policy.daily)}
+                  {policyRow('Weekly', policy.weekly)}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0' }}>
+                    <span style={{ fontSize: 12, color: C.t2 }}>Monthly</span>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: policy.monthly ? C.text : C.t3, fontFamily: MONO }}>
+                      {policy.monthly ? `${policy.monthly} USDC` : 'Not set (default)'}
+                    </span>
+                  </div>
+                  {policy.origin && (
+                    <div style={{ fontSize: 10, color: C.t3, paddingBottom: 10 }}>Origin: {String(policy.origin)}</div>
+                  )}
+                </>
+              ) : (
+                <div style={{ padding: '12px 0', fontSize: 12, color: C.t3 }}>No custom policy set. Circle code defaults apply.</div>
+              )}
+            </div>
+          </>
+        )}
+
+        {/* Set Policy section — CLI command helper */}
+        <div style={{ marginBottom: 12 }}>
+          <button
+            onClick={() => setShowCmd(v => !v)}
+            style={{ width: '100%', height: 46, background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 14, fontSize: 13, fontWeight: 700, color: BLUE, fontFamily: F, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, WebkitTapHighlightColor: 'transparent' }}
+          >
+            <Settings size={14} color={BLUE} strokeWidth={2} />
+            {showCmd ? 'Hide' : 'Set Policy (via Circle CLI)'}
+            <ChevronDown size={13} color={BLUE} style={{ transform: showCmd ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
+          </button>
+        </div>
+
+        {showCmd && (
+          <div style={{ background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 16, padding: '16px', marginBottom: 16 }}>
+            <div style={{ fontSize: 12, color: C.t2, lineHeight: 1.6, marginBottom: 14 }}>
+              Circle requires a <strong style={{ color: C.text }}>human OTP confirmation</strong> to set spending policies — for security, this cannot be done automatically.
+              Enter your desired limits, copy the command, and run it in your terminal. Circle will send an OTP to your agent session email.
+            </div>
+
+            {/* Limit inputs */}
+            {[
+              { label: 'Per transaction (USDC)', hint: 'Max per single transfer or service call', val: perTx, set: setPerTx },
+              { label: 'Daily (USDC)',            hint: 'Rolling 24-hour cap',                   val: daily, set: setDaily },
+              { label: 'Weekly (USDC)',           hint: 'Rolling 7-day cap',                     val: weekly, set: setWeekly },
+              { label: 'Monthly (USDC)',          hint: 'Rolling 30-day cap',                    val: monthly, set: setMonthly },
+            ].map(({ label, hint, val, set }) => (
+              <div key={label} style={{ marginBottom: 10 }}>
+                <div style={{ fontSize: 11, color: C.t2, marginBottom: 4 }}>{label}</div>
+                <input
+                  type="number" min="0" step="0.01" value={val}
+                  onChange={e => set(e.target.value)}
+                  style={{ width: '100%', padding: '9px 12px', border: `1px solid ${C.bdr}`, borderRadius: 10, fontFamily: F, fontSize: 13, fontWeight: 600, color: C.text, background: C.surf2, outline: 'none', boxSizing: 'border-box' }}
+                />
+                <div style={{ fontSize: 10, color: C.t3, marginTop: 2 }}>{hint}</div>
+              </div>
+            ))}
+
+            {formErrors.length > 0 && (
+              <div style={{ background: 'rgba(255,59,59,0.07)', border: '1px solid rgba(255,59,59,0.22)', borderRadius: 10, padding: '10px 12px', marginBottom: 12 }}>
+                {formErrors.map((e, i) => <div key={i} style={{ fontSize: 11, color: RED, lineHeight: 1.5 }}>• {e}</div>)}
+              </div>
+            )}
+
+            <div style={{ fontSize: 11, color: C.t3, marginBottom: 8 }}>Rule: per-tx ≤ daily ≤ weekly ≤ monthly</div>
+
+            {/* CLI command block */}
+            <div style={{ background: C.surf2, border: `1px solid ${C.bdr}`, borderRadius: 12, padding: '12px 14px', marginBottom: 12, position: 'relative' }}>
+              <pre style={{ margin: 0, fontSize: 11, color: C.text, fontFamily: MONO, whiteSpace: 'pre-wrap', wordBreak: 'break-all', lineHeight: 1.7 }}>{cliCmd}</pre>
+            </div>
+
+            <button
+              onClick={formErrors.length === 0 ? copyCmd : undefined}
+              disabled={formErrors.length > 0}
+              style={{ width: '100%', height: 46, background: formErrors.length > 0 ? C.surf2 : BLUE, border: 'none', borderRadius: 12, fontSize: 13, fontWeight: 700, color: formErrors.length > 0 ? C.t3 : '#fff', fontFamily: F, cursor: formErrors.length > 0 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, transition: 'background 0.15s', WebkitTapHighlightColor: 'transparent' }}
+            >
+              {cmdCopied ? <><Check size={14} /> Copied!</> : <><Copy size={14} /> Copy Command</>}
+            </button>
+
+            <div style={{ marginTop: 12, fontSize: 11, color: C.t3, lineHeight: 1.6 }}>
+              After running the command and entering the OTP, click Refresh above to read the updated policy from Circle.
+            </div>
+          </div>
+        )}
+
+        {/* Source of truth note */}
+        <div style={{ fontSize: 11, color: C.t3, lineHeight: 1.6, textAlign: 'center', padding: '0 4px' }}>
+          Circle is the source of truth for all spending policy limits. Policy data is read directly from Circle — NAN never stores or simulates policy values.
+        </div>
       </div>
     </div>
   )
@@ -625,10 +913,11 @@ const DASH_TABS: { id: DashTab; label: string; Icon: React.ElementType }[] = [
 
 function DashboardScreen({ C }: { C: ReturnType<typeof useNanTheme> }) {
   const { agentWallet, setAgentWallet, agentSpendLog, auth } = useAppStore()
-  const [dashTab, setDashTab]       = useState<DashTab>('overview')
-  const [refreshing, setRefreshing] = useState(false)
-  const [copied, setCopied]         = useState(false)
+  const [dashTab, setDashTab]         = useState<DashTab>('overview')
+  const [refreshing, setRefreshing]   = useState(false)
+  const [copied, setCopied]           = useState(false)
   const [detailsOpen, setDetailsOpen] = useState(false)
+  const [policyOpen, setPolicyOpen]   = useState(false)
 
   const totalSpent = agentSpendLog.reduce((s, e) => s + e.amount_usdc, 0)
   const balance    = parseFloat(agentWallet.balance_usdc || '0')
@@ -787,38 +1076,56 @@ function DashboardScreen({ C }: { C: ReturnType<typeof useNanTheme> }) {
         )}
       </div>
 
-      {/* ── Agent Policy ───────────────────────────────────────────────────── */}
-      <SectionLabel label="Agent Policy" />
+      {/* ── Agent Spending Policy ──────────────────────────────────────────── */}
+      <SectionLabel label="Agent Spending Policy" />
       <div style={{ background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 16, padding: '4px 16px', marginBottom: 8 }}>
-        <InfoRow label="Spending limits"    value="Configured in Agent tab" C={C} />
-        <InfoRow label="Allowed actions"    value="Send · Receive · Pay"    C={C} />
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0' }}>
-          <span style={{ fontSize: 12, color: C.t2 }}>Policy status</span>
-          <span style={{ fontSize: 12, fontWeight: 700, color: isActive ? GREEN : AMBER }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: `1px solid ${C.bdr}` }}>
+          <span style={{ fontSize: 12, color: C.t2 }}>Status</span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 700, color: isActive ? GREEN : AMBER }}>
+            <span style={{ width: 7, height: 7, borderRadius: '50%', background: isActive ? GREEN : AMBER, display: 'inline-block' }} />
             {isActive ? 'Active' : 'Inactive'}
           </span>
         </div>
-      </div>
-      <div style={{ background: 'rgba(255,149,0,0.06)', border: '1px solid rgba(255,149,0,0.2)', borderRadius: 12, padding: '11px 14px', marginBottom: 8, fontSize: 12, color: C.t2, lineHeight: 1.6 }}>
-        On-chain spending policies (per-tx limits, allowlists) require mainnet. On testnet, spending is governed by the limits you set in the Agent tab.
-      </div>
-      <div style={{ background: 'rgba(0,102,255,0.05)', border: '1px solid rgba(0,102,255,0.14)', borderRadius: 12, padding: '11px 14px', marginBottom: 8, fontSize: 12, color: C.t2, lineHeight: 1.6 }}>
-        Your Agent Wallet has a separate balance from your NAN Main Wallet. The NAN Agent can only spend funds available in its Agent Wallet according to its configured policies.
-      </div>
-
-      {/* ── Agent Capabilities ─────────────────────────────────────────────── */}
-      <SectionLabel label="What NAN Agent Can Do" />
-      <div style={{ background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 16, padding: '4px 16px', marginBottom: 8 }}>
-        <CapabilityRow label="Hold USDC"                supported={true}  C={C} />
-        <CapabilityRow label="Receive USDC"             supported={true}  C={C} />
-        <CapabilityRow label="Send USDC"                supported={true}  note="To permitted addresses"  C={C} />
-        <CapabilityRow label="Agent Payments"           supported={true}  note="Pay for services on your behalf" C={C} />
-        <CapabilityRow label="Bridge"                   supported={false} note="Coming soon" C={C} />
-        <CapabilityRow label="Swap"                     supported={false} note="Coming soon" C={C} />
-        <div style={{ padding: '10px 0' }}>
-          <CapabilityRow label="Automated Recurring Pay" supported={false} note="Coming soon" C={C} />
+        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: `1px solid ${C.bdr}` }}>
+          <span style={{ fontSize: 12, color: C.t2 }}>Limits</span>
+          <span style={{ fontSize: 12, color: C.t3 }}>Open Manage Policy to view</span>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0' }}>
+          <span style={{ fontSize: 12, color: C.t2 }}>Source of truth</span>
+          <span style={{ fontSize: 12, fontWeight: 600, color: BLUE }}>Circle Agent Wallet</span>
         </div>
       </div>
+      <button
+        onClick={() => setPolicyOpen(true)}
+        style={{
+          width: '100%', height: 46, background: C.surf, border: `1px solid ${C.bdr}`,
+          borderRadius: 14, fontSize: 13, fontWeight: 700, color: BLUE, fontFamily: F,
+          cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          gap: 8, marginBottom: 8, WebkitTapHighlightColor: 'transparent',
+          transition: 'background 0.15s',
+        }}
+      >
+        <Settings size={14} color={BLUE} strokeWidth={2} />
+        Manage Spending Policy
+      </button>
+      <div style={{ background: 'rgba(0,102,255,0.05)', border: '1px solid rgba(0,102,255,0.14)', borderRadius: 12, padding: '11px 14px', marginBottom: 8, fontSize: 12, color: C.t2, lineHeight: 1.6 }}>
+        Your Agent Wallet has a separate balance from your NAN Main Wallet. The NAN Agent can only spend funds available in its Agent Wallet according to its configured policy.
+      </div>
+
+      {/* ── What NAN Agent Can Do ───────────────────────────────────────────── */}
+      <SectionLabel label="What NAN Agent Can Do" />
+      <div style={{ background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 16, padding: '4px 16px', marginBottom: 8 }}>
+        <CapabilityRow label="Hold USDC"    status="enabled"        C={C} />
+        <CapabilityRow label="Receive USDC" status="enabled"        C={C} />
+        <CapabilityRow label="Send USDC"    status="enabled"        note="To permitted addresses" C={C} />
+        <CapabilityRow label="Agent Payments" status="enabled"      note="Pay for services on your behalf" C={C} />
+        <CapabilityRow label="Bridge"         status="not_configured" note="Circle CCTP supported · not yet wired in NAN" C={C} />
+        <CapabilityRow label="Swap"           status="not_configured" note="Circle / LiFi supported · not yet wired in NAN" C={C} />
+        <CapabilityRow label="Automated Recurring Pay" status="coming_soon" C={C} noBorder />
+      </div>
+
+      {/* Policy modal */}
+      {policyOpen && <ManagePolicyModal onClose={() => setPolicyOpen(false)} C={C} />}
 
       {/* ── Agent Activity ─────────────────────────────────────────────────── */}
       <SectionLabel label="Agent Activity" />
