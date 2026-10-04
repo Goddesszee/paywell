@@ -252,7 +252,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         accountType: 'SCA',
       })
       const estimate = await kit.estimateSwap({
-        from: { adapter, chain: 'Arc_Testnet', address: walletAddress },
+        from: { adapter, chain: 'Arc_Testnet' }, // UCW adapter resolves address automatically
         tokenIn, tokenOut, amountIn,
         config: { slippageBps: slippageBps ? Number(slippageBps) : 100 },
       })
@@ -298,7 +298,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // Start swap — it will pause at onChallenge and wait for the browser
       // We race the swap start against the challenge arriving (should be fast)
       const swapPromise = kit.swap({
-        from: { adapter, chain: 'Arc_Testnet', address: walletAddress },
+        // UCW adapter resolves the address automatically — do NOT pass address
+        from: { adapter, chain: 'Arc_Testnet' },
         tokenIn, tokenOut, amountIn,
         config: { slippageBps: slippageBps ? Number(slippageBps) : 100 },
       })
