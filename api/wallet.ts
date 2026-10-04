@@ -7,6 +7,8 @@
  *   action=initialize          POST  create user PIN + wallets
  *   action=request-otp         POST  create device token for email login (returns otpToken)
  *   action=list         (GET)        list wallets for a user token
+ *   action=swap                POST  server-side swap via Circle developer-controlled wallets adapter
+ *   action=estimate-swap       POST  server-side swap estimate (no funds moved)
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { initiateUserControlledWalletsClient, Blockchain } from '@circle-fin/user-controlled-wallets'
@@ -90,26 +92,137 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   }
 
-  // ── verify-otp ────────────────────────────────────────────────────────────
-  if (action === 'verify-otp') {
-    const { otpToken, otpCode, deviceToken, deviceEncryptionKey } = body
-    if (!otpToken || !otpCode) return res.status(400).json({ error: 'otpToken and otpCode required' })
+  // ── create-transfer ───────────────────────────────────────────────────────
+  // Creates a Circle transfer challenge. Frontend calls sdk.execute(challengeId).
+  if (action === 'create-transfer') {
+    const { userToken, walletId, destinationAddress, amount, tokenAddress, blockchain } = body
+    if (!userToken || !walletId || !destinationAddress || !amount)
+      return res.status(400).json({ error: 'userToken, walletId, destinationAddress, amount required' })
     try {
-      const response = await client.verifyOtpToken({
-        otpToken,
-        otpCode,
-        deviceToken,
-        deviceEncryptionKey,
+      const response = await client.createTransaction({
+        userToken,
+        walletId,
+        destinationAddress,
+        amounts: [amount],
+        blockchain: (blockchain ?? 'ARC-TESTNET') as Parameters<typeof client.createTransaction>[0]['blockchain'],
+        tokenAddress: tokenAddress ?? '',
+        fee: { type: 'level', config: { feeLevel: 'MEDIUM' } },
       })
-      const { userToken, encryptionKey } = response.data ?? {}
-      return res.json({ userToken, encryptionKey })
+      return res.json({ challengeId: response.data?.challengeId })
     } catch (err: unknown) {
-      const code = (err as { response?: { data?: { code?: number } } })?.response?.data?.code
-      const msg  = err instanceof Error ? err.message : 'Verification failed'
-      if (code === 155106 || msg.toLowerCase().includes('already')) {
-        return res.json({ code: 155106, message: 'User already initialized' })
+      return res.status(500).json({ error: err instanceof Error ? err.message : 'Circle API error' })
+    }
+  }
+
+  // ── create-contract-exec ──────────────────────────────────────────────────
+  // Creates a contract execution challenge. Frontend calls sdk.execute(challengeId).
+  if (action === 'create-contract-exec') {
+    const { userToken, walletId, contractAddress, abiFunctionSignature, abiParameters, callData, amount } = body
+    if (!userToken || !walletId || !contractAddress)
+      return res.status(400).json({ error: 'userToken, walletId, contractAddress required' })
+    try {
+      const params: Record<string, unknown> = {
+        userToken,
+        walletId,
+        contractAddress,
+        fee: { type: 'level', config: { feeLevel: 'MEDIUM' } },
       }
-      return res.status(400).json({ error: msg })
+      if (callData) {
+        params.callData = callData
+      } else {
+        params.abiFunctionSignature = abiFunctionSignature
+        params.abiParameters = abiParameters ? JSON.parse(abiParameters) : []
+      }
+      if (amount) params.amount = amount
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const response = await (client.createContractExecutionTransaction as any)(params)
+      return res.json({ challengeId: response.data?.challengeId })
+    } catch (err: unknown) {
+      return res.status(500).json({ error: err instanceof Error ? err.message : 'Circle API error' })
+    }
+  }
+
+  // ── poll-tx ───────────────────────────────────────────────────────────────
+  // Polls a Circle transaction until terminal state or timeout.
+  if (action === 'poll-tx') {
+    const { userToken, transactionId } = body
+    if (!userToken || !transactionId)
+      return res.status(400).json({ error: 'userToken and transactionId required' })
+    try {
+      const response = await client.getTransaction({ userToken, id: transactionId })
+      return res.json({ transaction: response.data?.transaction })
+    } catch (err: unknown) {
+      return res.status(500).json({ error: err instanceof Error ? err.message : 'Circle API error' })
+    }
+  }
+
+  // ── list-balances ─────────────────────────────────────────────────────────
+  if (action === 'list-balances') {
+    const { userToken, walletId } = body
+    if (!userToken || !walletId) return res.status(400).json({ error: 'userToken and walletId required' })
+    try {
+      const response = await client.getWalletTokenBalance({ walletId, userToken })
+      return res.json({ tokenBalances: response.data?.tokenBalances ?? [] })
+    } catch (err: unknown) {
+      return res.status(500).json({ error: err instanceof Error ? err.message : 'Circle API error' })
+    }
+  }
+
+  // ── estimate-swap ─────────────────────────────────────────────────────────
+  // Returns an estimate without moving any funds. Requires dev-controlled creds.
+  if (action === 'estimate-swap') {
+    const { walletAddress, tokenIn, tokenOut, amountIn, slippageBps } = body
+    if (!walletAddress || !tokenIn || !tokenOut || !amountIn)
+      return res.status(400).json({ error: 'walletAddress, tokenIn, tokenOut, amountIn required' })
+
+    const devKey = process.env.CIRCLE_DEVELOPER_CONTROLLED_API_KEY
+    const entitySecret = process.env.CIRCLE_ENTITY_SECRET
+    if (!devKey || !entitySecret)
+      return res.status(503).json({ error: 'Circle developer-controlled wallet credentials not configured on this server.' })
+
+    try {
+      const { AppKit } = await import('@circle-fin/app-kit')
+      const { createCircleWalletsAdapter } = await import('@circle-fin/adapter-circle-wallets')
+      const kit = new AppKit()
+      const adapter = createCircleWalletsAdapter({ apiKey: devKey, entitySecret })
+      const estimate = await kit.estimateSwap({
+        from: { adapter, chain: 'Arc_Testnet', address: walletAddress },
+        tokenIn, tokenOut, amountIn,
+        config: { slippageBps: slippageBps ? Number(slippageBps) : 100 },
+      })
+      return res.json({ estimate })
+    } catch (err: unknown) {
+      return res.status(500).json({ error: err instanceof Error ? err.message : 'Estimation failed' })
+    }
+  }
+
+  // ── swap ──────────────────────────────────────────────────────────────────
+  // Executes a swap server-side via Circle developer-controlled wallets adapter.
+  // The Circle wallet at walletAddress must be a developer-controlled wallet
+  // provisioned with the CIRCLE_DEVELOPER_CONTROLLED_API_KEY on this server.
+  if (action === 'swap') {
+    const { walletAddress, tokenIn, tokenOut, amountIn, slippageBps } = body
+    if (!walletAddress || !tokenIn || !tokenOut || !amountIn)
+      return res.status(400).json({ error: 'walletAddress, tokenIn, tokenOut, amountIn required' })
+
+    const devKey = process.env.CIRCLE_DEVELOPER_CONTROLLED_API_KEY
+    const entitySecret = process.env.CIRCLE_ENTITY_SECRET
+    if (!devKey || !entitySecret)
+      return res.status(503).json({ error: 'Circle developer-controlled wallet credentials not configured on this server.' })
+
+    try {
+      const { AppKit } = await import('@circle-fin/app-kit')
+      const { createCircleWalletsAdapter } = await import('@circle-fin/adapter-circle-wallets')
+      const kit = new AppKit()
+      const adapter = createCircleWalletsAdapter({ apiKey: devKey, entitySecret })
+      const result = await kit.swap({
+        from: { adapter, chain: 'Arc_Testnet', address: walletAddress },
+        tokenIn, tokenOut, amountIn,
+        config: { slippageBps: slippageBps ? Number(slippageBps) : 100 },
+      })
+      return res.json({ result })
+    } catch (err: unknown) {
+      return res.status(500).json({ error: err instanceof Error ? err.message : 'Swap failed' })
     }
   }
 
