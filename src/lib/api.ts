@@ -83,31 +83,6 @@ export interface TxRecord {
   agentInitiated?: boolean
 }
 
-export interface ApiProduct {
-  id: string
-  name: string
-  price: number
-  merchant: string
-  merchantId: string
-  category: string
-  description: string
-  image: string
-  rating: number
-  reviewCount: number
-  inStock: boolean
-  tags: string[]
-}
-
-export interface Order {
-  id: string
-  productId: string
-  productName: string
-  amount: number
-  merchant: string
-  status: 'pending' | 'escrow' | 'complete' | 'cancelled'
-  createdAt: string
-  txId?: string
-}
 
 // ── Auth ───────────────────────────────────────────────────────────────────────
 
@@ -166,16 +141,6 @@ export async function sendChat(
   return apiPost('/api/chat', { message, userAddress: opts.userAddress, walletId: opts.walletId }, sessionToken)
 }
 
-// ── Marketplace ────────────────────────────────────────────────────────────────
-
-export async function getProducts(): Promise<ApiProduct[]> {
-  try {
-    const data = await apiGet<{ products?: ApiProduct[] }>('/api/marketplace')
-    return data.products ?? []
-  } catch {
-    return []
-  }
-}
 
 /** Backward-compat alias used by AgentPage */
 export async function nanChat(opts: {
@@ -204,11 +169,4 @@ export async function nanChat(opts: {
   }, opts.sessionToken)
 }
 
-export async function placeOrder(
-  sessionToken: string,
-  productId: string,
-  amount: number,
-  walletId: string,
-): Promise<Order> {
-  return apiPost('/api/marketplace/order', { productId, amount, walletId }, sessionToken)
-}
+

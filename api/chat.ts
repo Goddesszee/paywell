@@ -49,16 +49,16 @@ function detectMarketplaceIntent(message: string): string | null {
   return null
 }
 
-async function fetchMarketplaceServices(query: string, baseUrl: string): Promise<import('./agent-marketplace').MarketplaceServiceCard[]> {
+async function fetchMarketplaceServices(query: string, baseUrl: string): Promise<import('./agent-wallet').MarketplaceServiceCard[]> {
   try {
-    const r = await fetch(`${baseUrl}/api/agent-marketplace`, {
+    const r = await fetch(`${baseUrl}/api/agent-wallet`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'search', query }),
+      body: JSON.stringify({ action: 'marketplace-search', query }),
       signal: AbortSignal.timeout(18000),
     })
     if (!r.ok) return []
-    const d = await r.json() as { ok?: boolean; services?: import('./agent-marketplace').MarketplaceServiceCard[] }
+    const d = await r.json() as { ok?: boolean; services?: import('./agent-wallet').MarketplaceServiceCard[] }
     return d.services ?? []
   } catch { return [] }
 }
@@ -154,7 +154,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // ── Marketplace discovery intent ──────────────────────────────────────────────
   // Check BEFORE live service calls — marketplace queries don't need agent execution
   const marketplaceQuery = detectMarketplaceIntent(message)
-  let marketplaceServices: import('./agent-marketplace').MarketplaceServiceCard[] = []
+  let marketplaceServices: import('./agent-wallet').MarketplaceServiceCard[] = []
   if (marketplaceQuery) {
     const q = marketplaceQuery === 'general' ? 'services' : marketplaceQuery
     marketplaceServices = await fetchMarketplaceServices(q, baseUrl)

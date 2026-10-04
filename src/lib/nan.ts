@@ -71,31 +71,6 @@ export interface NanTx {
   agentInitiated?: boolean
 }
 
-export interface NanProduct {
-  id: string
-  name: string
-  price: number      // in USDC
-  merchant: string
-  merchantId: string
-  category: string
-  description: string
-  image: string
-  rating: number
-  reviewCount: number
-  inStock: boolean
-  tags: string[]
-}
-
-export interface NanOrder {
-  id: string
-  productId: string
-  productName: string
-  amount: number
-  merchant: string
-  status: 'pending' | 'escrow' | 'complete' | 'cancelled'
-  createdAt: string
-  txId?: string
-}
 
 // ── Auth — OTP ────────────────────────────────────────────────────────────────
 
@@ -183,45 +158,7 @@ export async function getActivity(
 
 // ── Marketplace ───────────────────────────────────────────────────────────────
 
-/** List all available marketplace products/listings */
-export async function getListings(): Promise<NanProduct[]> {
-  try {
-    const data = await post<{ listings?: NanProduct[]; success: boolean }>(
-      '/api/marketplace',
-      { action: 'listings' },
-    )
-    return data.listings ?? []
-  } catch {
-    return []
-  }
-}
 
-/** Place a buy order — funds go to escrow until merchant confirms */
-export async function buyListing(
-  email: string,
-  sessionToken: string,
-  listingId: string,
-  quantity = 1,
-): Promise<NanOrder> {
-  return post(
-    '/api/marketplace',
-    { action: 'buy', email, listingId, quantity },
-    sessionToken,
-  )
-}
-
-/** Get all orders for a wallet */
-export async function getOrders(walletAddress: string, sessionToken?: string): Promise<NanOrder[]> {
-  try {
-    const data = await get<{ orders?: NanOrder[] }>(
-      `/api/orders?wallet=${walletAddress}`,
-      sessionToken,
-    )
-    return data.orders ?? []
-  } catch {
-    return []
-  }
-}
 
 // ── Agent wallets ─────────────────────────────────────────────────────────────
 

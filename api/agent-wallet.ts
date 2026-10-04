@@ -21,6 +21,105 @@ import { promisify } from 'util'
 
 const execFileAsync = promisify(execFile)
 
+// ── Circle Agent Marketplace (inlined from agent-marketplace.ts) ──────────────
+// Keeps us under Vercel Hobby's 12-function limit.
+
+const CIRCLE_BIN = process.env.CIRCLE_CLI_PATH ?? 'circle'
+const BLOCKED_CATS = new Set(['GAMBLING','BETTING','PREDICTION_MARKET','ADULT','ILLEGAL','WEAPONS','DRUGS','DARK_WEB','SCAM','FRAUD'])
+const ALLOWED_CATS = new Set(['WEB_SEARCH_RESEARCH','DATA_ENRICHMENT','INFRASTRUCTURE','DEVELOPER_TOOLS','DEVELOPER','AI_CREATIVE','CREATIVE','AI','FINANCIAL_ANALYSIS','FINANCE','COMMUNICATION','PRODUCTIVITY','SEARCH','RESEARCH','ANALYTICS','COMPUTE','STORAGE','OTHER'])
+const CAT_LABELS: Record<string,string> = {
+  WEB_SEARCH_RESEARCH:'Web Search & Research', DATA_ENRICHMENT:'Data Enrichment',
+  INFRASTRUCTURE:'Infrastructure', DEVELOPER_TOOLS:'Developer Tools', DEVELOPER:'Developer Tools',
+  AI_CREATIVE:'AI & Creative', CREATIVE:'AI & Creative', AI:'AI & Creative',
+  FINANCIAL_ANALYSIS:'Financial Analysis', FINANCE:'Financial Analysis',
+  COMMUNICATION:'Communication', PRODUCTIVITY:'Productivity',
+  SEARCH:'Web Search & Research', RESEARCH:'Web Search & Research',
+  ANALYTICS:'Analytics', COMPUTE:'Infrastructure', STORAGE:'Infrastructure', OTHER:'Other',
+}
+
+export interface MarketplaceServiceCard {
+  id: string; provider: string; provider_website?: string; provider_docs?: string
+  category: string; category_label: string; description: string
+  endpoint: string; method: string; pricing: string; price_raw?: string
+  payment_scheme: string; payment_address?: string; payment_network?: string
+  tags: string[]; last_updated?: string
+}
+
+interface RawAccepts { scheme?: string; amount?: string | number; payTo?: string; network?: string; asset?: string }
+interface RawProviderMeta { name?: string; website?: string; docsUrl?: string; openApiUrl?: string; description?: string; category?: string; tags?: string[] }
+interface RawItem { resource?: string; type?: string; lastUpdated?: string; accepts?: RawAccepts[]; metadata?: { provider?: RawProviderMeta; path?: string; method?: string; description?: string } }
+
+function mktAmountToUsdc(amount: string | number): string {
+  const n = typeof amount === 'string' ? parseInt(amount, 10) : amount
+  if (isNaN(n)) return 'Pricing not provided'
+  const usdc = n / 1e6
+  if (usdc === 0) return 'Free'
+  if (usdc < 0.0001) return `<$0.0001 USDC per request`
+  return `$${usdc.toFixed(usdc < 0.01 ? 6 : 4)} USDC per request`
+}
+
+function normaliseMktItem(item: RawItem): MarketplaceServiceCard | null {
+  const endpoint = item.resource ?? ''
+  if (!endpoint) return null
+  const meta = item.metadata ?? {}
+  const prov = meta.provider ?? {}
+  const category = (prov.category ?? 'OTHER').toUpperCase()
+  if (BLOCKED_CATS.has(category)) return null
+  if (!ALLOWED_CATS.has(category) && BLOCKED_CATS.has(category)) return null
+  const accepts = (item.accepts ?? [])[0]
+  const pricing = accepts?.amount !== undefined ? mktAmountToUsdc(accepts.amount) : 'Pricing not provided'
+  const provider = prov.name ?? (() => { try { return new URL(endpoint).hostname } catch { return endpoint } })()
+  const id = Buffer.from(endpoint).toString('base64').slice(0, 32)
+  return {
+    id, provider, provider_website: prov.website, provider_docs: prov.docsUrl ?? prov.openApiUrl,
+    category, category_label: CAT_LABELS[category] ?? 'Other',
+    description: meta.description ?? prov.description ?? 'No description provided.',
+    endpoint, method: meta.method ?? 'POST', pricing,
+    price_raw: accepts?.amount !== undefined ? String(accepts.amount) : undefined,
+    payment_scheme: item.type === 'http' ? 'x402' : (accepts ? 'x402' : 'free'),
+    payment_address: accepts?.payTo, payment_network: accepts?.network,
+    tags: (prov.tags ?? []).slice(0, 8), last_updated: item.lastUpdated,
+  }
+}
+
+async function runMktSearch(query: string): Promise<MarketplaceServiceCard[]> {
+  const { stdout } = await execFileAsync(CIRCLE_BIN, ['services', 'search', query, '--output', 'json'], {
+    timeout: 15000, env: { ...process.env, CIRCLE_ACCEPT_TERMS: '1' },
+  })
+  const parsed = JSON.parse(stdout.trim()) as { data?: { items?: RawItem[] } }
+  const cards: MarketplaceServiceCard[] = []
+  for (const item of parsed.data?.items ?? []) {
+    const c = normaliseMktItem(item)
+    if (c) cards.push(c)
+  }
+  const seen = new Set<string>()
+  return cards.filter(c => { if (seen.has(c.endpoint)) return false; seen.add(c.endpoint); return true })
+}
+
+async function runMktInspect(url: string): Promise<MarketplaceServiceCard | null> {
+  const { stdout } = await execFileAsync(CIRCLE_BIN, ['services', 'inspect', url, '--output', 'json'], {
+    timeout: 15000, env: { ...process.env, CIRCLE_ACCEPT_TERMS: '1' },
+  })
+  const d = (JSON.parse(stdout.trim()) as { data?: { status?: string; url?: string; description?: string; method?: string; provider?: RawProviderMeta; accepts?: RawAccepts[] } }).data
+  if (!d) return null
+  const category = (d.provider?.category ?? 'OTHER').toUpperCase()
+  if (BLOCKED_CATS.has(category)) return null
+  const accepts = (d.accepts ?? [])[0]
+  const pricing = accepts?.amount !== undefined ? mktAmountToUsdc(accepts.amount) : 'Pricing not provided'
+  const endpointFinal = d.url ?? url
+  const provider = d.provider?.name ?? (() => { try { return new URL(endpointFinal).hostname } catch { return endpointFinal } })()
+  return {
+    id: Buffer.from(endpointFinal).toString('base64').slice(0, 32),
+    provider, provider_website: d.provider?.website, provider_docs: d.provider?.docsUrl ?? d.provider?.openApiUrl,
+    category, category_label: CAT_LABELS[category] ?? 'Other',
+    description: d.description ?? d.provider?.description ?? 'No description provided.',
+    endpoint: endpointFinal, method: d.method ?? 'POST', pricing,
+    price_raw: accepts?.amount !== undefined ? String(accepts.amount) : undefined,
+    payment_scheme: 'x402', payment_address: accepts?.payTo, payment_network: accepts?.network,
+    tags: d.provider?.tags ?? [],
+  }
+}
+
 // ── SDK initialisation ───────────────────────────────────────────────────────
 
 function getUserClient() {
@@ -413,6 +512,39 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(200).json({ not_configured: true, error: msg })
       }
       return res.status(500).json({ error: msg })
+    }
+  }
+
+  // ── marketplace-search — live Circle service discovery ──────────────────
+  if (action === 'marketplace-search') {
+    const { query: mktQuery } = body
+    if (!mktQuery?.trim()) return res.status(400).json({ error: 'query is required' })
+    const safeQ = mktQuery.replace(/[^\w\s\-.,&]/g, '').slice(0, 100).trim()
+    if (!safeQ) return res.status(400).json({ error: 'query contains no valid characters' })
+    try {
+      const services = await runMktSearch(safeQ)
+      return res.status(200).json({ ok: true, source: 'circle_marketplace', query: safeQ, count: services.length, services })
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e)
+      if (msg.includes('No services found') || msg.includes('no results')) {
+        return res.status(200).json({ ok: true, source: 'circle_marketplace', query: safeQ, count: 0, services: [] })
+      }
+      return res.status(200).json({ ok: false, error: 'Circle Marketplace unreachable. Please try again.', services: [] })
+    }
+  }
+
+  // ── marketplace-inspect — full service details ───────────────────────────
+  if (action === 'marketplace-inspect') {
+    const { endpoint: mktEndpoint } = body
+    if (!mktEndpoint) return res.status(400).json({ error: 'endpoint URL is required' })
+    try { new URL(mktEndpoint) } catch { return res.status(400).json({ error: 'endpoint must be a valid URL' }) }
+    try {
+      const service = await runMktInspect(mktEndpoint)
+      if (!service) return res.status(200).json({ ok: false, error: 'Service not found or restricted.' })
+      return res.status(200).json({ ok: true, source: 'circle_marketplace', service })
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e)
+      return res.status(200).json({ ok: false, error: `Could not inspect service: ${msg}` })
     }
   }
 
