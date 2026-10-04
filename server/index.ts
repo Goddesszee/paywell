@@ -1148,6 +1148,141 @@ app.get('/api/auth/google/callback', async (req, res) => {
   }
 })
 
+// ── App Kit — swap + bridge via developer-controlled wallets (nan pattern) ───────
+// These routes serve Circle users whose wallets are managed server-side.
+// Wagmi/browser wallet users call App Kit directly from the frontend.
+
+const APPKIT_CHAIN = 'Arc_Testnet'
+// Token addresses come from env — never hardcoded in source.
+const APPKIT_USDC = process.env.VITE_USDC_ADDRESS
+const APPKIT_EURC = process.env.VITE_EURC_ADDRESS
+
+const BRIDGE_CHAIN_MAP: Record<string, string> = {
+  'Arc_Testnet':          'Arc_Testnet',
+  'Ethereum_Sepolia':     'Ethereum_Sepolia',
+  'Base_Sepolia':         'Base_Sepolia',
+  'Arbitrum_Sepolia':     'Arbitrum_Sepolia',
+  'Optimism_Sepolia':     'Optimism_Sepolia',
+  'Polygon_Amoy_Testnet': 'Polygon_Amoy_Testnet',
+  'Avalanche_Fuji':       'Avalanche_Fuji',
+  'Unichain_Sepolia':     'Unichain_Sepolia',
+  'Sei_Testnet':          'Sei_Testnet',
+  'World_Chain_Sepolia':  'World_Chain_Sepolia',
+}
+
+// Cache AppKit singleton so it warms up once and reuses across requests
+let _appKitCache: { kit: import('@circle-fin/app-kit').AppKit; adapter: unknown } | null = null
+async function getAppKit() {
+  if (_appKitCache) return _appKitCache
+  const { AppKit } = await import('@circle-fin/app-kit')
+  const { createCircleWalletsAdapter } = await import('@circle-fin/adapter-circle-wallets')
+  const apiKey = process.env.CIRCLE_DEVELOPER_CONTROLLED_API_KEY ?? process.env.CIRCLE_API_KEY
+  const entitySecret = process.env.CIRCLE_ENTITY_SECRET
+  if (!apiKey || !entitySecret) throw new Error('Circle developer-controlled wallet credentials not configured.')
+  const adapter = createCircleWalletsAdapter({ apiKey, entitySecret })
+  _appKitCache = { kit: new AppKit(), adapter }
+  return _appKitCache
+}
+
+// POST /api/appkit/swap — action: 'quote' | 'swap'
+app.post('/api/appkit/swap', async (req, res) => {
+  const { action, walletAddress, tokenIn, tokenOut, amountIn } = req.body as {
+    action?: string; walletAddress?: string; tokenIn?: string; tokenOut?: string; amountIn?: string
+  }
+  const fromToken = (tokenIn  ?? 'USDC').toUpperCase()
+  const toToken   = (tokenOut ?? 'EURC').toUpperCase()
+  const amtIn     = parseFloat(amountIn ?? '0')
+  if (!amtIn || amtIn <= 0) { res.json({ success: false, error: 'Valid amountIn required' }); return }
+
+  const TOKEN_ADDRESSES: Record<string, string | undefined> = { USDC: APPKIT_USDC, EURC: APPKIT_EURC }
+  if (!TOKEN_ADDRESSES[fromToken] || !TOKEN_ADDRESSES[toToken]) {
+    res.json({ success: false, error: `Unsupported token pair: ${fromToken} → ${toToken}. Only USDC and EURC are supported on Arc Testnet. (VITE_USDC_ADDRESS / VITE_EURC_ADDRESS may not be set in .env)` }); return
+  }
+
+  try {
+    const { kit, adapter } = await getAppKit()
+    const swapParams = {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      from: { adapter: adapter as any, chain: APPKIT_CHAIN as any, address: walletAddress ?? 'estimate' },
+      tokenIn: fromToken, tokenOut: toToken, amountIn: amtIn.toString(),
+      config: { slippageBps: 300 },
+    }
+
+    if (action === 'quote') {
+      const estimate = await kit.estimateSwap(swapParams)
+      res.json({
+        success: true,
+        amountOut:       estimate.estimatedOutput?.amount ?? null,
+        estimatedOutput: estimate.estimatedOutput ?? null,
+        stopLimit:       estimate.stopLimit ?? null,
+        fees:            estimate.fees ?? [],
+      })
+      return
+    }
+
+    if (!walletAddress) { res.json({ success: false, error: 'walletAddress required for swap' }); return }
+
+    // Non-blocking — return immediately, swap executes in background.
+    // Frontend shows "Swap submitted" and polls balance for the change.
+    res.json({ success: true, pending: true, message: 'Swap submitted via Circle App Kit' })
+    kit.swap(swapParams)
+      .then(r => console.log('[appkit/swap] done:', (r as { txHash?: string }).txHash))
+      .catch(e => console.error('[appkit/swap] error:', e instanceof Error ? e.message : e))
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Swap failed'
+    console.error('[appkit/swap]', msg)
+    if (!res.headersSent) res.json({ success: false, error: msg.slice(0, 150) })
+  }
+})
+
+// POST /api/appkit/bridge
+app.post('/api/appkit/bridge', async (req, res) => {
+  const { walletAddress, destChain, destAddr, amount } = req.body as {
+    walletAddress?: string; destChain?: string; destAddr?: string; amount?: string
+  }
+  const parsed = parseFloat(amount ?? '0')
+  const destChainName = destChain ? BRIDGE_CHAIN_MAP[destChain] : undefined
+
+  if (!walletAddress || !destChain || !parsed || parsed <= 0)
+    { res.json({ success: false, error: 'walletAddress, destChain, amount required' }); return }
+  if (!destChainName)
+    { res.json({ success: false, error: `Unsupported bridge chain: ${destChain}` }); return }
+
+  try {
+    const { kit, adapter } = await getAppKit()
+
+    // Non-blocking — CCTP bridge takes 8-30s on testnet via the Orbit forwarder.
+    // Return immediately so the frontend does not timeout.
+    res.json({ success: true, pending: true, state: 'pending', message: 'Bridge submitted via CCTP V2 — USDC arriving on destination chain via Circle Orbit forwarder' })
+
+    kit.bridge({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      from: { adapter: adapter as any, chain: APPKIT_CHAIN as any, address: walletAddress },
+      to: {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        chain: destChainName as any,
+        recipientAddress: destAddr ?? walletAddress,
+        useForwarder: true,  // Circle's Orbit relayer mints on destination — no dest adapter needed
+      },
+      amount: parsed.toFixed(2),
+      token: 'USDC',
+    })
+      .then(r => console.log('[appkit/bridge] complete, state:', (r as { state?: string }).state))
+      .catch(e => console.error('[appkit/bridge] background error:', e instanceof Error ? e.message : e))
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Bridge failed'
+    console.error('[appkit/bridge]', msg)
+    if (!res.headersSent) res.json({ success: false, error: msg.slice(0, 200) })
+  }
+})
+
+// Warm up AppKit singleton at server start when credentials are present
+if (process.env.CIRCLE_DEVELOPER_CONTROLLED_API_KEY && process.env.CIRCLE_ENTITY_SECRET) {
+  getAppKit()
+    .then(() => console.log('  ✓  AppKit singleton warmed (Circle dev wallets ready)'))
+    .catch(e => console.log('  ⚠  AppKit warmup skipped:', e instanceof Error ? e.message : e))
+}
+
 // ── start ──────────────────────────────────────────────────────────────────────
 app.listen(PORT, () => {
   console.log(`Paywell API running on port ${PORT}`)

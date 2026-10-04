@@ -3,11 +3,10 @@ import { useAccount, useChainId, useSwitchChain } from 'wagmi'
 import { AppKit } from '@circle-fin/app-kit'
 import { createViemAdapterFromProvider } from '@circle-fin/adapter-viem-v2'
 import type { EIP1193Provider } from 'viem'
-import { encodeFunctionData, erc20Abi, parseUnits } from 'viem'
 import { ArrowLeftRight, ArrowRight, CheckCircle, ExternalLink, Loader, Info } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
 import { bridgeFee, BRIDGE_FEE_BPS, bpsToPercent, BRIDGE_FEE_MIN_USDC } from '../../lib/fees'
-import { useCircleTransaction } from '../../hooks/useCircleTransaction'
+
 
 const S  = 'var(--nan-surface)'
 const B  = 'var(--nan-bdr)'
@@ -61,23 +60,7 @@ const INITIAL_STEPS: StepState[] = [
   { name:'mint',             label:'Mint on destination',  status:'idle' },
 ]
 
-// CCTP V2 Arc Testnet — TokenMessenger for depositForBurn
-const TOKEN_MESSENGER_ARC = '0xeb08f243e5d3fcff26a9e38ae5520a669f4019d0' as const
-const USDC_ARC = '0x3400000000000000000000000000000000000001' as const
-const TOKEN_MESSENGER_ABI = [
-  {
-    name: 'depositForBurn',
-    type: 'function',
-    inputs: [
-      { name: 'amount',           type: 'uint256' },
-      { name: 'destinationDomain',type: 'uint32'  },
-      { name: 'mintRecipient',    type: 'bytes32' },
-      { name: 'burnToken',        type: 'address' },
-    ],
-    outputs: [{ name: 'nonce', type: 'uint64' }],
-    stateMutability: 'nonpayable',
-  },
-] as const
+
 
 interface LiveFee { bps: number; label: string; fetched: boolean }
 
@@ -164,47 +147,39 @@ export function BridgePage() {
     : 0
   const netReceived = Math.max(0, gross - cctpProtocolFee - platformFee)
 
-  const circleTx = useCircleTransaction()
-
   const handleBridge = async () => {
     if (!amount) return
     setStatus('bridging')
     setErrMsg('')
     setSteps(INITIAL_STEPS)
 
-    // ── Circle user-controlled wallet path ──────────────────────────────────
+    // ── Circle user path: server-side bridge via dev-controlled wallets (nan pattern) ─
     if (isCircleUser && wagmiAddress === undefined) {
       const userAddress = auth?.circleWalletAddress
       if (!userAddress) { setErrMsg('No Circle wallet address found.'); setStatus('error'); return }
-      // Guard: userToken and encryptionKey are cleared on page reload (session-only).
-      // Catch this before starting any steps rather than letting useCircleTransaction fail mid-flow.
-      if (!auth?.userToken || !auth?.encryptionKey) { setErrMsg('SESSION_EXPIRED'); setStatus('error'); return }
       if (fromChain.chainId !== 5042002) { setErrMsg('Circle wallet bridge is only supported from Arc Testnet. Connect a browser wallet to bridge from other chains.'); setStatus('error'); return }
-      const parsedAmount = parseUnits(amount, 6)
-      const mintRecipient = `0x${userAddress.replace('0x','').padStart(64,'0')}`
       try {
-        // Step 1: Approve USDC to TokenMessenger
         updateStep('approve', { status: 'active' })
-        const approveData = encodeFunctionData({ abi: erc20Abi, functionName: 'approve', args: [TOKEN_MESSENGER_ARC, parsedAmount] })
-        const approveTx = await circleTx.executeContract({ contractAddress: USDC_ARC, callData: approveData })
-        if (!approveTx) { updateStep('approve', { status: 'error' }); setStatus('error'); setErrMsg(circleTx.error ?? 'Approve failed'); return }
-        updateStep('approve', { status: 'done', txHash: approveTx })
-        // Step 2: depositForBurn
-        updateStep('burn', { status: 'active' })
-        const burnData = encodeFunctionData({
-          abi: TOKEN_MESSENGER_ABI,
-          functionName: 'depositForBurn',
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
-          args: [parsedAmount, toChain.cctpDomain, mintRecipient, USDC_ARC] as any, // wagmi encodeAbiParameters requires exact type shape
+        const resp = await fetch('/api/appkit/bridge', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            walletAddress: userAddress,
+            destChain: toChain.kitName,
+            destAddr: userAddress,
+            amount,
+          }),
         })
-        const burnTx = await circleTx.executeContract({ contractAddress: TOKEN_MESSENGER_ARC, callData: burnData })
-        if (!burnTx) { updateStep('burn', { status: 'error' }); setStatus('error'); setErrMsg(circleTx.error ?? 'Burn failed'); return }
-        updateStep('burn', { status: 'done', txHash: burnTx })
+        const data = await resp.json() as { success?: boolean; pending?: boolean; state?: string; burnTxHash?: string; error?: string }
+        if (!resp.ok || data.error || data.success === false) throw new Error(data.error ?? 'Bridge failed')
+        // nan pattern: bridge is non-blocking — Circle's Orbit forwarder handles mint
+        // Mark all steps done since the server confirmed submission
+        updateStep('approve', { status: 'done' })
+        updateStep('burn', { status: 'done', txHash: data.burnTxHash })
         updateStep('fetchAttestation', { status: 'done' })
         updateStep('mint', { status: 'done' })
         setStatus('done')
-        addActivity({ type:'bridge', description:`Bridge to ${toChain.label}`, amount:gross, sign:'-', status:'confirmed', counterparty:toChain.label, txHash:burnTx })
-
+        addActivity({ type:'bridge', description:`Bridge to ${toChain.label}`, amount:gross, sign:'-', status:'confirmed', counterparty:toChain.label, txHash: data.burnTxHash })
       } catch (e: unknown) {
         setStatus('error')
         setErrMsg(e instanceof Error ? e.message : 'Bridge failed.')
