@@ -175,7 +175,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!walletAddress || !tokenIn || !tokenOut || !amountIn)
       return res.status(400).json({ error: 'walletAddress, tokenIn, tokenOut, amountIn required' })
 
-    const devKey = process.env.CIRCLE_DEVELOPER_CONTROLLED_API_KEY
+    // Accept CIRCLE_API_KEY as well as the more specific CIRCLE_DEVELOPER_CONTROLLED_API_KEY
+    // so that a single Vercel env var covers both UCW and dev-controlled wallet operations.
+    const devKey = process.env.CIRCLE_DEVELOPER_CONTROLLED_API_KEY ?? process.env.CIRCLE_API_KEY
     const entitySecret = process.env.CIRCLE_ENTITY_SECRET
     if (!devKey || !entitySecret)
       return res.status(503).json({ error: 'Circle developer-controlled wallet credentials not configured on this server.' })
@@ -198,14 +200,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   // ── swap ──────────────────────────────────────────────────────────────────
   // Executes a swap server-side via Circle developer-controlled wallets adapter.
-  // The Circle wallet at walletAddress must be a developer-controlled wallet
-  // provisioned with the CIRCLE_DEVELOPER_CONTROLLED_API_KEY on this server.
   if (action === 'swap') {
     const { walletAddress, tokenIn, tokenOut, amountIn, slippageBps } = body
     if (!walletAddress || !tokenIn || !tokenOut || !amountIn)
       return res.status(400).json({ error: 'walletAddress, tokenIn, tokenOut, amountIn required' })
 
-    const devKey = process.env.CIRCLE_DEVELOPER_CONTROLLED_API_KEY
+    const devKey = process.env.CIRCLE_DEVELOPER_CONTROLLED_API_KEY ?? process.env.CIRCLE_API_KEY
     const entitySecret = process.env.CIRCLE_ENTITY_SECRET
     if (!devKey || !entitySecret)
       return res.status(503).json({ error: 'Circle developer-controlled wallet credentials not configured on this server.' })
