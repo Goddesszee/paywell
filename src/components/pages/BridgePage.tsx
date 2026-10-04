@@ -223,8 +223,15 @@ export function BridgePage() {
       const result = await appKit.bridge({
         // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
         from: { adapter, chain: fromChain.kitName as any },
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
-        to:   { adapter, chain: toChain.kitName as any },
+        // Use Circle's Orbit forwarder for the destination — the relayer handles
+        // the mint transaction on the destination chain so we never need to
+        // switchChain a second time or re-acquire the provider on a different network.
+        to: {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
+          chain: toChain.kitName as any,
+          recipientAddress: wagmiAddress as string,
+          useForwarder: true,
+        },
         amount,
         ...(maxFeeUsdc > 0 ? { maxFee: BigInt(Math.round(maxFeeUsdc * 1_000_000)) } : {}),
       })
