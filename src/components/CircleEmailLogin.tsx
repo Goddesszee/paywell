@@ -53,6 +53,7 @@ export function CircleEmailLogin({ onBack, onSuccess }: Props) {
   const encKeyRef       = useRef<string | undefined>()
   const onSuccessRef    = useRef(onSuccess)
   const setAuthRef      = useRef(setAuth)
+  const watchRef        = useRef<ReturnType<typeof setInterval> | null>(null)
 
   // Keep refs in sync with latest props/store without changing SDK deps
   useEffect(() => { onSuccessRef.current = onSuccess }, [onSuccess])
@@ -63,6 +64,8 @@ export function CircleEmailLogin({ onBack, onSuccess }: Props) {
   const [error,     setError]     = useState('')
   const [loading,   setLoading]   = useState(false)
   const [statusMsg, setStatusMsg] = useState('')
+
+  useEffect(() => () => { if (watchRef.current) clearInterval(watchRef.current) }, [])
 
   // Keep emailRef in sync with controlled input
   useEffect(() => { emailRef.current = email }, [email])
@@ -165,6 +168,7 @@ export function CircleEmailLogin({ onBack, onSuccess }: Props) {
     const appId = CIRCLE_APP_ID ?? 'pending-configuration'
 
     const onLoginComplete = (err: unknown, result: unknown) => {
+      if (!err && watchRef.current) { clearInterval(watchRef.current); watchRef.current = null }
       if (err) {
         const msg = err instanceof Error ? err.message : JSON.stringify(err)
         // "already initialized" error still gives us a valid userToken
@@ -240,11 +244,53 @@ export function CircleEmailLogin({ onBack, onSuccess }: Props) {
   }
 
   // ── Step 2: open Circle OTP popup ────────────────────────────────────────
+  const stopWatch = () => { if (watchRef.current) { clearInterval(watchRef.current); watchRef.current = null } }
+
   const verifyOtp = () => {
     if (!otpTokensRef.current) { setError('Please request a code first.'); return }
+    const sdk = sdkRef.current as (W3SSdk & { onComplete?: (e: unknown, r: unknown) => void }) | null
+    if (!sdk) { setError('SDK not ready — please refresh the page.'); return }
+
+    setError('')
+    loginResultRef.current = null
     setStep('verifying')
     setStatusMsg('Waiting for verification…')
-    sdkRef.current?.verifyOtp()
+
+    // The Circle SDK reports verifyOtp() network errors / popup errors to its
+    // *challenge* callback (onComplete), NOT onLoginComplete — so without this
+    // they are swallowed and the UI spins forever.
+    sdk.onComplete = (err: unknown) => {
+      if (!err || loginResultRef.current) return
+      stopWatch()
+      const e = err as { code?: number; message?: string }
+      console.error('[CircleEmailLogin] verifyOtp error', err)
+      setError(`Verification failed${e?.code ? ` (code ${e.code})` : ''}${e?.message ? `: ${e.message}` : ''}. Check VITE_CIRCLE_APP_ID and try again.`)
+      setStep('otp_sent')
+    }
+
+    sdk.verifyOtp()
+
+    // Popup closed (or never appeared) without a result → don't spin forever
+    stopWatch()
+    const started = Date.now()
+    let seen = false
+    watchRef.current = setInterval(() => {
+      const el = document.getElementById('sdkIframe')
+      if (el) seen = true
+      const closed = seen && !el
+      const neverOpened = !seen && Date.now() - started > 15000
+      if (!closed && !neverOpened) return
+      // give the success callback a moment to land before declaring failure
+      setTimeout(() => {
+        if (loginResultRef.current) return
+        stopWatch()
+        setError(closed
+          ? 'Verification was closed before finishing. Tap the button to try again.'
+          : 'The verification popup did not open. Check that VITE_CIRCLE_APP_ID is correct, then try again.')
+        setStep('otp_sent')
+      }, 1500)
+      stopWatch()
+    }, 400)
   }
 
   const notConfigured = !CIRCLE_APP_ID
@@ -351,6 +397,13 @@ export function CircleEmailLogin({ onBack, onSuccess }: Props) {
           <p style={{ fontSize: 15, color: TEXT2, lineHeight: 1.6 }}>
             {step === 'verifying' ? 'Waiting for verification…' : statusMsg || 'Setting up your wallet…'}
           </p>
+          {step === 'verifying' && (
+            <button onClick={() => { stopWatch(); document.getElementById('sdkIframe')?.remove(); setStep('otp_sent') }}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: TEXT2,
+                fontSize: 13, marginTop: 14, fontFamily: F, textDecoration: 'underline' }}>
+              Cancel
+            </button>
+          )}
           {step === 'wallet_setup' && statusMsg.includes('popup') && (
             <p style={{ fontSize: 12, color: TEXT3, marginTop: 8 }}>
               Complete the steps in the Circle popup to finish.
