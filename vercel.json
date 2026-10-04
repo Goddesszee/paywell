@@ -3,6 +3,21 @@
   "outputDirectory": "dist",
   "installCommand": "bun install",
   "framework": "vite",
+  "headers": [
+    {
+      "source": "/assets/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+      ]
+    },
+    {
+      "source": "/index.html",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" },
+        { "key": "Pragma", "value": "no-cache" }
+      ]
+    }
+  ],
   "rewrites": [
     { "source": "/api/otp",                                      "destination": "/api/otp" },
     { "source": "/api/chat",                                     "destination": "/api/chat" },
