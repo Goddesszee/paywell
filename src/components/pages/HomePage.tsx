@@ -85,7 +85,7 @@ function ActionBtn({ Icon, label, primary, onClick, C }: {
 export function HomePage() {
   const C = useNanTheme()
   const { address: wagmiAddress, isConnected } = useAccount()
-  const { activity, setActiveView, auth, profile } = useAppStore()
+  const { activity, setActiveView, auth, profile, setMainWalletBalance } = useAppStore()
 
   // Circle wallet users don't connect via wagmi — fall back to their Circle wallet address
   const address = wagmiAddress ?? (auth?.circleWalletAddress as `0x${string}` | undefined)
@@ -121,6 +121,13 @@ export function HomePage() {
   /* eslint-disable react/set-state-in-effect */
   useEffect(() => { setHydrated(true) }, [])
   /* eslint-enable react/set-state-in-effect */
+
+  // Sync live balance into global store so AgentChat always has the real value
+  useEffect(() => {
+    if (rawBalance !== undefined && address) {
+      setMainWalletBalance(usdcNum.toFixed(2), address)
+    }
+  }, [rawBalance, address, usdcNum, setMainWalletBalance])
 
   const firstName = profile.displayName?.split(' ')[0]
     || auth?.email?.split('@')[0]

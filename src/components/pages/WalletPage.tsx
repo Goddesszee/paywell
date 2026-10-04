@@ -65,7 +65,7 @@ type WalletSubView = 'main' | 'send' | 'send_confirm' | 'send_success' | 'receiv
 
 export function WalletPage({ initialSubView = 'main' }: { initialSubView?: WalletSubView }) {
   const [subView, setSubView] = useState<WalletSubView>(initialSubView)
-  const { agentPermissions, addActivity, activity, auth } = useAppStore()
+  const { agentPermissions, addActivity, activity, auth, setMainWalletBalance } = useAppStore()
   const { address: wagmiAddress, chainId } = useAccount()
   // Circle wallet users don't connect via wagmi — fall back to circleWalletAddress
   const address = wagmiAddress ?? (auth?.circleWalletAddress as `0x${string}` | undefined)
@@ -76,8 +76,16 @@ export function WalletPage({ initialSubView = 'main' }: { initialSubView?: Walle
   /* eslint-disable react/set-state-in-effect */
   useEffect(() => { setHydrated(true) }, [])
   /* eslint-enable react/set-state-in-effect */
+
   const chain = requireChain(ARC_TESTNET_ID)
   const { balance, rawNum, isLoading, refetch } = useWalletBalance(address ?? '')
+
+  // Keep global store in sync so Agent Chat always has the real main wallet balance
+  useEffect(() => {
+    if (balance !== null && address) {
+      setMainWalletBalance(balance, address)
+    }
+  }, [balance, address, setMainWalletBalance])
 
   const handleCopy = () => {
     if (!address) return

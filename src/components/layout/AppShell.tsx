@@ -499,15 +499,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       </div>
 
-      {/* Mobile main content */}
+      {/* Mobile main content — agent view gets overflow:hidden so it self-manages scroll */}
       <main style={{
-        flex: 1, overflowY: 'auto', overflowX: 'hidden',
-        paddingTop: 10,
-        paddingLeft: 'max(14px,env(safe-area-inset-left))',
-        paddingRight: 'max(14px,env(safe-area-inset-right))',
-        paddingBottom: 60,
+        flex: 1,
+        minHeight: 0,           /* critical: lets flex item shrink below content height */
+        overflowY: activeView === 'agent' ? 'hidden' : 'auto',
+        overflowX: 'hidden',
+        paddingTop: activeView === 'agent' ? 0 : 10,
+        paddingLeft: activeView === 'agent' ? 0 : 'max(14px,env(safe-area-inset-left))',
+        paddingRight: activeView === 'agent' ? 0 : 'max(14px,env(safe-area-inset-right))',
+        paddingBottom: activeView === 'agent' ? 0 : 60,
         scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch',
         msOverflowStyle: 'none',
+        display: 'flex', flexDirection: 'column',
       }}>
         {children}
       </main>

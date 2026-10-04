@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef, useEffect, useCallback } from 'react'
 import {
   Bot, Send, X, Check, Zap, Shield, ShoppingBag,
   ToggleLeft, ToggleRight, Coins, Loader2, Plus,
@@ -230,17 +230,39 @@ export function AgentPage() {
     { id: 'log',      label: 'Log' },
   ]
   return (
-    <div style={{ fontFamily:F, maxWidth:560, margin:'0 auto', padding:'0 0 88px' }}>
-      <div style={{ display:'flex', alignItems:'center', gap:10, padding:'20px 0 16px' }}>
+    /* Fill 100% of AppShell's <main> with no padding — chat manages its own insets */
+    <div style={{
+      fontFamily: F,
+      display: 'flex',
+      flexDirection: 'column',
+      flex: 1,
+      minHeight: 0,            /* flex child must shrink below its content height */
+      overflow: 'hidden',
+    }}>
+      {/* ── Fixed header row ── */}
+      <div style={{
+        flexShrink: 0,
+        display: 'flex', alignItems: 'center', gap: 10,
+        padding: '14px 16px 10px',
+        borderBottom: `1px solid ${BDR}`,
+        background: SURF,
+      }}>
         <div style={{ width:36, height:36, borderRadius:10, background:BLUE, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
           <Bot size={18} color="#fff" />
         </div>
-        <div>
+        <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize:17, fontWeight:700, color:TEXT, letterSpacing:'-0.02em' }}>NAN Agent</div>
           <AgentStatusLine />
         </div>
       </div>
-      <div style={{ display:'flex', background:SURFACE, borderRadius:12, padding:3, marginBottom:16, gap:2 }}>
+
+      {/* ── Fixed tab bar ── */}
+      <div style={{
+        flexShrink: 0,
+        display: 'flex', background: SURFACE, borderRadius: 0,
+        padding: '6px 12px', gap: 2,
+        borderBottom: `1px solid ${BDR}`,
+      }}>
         {TABS.map(t => {
           const isActive = tab === t.id
           return (
@@ -254,12 +276,29 @@ export function AgentPage() {
           )
         })}
       </div>
-      {tab === 'chat'     && <AgentChat onNavigate={(page, _query) => { setActiveView(page); setTab('chat') }} />}
-      {tab === 'wallet'   && <AgentWalletExperience />}
-      {tab === 'discover' && <DiscoverTab />}
-      {tab === 'network'  && <NetworkTab />}
-      {tab === 'policy'   && <PolicyTab />}
-      {tab === 'log'      && <ExecutionLogTab />}
+
+      {/* ── Scrollable content area — chat fills, non-chat pages scroll ── */}
+      <div style={{
+        flex: 1,
+        minHeight: 0,
+        overflow: tab === 'chat' ? 'hidden' : 'auto',
+        display: 'flex',
+        flexDirection: 'column',
+        /* non-chat tabs get padding + bottom spacing so content clears the nav */
+        ...(tab !== 'chat' && {
+          padding: '12px 16px',
+          paddingBottom: 'max(80px, calc(env(safe-area-inset-bottom) + 80px))',
+        }),
+        scrollbarWidth: 'none',
+        WebkitOverflowScrolling: 'touch' as React.CSSProperties['WebkitOverflowScrolling'],
+      }}>
+        {tab === 'chat'     && <AgentChat onNavigate={(page, _query) => { setActiveView(page); setTab('chat') }} />}
+        {tab === 'wallet'   && <AgentWalletExperience />}
+        {tab === 'discover' && <DiscoverTab />}
+        {tab === 'network'  && <NetworkTab />}
+        {tab === 'policy'   && <PolicyTab />}
+        {tab === 'log'      && <ExecutionLogTab />}
+      </div>
     </div>
   )
 }
@@ -353,10 +392,37 @@ function AgentChat({ onNavigate }: { onNavigate?: (page: string, query?: string)
   const [actionExecuting, setActionExecuting] = useState(false)
   const [actionResult, setActionResult]   = useState<string | undefined>()
   const [actionError,  setActionError]    = useState<string | undefined>()
-  const endRef = useRef<HTMLDivElement>(null)
+  const endRef    = useRef<HTMLDivElement>(null)
+  const listRef   = useRef<HTMLDivElement>(null)
+  const [showNewMsg, setShowNewMsg] = useState(false)
+  const isNearBottom = useRef(true)
   const sellerAddress = import.meta.env.VITE_X402_SELLER_ADDRESS as string | undefined
 
-  useEffect(() => { endRef.current?.scrollIntoView({ behavior:'smooth' }) }, [agentMessages, typing, orchSteps])
+  // Track whether the user is near the bottom of the list
+  const handleScroll = useCallback(() => {
+    const el = listRef.current
+    if (!el) return
+    const threshold = 80
+    isNearBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < threshold
+    if (isNearBottom.current) setShowNewMsg(false)
+  }, [])
+
+  // When messages or typing change: scroll if near bottom, else show indicator
+  useEffect(() => {
+    if (isNearBottom.current) {
+      endRef.current?.scrollIntoView({ behavior: 'smooth' })
+      setShowNewMsg(false)
+    } else {
+      setShowNewMsg(true)
+    }
+  }, [agentMessages, typing, orchSteps])
+
+  // When user sends a message always scroll to bottom
+  const scrollToBottom = useCallback(() => {
+    endRef.current?.scrollIntoView({ behavior: 'smooth' })
+    setShowNewMsg(false)
+    isNearBottom.current = true
+  }, [])
 
   const payX402 = async () => {
     if (!sellerAddress || !address || !chainId) return false
@@ -517,6 +583,7 @@ function AgentChat({ onNavigate }: { onNavigate?: (page: string, query?: string)
       if (!paid) { addAgentMessage({ role:'agent', content:'Payment of 0.001 USDC required. Approve in your wallet.', action:'info' }); return }
     }
     addAgentMessage({ role:'user', content:text })
+    scrollToBottom()
 
     // Choose a contextual loading message
     const lower = text.toLowerCase()
@@ -632,9 +699,12 @@ function AgentChat({ onNavigate }: { onNavigate?: (page: string, query?: string)
   ]
 
   return (
-    <div style={{ display:'flex', flexDirection:'column', height:500 }}>
+    /* Full-height flex column — fills whatever AgentPage gives it */
+    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden', position: 'relative' }}>
+
+      {/* ── x402 notice (shrinks, never pushes layout) ── */}
       {sellerAddress && (
-        <div style={{ display:'flex', alignItems:'center', gap:8, padding:'8px 12px', marginBottom:10, background:SURFACE, borderRadius:10, border:`1px solid ${BORDER}` }}>
+        <div style={{ flexShrink: 0, display:'flex', alignItems:'center', gap:8, padding:'7px 14px', background:SURFACE, borderBottom:`1px solid ${BORDER}` }}>
           <Coins size={13} color={BLACK} />
           <span style={{ fontSize:11, color:TEXT2, fontFamily:F }}>
             <strong style={{ color:BLACK }}>x402</strong> · 0.001 USDC per message · paid onchain
@@ -642,7 +712,35 @@ function AgentChat({ onNavigate }: { onNavigate?: (page: string, query?: string)
           {x402Paying && <Loader2 size={11} color={BLACK} style={{ marginLeft:'auto', animation:'spin 1s linear infinite' }} />}
         </div>
       )}
-      <div style={{ flex:1, overflowY:'auto', display:'flex', flexDirection:'column', gap:12, marginBottom:10, paddingRight:2 }}>
+
+      {/* ── Scrollable message list (the ONLY scrollable area) ── */}
+      <div
+        ref={listRef}
+        onScroll={handleScroll}
+        style={{
+          flex: 1,
+          overflowY: 'auto',
+          overflowX: 'hidden',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 12,
+          padding: '12px 14px 4px',
+          scrollbarWidth: 'none',
+          WebkitOverflowScrolling: 'touch' as React.CSSProperties['WebkitOverflowScrolling'],
+          msOverflowStyle: 'none',
+        }}
+      >
+        {/* Quick-action chips — only shown when conversation is fresh */}
+        {agentMessages.length <= 2 && (
+          <div style={{ display:'flex', flexWrap:'wrap', gap:6, marginBottom:4 }}>
+            {QUICK.map(p => (
+              <button key={p} onClick={() => setInput(p)} style={{ fontSize:11, fontWeight:500, padding:'6px 10px', background:SURFACE, border:`1px solid ${BORDER}`, borderRadius:20, cursor:'pointer', color:TEXT2, fontFamily:F }}>
+                {p}
+              </button>
+            ))}
+          </div>
+        )}
+
         {agentMessages.map(msg => (
           <MsgBubble
             key={msg.id}
@@ -703,29 +801,74 @@ function AgentChat({ onNavigate }: { onNavigate?: (page: string, query?: string)
             </div>
           </div>
         )}
-        <div ref={endRef} />
+        {/* Scroll anchor */}
+        <div ref={endRef} style={{ height: 1 }} />
       </div>
-      {agentMessages.length <= 2 && (
-        <div style={{ display:'flex', flexWrap:'wrap', gap:6, marginBottom:10 }}>
-          {QUICK.map(p => (
-            <button key={p} onClick={() => setInput(p)} style={{ fontSize:11, fontWeight:500, padding:'6px 10px', background:SURFACE, border:`1px solid ${BORDER}`, borderRadius:20, cursor:'pointer', color:TEXT2, fontFamily:F }}>
-              {p}
-            </button>
-          ))}
-        </div>
+
+      {/* ── "New message" indicator — appears when user has scrolled up ── */}
+      {showNewMsg && (
+        <button
+          onClick={scrollToBottom}
+          style={{
+            position: 'absolute',
+            bottom: 72, /* sits above composer */
+            left: '50%',
+            transform: 'translateX(-50%)',
+            display: 'flex', alignItems: 'center', gap: 6,
+            padding: '7px 16px',
+            borderRadius: 20,
+            background: BLUE,
+            border: 'none',
+            color: '#fff',
+            fontSize: 12, fontWeight: 700,
+            cursor: 'pointer',
+            fontFamily: F,
+            boxShadow: '0 4px 16px rgba(0,102,255,0.4)',
+            zIndex: 10,
+            whiteSpace: 'nowrap',
+          }}
+        >
+          ↓ New message
+        </button>
       )}
-      <div style={{ display:'flex', gap:8 }}>
+
+      {/* ── Fixed composer ── */}
+      <div style={{
+        flexShrink: 0,
+        display: 'flex',
+        gap: 8,
+        padding: '10px 14px',
+        paddingBottom: 'max(10px, env(safe-area-inset-bottom))',
+        borderTop: `1px solid ${BORDER}`,
+        background: SURF,
+      }}>
         <input
-          value={input} onChange={e => setInput(e.target.value)}
+          value={input}
+          onChange={e => setInput(e.target.value)}
           onKeyDown={e => { if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();void send()} }}
-          placeholder="Ask me anything — I'll find the right service…"
-          style={{ flex:1, padding:'11px 14px', border:`1px solid ${BORDER}`, borderRadius:12, fontFamily:F, fontSize:14, outline:'none', background:WHITE, color:BLACK }}
+          placeholder="Ask NAN anything about your money…"
+          style={{
+            flex: 1,
+            padding: '11px 14px',
+            border: `1px solid ${BORDER}`,
+            borderRadius: 12,
+            fontFamily: F, fontSize: 14,
+            outline: 'none',
+            background: WHITE, color: BLACK,
+            minWidth: 0,
+          }}
         />
-        <button onClick={() => void send()} disabled={!input.trim()||typing||x402Paying}
-          style={{ width:44, height:44, borderRadius:12, background:BLUE, border:'none', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', flexShrink:0, opacity:(!input.trim()||typing||x402Paying)?0.4:1 }}>
+        <button
+          onClick={() => void send()}
+          disabled={!input.trim() || typing || x402Paying}
+          style={{ width:44, height:44, borderRadius:12, background:BLUE, border:'none', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', flexShrink:0, opacity:(!input.trim()||typing||x402Paying)?0.4:1 }}
+        >
           {x402Paying ? <Loader2 size={16} color={WHITE} style={{animation:'spin 1s linear infinite'}} /> : <Send size={16} color='#fff' />}
         </button>
-        <button onClick={clearAgentMessages} style={{ width:44, height:44, borderRadius:12, background:SURFACE, border:`1px solid ${BORDER}`, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', flexShrink:0 }}>
+        <button
+          onClick={clearAgentMessages}
+          style={{ width:44, height:44, borderRadius:12, background:SURFACE, border:`1px solid ${BORDER}`, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', flexShrink:0 }}
+        >
           <X size={16} color={TEXT2} />
         </button>
       </div>
