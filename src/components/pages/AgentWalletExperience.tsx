@@ -42,27 +42,26 @@ const RED   = '#FF3B3B'
 
 const CIRCLE_APP_ID = import.meta.env.VITE_CIRCLE_APP_ID as string | undefined
 
-// SDK lives at module scope — one instance for the lifetime of the page load.
-// This means component re-mounts (navigating away and back) never create a
-// fresh SDK that would lose the OTP session from the previous verifyOtp() call.
+// Agent Wallet SDK — a SEPARATE module-level singleton from the main-app
+// CircleEmailLogin SDK. The two must never share an instance: each W3SSdk
+// constructor registers one onLoginComplete callback, and if they shared an
+// instance the last-registered callback would fire for both OTP flows,
+// causing the agent-wallet OTP to trigger the main-app login redirect.
 //
-// The callback ref pattern: the SDK constructor takes the callback once, but
-// React re-mounts can change which closure is current. We store the latest
-// callback in _loginCb and the SDK always delegates to it, so every re-mount
-// gets the fresh closure without recreating the SDK.
-let _sdk: W3SSdk | null = null
-let _loginCb: ((err: unknown, result: unknown) => void) | null = null
+// Naming convention: _agentSdk / _agentLoginCb to make the isolation obvious.
+let _agentSdk: W3SSdk | null = null
+let _agentLoginCb: ((err: unknown, result: unknown) => void) | null = null
 
 function getOrCreateSdk(onLoginComplete: (err: unknown, result: unknown) => void): W3SSdk {
   // Always update the live callback so re-mounts get the fresh closure
-  _loginCb = onLoginComplete
-  if (!_sdk) {
-    _sdk = new W3SSdk(
+  _agentLoginCb = onLoginComplete
+  if (!_agentSdk) {
+    _agentSdk = new W3SSdk(
       { appSettings: { appId: CIRCLE_APP_ID ?? 'pending-configuration' } },
-      (err, result) => { _loginCb?.(err, result) },
+      (err, result) => { _agentLoginCb?.(err, result) },
     )
   }
-  return _sdk
+  return _agentSdk
 }
 
 type Screen =
@@ -1295,9 +1294,9 @@ export function AgentWalletExperience() {
 
       // New user — open Circle PIN setup popup (same as main app initializeUser)
       setStatusMsg('Complete wallet setup in the popup…')
-      if (!_sdk) throw new Error('SDK not initialised')
-      _sdk.setAuthentication({ userToken: loginRes.userToken, encryptionKey: loginRes.encryptionKey })
-      _sdk.execute(data.challengeId, async (execErr) => {
+      if (!_agentSdk) throw new Error('SDK not initialised')
+      _agentSdk.setAuthentication({ userToken: loginRes.userToken, encryptionKey: loginRes.encryptionKey })
+      _agentSdk.execute(data.challengeId, async (execErr) => {
         if (execErr) {
           const msg = execErr instanceof Error ? execErr.message : String(execErr)
           if (msg.toLowerCase().includes('already') || msg.toLowerCase().includes('155106')) {
@@ -1317,7 +1316,7 @@ export function AgentWalletExperience() {
   }, [finishProvision])
 
   // ── init SDK once per page load ───────────────────────────────────────────
-  // getOrCreateSdk returns the module-level _sdk, creating it only on the
+  // getOrCreateSdk returns the module-level _agentSdk, creating it only on the
   // very first call. Re-mounts reuse the same instance so the OTP session
   // (set by verifyOtp()) is never lost.
   useEffect(() => {
@@ -1369,8 +1368,8 @@ export function AgentWalletExperience() {
   // ── Step 1: send OTP (same as CircleEmailLogin.sendOtp) ───────────────────
   const handleSendOtp = useCallback(async (email: string) => {
     emailRef.current = email
-    if (!_sdk) throw new Error('SDK not ready — please refresh.')
-    const deviceId = await _sdk.getDeviceId()
+    if (!_agentSdk) throw new Error('SDK not ready — please refresh.')
+    const deviceId = await _agentSdk.getDeviceId()
     const res  = await fetch('/api/wallet', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1378,7 +1377,7 @@ export function AgentWalletExperience() {
     })
     const data = await res.json() as OtpTokens & { error?: string }
     if (data.error) throw new Error(data.error)
-    _sdk.updateConfigs({
+    _agentSdk.updateConfigs({
       appSettings: { appId: CIRCLE_APP_ID ?? 'pending-configuration' },
       loginConfigs: {
         deviceToken:         data.deviceToken,
@@ -1393,7 +1392,7 @@ export function AgentWalletExperience() {
   const handleVerify = useCallback(() => {
     setScreen('verifying')
     setStatusMsg('Waiting for verification…')
-    _sdk?.verifyOtp()
+    _agentSdk?.verifyOtp()
   }, [])
 
   // ── render ────────────────────────────────────────────────────────────────
