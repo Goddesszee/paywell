@@ -53,6 +53,8 @@ export function CircleEmailLogin({ onBack, onSuccess }: Props) {
   const encKeyRef       = useRef<string | undefined>()
   const onSuccessRef    = useRef(onSuccess)
   const setAuthRef      = useRef(setAuth)
+  const loginCbRef      = useRef<((err: unknown, result: unknown) => void) | null>(null)
+  const cfgRef          = useRef<Parameters<W3SSdk['updateConfigs']>[0] | undefined>()
   const watchRef        = useRef<ReturnType<typeof setInterval> | null>(null)
 
   // Keep refs in sync with latest props/store without changing SDK deps
@@ -200,6 +202,11 @@ export function CircleEmailLogin({ onBack, onSuccess }: Props) {
       void handleInitializeUser(res)
     }
 
+    loginCbRef.current = onLoginComplete as (err: unknown, result: unknown) => void
+    // W3SSdk is a SINGLETON: if another component (e.g. AgentWalletExperience, created
+    // at module load) built it first, this constructor returns THAT instance and drops
+    // onLoginComplete — so the callback is re-registered via updateConfigs() before
+    // sendOtp / verifyOtp below.
     const sdk = new W3SSdk({ appSettings: { appId } }, onLoginComplete)
     sdkRef.current = sdk
 
@@ -237,14 +244,15 @@ export function CircleEmailLogin({ onBack, onSuccess }: Props) {
 
       otpTokensRef.current = data
 
-      sdk.updateConfigs({
+      cfgRef.current = {
         appSettings: { appId: CIRCLE_APP_ID ?? 'pending-configuration' },
         loginConfigs: {
           deviceToken:         data.deviceToken,
           deviceEncryptionKey: data.deviceEncryptionKey,
           otpToken:            data.otpToken,
         },
-      })
+      }
+      sdk.updateConfigs(cfgRef.current, loginCbRef.current as never)
       setStep('otp_sent')
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to send code — please check your email address.')
@@ -271,7 +279,7 @@ export function CircleEmailLogin({ onBack, onSuccess }: Props) {
 
   const verifyOtp = () => {
     if (!otpTokensRef.current) { setError('Please request a code first.'); return }
-    const sdk = sdkRef.current as (W3SSdk & { onComplete?: (e: unknown, r: unknown) => void }) | null
+    const sdk = sdkRef.current
     if (!sdk) { setError('SDK not ready — please refresh the page.'); return }
 
     setError('')
@@ -282,7 +290,7 @@ export function CircleEmailLogin({ onBack, onSuccess }: Props) {
     // The Circle SDK reports verifyOtp() network errors / popup errors to its
     // *challenge* callback (onComplete), NOT onLoginComplete — so without this
     // they are swallowed and the UI spins forever.
-    sdk.onComplete = (err: unknown) => {
+    ;(sdk as unknown as { onComplete?: (e: unknown, r: unknown) => void }).onComplete = (err: unknown) => {
       if (!err || loginResultRef.current) return
       stopWatch()
       const e = err as { code?: number; message?: string }
@@ -291,6 +299,8 @@ export function CircleEmailLogin({ onBack, onSuccess }: Props) {
       setStep('otp_sent')
     }
 
+    // re-claim the singleton SDK's login callback right before opening the popup
+    if (cfgRef.current && loginCbRef.current) sdk.updateConfigs(cfgRef.current, loginCbRef.current as never)
     startTrace()
     sdk.verifyOtp()
 

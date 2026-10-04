@@ -40,6 +40,7 @@ interface Props {
 export function CircleGoogleLogin({ onBack, onSuccess }: Props) {
   const { setAuth, profile } = useAppStore()
   const sdkRef     = useRef<W3SSdk | null>(null)
+  const googleCbRef = useRef<never>()
   const loginRes   = useRef<LoginResult | null>(null)
 
   // Persist device tokens across the OAuth redirect using sessionStorage
@@ -136,6 +137,8 @@ export function CircleGoogleLogin({ onBack, onSuccess }: Props) {
       onLoginComplete
     )
     sdkRef.current = sdk
+    // W3SSdk is a singleton — keep our callback so it can be re-registered via updateConfigs
+    googleCbRef.current = onLoginComplete as never
 
     // ensure deviceId is obtained so the SDK can process the OAuth return
     sdk.getDeviceId()
@@ -174,7 +177,7 @@ export function CircleGoogleLogin({ onBack, onSuccess }: Props) {
             selectAccountPrompt: true,
           },
         },
-      })
+      }, googleCbRef.current)
 
       setStep('waiting')
       void sdkRef.current?.performLogin(SocialLoginProvider.GOOGLE)

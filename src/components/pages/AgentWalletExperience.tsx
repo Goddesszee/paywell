@@ -47,6 +47,12 @@ const CIRCLE_APP_ID = import.meta.env.VITE_CIRCLE_APP_ID as string | undefined
 // The callback indirection (_agentLoginCb ref) lets React re-mounts swap in a
 // fresh closure without recreating the SDK instance or losing the OTP session.
 let _agentLoginCb: ((err: unknown, result: unknown) => void) | null = null
+// NOTE: W3SSdk is a process-wide SINGLETON — `new W3SSdk(cfg, cb)` returns the
+// first instance ever created and silently drops cb/cfg on later calls. Every
+// flow therefore has to (re)register its own callback via updateConfigs(cfg, cb)
+// right before verifyOtp(), otherwise another component's callback receives the result.
+const _agentDispatch = (err: unknown, result: unknown) => { _agentLoginCb?.(err, result) }
+let _agentCfg: Parameters<InstanceType<typeof W3SSdk>['updateConfigs']>[0] | undefined
 const _agentSdk = new W3SSdk(
   { appSettings: { appId: CIRCLE_APP_ID ?? 'pending-configuration' } },
   (err, result) => { _agentLoginCb?.(err, result) },
@@ -1397,14 +1403,15 @@ export function AgentWalletExperience() {
     })
     const data = await res.json() as OtpTokens & { error?: string }
     if (data.error) throw new Error(data.error)
-    _agentSdk.updateConfigs({
+    _agentCfg = {
       appSettings: { appId: CIRCLE_APP_ID ?? 'pending-configuration' },
       loginConfigs: {
         deviceToken:         data.deviceToken,
         deviceEncryptionKey: data.deviceEncryptionKey,
         otpToken:            data.otpToken,
       },
-    })
+    }
+    _agentSdk.updateConfigs(_agentCfg, _agentDispatch)
     setScreen('otp_sent')
   }, [])
 
@@ -1412,6 +1419,8 @@ export function AgentWalletExperience() {
   const handleVerify = useCallback(() => {
     setScreen('verifying')
     setStatusMsg('Waiting for verification…')
+    // re-claim the singleton's callback (CircleEmailLogin may have taken it)
+    if (_agentCfg) _agentSdk.updateConfigs(_agentCfg, _agentDispatch)
     _agentSdk?.verifyOtp()
   }, [])
 
