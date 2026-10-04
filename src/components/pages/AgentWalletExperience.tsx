@@ -1000,7 +1000,7 @@ function DashboardScreen({ C }: { C: ReturnType<typeof useNanTheme> }) {
     <div style={{ fontFamily: F, display: 'flex', flexDirection: 'column', gap: 6 }}>
 
       {/* ── Tab bar: Overview / Services ───────────────────────────────────── */}
-      <div style={{ display: 'flex', background: C.surf, borderRadius: 12, padding: 3, marginBottom: 8, gap: 2 }}>
+      <div style={{ display: 'flex', background: C.surf, borderRadius: 12, padding: 3, marginBottom: 8, gap: 2, overflowX: 'auto', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none' }}>
         {DASH_TABS.map(t => {
           const active = dashTab === t.id
           return (
@@ -1008,12 +1008,12 @@ function DashboardScreen({ C }: { C: ReturnType<typeof useNanTheme> }) {
               key={t.id}
               onClick={() => setDashTab(t.id)}
               style={{
-                flex: 1, padding: '8px 6px', border: 'none', borderRadius: 9,
+                flexShrink: 0, padding: '8px 12px', border: 'none', borderRadius: 9,
                 cursor: 'pointer', fontFamily: F, fontSize: 13, fontWeight: active ? 700 : 500,
                 background: active ? BLUE : 'transparent',
                 color: active ? '#fff' : C.t2,
                 transition: 'all 0.15s', display: 'flex', alignItems: 'center',
-                justifyContent: 'center', gap: 5,
+                justifyContent: 'center', gap: 5, whiteSpace: 'nowrap',
                 WebkitTapHighlightColor: 'transparent',
               }}
             >
@@ -1061,7 +1061,7 @@ function DashboardScreen({ C }: { C: ReturnType<typeof useNanTheme> }) {
             <div style={{ fontSize: 34, fontWeight: 800, color: '#fff', fontFamily: MONO, letterSpacing: '-0.02em', lineHeight: 1 }}>{balance.toFixed(2)}</div>
             <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)', marginTop: 4 }}>USDC · {chainLabel}</div>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8, flexShrink: 0, marginLeft: 8 }}>
             <div style={{ background: 'rgba(0,200,83,0.15)', border: '1px solid rgba(0,200,83,0.3)', borderRadius: 8, padding: '4px 10px', display: 'flex', alignItems: 'center', gap: 5 }}>
               <div style={{ width: 6, height: 6, borderRadius: '50%', background: GREEN }} />
               <span style={{ fontSize: 11, fontWeight: 700, color: GREEN }}>Active</span>
