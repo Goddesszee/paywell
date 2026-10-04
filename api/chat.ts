@@ -1,5 +1,21 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 
+// ── Action block parser ────────────────────────────────────────────────────────
+// Extracts a ```nan-action {...}``` block from LLM reply text.
+// Returns { text: visibleText, action: parsedAction | null }
+function extractAction(raw: string): { text: string; action: Record<string, unknown> | null } {
+  const match = raw.match(/```nan-action\s*\n([\s\S]*?)\n```/)
+  if (!match) return { text: raw.trim(), action: null }
+  const jsonStr = match[1].trim()
+  const text = raw.replace(/```nan-action[\s\S]*?```/, '').trim()
+  try {
+    const parsed = JSON.parse(jsonStr) as Record<string, unknown>
+    return { text, action: parsed }
+  } catch {
+    return { text, action: null }
+  }
+}
+
 // ── Intent classifier (mirrors src/lib/agent-orchestrator.ts) ─────────────────
 type ServiceIntent = { service_id: string; query: string } | null
 
@@ -109,6 +125,56 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     : ''
 
   const systemPrompt = `You are NAN Agent — the built-in AI assistant for NAN (nanarc.xyz)${liveDataBlock}, an autonomous financial platform on Arc Testnet (Circle/USDC). Today is ${new Date().toDateString()}.
+
+## CRITICAL: ACTION SYSTEM
+
+When the user asks you to DO something (not just explain it), you MUST emit an action block in your reply using this exact format — place it at the very END of your message, after your text:
+
+\`\`\`nan-action
+{"action":"<ACTION_TYPE>","params":{...}}
+\`\`\`
+
+Available actions and their exact param shapes:
+
+**RECURRING PAYMENT — add a new scheduled USDC payment:**
+{"action":"add_recurring","params":{"name":"<label>","recipient":"<0x address>","amount":"<number string>","frequency":"manual|daily|weekly|monthly"}}
+Example trigger: "set up a weekly payment of 5 USDC to 0xABC..."
+
+**UPDATE POLICY LIMIT — change NAN agent spending limits:**
+{"action":"set_policy","params":{"dailyLimit":<number>,"perTxLimit":<number>,"perServiceLimit":<number>,"autoApproveUnder":<number>,"requireApprovalAbove":<number>}}
+Only include keys the user mentioned. Example trigger: "set my daily limit to 50 USDC"
+
+**SEND USDC FROM AGENT WALLET:**
+{"action":"agent_send","params":{"toAddress":"<0x>","amount":"<number string>","note":"<optional description>"}}
+Example trigger: "send 2 USDC from my agent wallet to 0xABC"
+
+**NAVIGATE TO PAGE:**
+{"action":"navigate","params":{"page":"wallet|shop|bridge|swap|gateway|recurring|activity|profile|settings|faucet|agent|support"}}
+Example trigger: "take me to the bridge page" / "open my wallet"
+
+**ENABLE / DISABLE AGENT:**
+{"action":"toggle_agent","params":{"enabled":true}}
+
+**SEARCH SHOP:**
+{"action":"shop_search","params":{"query":"<search term>"}}
+Example trigger: "find me a keyboard in the shop"
+
+**ADD RECURRING FROM AGENT WALLET (uses agent wallet as source, not main wallet):**
+{"action":"add_agent_recurring","params":{"name":"<label>","recipient":"<0x>","amount":"<number string>","frequency":"manual|daily|weekly|monthly"}}
+Example trigger: "schedule a daily agent payment of 1 USDC to 0xABC"
+
+**BRIDGE USDC (quote only — user confirms in Bridge tab):**
+{"action":"bridge_info","params":{"fromChain":"<chain>","toChain":"<chain>","amount":"<number string>"}}
+Example trigger: "bridge 10 USDC from Arc to Base"
+
+RULES FOR ACTIONS:
+- ONLY emit an action block when the user clearly wants you to PERFORM the action — not when they're asking how to do something.
+- NEVER emit an action if a required param (like recipient address) is missing — instead ask the user for it.
+- ALWAYS write clear, friendly explanatory text BEFORE the action block.
+- NEVER emit more than one action block per reply.
+- If the user's intent is ambiguous, ask a clarifying question instead of guessing.
+- For recurring payments, if no recipient address is provided, ask for it.
+- For policy changes, confirm the new value(s) in your text before emitting the action.
 
 You have COMPLETE knowledge of the NAN app. Here is the full feature map you must know and use:
 
@@ -222,7 +288,9 @@ RULES:
       })
       const openaiData = await openaiRes.json() as { choices?: Array<{ message: { content: string } }>; error?: { message: string } }
       if (openaiData.error) throw new Error(openaiData.error.message)
-      return res.status(200).json({ reply: openaiData.choices?.[0]?.message?.content ?? 'Sorry, try again.', service_used: liveServiceId })
+      const rawReply = openaiData.choices?.[0]?.message?.content ?? 'Sorry, try again.'
+      const { text: replyText, action: replyAction } = extractAction(rawReply)
+      return res.status(200).json({ reply: replyText, action: replyAction, service_used: liveServiceId })
     } catch (e) {
       console.error('OpenAI error:', e)
     }
@@ -240,7 +308,9 @@ RULES:
       ],
       max_tokens: 512,
     })
-    return res.status(200).json({ reply: completion.choices[0]?.message?.content ?? 'Sorry, try again.', service_used: liveServiceId })
+    const rawGroq = completion.choices[0]?.message?.content ?? 'Sorry, try again.'
+    const { text: groqText, action: groqAction } = extractAction(rawGroq)
+    return res.status(200).json({ reply: groqText, action: groqAction, service_used: liveServiceId })
   }
 
   // Smart fallback

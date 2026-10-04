@@ -179,6 +179,7 @@ export interface AgentMessage {
   purchaseAmount?: number
   approved?: boolean
   serviceSource?: string   // e.g. "CoinGecko live prices" — shown as a badge on the message
+  nanAction?: Record<string, unknown>  // parsed nan-action block from LLM reply
 }
 
 export interface CartItem {
@@ -213,7 +214,7 @@ export interface OnboardingState {
   agentConfigured: boolean
 }
 
-interface AppState {
+export interface AppState {
   auth: PaywellAuth | null
   setAuth: (auth: PaywellAuth | null) => void
   setWallet: (walletAddress: string, walletId: string) => void

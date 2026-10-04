@@ -33,6 +33,10 @@ import {
   checkMultiAgentPolicy, runA2ATask,
   type Subtask, type CostEstimate, type A2AProgress,
 } from '../../lib/agent-network'
+import {
+  parseAction, describeAction, requiresConfirmation, executeAction,
+  type NanAction,
+} from '../../lib/agent-actions'
 
 const F       = "'Inter', -apple-system, sans-serif"
 const TEXT    = 'var(--nan-text)'
@@ -70,6 +74,7 @@ interface PaymentConfirmProps {
   onCancel: () => void
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function PaymentConfirmCard({ serviceName, provider, costUsdc, agentBalance, policyLabel, onConfirm, onCancel }: PaymentConfirmProps) {
   const bal = parseFloat(agentBalance || '0')
   const insufficient = bal < costUsdc
@@ -117,6 +122,7 @@ function PaymentConfirmCard({ serviceName, provider, costUsdc, agentBalance, pol
 
 // ── Payment success card ──────────────────────────────────────────────────────
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function PaymentSuccessCard({ serviceName, costUsdc, txId, C: _C }: { serviceName: string; costUsdc: number; txId?: string; C?: unknown }) {
   return (
     <div style={{ background: 'rgba(0,200,83,0.06)', border: '1px solid rgba(0,200,83,0.22)', borderRadius: 14, padding: '12px 14px', marginBottom: 10 }}>
@@ -135,6 +141,58 @@ function PaymentSuccessCard({ serviceName, costUsdc, txId, C: _C }: { serviceNam
           <span style={{ fontWeight: 600, color: TEXT, fontFamily: label === 'Reference' ? 'monospace' : F }}>{value}</span>
         </div>
       ))}
+    </div>
+  )
+}
+
+// ── NAN Action confirmation card ──────────────────────────────────────────────
+
+interface ActionConfirmProps {
+  action: NanAction
+  onConfirm: () => void
+  onCancel: () => void
+  executing: boolean
+  result?: string
+  error?: string
+}
+
+function ActionConfirmCard({ action, onConfirm, onCancel, executing, result, error }: ActionConfirmProps) {
+  const desc = describeAction(action)
+  const needsConfirm = requiresConfirmation(action)
+  return (
+    <div style={{ background: SURF, border: `1px solid ${BDR}`, borderRadius: 16, padding: 16, marginBottom: 10 }}>
+      <div style={{ fontSize: 11, fontWeight: 700, color: TEXT3, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+        <Zap size={11} color={BLUE} /> {desc.title}
+      </div>
+      {desc.lines.map(({ label, value }) => (
+        <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '6px 0', borderBottom: `1px solid ${BDR}`, gap: 8 }}>
+          <span style={{ fontSize: 12, color: TEXT2, flexShrink: 0 }}>{label}</span>
+          <span style={{ fontSize: 12, fontWeight: 600, color: TEXT, textAlign: 'right', wordBreak: 'break-all' }}>{value}</span>
+        </div>
+      ))}
+      {result && (
+        <div style={{ marginTop: 10, padding: '8px 12px', background: 'rgba(0,200,83,0.07)', border: '1px solid rgba(0,200,83,0.2)', borderRadius: 10, fontSize: 12, color: '#00C853', display: 'flex', alignItems: 'center', gap: 6 }}>
+          <CheckCircle2 size={12} color="#00C853" /> {result}
+        </div>
+      )}
+      {error && (
+        <div style={{ marginTop: 10, padding: '8px 12px', background: 'rgba(255,59,59,0.07)', border: '1px solid rgba(255,59,59,0.2)', borderRadius: 10, fontSize: 12, color: DANGER }}>
+          {error}
+        </div>
+      )}
+      {!result && needsConfirm && (
+        <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+          <button onClick={onConfirm} disabled={executing}
+            style={{ flex: 1, height: 40, background: executing ? 'rgba(0,102,255,0.35)' : BLUE, color: '#fff', border: 'none', borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: executing ? 'not-allowed' : 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+            {executing ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <Check size={13} />}
+            {executing ? 'Working…' : 'Confirm'}
+          </button>
+          <button onClick={onCancel} disabled={executing}
+            style={{ flex: 1, height: 40, background: SURF, color: TEXT, border: `1px solid ${BDR}`, borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: F }}>
+            Cancel
+          </button>
+        </div>
+      )}
     </div>
   )
 }
@@ -191,6 +249,7 @@ function simulateAgentResponse(
 
 export function AgentPage() {
   const [tab, setTab] = useState<AgentTab>('chat')
+  const { setActiveView } = useAppStore()
   const TABS: { id: AgentTab; label: string }[] = [
     { id: 'chat',     label: 'Chat' },
     { id: 'wallet',   label: 'Wallet' },
@@ -224,7 +283,7 @@ export function AgentPage() {
           )
         })}
       </div>
-      {tab === 'chat'     && <AgentChat />}
+      {tab === 'chat'     && <AgentChat onNavigate={(page, _query) => { setActiveView(page); setTab('chat') }} />}
       {tab === 'wallet'   && <AgentWalletTab />}
       {tab === 'discover' && <DiscoverTab />}
       {tab === 'network'  && <NetworkTab />}
@@ -300,12 +359,13 @@ function OrchestratorStream({ steps, onConfirm, onCancel, awaitingConfirmation }
 
 // ── Main chat tab ─────────────────────────────────────────────────────────────
 
-function AgentChat() {
+function AgentChat({ onNavigate }: { onNavigate?: (page: string, query?: string) => void }) {
   const {
     agentMessages, addAgentMessage, agentPermissions, agentDailyUsed,
     approveAgentPurchase, rejectAgentPurchase, clearAgentMessages,
     auth, pendingListings, fetchPendingListings,
     addExecutionLog, addAgentSpend,
+    agentWallet,
   } = useAppStore()
   const verifiedCatalog = React.useMemo(() => getVerifiedProducts(pendingListings), [pendingListings])
   useEffect(() => { void fetchPendingListings() }, [fetchPendingListings])
@@ -317,6 +377,11 @@ function AgentChat() {
   const [orchSteps, setOrchSteps] = useState<OrchestratorStep[]>([])
   const [awaitingConfirmation, setAwaitingConfirmation] = useState(false)
   const [pendingConfirmCb, setPendingConfirmCb] = useState<(() => void) | null>(null)
+  // NAN action state
+  const [pendingAction, setPendingAction] = useState<NanAction | null>(null)
+  const [actionExecuting, setActionExecuting] = useState(false)
+  const [actionResult, setActionResult]   = useState<string | undefined>()
+  const [actionError,  setActionError]    = useState<string | undefined>()
   const endRef = useRef<HTMLDivElement>(null)
   const sellerAddress = import.meta.env.VITE_X402_SELLER_ADDRESS as string | undefined
 
@@ -445,10 +510,34 @@ function AgentChat() {
     return true
   }
 
+  // ── Action confirm / execute ────────────────────────────────────────────────
+  const handleActionConfirm = async () => {
+    if (!pendingAction) return
+    setActionExecuting(true); setActionError(undefined); setActionResult(undefined)
+    try {
+      const store = useAppStore.getState()
+      const result = await executeAction(pendingAction, {
+        store,
+        navigate: (page: string, query?: string) => {
+          if (onNavigate) onNavigate(page, query)
+        },
+        agentWalletUserToken: agentWallet.userToken,
+      })
+      setActionResult(result)
+      addAgentMessage({ role: 'agent', content: `Done: ${result}`, action: 'info' })
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : 'Action failed')
+    } finally {
+      setActionExecuting(false)
+    }
+  }
+
   const send = async () => {
     const text = input.trim()
     if (!text) return
     setInput('')
+    // Reset any pending action from last turn
+    setPendingAction(null); setActionResult(undefined); setActionError(undefined)
     if (sellerAddress && address) {
       const paid = await payX402()
       if (!paid) { addAgentMessage({ role:'agent', content:'Payment of 0.001 USDC required. Approve in your wallet.', action:'info' }); return }
@@ -482,6 +571,29 @@ function AgentChat() {
         }
         const serviceLabel = res.service_used ? (SERVICE_LABELS[res.service_used] ?? res.service_used) : undefined
         addAgentMessage({ role:'agent', content:clean || res.reply, action:'info', serviceSource: serviceLabel })
+        // Parse and handle action block
+        if (res.action) {
+          const parsed = parseAction(res.action)
+          if (parsed) {
+            if (!requiresConfirmation(parsed)) {
+              // Execute immediately (navigate, toggle, search)
+              try {
+                const store = useAppStore.getState()
+                const result = await executeAction(parsed, {
+                  store,
+                  navigate: (page: string, query?: string) => { if (onNavigate) onNavigate(page, query) },
+                  agentWalletUserToken: agentWallet.userToken,
+                })
+                addAgentMessage({ role:'agent', content: result, action:'info' })
+              } catch (e) {
+                addAgentMessage({ role:'agent', content: `Action failed: ${e instanceof Error ? e.message : 'Unknown error'}`, action:'info' })
+              }
+            } else {
+              // Show confirmation card
+              setPendingAction(parsed)
+            }
+          }
+        }
         return
       }
     } catch { /* fall through to orchestration */ }
@@ -499,10 +611,12 @@ function AgentChat() {
   }
 
   const QUICK = [
+    'Set my daily spending limit to 50 USDC',
+    'Schedule a weekly payment of 5 USDC to 0x742d35Cc6634C0532925a3b844Bc454e4438f44e',
     'Find the cheapest flight from Lagos to London next Friday',
-    'Research top USDC yield opportunities right now',
-    'Find three manufacturers for wireless earbuds and verify them',
-    'Find remote software engineering jobs in London',
+    'Take me to the bridge page',
+    'Enable the NAN Agent',
+    'What is the current Bitcoin price?',
   ]
 
   return (
@@ -530,6 +644,19 @@ function AgentChat() {
               setPendingConfirmCb(null)
               setOrchSteps([])
               addAgentMessage({ role:'agent', content:'Service call cancelled.', action:'info' })
+            }}
+          />
+        )}
+        {pendingAction && (
+          <ActionConfirmCard
+            action={pendingAction}
+            executing={actionExecuting}
+            result={actionResult}
+            error={actionError}
+            onConfirm={() => void handleActionConfirm()}
+            onCancel={() => {
+              setPendingAction(null); setActionResult(undefined); setActionError(undefined)
+              addAgentMessage({ role:'agent', content:'Action cancelled.', action:'info' })
             }}
           />
         )}

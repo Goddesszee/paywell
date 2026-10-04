@@ -163,9 +163,9 @@ export async function nanChat(opts: {
   usdcBal?: string
   userAddress?: string
   sessionToken?: string
-}): Promise<{ reply: string; service_used?: string | null }> {
+}): Promise<{ reply: string; service_used?: string | null; action?: Record<string, unknown> | null }> {
   const last = opts.messages[opts.messages.length - 1]?.content ?? ''
-  return apiPost<{ reply: string; service_used?: string | null }>('/api/chat', {
+  return apiPost<{ reply: string; service_used?: string | null; action?: Record<string, unknown> | null }>('/api/chat', {
     message: last,
     messages: opts.messages,
     usdcBal: opts.usdcBal,
