@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { useAccount, useChainId, useSwitchChain } from 'wagmi'
 import { AppKit } from '@circle-fin/app-kit'
 import { createViemAdapterFromProvider } from '@circle-fin/adapter-viem-v2'
@@ -281,10 +281,7 @@ export function BridgePage() {
         {/* From */}
         <div style={{ marginBottom:8 }}>
           <div style={{ fontSize:11, fontWeight:600, color:T2, marginBottom:6, textTransform:'uppercase', letterSpacing:'0.05em' }}>From</div>
-          <select value={fromIdx} onChange={e => { const v=Number(e.target.value); setFromIdx(v); if(v===toIdx) setToIdx(v===0?1:0) }}
-            style={{ width:'100%', padding:'13px 14px', border:`1px solid ${B}`, borderRadius:12, background:S, color:T, fontSize:14, fontWeight:600, fontFamily:SANS, cursor:'pointer', outline:'none', display:'block' }}>
-            {CHAINS.map((c,i) => <option key={c.kitName} value={i} disabled={c.cctpDomain<0}>{c.label}{c.cctpDomain<0?' (no CCTP)':''}</option>)}
-          </select>
+          <ChainSelect value={fromIdx} onChange={v => { setFromIdx(v); if (v === toIdx) setToIdx(v === 0 ? 1 : 0) }} exclude={-1} />
         </div>
 
         {/* Swap chains button */}
@@ -298,10 +295,7 @@ export function BridgePage() {
         {/* To */}
         <div>
           <div style={{ fontSize:11, fontWeight:600, color:T2, marginBottom:6, textTransform:'uppercase', letterSpacing:'0.05em' }}>To</div>
-          <select value={toIdx} onChange={e => { const v=Number(e.target.value); setToIdx(v); if(v===fromIdx) setFromIdx(v===0?1:0) }}
-            style={{ width:'100%', padding:'13px 14px', border:`1px solid ${B}`, borderRadius:12, background:S, color:T, fontSize:14, fontWeight:600, fontFamily:SANS, cursor:'pointer', outline:'none', display:'block' }}>
-            {CHAINS.map((c,i) => <option key={c.kitName} value={i} disabled={i===fromIdx||c.cctpDomain<0}>{c.label}{c.cctpDomain<0?' (no CCTP)':''}</option>)}
-          </select>
+          <ChainSelect value={toIdx} onChange={v => { setToIdx(v); if (v === fromIdx) setFromIdx(v === 0 ? 1 : 0) }} exclude={fromIdx} />
         </div>
       </div>
 
@@ -436,6 +430,52 @@ export function BridgePage() {
       <div style={{ marginTop:12, fontSize:11, color:T2, textAlign:'center' }}>
         Powered by Circle CCTP V2 · Transactions are irreversible
       </div>
+    </div>
+  )
+}
+
+function ChainSelect({ value, onChange, exclude }: { value: number; onChange: (i: number) => void; exclude?: number }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    const handler = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false) }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [open])
+
+  const selected = CHAINS[value]
+  return (
+    <div ref={ref} style={{ position:'relative', zIndex: open ? 100 : 1 }}>
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        style={{ width:'100%', padding:'13px 14px', border:`1px solid ${B}`, borderRadius:12, background:S, color:T,
+          fontSize:14, fontWeight:600, fontFamily:SANS, cursor:'pointer', outline:'none',
+          display:'flex', alignItems:'center', justifyContent:'space-between', textAlign:'left' }}>
+        <span>{selected.label}</span>
+        <span style={{ fontSize:12, color:T2, transform: open ? 'rotate(180deg)' : 'none', transition:'transform 0.15s' }}>▼</span>
+      </button>
+      {open && (
+        <div style={{ position:'absolute', top:'calc(100% + 4px)', left:0, right:0, background:S, border:`1px solid ${B}`,
+          borderRadius:12, overflow:'hidden', boxShadow:'0 8px 24px rgba(0,0,0,0.3)', maxHeight:260, overflowY:'auto' }}>
+          {CHAINS.map((c, i) => {
+            const disabled = c.cctpDomain < 0 || i === exclude
+            return (
+              <button key={c.kitName} type="button" disabled={disabled}
+                onClick={() => { if (!disabled) { onChange(i); setOpen(false) } }}
+                style={{ width:'100%', padding:'13px 16px', background: i === value ? BK : 'transparent',
+                  color: disabled ? T3 : i === value ? '#fff' : T,
+                  fontSize:14, fontWeight: i === value ? 700 : 500, fontFamily:SANS,
+                  border:'none', borderBottom:`1px solid ${B}`, cursor: disabled ? 'not-allowed' : 'pointer',
+                  textAlign:'left', opacity: disabled ? 0.4 : 1 }}>
+                {c.label}{c.cctpDomain < 0 ? ' (no CCTP)' : ''}
+              </button>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }
