@@ -1300,31 +1300,7 @@ export function AgentWalletExperience() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'provision', userToken: loginRes.userToken }),
       })
-      const data = await res.json() as {
-        ok?: boolean; challengeId?: string; alreadyInitialized?: boolean; error?: string
-        address?: string; walletId?: string; blockchain?: string; custodyType?: string
-      }
-
-      // ── Developer-controlled wallet path (no PIN challenge needed) ────────
-      // provision returns address + walletId directly when it creates a DCW wallet.
-      if (data.ok && data.address) {
-        setAgentWallet({
-          provisioned: true,
-          address: data.address,
-          walletId: data.walletId,
-          balance_usdc: '0',
-          lastRefreshed: new Date().toISOString(),
-          userToken: loginRes.userToken,
-          blockchain: data.blockchain,
-          custodyType: data.custodyType ?? 'DEVELOPER',
-          walletState: 'LIVE',
-        })
-        setNewAddress(data.address)
-        setNewWalletId(data.walletId ?? '')
-        try { sessionStorage.removeItem('aw_login_res') } catch { /* ignore */ }
-        setScreen('success')
-        return
-      }
+      const data = await res.json() as { ok?: boolean; challengeId?: string; alreadyInitialized?: boolean; error?: string }
 
       // Existing user — just load wallets
       if (data.alreadyInitialized) {
@@ -1340,7 +1316,7 @@ export function AgentWalletExperience() {
         throw new Error(data.error ?? 'Provisioning failed')
       }
 
-      // UCW path — open Circle PIN setup popup
+      // New user — open Circle PIN setup popup
       setStatusMsg('Complete wallet setup in the popup…')
       _agentSdk.setAuthentication({ userToken: loginRes.userToken, encryptionKey: loginRes.encryptionKey })
       _agentSdk.execute(data.challengeId, async (execErr) => {
