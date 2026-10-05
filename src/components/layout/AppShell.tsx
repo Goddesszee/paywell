@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react'
 import {
   Home, Activity, Menu, X, LayoutDashboard,
   ArrowLeftRight, ArrowUpDown, Settings, ChevronRight,
-  Droplet, Layers, Repeat, Bot,
+  Droplet, Layers, Repeat, Bot, Wallet,
   MessageSquare, HelpCircle, Info, User, Search, Bookmark,
   Star, Lightbulb, ArrowRight, Clock, ShoppingBag,
 } from 'lucide-react'
@@ -30,7 +30,8 @@ const ALL_RESULTS: SearchResult[] = [
   { id:'gateway',     title:'Gateway',              subtitle:'Unified cross-chain balance',        category:'Finance',     Icon:Layers,         iconColor:BLUE,      action:'gateway' },
   { id:'recurring',   title:'Recurring Payments',   subtitle:'Schedule automatic transfers',       category:'Finance',     Icon:Repeat,         iconColor:'#8B5CF6', action:'recurring' },
   { id:'faucet',      title:'Faucet',               subtitle:'Free testnet USDC',                  category:'Finance',     Icon:Droplet,        iconColor:'#00C853', action:'faucet' },
-  { id:'agent',       title:'AI Agents',            subtitle:'Autonomous service & payment agent', category:'Agents',      Icon:Bot,            iconColor:BLUE,      action:'agent' },
+  { id:'agent',        title:'AI Agents',            subtitle:'Autonomous service & payment agent', category:'Agents',      Icon:Bot,            iconColor:BLUE,      action:'agent' },
+  { id:'agent-wallet', title:'Agent Wallet',         subtitle:'Swap, bridge & recurring via agent', category:'Agents',      Icon:Wallet,         iconColor:BLUE,      action:'agent-wallet' },
   { id:'activity',    title:'Activity',             subtitle:'Transaction history',                category:'Account',     Icon:Clock,          iconColor:BLUE,      action:'activity' },
   { id:'dashboard',   title:'Dashboard',            subtitle:'Portfolio & performance',            category:'Account',     Icon:LayoutDashboard,iconColor:BLUE,      action:'dashboard' },
   { id:'profile',     title:'Profile',              subtitle:'Name, avatar & preferences',         category:'Account',     Icon:User,           iconColor:BLUE,      action:'profile' },
@@ -223,8 +224,9 @@ const SIDEBAR_SECTIONS = [
     { id: 'faucet',    label: 'Faucet',    Icon: Droplet,        desc: 'Free testnet USDC' },
   ]},
   { title: 'Automation', items: [
-    { id: 'agent',     label: 'AI Agents',  Icon: Bot,    desc: 'Create and manage agents' },
-    { id: 'recurring', label: 'Recurring',  Icon: Repeat, desc: 'Scheduled payments' },
+    { id: 'agent',        label: 'AI Agents',     Icon: Bot,    desc: 'Create and manage agents' },
+    { id: 'agent-wallet', label: 'Agent Wallet',  Icon: Wallet, desc: 'Swap, bridge & recurring via agent' },
+    { id: 'recurring',    label: 'Recurring',     Icon: Repeat, desc: 'Scheduled payments' },
   ]},
   { title: 'Account', items: [
     { id: 'settings',  label: 'Settings',  Icon: Settings, desc: 'Wallet & app settings' },
