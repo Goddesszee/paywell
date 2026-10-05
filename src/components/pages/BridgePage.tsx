@@ -214,28 +214,41 @@ export function BridgePage() {
         ...(maxFeeUsdc > 0 ? { maxFee: BigInt(Math.round(maxFeeUsdc * 1_000_000)) } : {}),
       })
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const resultAny = result as any
+      console.log('[bridge] result:', JSON.stringify(resultAny, null, 2))
+
       for (const step of result.steps ?? []) {
         const name = step.name as StepName
-        updateStep(name, { status: step.state === 'success' ? 'done' : 'error', txHash: step.txHash, explorerUrl: step.explorerUrl })
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const stepAny = step as any
+        const errDetail: string | undefined = stepAny.error ?? stepAny.message ?? stepAny.reason
+        updateStep(name, {
+          status: step.state === 'success' ? 'done' : step.state === 'error' ? 'error' : 'idle',
+          txHash: step.txHash,
+          explorerUrl: step.explorerUrl,
+        })
+        if (step.state === 'error' && errDetail) {
+          setErrMsg(errDetail.slice(0, 200))
+        }
       }
 
       // App Kit bridge result uses result.state === 'success' (per Circle docs)
-      // When useForwarder:true the mint step is handled async by Circle's relayer —
-      // the result may come back with state:'success' and only approve+burn steps,
-      // or with state:'pending' if the relayer is still processing.
-      const topState = (result as { state?: string }).state
-      const allStepsDone = (result.steps ?? []).every(s => s.state === 'success')
+      const topState = resultAny.state as string | undefined
+      const allStepsDone = (result.steps ?? []).filter(s => s.name !== 'mint').every(s => s.state === 'success')
       if (topState === 'success' || allStepsDone) {
         setStatus('done')
         const mintHash = result.steps?.find(s => s.name === 'mint')?.txHash
         addActivity({ type:'bridge', description:`Bridge to ${toChain.label}`, amount:gross, sign:'-', status:'confirmed', counterparty:toChain.label, txHash:mintHash })
       } else if (topState === 'pending') {
-        // Forwarder is handling the mint async — treat as success from the user's perspective
         setStatus('done')
         addActivity({ type:'bridge', description:`Bridge to ${toChain.label}`, amount:gross, sign:'-', status:'confirmed', counterparty:toChain.label })
       } else {
+        const failedStep = result.steps?.find(s => s.state === 'error')
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const stepErr = failedStep ? ((failedStep as any).error ?? (failedStep as any).message ?? failedStep.name + ' step failed') : 'Bridge returned non-success state.'
         setStatus('error')
-        setErrMsg('Bridge returned non-success state.')
+        setErrMsg(stepErr.slice(0, 200))
       }
     } catch (e: unknown) {
       setStatus('error')
