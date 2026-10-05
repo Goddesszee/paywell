@@ -211,12 +211,11 @@ export function BridgePage() {
           useForwarder: true,
         },
         amount,
-        ...(maxFeeUsdc > 0 ? { maxFee: BigInt(Math.round(maxFeeUsdc * 1_000_000)) } : {}),
       })
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const resultAny = result as any
-      console.log('[bridge] result:', JSON.stringify(resultAny, null, 2))
+      console.log('[bridge] result state:', resultAny.state, 'steps:', result.steps?.map(s => s.name + ':' + s.state).join(', '))
 
       for (const step of result.steps ?? []) {
         const name = step.name as StepName
