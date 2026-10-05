@@ -65,7 +65,7 @@ export function SearchPage() {
   }, {})
 
   return (
-    <div style={{ maxWidth: 480, margin: '0 auto', fontFamily: F, paddingBottom: 80 }}>
+    <div style={{ width: '100%', fontFamily: F, paddingBottom: 80 }}>
       {/* Search bar */}
       <div style={{ position: 'relative', marginBottom: 20 }}>
         <div style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>

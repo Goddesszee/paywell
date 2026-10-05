@@ -110,14 +110,14 @@ export function WalletPage({ initialSubView = 'main' }: { initialSubView?: Walle
     if (isLoggedInViaCircle) {
       // Circle user logged in but wallet not yet loaded — show loading
       return (
-        <div style={{ maxWidth: 400, margin: '0 auto', padding: '48px 24px', textAlign: 'center', fontFamily: SANS }}>
+        <div style={{ width: '100%', padding: '48px 24px', textAlign: 'center', fontFamily: SANS }}>
           <div style={{ width: 48, height: 48, border: '3px solid rgba(0,102,255,0.2)', borderTopColor: '#0066FF', borderRadius: '50%', animation: 'nan-spin 0.8s linear infinite', margin: '0 auto 20px' }} />
           <p style={{ fontSize: 14, color: 'var(--nan-text2)' }}>Loading your wallet…</p>
         </div>
       )
     }
     return (
-      <div style={{ maxWidth: 400, margin: '0 auto', padding: '48px 24px', textAlign: 'center', fontFamily: SANS }}>
+      <div style={{ width: '100%', padding: '48px 24px', textAlign: 'center', fontFamily: SANS }}>
         <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'var(--nan-surface)', border: '1px solid var(--nan-bdr)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
           <Wallet size={28} color="var(--nan-text3)" />
         </div>
@@ -750,7 +750,7 @@ function SendFlow({
 
   // ── MOBILE layout ─────────────────────────────────────────────────────────
   return (
-    <div style={{ maxWidth: 480, margin: '0 auto', padding: '16px 16px 100px', fontFamily: SANS }}>
+    <div style={{ width: '100%', padding: '16px 16px 100px', fontFamily: SANS }}>
 
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
@@ -985,7 +985,7 @@ function ReceiveView({ address, onBack }: { address: string; onBack: () => void 
     <div style={{
       minHeight: 'calc(100vh - 60px)',
       display: 'flex', flexDirection: 'column',
-      maxWidth: 480, margin: '0 auto',
+      width: '100%',
       padding: '20px 20px 32px',
       fontFamily: SANS,
     }}>

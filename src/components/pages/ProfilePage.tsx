@@ -80,7 +80,7 @@ export function ProfilePage() {
   ]
 
   return (
-    <div style={{ maxWidth: 480, margin: '0 auto', fontFamily: F, paddingBottom: 80 }}>
+    <div style={{ width: '100%', fontFamily: F, paddingBottom: 80 }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
         <button onClick={() => setActiveView('settings')} style={{ width: 32, height: 32, borderRadius: 8, background: C.surf, border: `1px solid ${C.bdr}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>

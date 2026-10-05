@@ -508,12 +508,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         overflowY: activeView === 'agent' ? 'hidden' : 'auto',
         overflowX: 'hidden',
         paddingTop: activeView === 'agent' ? 0 : 12,
-        paddingLeft: activeView === 'agent' ? 0 : 'max(14px,env(safe-area-inset-left))',
-        paddingRight: activeView === 'agent' ? 0 : 'max(14px,env(safe-area-inset-right))',
+        paddingLeft: activeView === 'agent' ? 0 : 'max(16px,env(safe-area-inset-left))',
+        paddingRight: activeView === 'agent' ? 0 : 'max(16px,env(safe-area-inset-right))',
         paddingBottom: activeView === 'agent' ? 0 : 'max(20px,env(safe-area-inset-bottom))',
         scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch',
         msOverflowStyle: 'none',
-        display: 'flex', flexDirection: 'column',
+        display: 'block',
+        width: '100%',
+        boxSizing: 'border-box',
       }}>
         {children}
       </main>

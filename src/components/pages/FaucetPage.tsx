@@ -85,7 +85,7 @@ export function FaucetPage() {
         <span style={{ fontWeight: 700, fontSize: 17, color: PW_TEXT }}>Testnet Faucet</span>
       </div>
 
-      <div style={{ maxWidth: 480, margin: '0 auto', padding: '24px 16px 40px' }}>
+      <div style={{ width: '100%', padding: '24px 16px 40px' }}>
         {/* Icon */}
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 24 }}>
           <div style={{

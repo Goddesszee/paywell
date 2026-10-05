@@ -54,7 +54,7 @@ export function OnrampPage() {
   }
 
   return (
-    <div style={{ fontFamily: F, maxWidth: 480, margin: '0 auto', paddingBottom: 88 }}>
+    <div style={{ fontFamily: F, width: '100%', paddingBottom: 88 }}>
       {/* Header */}
       <div style={{ display:'flex', alignItems:'center', gap:10, padding:'20px 0 20px' }}>
         <div style={{ width:36, height:36, borderRadius:10, background:BLUE, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>

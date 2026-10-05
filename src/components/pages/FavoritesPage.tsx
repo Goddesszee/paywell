@@ -9,7 +9,7 @@ export function FavoritesPage() {
   const { favorites, removeFavorite, setActiveView } = useAppStore()
 
   return (
-    <div style={{ maxWidth: 480, margin: '0 auto', fontFamily: F, paddingBottom: 80 }}>
+    <div style={{ width: '100%', fontFamily: F, paddingBottom: 80 }}>
       <div style={{ marginBottom: 24 }}>
         <div style={{ fontSize: 22, fontWeight: 700, color: C.text, letterSpacing: '-0.025em' }}>Saved Items</div>
         <div style={{ fontSize: 13, color: C.t3, marginTop: 2 }}>{favorites.length} item{favorites.length !== 1 ? 's' : ''} saved</div>
