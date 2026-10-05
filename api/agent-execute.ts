@@ -18,6 +18,7 @@
 
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { randomUUID } from 'crypto'
+import { initiateDeveloperControlledWalletsClient } from '@circle-fin/developer-controlled-wallets'
 
 // ── Circle Agent Stack: Gateway Nanopayment via BatchEvmScheme ─────────────────
 //
@@ -60,8 +61,8 @@ async function executeNanopayment(
   // ── Path A: Real Gateway x402 nanopayment (if service exposes x402 endpoint) ──
   if (service_url) {
     try {
-      const { initiateDeveloperControlledWalletsClient } = await import('@circle-fin/developer-controlled-wallets')
-      const { BatchEvmScheme, CHAIN_CONFIGS } = await import('@circle-fin/x402-batching/client')
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { BatchEvmScheme, CHAIN_CONFIGS } = require('@circle-fin/x402-batching/client') as { BatchEvmScheme: new (opts: unknown) => unknown; CHAIN_CONFIGS: Record<string, unknown> }
 
       const circleClient = initiateDeveloperControlledWalletsClient({ apiKey, entitySecret })
 
@@ -168,6 +169,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let result: string
     let raw: unknown = null
     let cost_usdc = 0
+    let is_estimate = false   // true when result is a knowledge fallback, not live API data
     let nanopayment: NanopaymentResult = { paid: false, skipped_reason: 'free service' }
 
     switch (service_id) {

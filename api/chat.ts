@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
+import Groq from 'groq-sdk'
 
 // ── Action block parser ────────────────────────────────────────────────────────
 // Extracts a ```nan-action {...}``` block from LLM reply text.
@@ -414,7 +415,6 @@ RULES:
   }
 
   if (process.env.GROQ_API_KEY) {
-    const Groq = (await import('groq-sdk')).default
     const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
     const completion = await groq.chat.completions.create({
       model: 'llama-3.3-70b-versatile',
