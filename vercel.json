@@ -11,6 +11,20 @@
     },
     "api/agent-execute.ts": {
       "includeFiles": "node_modules/@circle-fin/**"
+    },
+    "api/community.ts": {
+      "memory": 512,
+      "maxDuration": 15
+    },
+    "api/appkit-swap.ts": {
+      "includeFiles": "node_modules/@circle-fin/**",
+      "memory": 1024,
+      "maxDuration": 60
+    },
+    "api/appkit-bridge.ts": {
+      "includeFiles": "node_modules/@circle-fin/**",
+      "memory": 1024,
+      "maxDuration": 60
     }
   },
   "headers": [
