@@ -3,7 +3,7 @@ import { useAccount, useChainId, useSwitchChain } from 'wagmi'
 import { AppKit } from '@circle-fin/app-kit'
 import { createViemAdapterFromProvider } from '@circle-fin/adapter-viem-v2'
 import type { EIP1193Provider } from 'viem'
-import { ArrowLeftRight, ArrowDownUp, CheckCircle, ExternalLink, Loader, Info, ChevronDown } from 'lucide-react'
+import { ArrowLeftRight, ArrowDownUp, CheckCircle, ExternalLink, Loader, Info } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
 import { bridgeFee, BRIDGE_FEE_BPS, bpsToPercent, BRIDGE_FEE_MIN_USDC } from '../../lib/fees'
 
@@ -281,19 +281,15 @@ export function BridgePage() {
         {/* From */}
         <div style={{ marginBottom:8 }}>
           <div style={{ fontSize:11, fontWeight:600, color:T2, marginBottom:6, textTransform:'uppercase', letterSpacing:'0.05em' }}>From</div>
-          <div style={{ position:'relative' }}>
-            <select value={fromIdx} onChange={e => { const v=Number(e.target.value); setFromIdx(v); if(v===toIdx) setToIdx(v===0?1:0) }}
-              style={{ width:'100%', padding:'12px 40px 12px 14px', border:`1px solid ${B}`, borderRadius:12, background:S, color:T, fontSize:14, fontWeight:600, fontFamily:SANS, appearance:'none', WebkitAppearance:'none', cursor:'pointer', outline:'none' }}>
-              {CHAINS.map((c,i) => <option key={c.kitName} value={i} disabled={c.cctpDomain<0}>{c.label}{c.cctpDomain<0?' (no CCTP)':''}</option>)}
-            </select>
-            <ChevronDown size={16} color={T2} style={{ position:'absolute', right:14, top:'50%', transform:'translateY(-50%)', pointerEvents:'none' }} />
-          </div>
+          <select value={fromIdx} onChange={e => { const v=Number(e.target.value); setFromIdx(v); if(v===toIdx) setToIdx(v===0?1:0) }}
+            style={{ width:'100%', padding:'13px 14px', border:`1px solid ${B}`, borderRadius:12, background:S, color:T, fontSize:14, fontWeight:600, fontFamily:SANS, cursor:'pointer', outline:'none', display:'block' }}>
+            {CHAINS.map((c,i) => <option key={c.kitName} value={i} disabled={c.cctpDomain<0}>{c.label}{c.cctpDomain<0?' (no CCTP)':''}</option>)}
+          </select>
         </div>
 
         {/* Swap chains button */}
         <div style={{ display:'flex', justifyContent:'center', marginBottom:8 }}>
-          <button
-            onClick={() => { const f=fromIdx, t=toIdx; setFromIdx(t); setToIdx(f) }}
+          <button onClick={() => { const f=fromIdx, t=toIdx; setFromIdx(t); setToIdx(f) }}
             style={{ width:36, height:36, borderRadius:'50%', background:S, border:`1px solid ${B}`, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer' }}>
             <ArrowDownUp size={15} color={T2} />
           </button>
@@ -302,13 +298,10 @@ export function BridgePage() {
         {/* To */}
         <div>
           <div style={{ fontSize:11, fontWeight:600, color:T2, marginBottom:6, textTransform:'uppercase', letterSpacing:'0.05em' }}>To</div>
-          <div style={{ position:'relative' }}>
-            <select value={toIdx} onChange={e => { const v=Number(e.target.value); setToIdx(v); if(v===fromIdx) setFromIdx(v===0?1:0) }}
-              style={{ width:'100%', padding:'12px 40px 12px 14px', border:`1px solid ${B}`, borderRadius:12, background:S, color:T, fontSize:14, fontWeight:600, fontFamily:SANS, appearance:'none', WebkitAppearance:'none', cursor:'pointer', outline:'none' }}>
-              {CHAINS.map((c,i) => <option key={c.kitName} value={i} disabled={i===fromIdx||c.cctpDomain<0}>{c.label}{c.cctpDomain<0?' (no CCTP)':''}</option>)}
-            </select>
-            <ChevronDown size={16} color={T2} style={{ position:'absolute', right:14, top:'50%', transform:'translateY(-50%)', pointerEvents:'none' }} />
-          </div>
+          <select value={toIdx} onChange={e => { const v=Number(e.target.value); setToIdx(v); if(v===fromIdx) setFromIdx(v===0?1:0) }}
+            style={{ width:'100%', padding:'13px 14px', border:`1px solid ${B}`, borderRadius:12, background:S, color:T, fontSize:14, fontWeight:600, fontFamily:SANS, cursor:'pointer', outline:'none', display:'block' }}>
+            {CHAINS.map((c,i) => <option key={c.kitName} value={i} disabled={i===fromIdx||c.cctpDomain<0}>{c.label}{c.cctpDomain<0?' (no CCTP)':''}</option>)}
+          </select>
         </div>
       </div>
 
