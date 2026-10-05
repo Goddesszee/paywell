@@ -219,14 +219,17 @@ export function BridgePage() {
         updateStep(name, { status: step.state === 'success' ? 'done' : 'error', txHash: step.txHash, explorerUrl: step.explorerUrl })
       }
 
-      // App Kit returns progress.status ('DONE'/'PENDING') not a top-level state string
-      const progressStatus = (result as { progress?: { status?: string } }).progress?.status
-      const allStepsDone   = (result.steps ?? []).every(s => s.state === 'success')
-      if (progressStatus === 'DONE' || allStepsDone) {
+      // App Kit bridge result uses result.state === 'success' (per Circle docs)
+      // When useForwarder:true the mint step is handled async by Circle's relayer —
+      // the result may come back with state:'success' and only approve+burn steps,
+      // or with state:'pending' if the relayer is still processing.
+      const topState = (result as { state?: string }).state
+      const allStepsDone = (result.steps ?? []).every(s => s.state === 'success')
+      if (topState === 'success' || allStepsDone) {
         setStatus('done')
         const mintHash = result.steps?.find(s => s.name === 'mint')?.txHash
         addActivity({ type:'bridge', description:`Bridge to ${toChain.label}`, amount:gross, sign:'-', status:'confirmed', counterparty:toChain.label, txHash:mintHash })
-      } else if (progressStatus === 'PENDING') {
+      } else if (topState === 'pending') {
         // Forwarder is handling the mint async — treat as success from the user's perspective
         setStatus('done')
         addActivity({ type:'bridge', description:`Bridge to ${toChain.label}`, amount:gross, sign:'-', status:'confirmed', counterparty:toChain.label })

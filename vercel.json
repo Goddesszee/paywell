@@ -29,6 +29,8 @@
     }
   ],
   "rewrites": [
+    { "source": "/api/appkit/swap",                               "destination": "/api/appkit-swap" },
+    { "source": "/api/appkit/bridge",                             "destination": "/api/appkit-bridge" },
     { "source": "/api/otp",                                      "destination": "/api/otp" },
     { "source": "/api/chat",                                     "destination": "/api/chat" },
     { "source": "/api/misc",                                     "destination": "/api/misc" },
