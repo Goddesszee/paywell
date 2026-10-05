@@ -917,7 +917,7 @@ const DASH_TABS: { id: DashTab; label: string; Icon: React.ElementType }[] = [
   { id: 'services',  label: 'Services',  Icon: Sparkles },
 ]
 
-function DashboardScreen({ C }: { C: ReturnType<typeof useNanTheme> }) {
+function DashboardScreen({ C, onDisconnect }: { C: ReturnType<typeof useNanTheme>; onDisconnect: () => void }) {
   const { agentWallet, setAgentWallet, agentSpendLog, auth } = useAppStore()
   const [dashTab, setDashTab]         = useState<DashTab>('overview')
   const [refreshing, setRefreshing]   = useState(false)
@@ -1210,6 +1210,25 @@ function DashboardScreen({ C }: { C: ReturnType<typeof useNanTheme> }) {
         )}
       </div>
 
+      {/* ── Disconnect button ───────────────────────────────────────────── */}
+      <button
+        onClick={onDisconnect}
+        style={{
+          width: '100%', height: 44, background: 'none',
+          border: `1px solid ${C.bdr}`, borderRadius: 14,
+          fontSize: 13, fontWeight: 600, color: RED,
+          fontFamily: F, cursor: 'pointer',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+          marginBottom: 8, WebkitTapHighlightColor: 'transparent',
+        }}
+      >
+        <AlertTriangle size={14} color={RED} strokeWidth={2} />
+        Disconnect Agent Wallet
+      </button>
+      <div style={{ fontSize: 11, color: C.t3, textAlign: 'center', marginBottom: 8 }}>
+        Your wallet and funds remain safe. Reconnect any time by logging in again.
+      </div>
+
       </> /* end overview tab */}
 
     </div>
@@ -1476,7 +1495,12 @@ export function AgentWalletExperience() {
         {screen === 'setup'        && <SetupScreen       onCreate={() => { void handleProvision() }} C={C} />}
         {screen === 'creating'     && <CreatingScreen    C={C} statusMsg={statusMsg} />}
         {screen === 'success'      && <SuccessScreen     address={newAddress} walletId={newWalletId} onDashboard={() => setScreen('dashboard')} C={C} />}
-        {screen === 'dashboard'    && <DashboardScreen   C={C} />}
+        {screen === 'dashboard'    && <DashboardScreen   C={C} onDisconnect={() => {
+          if (!window.confirm('Disconnect your Agent Wallet from this device? Your wallet and funds are safe — you can reconnect by logging in again.')) return
+          setAgentWallet({ provisioned: false, address: undefined, walletId: undefined, balance_usdc: '0', userToken: undefined, lastRefreshed: undefined })
+          try { sessionStorage.removeItem('aw_login_res') } catch { /* ignore */ }
+          setScreen('email')
+        }} />}
         {screen === 'error'        && <ErrorScreen       message={errorMsg} onRetry={() => { setErrorMsg(''); loginResRef.current = null; try { sessionStorage.removeItem('aw_login_res') } catch { /* ignore */ } setScreen('email') }} C={C} />}
       </div>
     </>
