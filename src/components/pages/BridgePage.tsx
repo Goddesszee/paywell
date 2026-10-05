@@ -1,111 +1,229 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useAccount, useChainId, useSwitchChain } from 'wagmi'
 import { AppKit } from '@circle-fin/app-kit'
-import type { BridgeChainIdentifier } from '@circle-fin/bridge-kit'
 import { createViemAdapterFromProvider } from '@circle-fin/adapter-viem-v2'
 import type { EIP1193Provider } from 'viem'
-import { ArrowLeftRight, ArrowRight, CheckCircle, ExternalLink, Loader } from 'lucide-react'
+import { ArrowLeftRight, ArrowRight, CheckCircle, ExternalLink, Loader, Info } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
+import { bridgeFee, BRIDGE_FEE_BPS, bpsToPercent, BRIDGE_FEE_MIN_USDC } from '../../lib/fees'
 
-const appKit = new AppKit()
 
-const PW_BG       = '#FFFFFF'
-const PW_SURFACE  = '#F7F7F8'
-const PW_BORDER   = '#E4E4E7'
-const PW_TEXT     = '#0D0D0D'
-const PW_TEXT_2   = '#5C5C6B'
-const PW_BLACK    = '#0D0D0D'
-const PW_WHITE    = '#FFFFFF'
-const SANS        = 'Inter, sans-serif'
+const S  = 'var(--nan-surface)'
+const B  = 'var(--nan-bdr)'
+const T  = 'var(--nan-text)'
+const T2   = 'var(--nan-text2)'
+const T3   = 'var(--nan-text3)'
+const BK = '#0066FF'
+const WH = 'var(--nan-surface2)'
+const SANS = 'Inter, sans-serif'
 
-interface BridgeChainOption {
+// ── CCTP V2 Sandbox fee endpoint ──────────────────────────────────────────────
+const CCTP_FEE_API = 'https://iris-api-sandbox.circle.com/v2/burn/USDC/fees'
+
+interface BridgeChain {
   label: string
   kitName: string
   chainId: number
+  cctpDomain: number   // from onchain-facts
   explorer: string
+  gasToken: string
+  gasIsUsdc: boolean
+  // Paymaster ERC-4337 support
+  paymasterSupported: boolean
+  paymasterNote?: string
 }
 
-const CHAINS: BridgeChainOption[] = [
-  { label: 'Arc Testnet',        kitName: 'Arc_Testnet',        chainId: 5042002,  explorer: 'https://testnet.arcscan.app/tx/' },
-  { label: 'Base Sepolia',       kitName: 'Base_Sepolia',       chainId: 84532,    explorer: 'https://sepolia.basescan.org/tx/' },
-  { label: 'Arbitrum Sepolia',   kitName: 'Arbitrum_Sepolia',   chainId: 421614,   explorer: 'https://sepolia.arbiscan.io/tx/' },
-  { label: 'Ethereum Sepolia',   kitName: 'Ethereum_Sepolia',   chainId: 11155111, explorer: 'https://sepolia.etherscan.io/tx/' },
-  { label: 'Optimism Sepolia',   kitName: 'Optimism_Sepolia',   chainId: 11155420, explorer: 'https://sepolia-optimism.etherscan.io/tx/' },
+// CCTP V2 supported testnets. cctpDomain values from onchain-facts.ts.
+// Paymaster v0.8 supports Arbitrum, Avalanche, Base, Ethereum, Optimism, Polygon, Unichain.
+// 10% surcharge applies only on Arbitrum and Base.
+const CHAINS: BridgeChain[] = [
+  { label:'Arc Testnet',        kitName:'Arc_Testnet',        chainId:5042002,  cctpDomain:26, explorer:'https://testnet.arcscan.app/tx/',                    gasToken:'USDC', gasIsUsdc:true,  paymasterSupported:false },
+  { label:'Ethereum Sepolia',   kitName:'Ethereum_Sepolia',   chainId:11155111, cctpDomain:0,  explorer:'https://sepolia.etherscan.io/tx/',                    gasToken:'ETH',  gasIsUsdc:false, paymasterSupported:true,  paymasterNote:'Paymaster v0.8 — pay gas in USDC (ERC-4337 wallet required)' },
+  { label:'Base Sepolia',       kitName:'Base_Sepolia',       chainId:84532,    cctpDomain:6,  explorer:'https://sepolia.basescan.org/tx/',                    gasToken:'ETH',  gasIsUsdc:false, paymasterSupported:true,  paymasterNote:'Paymaster v0.7 + v0.8 — pay gas in USDC (10% surcharge, ERC-4337 required)' },
+  { label:'Arbitrum Sepolia',   kitName:'Arbitrum_Sepolia',   chainId:421614,   cctpDomain:3,  explorer:'https://sepolia.arbiscan.io/tx/',                     gasToken:'ETH',  gasIsUsdc:false, paymasterSupported:true,  paymasterNote:'Paymaster v0.7 + v0.8 — pay gas in USDC (10% surcharge, ERC-4337 required)' },
+  { label:'OP Sepolia',         kitName:'Optimism_Sepolia',   chainId:11155420, cctpDomain:2,  explorer:'https://sepolia-optimism.etherscan.io/tx/',           gasToken:'ETH',  gasIsUsdc:false, paymasterSupported:true,  paymasterNote:'Paymaster v0.8 — pay gas in USDC (ERC-4337 wallet required)' },
+  { label:'Polygon Amoy',       kitName:'Polygon_Amoy_Testnet',chainId:80002,   cctpDomain:7,  explorer:'https://www.oklink.com/amoy/tx/',                     gasToken:'POL',  gasIsUsdc:false, paymasterSupported:true,  paymasterNote:'Paymaster v0.8 — pay gas in USDC (ERC-4337 wallet required)' },
+  { label:'Avalanche Fuji',     kitName:'Avalanche_Fuji',     chainId:43113,    cctpDomain:1,  explorer:'https://testnet.snowtrace.io/tx/',                    gasToken:'AVAX', gasIsUsdc:false, paymasterSupported:true,  paymasterNote:'Paymaster v0.8 — pay gas in USDC (ERC-4337 wallet required)' },
+  { label:'Unichain Sepolia',   kitName:'Unichain_Sepolia',   chainId:1301,     cctpDomain:10, explorer:'https://sepolia.uniscan.xyz/tx/',                     gasToken:'ETH',  gasIsUsdc:false, paymasterSupported:true,  paymasterNote:'Paymaster v0.8 — pay gas in USDC (ERC-4337 wallet required)' },
+  { label:'Linea Sepolia',      kitName:'Linea_Sepolia',      chainId:59141,    cctpDomain:-1, explorer:'https://sepolia.lineascan.build/tx/',                 gasToken:'ETH',  gasIsUsdc:false, paymasterSupported:false },
+  { label:'Sei Testnet',        kitName:'Sei_Testnet',        chainId:1328,     cctpDomain:16, explorer:'https://seistream.app/tx/',                           gasToken:'SEI',  gasIsUsdc:false, paymasterSupported:false },
+  { label:'World Chain Sepolia',kitName:'World_Chain_Sepolia',chainId:4801,     cctpDomain:14, explorer:'https://worldchain-sepolia.explorer.alchemy.com/tx/', gasToken:'ETH',  gasIsUsdc:false, paymasterSupported:false },
 ]
 
 type StepName = 'approve' | 'burn' | 'fetchAttestation' | 'mint'
-interface StepState { name: StepName; label: string; status: 'idle' | 'active' | 'done' | 'error'; txHash?: string; explorerUrl?: string }
+interface StepState { name: StepName; label: string; status: 'idle'|'active'|'done'|'error'; txHash?: string; explorerUrl?: string }
 
 const INITIAL_STEPS: StepState[] = [
-  { name: 'approve',          label: 'Approve USDC',         status: 'idle' },
-  { name: 'burn',             label: 'Burn on source chain', status: 'idle' },
-  { name: 'fetchAttestation', label: 'Circle attestation',   status: 'idle' },
-  { name: 'mint',             label: 'Mint on destination',  status: 'idle' },
+  { name:'approve',          label:'Approve USDC',         status:'idle' },
+  { name:'burn',             label:'Burn on source chain', status:'idle' },
+  { name:'fetchAttestation', label:'Circle attestation',   status:'idle' },
+  { name:'mint',             label:'Mint on destination',  status:'idle' },
 ]
 
+
+
+interface LiveFee { bps: number; label: string; fetched: boolean }
+
 export function BridgePage() {
-  const { connector, isConnected } = useAccount()
+  const { connector, isConnected, address: wagmiAddress } = useAccount()
+  const auth = useAppStore(s => s.auth)
+  const isCircleUser = !wagmiAddress && !!auth?.circleWalletAddress
   const chainId = useChainId()
   const { switchChainAsync } = useSwitchChain()
   const addActivity = useAppStore(s => s.addActivity)
 
+
+  // Lazy-instantiate AppKit — initialised once via useState initialiser so it
+  // never runs during a re-render and avoids the "ref during render" lint error.
+  const [appKit] = useState<AppKit>(() => new AppKit())
+
+  const bridgePrefill    = useAppStore(s => s.bridgePrefill)
+  const setBridgePrefill = useAppStore(s => s.setBridgePrefill)
+
   const [fromIdx, setFromIdx] = useState(0)
   const [toIdx, setToIdx]     = useState(1)
   const [amount, setAmount]   = useState('')
+
+  // Apply agent-chat prefill once on mount, then clear it
+  useEffect(() => {
+    if (!bridgePrefill) return
+    if (bridgePrefill.amount) setAmount(bridgePrefill.amount)
+    setBridgePrefill(null)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   const [steps, setSteps]     = useState<StepState[]>(INITIAL_STEPS)
-  const [status, setStatus]   = useState<'idle' | 'bridging' | 'done' | 'error'>('idle')
+  const [status, setStatus]   = useState<'idle'|'bridging'|'done'|'error'>('idle')
   const [errMsg, setErrMsg]   = useState('')
+  const [liveFee, setLiveFee] = useState<LiveFee>({ bps: 0, label: '—', fetched: false })
+  const [feeLoading, setFeeLoading] = useState(false)
 
   const fromChain = CHAINS[fromIdx]
   const toChain   = CHAINS[toIdx]
 
+  // ── Fetch live CCTP fee whenever source/dest changes ──────────────────────
+  const fetchLiveFee = useCallback(async () => {
+    const src = fromChain.cctpDomain
+    const dst = toChain.cctpDomain
+    if (src < 0 || dst < 0 || src === dst) {
+      setLiveFee({ bps: 0, label: 'Standard (free)', fetched: true })
+      return
+    }
+    setFeeLoading(true)
+    try {
+      const res = await fetch(`${CCTP_FEE_API}/${src}/${dst}`)
+      if (!res.ok) throw new Error('fee API error')
+      type FeeEntry = { finalityThreshold?: number; transferType?: string; minimumFee?: number }
+      const data = await res.json() as FeeEntry[]
+      const fast = Array.isArray(data) ? data.find((f) => f.finalityThreshold === 1000 || f.transferType === 'fast') : null
+      if (fast && typeof fast.minimumFee === 'number') {
+        const bps = fast.minimumFee
+        setLiveFee({ bps, label: `${bps} bps (${(bps / 100).toFixed(3)}%)`, fetched: true })
+      } else {
+        setLiveFee({ bps: 0, label: 'Standard (free)', fetched: true })
+      }
+    } catch {
+      setLiveFee({ bps: 0, label: 'Unable to fetch', fetched: false })
+    } finally {
+      setFeeLoading(false)
+    }
+  }, [fromChain.cctpDomain, toChain.cctpDomain])
+
+  // eslint-disable-next-line react/set-state-in-effect
+  useEffect(() => { void fetchLiveFee() }, [fetchLiveFee])
+
   const updateStep = (name: StepName, patch: Partial<StepState>) =>
     setSteps(prev => prev.map(s => s.name === name ? { ...s, ...patch } : s))
 
+  // ── Compute CCTP protocol fee on the transfer amount ──────────────────────
+  const gross = parseFloat(amount) || 0
+  const platformFee = gross > 0 ? bridgeFee(gross) : 0
+  // CCTP protocol fee: bps / 10000 * amount (deducted at mint, shown informatively)
+  const cctpProtocolFee = gross > 0 && liveFee.bps > 0
+    ? parseFloat((gross * liveFee.bps / 10000).toFixed(6))
+    : 0
+  // maxFee with 20% buffer per Circle docs
+  const maxFeeUsdc = gross > 0 && liveFee.bps > 0
+    ? parseFloat((cctpProtocolFee * 1.2).toFixed(6))
+    : 0
+  const netReceived = Math.max(0, gross - cctpProtocolFee - platformFee)
+
   const handleBridge = async () => {
-    if (!connector || !isConnected || !amount) return
+    if (!amount) return
     setStatus('bridging')
     setErrMsg('')
     setSteps(INITIAL_STEPS)
 
-    try {
-      // Switch to source chain
-      if (chainId !== fromChain.chainId) {
-        await switchChainAsync({ chainId: fromChain.chainId })
+    // ── Circle user path: server-side bridge via dev-controlled wallets (nan pattern) ─
+    if (isCircleUser && wagmiAddress === undefined) {
+      const userAddress = auth?.circleWalletAddress
+      if (!userAddress) { setErrMsg('No Circle wallet address found.'); setStatus('error'); return }
+      if (fromChain.chainId !== 5042002) { setErrMsg('Circle wallet bridge is only supported from Arc Testnet. Connect a browser wallet to bridge from other chains.'); setStatus('error'); return }
+      try {
+        updateStep('approve', { status: 'active' })
+        const resp = await fetch('/api/appkit/bridge', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            walletAddress: userAddress,
+            destChain: toChain.kitName,
+            destAddr: userAddress,
+            amount,
+          }),
+        })
+        const data = await resp.json() as { success?: boolean; pending?: boolean; state?: string; burnTxHash?: string; error?: string }
+        if (!resp.ok || data.error || data.success === false) throw new Error(data.error ?? 'Bridge failed')
+        // nan pattern: bridge is non-blocking — Circle's Orbit forwarder handles mint
+        // Mark all steps done since the server confirmed submission
+        updateStep('approve', { status: 'done' })
+        updateStep('burn', { status: 'done', txHash: data.burnTxHash })
+        updateStep('fetchAttestation', { status: 'done' })
+        updateStep('mint', { status: 'done' })
+        setStatus('done')
+        addActivity({ type:'bridge', description:`Bridge to ${toChain.label}`, amount:gross, sign:'-', status:'confirmed', counterparty:toChain.label, txHash: data.burnTxHash })
+      } catch (e: unknown) {
+        setStatus('error')
+        setErrMsg(e instanceof Error ? e.message : 'Bridge failed.')
       }
+      return
+    }
 
+    // ── Wagmi browser wallet path ───────────────────────────────────────────
+    if (!connector || !isConnected) return
+    try {
+      // Switch wallet to source chain before creating the adapter
+      if (chainId !== fromChain.chainId) await switchChainAsync({ chainId: fromChain.chainId })
       const provider = (await connector.getProvider()) as EIP1193Provider
       const adapter  = await createViemAdapterFromProvider({ provider })
 
       updateStep('approve', { status: 'active' })
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const result = await appKit.bridge({
-        from: { adapter, chain: fromChain.kitName as BridgeChainIdentifier },
-        to:   { adapter, chain: toChain.kitName as BridgeChainIdentifier },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
+        from: { adapter, chain: fromChain.kitName as any },
+        // Use Circle's Orbit forwarder for the destination — the relayer handles
+        // the mint transaction on the destination chain so we never need to
+        // switchChain a second time or re-acquire the provider on a different network.
+        to: {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
+          chain: toChain.kitName as any,
+          recipientAddress: wagmiAddress as string,
+          useForwarder: true,
+        },
         amount,
+        ...(maxFeeUsdc > 0 ? { maxFee: BigInt(Math.round(maxFeeUsdc * 1_000_000)) } : {}),
       })
 
-      // Reflect step results
       for (const step of result.steps ?? []) {
         const name = step.name as StepName
-        updateStep(name, {
-          status: step.state === 'success' ? 'done' : 'error',
-          txHash: step.txHash,
-          explorerUrl: step.explorerUrl,
-        })
+        updateStep(name, { status: step.state === 'success' ? 'done' : 'error', txHash: step.txHash, explorerUrl: step.explorerUrl })
       }
 
       if (result.state === 'success') {
         setStatus('done')
-        addActivity({
-          type: 'bridge',
-          description: `Bridge to ${toChain.label}`,
-          amount: parseFloat(amount),
-          sign: '-',
-          status: 'confirmed',
-          counterparty: toChain.label,
-          txHash: result.steps?.find(s => s.name === 'mint')?.txHash,
-        })
+        const mintHash = result.steps?.find(s => s.name === 'mint')?.txHash
+        addActivity({ type:'bridge', description:`Bridge to ${toChain.label}`, amount:gross, sign:'-', status:'confirmed', counterparty:toChain.label, txHash:mintHash })
+
       } else {
         setStatus('error')
         setErrMsg('Bridge returned non-success state.')
@@ -113,136 +231,136 @@ export function BridgePage() {
     } catch (e: unknown) {
       setStatus('error')
       setErrMsg(e instanceof Error ? e.message : 'Bridge failed.')
-      setSteps(prev => prev.map(s => s.status === 'active' ? { ...s, status: 'error' } : s))
+      setSteps(prev => prev.map(s => s.status === 'active' ? { ...s, status:'error' } : s))
     }
   }
 
   const reset = () => { setStatus('idle'); setSteps(INITIAL_STEPS); setAmount('') }
 
-  if (!isConnected) return (
-    <div style={{ padding: 32, textAlign: 'center', fontFamily: SANS, color: PW_TEXT_2 }}>
-      Connect your wallet to bridge USDC
-    </div>
+  if (!isConnected && !isCircleUser) return (
+    <div style={{ padding:32, textAlign:'center', fontFamily:SANS, color:T2 }}>Connect your wallet to bridge USDC</div>
   )
 
   return (
-    <div style={{ fontFamily: SANS, maxWidth: 480, margin: '0 auto', padding: '0 16px 80px' }}>
+    <div style={{ fontFamily:SANS, maxWidth:480, margin:'0 auto', padding:'0 16px 80px' }}>
+
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '20px 0 24px' }}>
-        <div style={{ width: 36, height: 36, borderRadius: 10, background: PW_SURFACE, border: `1px solid ${PW_BORDER}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <ArrowLeftRight size={18} color={PW_TEXT} />
+      <div style={{ display:'flex', alignItems:'center', gap:10, padding:'20px 0 24px' }}>
+        <div style={{ width:36, height:36, borderRadius:10, background:S, border:`1px solid ${B}`, display:'flex', alignItems:'center', justifyContent:'center' }}>
+          <ArrowLeftRight size={18} color={T} />
         </div>
         <div>
-          <div style={{ fontSize: 18, fontWeight: 700, color: PW_TEXT }}>Bridge USDC</div>
-          <div style={{ fontSize: 12, color: PW_TEXT_2 }}>Move USDC across chains via CCTP V2</div>
+          <div style={{ fontSize:18, fontWeight:700, color:T }}>Bridge USDC</div>
+          <div style={{ fontSize:12, color:T2 }}>Move USDC across chains via CCTP V2</div>
         </div>
       </div>
 
-      {/* From / To selectors */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 32px 1fr', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-        {/* From */}
+      {/* From / To */}
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 32px 1fr', alignItems:'center', gap:8, marginBottom:16 }}>
         <div>
-          <div style={{ fontSize: 11, fontWeight: 600, color: PW_TEXT_2, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>From</div>
-          <select
-            value={fromIdx}
-            onChange={e => {
-              const v = Number(e.target.value)
-              setFromIdx(v)
-              if (v === toIdx) setToIdx(v === 0 ? 1 : 0)
-            }}
-            style={{ width: '100%', padding: '10px 12px', border: `1px solid ${PW_BORDER}`, borderRadius: 10, background: PW_SURFACE, color: PW_TEXT, fontSize: 13, fontWeight: 500, fontFamily: SANS, appearance: 'none', cursor: 'pointer' }}
-          >
-            {CHAINS.map((c, i) => <option key={c.kitName} value={i}>{c.label}</option>)}
+          <div style={{ fontSize:11, fontWeight:600, color:T2, marginBottom:6, textTransform:'uppercase', letterSpacing:'0.05em' }}>From</div>
+          <select value={fromIdx} onChange={e => { const v=Number(e.target.value); setFromIdx(v); if(v===toIdx) setToIdx(v===0?1:0) }}
+            style={{ width:'100%', padding:'10px 12px', border:`1px solid ${B}`, borderRadius:10, background:S, color:T, fontSize:13, fontWeight:500, fontFamily:SANS, appearance:'none', cursor:'pointer' }}>
+            {CHAINS.map((c,i) => <option key={c.kitName} value={i} disabled={c.cctpDomain<0}>{c.label}{c.cctpDomain<0?' (no CCTP)':''}</option>)}
           </select>
         </div>
-
-        {/* Arrow */}
-        <div style={{ textAlign: 'center', marginTop: 20 }}>
-          <ArrowRight size={16} color={PW_TEXT_2} />
-        </div>
-
-        {/* To */}
+        <div style={{ textAlign:'center', marginTop:20 }}><ArrowRight size={16} color={T2} /></div>
         <div>
-          <div style={{ fontSize: 11, fontWeight: 600, color: PW_TEXT_2, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>To</div>
-          <select
-            value={toIdx}
-            onChange={e => {
-              const v = Number(e.target.value)
-              setToIdx(v)
-              if (v === fromIdx) setFromIdx(v === 0 ? 1 : 0)
-            }}
-            style={{ width: '100%', padding: '10px 12px', border: `1px solid ${PW_BORDER}`, borderRadius: 10, background: PW_SURFACE, color: PW_TEXT, fontSize: 13, fontWeight: 500, fontFamily: SANS, appearance: 'none', cursor: 'pointer' }}
-          >
-            {CHAINS.map((c, i) => <option key={c.kitName} value={i} disabled={i === fromIdx}>{c.label}</option>)}
+          <div style={{ fontSize:11, fontWeight:600, color:T2, marginBottom:6, textTransform:'uppercase', letterSpacing:'0.05em' }}>To</div>
+          <select value={toIdx} onChange={e => { const v=Number(e.target.value); setToIdx(v); if(v===fromIdx) setFromIdx(v===0?1:0) }}
+            style={{ width:'100%', padding:'10px 12px', border:`1px solid ${B}`, borderRadius:10, background:S, color:T, fontSize:13, fontWeight:500, fontFamily:SANS, appearance:'none', cursor:'pointer' }}>
+            {CHAINS.map((c,i) => <option key={c.kitName} value={i} disabled={i===fromIdx||c.cctpDomain<0}>{c.label}{c.cctpDomain<0?' (no CCTP)':''}</option>)}
           </select>
         </div>
       </div>
 
       {/* Amount */}
-      <div style={{ marginBottom: 20 }}>
-        <div style={{ fontSize: 11, fontWeight: 600, color: PW_TEXT_2, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Amount (USDC)</div>
-        <div style={{ position: 'relative' }}>
-          <input
-            type="number"
-            min="0"
-            step="0.01"
-            placeholder="0.00"
-            value={amount}
-            onChange={e => setAmount(e.target.value)}
-            disabled={status === 'bridging'}
-            style={{ width: '100%', padding: '12px 56px 12px 14px', border: `1px solid ${PW_BORDER}`, borderRadius: 10, background: PW_BG, color: PW_TEXT, fontSize: 16, fontWeight: 600, fontFamily: SANS, boxSizing: 'border-box', outline: 'none' }}
-          />
-          <span style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', fontSize: 13, fontWeight: 600, color: PW_TEXT_2 }}>USDC</span>
+      <div style={{ marginBottom:16 }}>
+        <div style={{ fontSize:11, fontWeight:600, color:T2, marginBottom:6, textTransform:'uppercase', letterSpacing:'0.05em' }}>Amount (USDC)</div>
+        <div style={{ position:'relative' }}>
+          <input type="number" min="0" step="0.01" placeholder="0.00" value={amount}
+            onChange={e => setAmount(e.target.value)} disabled={status==='bridging'}
+            style={{ width:'100%', padding:'12px 56px 12px 14px', border:`1px solid ${B}`, borderRadius:10, background:WH, color:T, fontSize:16, fontWeight:600, fontFamily:SANS, boxSizing:'border-box', outline:'none' }} />
+          <span style={{ position:'absolute', right:14, top:'50%', transform:'translateY(-50%)', fontSize:13, fontWeight:600, color:T2 }}>USDC</span>
         </div>
-        <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-          {['1', '5', '10', '25'].map(v => (
+        <div style={{ display:'flex', gap:8, marginTop:8 }}>
+          {['1','5','10','25'].map(v => (
             <button key={v} onClick={() => setAmount(v)}
-              style={{ flex: 1, padding: '6px 0', border: `1px solid ${PW_BORDER}`, borderRadius: 8, background: amount === v ? PW_BLACK : PW_SURFACE, color: amount === v ? PW_WHITE : PW_TEXT, fontSize: 13, fontWeight: 500, cursor: 'pointer', fontFamily: SANS }}>
+              style={{ flex:1, padding:'6px 0', border:`1px solid ${B}`, borderRadius:8, background:amount===v?BK:S, color:amount===v?'#ffffff':T, fontSize:13, fontWeight:500, cursor:'pointer', fontFamily:SANS }}>
               {v}
             </button>
           ))}
         </div>
       </div>
 
-      {/* Info card */}
-      <div style={{ background: PW_SURFACE, border: `1px solid ${PW_BORDER}`, borderRadius: 12, padding: '12px 16px', marginBottom: 20, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-        <div>
-          <div style={{ fontSize: 11, color: PW_TEXT_2 }}>Protocol</div>
-          <div style={{ fontSize: 13, fontWeight: 600, color: PW_TEXT }}>CCTP V2 Fast</div>
+      {/* Fee summary card */}
+      <div style={{ background:S, border:`1px solid ${B}`, borderRadius:12, padding:'12px 16px', marginBottom:16 }}>
+        <div style={{ fontSize:11, fontWeight:700, color:T3, textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:10 }}>Transfer summary</div>
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
+          <Row2 label="Protocol" value="CCTP V2 Fast" />
+          <Row2 label="Est. time" value="8–20 seconds" />
+          <Row2 label="You send" value={`${amount||'0.00'} USDC`} />
+          <Row2
+            label={`CCTP protocol fee${feeLoading ? ' …' : ''}`}
+            value={cctpProtocolFee > 0 ? `${cctpProtocolFee.toFixed(4)} USDC` : liveFee.label}
+            sub={liveFee.fetched && liveFee.bps > 0 ? `Live rate: ${liveFee.label}` : undefined}
+          />
+          <Row2
+            label={`Platform fee (${bpsToPercent(BRIDGE_FEE_BPS)}, min $${BRIDGE_FEE_MIN_USDC})`}
+            value={platformFee > 0 ? `${platformFee.toFixed(4)} USDC` : '—'}
+          />
+          <Row2
+            label="You receive (est.)"
+            value={netReceived > 0 ? `${netReceived.toFixed(4)} USDC` : '0.00 USDC'}
+            bold
+          />
         </div>
-        <div>
-          <div style={{ fontSize: 11, color: PW_TEXT_2 }}>Est. time</div>
-          <div style={{ fontSize: 13, fontWeight: 600, color: PW_TEXT }}>8–20 seconds</div>
-        </div>
-        <div>
-          <div style={{ fontSize: 11, color: PW_TEXT_2 }}>You send</div>
-          <div style={{ fontSize: 13, fontWeight: 600, color: PW_TEXT }}>{amount || '0.00'} USDC</div>
-        </div>
-        <div>
-          <div style={{ fontSize: 11, color: PW_TEXT_2 }}>You receive</div>
-          <div style={{ fontSize: 13, fontWeight: 600, color: PW_TEXT }}>{amount || '0.00'} USDC</div>
-        </div>
+        {maxFeeUsdc > 0 && (
+          <div style={{ marginTop:8, paddingTop:8, borderTop:`1px solid ${B}`, fontSize:11, color:T3 }}>
+            maxFee set to {maxFeeUsdc.toFixed(4)} USDC (protocol fee + 20% buffer per Circle docs)
+          </div>
+        )}
       </div>
 
-      {/* Steps (during/after bridge) */}
+      {/* Gas notice */}
+      {!fromChain.gasIsUsdc && (
+        <div style={{ background:WH, border:`1px solid ${B}`, borderRadius:10, padding:'10px 14px', marginBottom:12, display:'flex', gap:10, alignItems:'flex-start' }}>
+          <Info size={14} color={T2} style={{ flexShrink:0, marginTop:1 }} />
+          <div style={{ fontSize:12, color:T2, lineHeight:1.5 }}>
+            <strong style={{ color:T }}>Gas required:</strong> Bridging from <strong>{fromChain.label}</strong> requires <strong>{fromChain.gasToken}</strong> for network fees — not USDC. Only Arc uses USDC as gas.
+          </div>
+        </div>
+      )}
+
+      {/* Paymaster notice */}
+      {!fromChain.gasIsUsdc && fromChain.paymasterSupported && (
+        <div style={{ background:WH, border:`1px solid ${B}`, borderRadius:10, padding:'10px 14px', marginBottom:12, display:'flex', gap:10, alignItems:'flex-start' }}>
+          <Info size={14} color={T2} style={{ flexShrink:0, marginTop:1 }} />
+          <div style={{ fontSize:12, color:T2, lineHeight:1.5 }}>
+            <strong style={{ color:T }}>Circle Paymaster available:</strong> {fromChain.paymasterNote}. With an ERC-4337 smart wallet, you can pay gas in USDC and avoid holding {fromChain.gasToken}.{' '}
+            <a href="https://developers.circle.com/paymaster" target="_blank" rel="noreferrer" style={{ color:T, fontWeight:600, textDecoration:'underline' }}>Learn more</a>
+          </div>
+        </div>
+      )}
+
+      {/* Steps */}
       {status !== 'idle' && (
-        <div style={{ border: `1px solid ${PW_BORDER}`, borderRadius: 12, overflow: 'hidden', marginBottom: 20 }}>
+        <div style={{ border:`1px solid ${B}`, borderRadius:12, overflow:'hidden', marginBottom:16 }}>
           {steps.map((step, i) => (
-            <div key={step.name} style={{ padding: '12px 16px', borderBottom: i < steps.length - 1 ? `1px solid ${PW_BORDER}` : 'none', display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div style={{ width: 28, height: 28, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                background: step.status === 'done' ? PW_BLACK : PW_SURFACE,
-                border: `1px solid ${step.status === 'done' ? PW_BLACK : step.status === 'error' ? '#E53E3E' : PW_BORDER}` }}>
-                {step.status === 'done'   && <CheckCircle size={14} color={PW_WHITE} />}
-                {step.status === 'active' && <Loader size={14} color={PW_TEXT} style={{ animation: 'spin 1s linear infinite' }} />}
-                {step.status === 'idle'   && <span style={{ fontSize: 11, color: PW_TEXT_2 }}>{i + 1}</span>}
-                {step.status === 'error'  && <span style={{ fontSize: 11, color: '#E53E3E' }}>!</span>}
+            <div key={step.name} style={{ padding:'12px 16px', borderBottom:i<steps.length-1?`1px solid ${B}`:'none', display:'flex', alignItems:'center', gap:12 }}>
+              <div style={{ width:28, height:28, borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center',
+                background: step.status==='done' ? BK : S, border:`1px solid ${step.status==='done' ? BK : step.status==='error' ? T : B}` }}>
+                {step.status==='done'   && <CheckCircle size={14} color={WH} />}
+                {step.status==='active' && <Loader size={14} color={T} style={{ animation:'spin 1s linear infinite' }} />}
+                {step.status==='idle'   && <span style={{ fontSize:11, color:T2 }}>{i+1}</span>}
+                {step.status==='error'  && <span style={{ fontSize:11, color:T, fontWeight:700 }}>!</span>}
               </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 13, fontWeight: 500, color: PW_TEXT }}>{step.label}</div>
+              <div style={{ flex:1 }}>
+                <div style={{ fontSize:13, fontWeight:500, color:T }}>{step.label}</div>
                 {step.txHash && (
-                  <a href={`${fromChain.explorer}${step.txHash}`} target="_blank" rel="noreferrer"
-                    style={{ fontSize: 11, color: PW_TEXT_2, display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 }}>
-                    {step.txHash.slice(0, 10)}…{step.txHash.slice(-6)} <ExternalLink size={10} />
+                  <a href={`${step.name === 'mint' ? toChain.explorer : fromChain.explorer}${step.txHash}`} target="_blank" rel="noreferrer"
+                    style={{ fontSize:11, color:T2, display:'flex', alignItems:'center', gap:4, marginTop:2 }}>
+                    {step.txHash.slice(0,10)}…{step.txHash.slice(-6)} <ExternalLink size={10} />
                   </a>
                 )}
               </div>
@@ -252,35 +370,51 @@ export function BridgePage() {
       )}
 
       {/* Error */}
-      {status === 'error' && errMsg && (
-        <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 10, padding: '10px 14px', marginBottom: 16, fontSize: 13, color: '#991B1B' }}>
-          {errMsg}
-        </div>
+      {status==='error' && errMsg && (
+        errMsg === 'SESSION_EXPIRED' ? (
+          <div style={{ background:WH, border:`1px solid ${B}`, borderRadius:10, padding:'12px 14px', marginBottom:16, fontSize:13, color:T }}>
+            <div style={{ fontWeight:600, marginBottom:4 }}>Re-authentication needed</div>
+            <div style={{ fontSize:12, color:T2, marginBottom:10 }}>To sign bridge transactions, please log in again. Your wallet and balance are safe.</div>
+            <button onClick={() => { useAppStore.getState().setAuth({ ...useAppStore.getState().auth!, userToken: undefined, encryptionKey: undefined }); useAppStore.getState().setActiveView('login') }}
+              style={{ padding:'7px 16px', background:BK, border:'none', borderRadius:8, color:'#fff', fontSize:13, fontWeight:600, cursor:'pointer', fontFamily:SANS }}>
+              Log in again
+            </button>
+          </div>
+        ) : (
+          <div style={{ background:WH, border:`1px solid ${B}`, borderRadius:10, padding:'10px 14px', marginBottom:16, fontSize:13, color:T }}>
+            <strong>Bridge failed:</strong> {errMsg}
+          </div>
+        )
       )}
 
       {/* CTA */}
-      {status === 'done' ? (
-        <button onClick={reset}
-          style={{ width: '100%', padding: '15px 0', background: PW_SURFACE, border: `1px solid ${PW_BORDER}`, borderRadius: 14, fontSize: 15, fontWeight: 600, color: PW_TEXT, cursor: 'pointer', fontFamily: SANS }}>
+      {status==='done' ? (
+        <button onClick={reset} style={{ width:'100%', padding:'15px 0', background:S, border:`1px solid ${B}`, borderRadius:14, fontSize:15, fontWeight:600, color:T, cursor:'pointer', fontFamily:SANS }}>
           Bridge again
         </button>
       ) : (
-        <button
-          onClick={() => void handleBridge()}
-          disabled={status === 'bridging' || !amount || parseFloat(amount) <= 0}
-          style={{ width: '100%', padding: '15px 0', background: status === 'bridging' || !amount ? PW_SURFACE : PW_BLACK,
-            border: `1px solid ${status === 'bridging' || !amount ? PW_BORDER : PW_BLACK}`,
-            borderRadius: 14, fontSize: 15, fontWeight: 600,
-            color: status === 'bridging' || !amount ? PW_TEXT_2 : PW_WHITE,
-            cursor: status === 'bridging' || !amount ? 'not-allowed' : 'pointer', fontFamily: SANS,
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-          {status === 'bridging' ? <><Loader size={16} style={{ animation: 'spin 1s linear infinite' }} /> Bridging…</> : `Bridge ${amount || '0.00'} USDC →`}
+        <button onClick={() => void handleBridge()} disabled={status==='bridging'||!amount||parseFloat(amount)<=0}
+          style={{ width:'100%', padding:'15px 0', background:status==='bridging'||!amount ? S : BK,
+            border:`1px solid ${status==='bridging'||!amount ? B : BK}`, borderRadius:14, fontSize:15, fontWeight:600,
+            color:status==='bridging'||!amount ? T2 : WH, cursor:status==='bridging'||!amount?'not-allowed':'pointer', fontFamily:SANS,
+            display:'flex', alignItems:'center', justifyContent:'center', gap:8 }}>
+          {status==='bridging' ? <><Loader size={16} style={{ animation:'spin 1s linear infinite' }} /> Bridging…</> : `Bridge ${amount||'0.00'} USDC →`}
         </button>
       )}
 
-      <div style={{ marginTop: 12, fontSize: 11, color: PW_TEXT_2, textAlign: 'center' }}>
+      <div style={{ marginTop:12, fontSize:11, color:T2, textAlign:'center' }}>
         Powered by Circle CCTP V2 · Transactions are irreversible
       </div>
+    </div>
+  )
+}
+
+function Row2({ label, value, sub, bold }: { label:string; value:string; sub?:string; bold?:boolean }) {
+  return (
+    <div>
+      <div style={{ fontSize:11, color:T2 }}>{label}</div>
+      <div style={{ fontSize:13, fontWeight:bold?700:600, color:T }}>{value}</div>
+      {sub && <div style={{ fontSize:10, color:T3, marginTop:1 }}>{sub}</div>}
     </div>
   )
 }
