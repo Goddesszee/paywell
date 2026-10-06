@@ -1,5 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
-import { Repeat, Plus, Play, Pause, Trash2, Clock, Check, AlertCircle, X, Calendar } from 'lucide-react'
+import {
+  Repeat, Plus, Play, Pause, Trash2, Clock, Check,
+  AlertCircle, X, ChevronRight,
+  CheckCircle2, ArrowRight,
+} from 'lucide-react'
 import { useWriteContract, useWaitForTransactionReceipt, useAccount, useSwitchChain } from 'wagmi'
 import { erc20Abi, isAddress } from 'viem'
 import { toast } from 'sonner'
@@ -8,20 +12,22 @@ import { getUsdc, buildTxExplorerUrl } from '@/onchain-facts'
 import { parseAmount } from '@/onchain-money'
 import { formatAddress } from '../../utils/format'
 
-const F    = "'Inter', -apple-system, sans-serif"
-const SURF = 'var(--nan-surface)'
-const SURF2= 'var(--nan-surface2)'
-const BDR  = 'var(--nan-bdr)'
-const BLUE = '#0066FF'
-const TEXT = 'var(--nan-text)'
-const T2   = 'var(--nan-text2)'
-const T3   = 'var(--nan-text3)'
-const ARC  = 5042002
+const F     = "'Inter', -apple-system, sans-serif"
+const SURF  = 'var(--nan-surface)'
+const SURF2 = 'var(--nan-surface2)'
+const BDR   = 'var(--nan-bdr)'
+const BLUE  = '#0066FF'
+const TEXT  = 'var(--nan-text)'
+const T2    = 'var(--nan-text2)'
+const T3    = 'var(--nan-text3)'
+const ARC   = 5042002
+const GREEN = '#22C55E'
+const RED   = '#EF4444'
 
-const FREQ_OPTIONS: { value: RecurringFrequency; label: string; sub: string }[] = [
+const FREQ_OPTIONS: { value: RecurringFrequency; label: string; sub: string; ms?: number }[] = [
   { value: 'manual',  label: 'Manual',  sub: 'Run on demand only' },
-  { value: 'daily',   label: 'Daily',   sub: 'Every 24 hours' },
-  { value: 'weekly',  label: 'Weekly',  sub: 'Every 7 days' },
+  { value: 'daily',   label: 'Daily',   sub: 'Every 24 hours',  ms: 86400000 },
+  { value: 'weekly',  label: 'Weekly',  sub: 'Every 7 days',    ms: 7 * 86400000 },
   { value: 'monthly', label: 'Monthly', sub: 'Every 30 days' },
 ]
 
@@ -35,31 +41,86 @@ function nextRunLabel(iso?: string) {
   const now = new Date()
   const diff = d.getTime() - now.getTime()
   if (diff < 0) return 'Due now'
-  const h = Math.floor(diff / 3600000)
   const days = Math.floor(diff / 86400000)
+  const h    = Math.floor(diff / 3600000)
   if (days >= 1) return `in ${days}d`
   if (h >= 1)   return `in ${h}h`
   return 'soon'
 }
 
+function nextRunDate(freq: RecurringFrequency): string | undefined {
+  const now = new Date()
+  if (freq === 'daily')   return new Date(now.getTime() + 86400000).toISOString()
+  if (freq === 'weekly')  return new Date(now.getTime() + 7 * 86400000).toISOString()
+  if (freq === 'monthly') return new Date(now.getFullYear(), now.getMonth() + 1, now.getDate()).toISOString()
+  return undefined
+}
+
+function fmtDate(iso?: string) {
+  if (!iso) return '—'
+  return new Date(iso).toLocaleDateString('en', { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
+function shortAddr(addr: string) {
+  if (!addr || addr.length < 10) return addr
+  return `${addr.slice(0, 6)}••••${addr.slice(-4)}`
+}
+
+// ── Spinner ─────────────────────────────────────────────────────────────────
+function Spin({ size = 14, color = BLUE }: { size?: number; color?: string }) {
+  return (
+    <div style={{
+      width: size, height: size, border: `2px solid rgba(255,255,255,0.12)`,
+      borderTopColor: color, borderRadius: '50%',
+      animation: 'nan-spin 0.7s linear infinite', flexShrink: 0,
+    }} />
+  )
+}
+
+// ── Field wrapper ────────────────────────────────────────────────────────────
+function Field({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <div style={{ fontSize: 11, fontWeight: 600, color: T2, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 5 }}>{label}</div>
+      {children}
+      {error && <div style={{ fontSize: 11, color: RED, marginTop: 4, display: 'flex', alignItems: 'center', gap: 4 }}><AlertCircle size={10} />{error}</div>}
+    </div>
+  )
+}
+
 export function RecurringPage() {
   const { address, chainId } = useAccount()
-  const { switchChain } = useSwitchChain()
-  const { addActivity, recurringTasks, addRecurringTask, updateRecurringTask, removeRecurringTask, recordRecurringRun } = useAppStore()
-  const usdcFact = getUsdc(ARC)
+  const { switchChain }      = useSwitchChain()
+  const {
+    addActivity, recurringTasks,
+    addRecurringTask, updateRecurringTask, removeRecurringTask, recordRecurringRun,
+  } = useAppStore()
+
+  const usdcFact     = getUsdc(ARC)
   const isWrongChain = chainId !== undefined && chainId !== ARC
-  const [formOpen, setFormOpen] = useState(false)
-  const [newName, setNewName] = useState('')
+
+  // ── form state ──────────────────────────────────────────────────────────
+  type Step = 'list' | 'form' | 'review' | 'success'
+  const [step,         setStep]         = useState<Step>('list')
+  const [newName,      setNewName]      = useState('')
   const [newRecipient, setNewRecipient] = useState('')
-  const [newAmount, setNewAmount] = useState('')
-  const [newFreq, setNewFreq] = useState<RecurringFrequency>('manual')
-  const [errors, setErrors] = useState<{ name?: string; recipient?: string; amount?: string }>({})
+  const [newAmount,    setNewAmount]    = useState('')
+  const [newFreq,      setNewFreq]      = useState<RecurringFrequency>('manual')
+  const [errors,       setErrors]       = useState<{ name?: string; recipient?: string; amount?: string }>({})
+  const [lastCreated,  setLastCreated]  = useState<{ name: string; amount: string; freq: string } | null>(null)
+
+  // ── per-action loading + confirm ────────────────────────────────────────
+  const [pausingId,  setPausingId]  = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [confirmDel, setConfirmDel] = useState<string | null>(null)
+
+  // ── run machinery (unchanged logic) ────────────────────────────────────
   const [runningId, setRunningId] = useState<string | null>(null)
   const runningRef = useRef<{ id: string; name: string; amount: string; recipient: string } | null>(null)
   const { writeContract, data: txHash, isPending, error: writeError, reset } = useWriteContract()
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash: txHash })
 
-  // ── Auto-scheduler: fire overdue tasks every 60s ────────────────────────────
+  // ── Auto-scheduler ──────────────────────────────────────────────────────
   useEffect(() => {
     const check = () => {
       if (!address || !usdcFact || runningId) return
@@ -67,7 +128,6 @@ export function RecurringPage() {
       for (const task of recurringTasks) {
         if (!task.active || task.frequency === 'manual' || !task.nextRunAt) continue
         if (new Date(task.nextRunAt) <= now) {
-          // Task is due — auto-fire it
           runningRef.current = { id: task.id, name: task.name, amount: task.amount, recipient: task.recipient }
           setRunningId(task.id)
           writeContract({
@@ -76,11 +136,11 @@ export function RecurringPage() {
             args: [task.recipient as `0x${string}`, parseAmount(ARC, task.amount).raw],
             chainId: ARC,
           })
-          break // one at a time
+          break
         }
       }
     }
-    check() // run immediately
+    check()
     const t = setInterval(check, 60_000)
     return () => clearInterval(t)
   }, [recurringTasks, address, usdcFact, runningId]) // eslint-disable-line
@@ -89,7 +149,7 @@ export function RecurringPage() {
     if (isSuccess && txHash && runningRef.current) {
       const { id, name, amount, recipient } = runningRef.current
       recordRecurringRun(id, txHash)
-      addActivity({ type:'sent', description:name, amount:parseFloat(amount), sign:'-', status:'confirmed', counterparty:formatAddress(recipient), txHash })
+      addActivity({ type: 'sent', description: name, amount: parseFloat(amount), sign: '-', status: 'confirmed', counterparty: formatAddress(recipient), txHash })
       toast.success(`Sent ${amount} USDC — ${name}`)
       setRunningId(null); runningRef.current = null; reset()
     }
@@ -97,198 +157,458 @@ export function RecurringPage() {
 
   useEffect(() => {
     if (writeError && runningRef.current) {
-      toast.error(writeError.message?.includes('cancel') ? 'Transaction cancelled' : 'Transaction failed')
+      toast.error(writeError.message?.includes('cancel') ? 'Transaction cancelled' : 'Something went wrong. Please try again.')
       setRunningId(null); runningRef.current = null; reset()
     }
   }, [writeError]) // eslint-disable-line
 
+  // ── Validation ───────────────────────────────────────────────────────────
   const validate = () => {
     const e: typeof errors = {}
-    if (!newName.trim()) e.name = 'Name is required'
+    if (!newName.trim())       e.name      = 'Name is required'
     if (!isAddress(newRecipient)) e.recipient = 'Enter a valid 0x address'
     const n = parseFloat(newAmount)
     if (!newAmount || isNaN(n) || n <= 0) e.amount = 'Enter a valid amount'
-    setErrors(e); return Object.keys(e).length === 0
+    setErrors(e)
+    return Object.keys(e).length === 0
   }
 
-  const addTask = () => {
-    if (!validate()) return
-    const now = new Date()
-    let nextRunAt: string | undefined
-    if (newFreq === 'daily')   nextRunAt = new Date(now.getTime() + 86400000).toISOString()
-    if (newFreq === 'weekly')  nextRunAt = new Date(now.getTime() + 7*86400000).toISOString()
-    if (newFreq === 'monthly') nextRunAt = new Date(now.getFullYear(), now.getMonth()+1, now.getDate()).toISOString()
+  const openForm = () => {
+    setNewName(''); setNewRecipient(''); setNewAmount(''); setNewFreq('manual'); setErrors({})
+    setStep('form')
+  }
+
+  const goReview = () => { if (validate()) setStep('review') }
+
+  const confirmCreate = () => {
+    const nextRunAt = nextRunDate(newFreq)
     addRecurringTask({ name: newName.trim(), recipient: newRecipient.trim(), amount: newAmount.trim(), active: true, frequency: newFreq, nextRunAt })
-    setNewName(''); setNewRecipient(''); setNewAmount(''); setNewFreq('manual'); setErrors({}); setFormOpen(false)
-    toast.success('Recurring payment added')
+    setLastCreated({ name: newName.trim(), amount: newAmount.trim(), freq: freqLabel(newFreq) })
+    setStep('success')
   }
 
   const runNow = (task: typeof recurringTasks[0]) => {
     if (!usdcFact || !address) return
     if (isWrongChain) { switchChain({ chainId: ARC }); return }
-    if (runningId) { toast.error('A payment is already in progress'); return }
+    if (runningId)    { toast.error('A payment is already in progress'); return }
     runningRef.current = { id: task.id, name: task.name, amount: task.amount, recipient: task.recipient }
     setRunningId(task.id)
     writeContract({ address: usdcFact.address as `0x${string}`, abi: erc20Abi, functionName: 'transfer', args: [task.recipient as `0x${string}`, parseAmount(ARC, task.amount).raw], chainId: ARC })
   }
 
+  const togglePause = (task: typeof recurringTasks[0]) => {
+    setPausingId(task.id)
+    updateRecurringTask(task.id, { active: !task.active })
+    toast.success(task.active ? 'Payment paused' : 'Payment resumed')
+    setTimeout(() => setPausingId(null), 600)
+  }
+
+  const deleteTask = (id: string) => {
+    setDeletingId(id)
+    setTimeout(() => {
+      removeRecurringTask(id)
+      setDeletingId(null)
+      setConfirmDel(null)
+      toast.success('Recurring payment deleted')
+    }, 400)
+  }
+
   const isRunning = (id: string) => runningId === id && (isPending || isConfirming)
-  const totalRuns = recurringTasks.reduce((s,t) => s+t.runCount, 0)
+  const totalRuns  = recurringTasks.reduce((s, t) => s + t.runCount, 0)
+  const activeCount = recurringTasks.filter(t => t.active).length
+
+  // ── Preview next date for review step ────────────────────────────────────
+  const previewNextDate = fmtDate(nextRunDate(newFreq))
+
+  // ── Base input style ─────────────────────────────────────────────────────
+  const inputBase: React.CSSProperties = {
+    width: '100%', boxSizing: 'border-box',
+    padding: '11px 14px',
+    border: `1px solid ${BDR}`, borderRadius: 10,
+    fontFamily: F, fontSize: 14, outline: 'none',
+    color: TEXT, background: SURF2,
+  }
+
+  // ── Button base ──────────────────────────────────────────────────────────
+  const btnPrimary: React.CSSProperties = {
+    flex: 1, height: 44, background: BLUE, color: '#fff',
+    border: 'none', borderRadius: 11, fontSize: 14, fontWeight: 600,
+    cursor: 'pointer', fontFamily: F, display: 'flex',
+    alignItems: 'center', justifyContent: 'center', gap: 6,
+  }
+  const btnGhost: React.CSSProperties = {
+    flex: 1, height: 44, background: 'transparent', color: T2,
+    border: `1px solid ${BDR}`, borderRadius: 11, fontSize: 14, fontWeight: 600,
+    cursor: 'pointer', fontFamily: F,
+  }
 
   return (
-    <div style={{ fontFamily: F, width: '100%', minHeight: '100%', paddingBottom: 88 }}>
-      {/* Header */}
-      <div style={{ display:'flex', alignItems:'center', gap:10, padding:'20px 0 16px' }}>
-        <div style={{ width:36, height:36, borderRadius:10, background:BLUE, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+    <div style={{ fontFamily: F, width: '100%', minHeight: '100%', paddingBottom: 96 }}>
+
+      {/* ── Header ──────────────────────────────────────────────────────── */}
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 10,
+        padding: '20px 0 18px',
+        borderBottom: `1px solid ${BDR}`, marginBottom: 18,
+      }}>
+        <div style={{
+          width: 38, height: 38, borderRadius: 11,
+          background: BLUE, display: 'flex', alignItems: 'center',
+          justifyContent: 'center', flexShrink: 0,
+        }}>
           <Repeat size={18} color="#fff" />
         </div>
-        <div style={{ flex:1 }}>
-          <div style={{ fontSize:17, fontWeight:700, color:TEXT, letterSpacing:'-0.02em' }}>Recurring Payments</div>
-          <div style={{ fontSize:12, color:T2 }}>Scheduled USDC transfers · auto-executes when due</div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 17, fontWeight: 700, color: TEXT, letterSpacing: '-0.02em' }}>Recurring Payments</div>
+          <div style={{ fontSize: 12, color: T2, marginTop: 1 }}>Scheduled USDC transfers</div>
         </div>
-        <button onClick={() => setFormOpen(v => !v)} style={{ width:36, height:36, borderRadius:10, background:formOpen?SURF2:BLUE, border:`1px solid ${formOpen?BDR:BLUE}`, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer' }}>
-          {formOpen ? <X size={16} color={TEXT} /> : <Plus size={16} color="#fff" />}
-        </button>
+        {step === 'list' && (
+          <button onClick={openForm} style={{
+            display: 'flex', alignItems: 'center', gap: 6,
+            padding: '0 14px', height: 36,
+            background: BLUE, color: '#fff', border: 'none',
+            borderRadius: 10, fontSize: 13, fontWeight: 600,
+            cursor: 'pointer', fontFamily: F, flexShrink: 0,
+          }}>
+            <Plus size={15} /> New
+          </button>
+        )}
       </div>
 
-      {/* Stats */}
-      {recurringTasks.length > 0 && (
-        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8, marginBottom:16 }}>
-          {[
-            { label:'Total',    value: recurringTasks.length.toString() },
-            { label:'Active',   value: recurringTasks.filter(t=>t.active).length.toString() },
-            { label:'All runs', value: totalRuns.toString() },
-          ].map(s => (
-            <div key={s.label} style={{ background:SURF, border:`1px solid ${BDR}`, borderRadius:12, padding:'10px 12px' }}>
-              <div style={{ fontSize:18, fontWeight:700, color:TEXT }}>{s.value}</div>
-              <div style={{ fontSize:11, color:T3, marginTop:2 }}>{s.label}</div>
-            </div>
-          ))}
-        </div>
-      )}
-
+      {/* ── Wrong chain banner ──────────────────────────────────────────── */}
       {isWrongChain && (
-        <div style={{ background:`rgba(0,102,255,0.06)`, border:`1px solid rgba(0,102,255,0.15)`, borderRadius:12, padding:'10px 14px', display:'flex', alignItems:'center', gap:8, marginBottom:14 }}>
-          <AlertCircle size={14} color={BLUE} style={{ flexShrink:0 }} />
-          <span style={{ fontSize:12, color:TEXT, flex:1 }}>Switch to Arc Testnet to send payments.</span>
-          <button onClick={() => switchChain({ chainId: ARC })} style={{ fontSize:12, fontWeight:600, color:'#fff', background:BLUE, border:'none', borderRadius:8, padding:'5px 12px', cursor:'pointer', fontFamily:F }}>Switch</button>
+        <div style={{ background: 'rgba(0,102,255,0.06)', border: `1px solid rgba(0,102,255,0.15)`, borderRadius: 12, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+          <AlertCircle size={14} color={BLUE} style={{ flexShrink: 0 }} />
+          <span style={{ fontSize: 12, color: TEXT, flex: 1 }}>Switch to Arc Testnet to run payments.</span>
+          <button onClick={() => switchChain({ chainId: ARC })} style={{ fontSize: 12, fontWeight: 600, color: '#fff', background: BLUE, border: 'none', borderRadius: 8, padding: '5px 12px', cursor: 'pointer', fontFamily: F }}>Switch</button>
         </div>
       )}
 
-      {!address && (
-        <div style={{ background:SURF, border:`1px solid ${BDR}`, borderRadius:12, padding:'10px 14px', display:'flex', gap:8, marginBottom:14 }}>
-          <AlertCircle size={14} color={T2} style={{ flexShrink:0, marginTop:1 }} />
-          <span style={{ fontSize:12, color:T2 }}>Connect your wallet to run payments.</span>
+      {!address && step === 'list' && (
+        <div style={{ background: SURF, border: `1px solid ${BDR}`, borderRadius: 12, padding: '10px 14px', display: 'flex', gap: 8, marginBottom: 14 }}>
+          <AlertCircle size={14} color={T2} style={{ flexShrink: 0, marginTop: 1 }} />
+          <span style={{ fontSize: 12, color: T2 }}>Connect your wallet to run payments.</span>
         </div>
       )}
 
-      {/* Add form */}
-      {formOpen && (
-        <div style={{ background:SURF, border:`1px solid ${BDR}`, borderRadius:14, padding:16, display:'flex', flexDirection:'column', gap:10, marginBottom:14 }}>
-          <div style={{ fontSize:13, fontWeight:700, color:TEXT }}>New recurring payment</div>
+      {/* ── Stats row ───────────────────────────────────────────────────── */}
+      {step === 'list' && recurringTasks.length > 0 && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 18 }}>
           {[
-            { ph:'Name (e.g. Weekly allowance)', val:newName, set:setNewName, err:errors.name, mono:false },
-            { ph:'Recipient address (0x...)',    val:newRecipient, set:setNewRecipient, err:errors.recipient, mono:true },
-          ].map(({ ph, val, set, err, mono }) => (
-            <div key={ph}>
-              <input placeholder={ph} value={val} onChange={e => set(e.target.value)}
-                style={{ width:'100%', padding:'10px 12px', border:`1px solid ${err?'rgba(255,68,68,0.5)':BDR}`, borderRadius:10, fontFamily:mono?'monospace':F, fontSize:mono?12:13, outline:'none', color:TEXT, background:SURF2, boxSizing:'border-box' }} />
-              {err && <div style={{ fontSize:11, color:'#FF4444', marginTop:3 }}>{err}</div>}
+            { label: 'Total schedules', value: recurringTasks.length },
+            { label: 'Active',          value: activeCount },
+            { label: 'All-time runs',   value: totalRuns },
+          ].map(s => (
+            <div key={s.label} style={{ background: SURF, border: `1px solid ${BDR}`, borderRadius: 12, padding: '12px 12px 10px' }}>
+              <div style={{ fontSize: 20, fontWeight: 700, color: TEXT, letterSpacing: '-0.03em' }}>{s.value}</div>
+              <div style={{ fontSize: 10, color: T3, marginTop: 2, lineHeight: 1.3 }}>{s.label}</div>
             </div>
           ))}
-          <div>
-            <div style={{ position:'relative' }}>
-              <input placeholder="0.00" type="number" min="0" step="0.01" value={newAmount} onChange={e => setNewAmount(e.target.value)}
-                style={{ width:'100%', padding:'10px 52px 10px 12px', border:`1px solid ${errors.amount?'rgba(255,68,68,0.5)':BDR}`, borderRadius:10, fontFamily:F, fontSize:14, fontWeight:600, outline:'none', color:TEXT, background:SURF2, boxSizing:'border-box' }} />
-              <span style={{ position:'absolute', right:12, top:'50%', transform:'translateY(-50%)', fontSize:12, fontWeight:600, color:T2 }}>USDC</span>
-            </div>
-            {errors.amount && <div style={{ fontSize:11, color:'#FF4444', marginTop:3 }}>{errors.amount}</div>}
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════════
+          STEP: FORM
+      ══════════════════════════════════════════════════════════════════ */}
+      {step === 'form' && (
+        <div style={{ background: SURF, border: `1px solid ${BDR}`, borderRadius: 16, padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ fontSize: 15, fontWeight: 700, color: TEXT }}>New recurring payment</div>
+            <button onClick={() => setStep('list')} style={{ width: 30, height: 30, borderRadius: 8, background: SURF2, border: `1px solid ${BDR}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+              <X size={14} color={T2} />
+            </button>
           </div>
-          {/* Frequency */}
-          <div>
-            <div style={{ fontSize:11, fontWeight:600, color:T2, marginBottom:6, textTransform:'uppercase', letterSpacing:'0.05em' }}>Frequency</div>
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:6 }}>
+
+          <Field label="Payment name" error={errors.name}>
+            <input
+              placeholder="e.g. Weekly allowance"
+              value={newName} onChange={e => setNewName(e.target.value)}
+              style={{ ...inputBase, borderColor: errors.name ? 'rgba(239,68,68,0.5)' : BDR }}
+            />
+          </Field>
+
+          <Field label="Recipient address" error={errors.recipient}>
+            <input
+              placeholder="0x..."
+              value={newRecipient} onChange={e => setNewRecipient(e.target.value)}
+              style={{ ...inputBase, fontFamily: 'monospace', fontSize: 13, borderColor: errors.recipient ? 'rgba(239,68,68,0.5)' : BDR }}
+            />
+          </Field>
+
+          <Field label="Amount (USDC)" error={errors.amount}>
+            <div style={{ position: 'relative' }}>
+              <input
+                placeholder="0.00" type="number" min="0" step="0.01"
+                value={newAmount} onChange={e => setNewAmount(e.target.value)}
+                style={{ ...inputBase, paddingRight: 58, fontSize: 16, fontWeight: 700, borderColor: errors.amount ? 'rgba(239,68,68,0.5)' : BDR }}
+              />
+              <span style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', fontSize: 12, fontWeight: 700, color: T2 }}>USDC</span>
+            </div>
+          </Field>
+
+          <Field label="Frequency">
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
               {FREQ_OPTIONS.map(opt => (
-                <button key={opt.value} onClick={() => setNewFreq(opt.value)} style={{ padding:'9px 12px', border:`1px solid ${newFreq===opt.value?BLUE:BDR}`, borderRadius:10, background:newFreq===opt.value?'rgba(0,102,255,0.10)':SURF2, color:newFreq===opt.value?BLUE:T2, fontFamily:F, fontSize:12, fontWeight:600, cursor:'pointer', textAlign:'left', transition:'all 0.12s' }}>
+                <button key={opt.value} onClick={() => setNewFreq(opt.value)} style={{
+                  padding: '10px 12px', border: `1px solid ${newFreq === opt.value ? BLUE : BDR}`,
+                  borderRadius: 10, background: newFreq === opt.value ? 'rgba(0,102,255,0.10)' : SURF2,
+                  color: newFreq === opt.value ? BLUE : T2, fontFamily: F, fontSize: 13, fontWeight: 600,
+                  cursor: 'pointer', textAlign: 'left',
+                }}>
                   <div>{opt.label}</div>
-                  <div style={{ fontSize:10, fontWeight:400, color:newFreq===opt.value?BLUE:T3, marginTop:2 }}>{opt.sub}</div>
+                  <div style={{ fontSize: 10, fontWeight: 400, color: newFreq === opt.value ? 'rgba(0,102,255,0.7)' : T3, marginTop: 2 }}>{opt.sub}</div>
                 </button>
               ))}
             </div>
-          </div>
-          <div style={{ display:'flex', gap:8 }}>
-            <button onClick={addTask} style={{ flex:1, height:40, background:BLUE, color:'#fff', border:'none', borderRadius:10, fontSize:13, fontWeight:600, cursor:'pointer', fontFamily:F }}>Add payment</button>
-            <button onClick={() => { setFormOpen(false); setErrors({}) }} style={{ flex:1, height:40, background:SURF2, color:TEXT, border:`1px solid ${BDR}`, borderRadius:10, fontSize:13, fontWeight:600, cursor:'pointer', fontFamily:F }}>Cancel</button>
+          </Field>
+
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={() => setStep('list')} style={btnGhost}>Cancel</button>
+            <button onClick={goReview} style={btnPrimary}>
+              Review <ChevronRight size={15} />
+            </button>
           </div>
         </div>
       )}
 
-      {recurringTasks.length === 0 && !formOpen && (
-        <div style={{ textAlign:'center', padding:'56px 0', color:T3 }}>
-          <Repeat size={32} color={T3} style={{ margin:'0 auto 12px' }} />
-          <div style={{ fontSize:14, fontWeight:600, color:TEXT }}>No recurring payments yet</div>
-          <div style={{ fontSize:12, marginTop:4 }}>Tap + to add your first scheduled USDC payment</div>
-        </div>
-      )}
+      {/* ══════════════════════════════════════════════════════════════════
+          STEP: REVIEW
+      ══════════════════════════════════════════════════════════════════ */}
+      {step === 'review' && (
+        <div style={{ background: SURF, border: `1px solid ${BDR}`, borderRadius: 16, padding: 20, display: 'flex', flexDirection: 'column', gap: 0 }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: T3, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 16 }}>Review payment</div>
 
-      <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-        {recurringTasks.map(task => {
-          const running = isRunning(task.id)
-          const nextLabel = nextRunLabel(task.nextRunAt)
-          return (
-            <div key={task.id} style={{ background:SURF, border:`1px solid ${BDR}`, borderRadius:14, padding:14, opacity:!task.active?0.65:1 }}>
-              <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:8, marginBottom:10 }}>
-                <div style={{ flex:1, minWidth:0 }}>
-                  <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:3, flexWrap:'wrap' }}>
-                    <span style={{ fontSize:13, fontWeight:700, color:TEXT }}>{task.name}</span>
-                    <span style={{ fontSize:10, fontWeight:600, color:task.active?BLUE:T3, background:task.active?'rgba(0,102,255,0.10)':SURF2, padding:'2px 8px', borderRadius:20, border:`1px solid ${task.active?'rgba(0,102,255,0.20)':BDR}` }}>
-                      {task.active ? 'Active' : 'Paused'}
-                    </span>
-                    <span style={{ fontSize:10, fontWeight:600, color:T3, background:SURF2, padding:'2px 8px', borderRadius:20, border:`1px solid ${BDR}` }}>
-                      {freqLabel(task.frequency)}
-                    </span>
-                  </div>
-                  <div style={{ fontSize:11, color:T2, fontFamily:'monospace', wordBreak:'break-all' }}>→ {task.recipient.slice(0,12)}...{task.recipient.slice(-8)}</div>
-                  <div style={{ fontSize:13, fontWeight:700, color:TEXT, marginTop:4 }}>{task.amount} USDC</div>
-                </div>
-                <div style={{ display:'flex', gap:6, flexShrink:0 }}>
-                  <button onClick={() => runNow(task)} disabled={!task.active||running||!address||!!runningId}
-                    title="Run now"
-                    style={{ width:32, height:32, borderRadius:9, background:running?SURF2:BLUE, border:`1px solid ${running?BDR:BLUE}`, display:'flex', alignItems:'center', justifyContent:'center', cursor:(!task.active||running||!address||!!runningId)?'not-allowed':'pointer', opacity:(!task.active||!address)?0.4:1 }}>
-                    {running ? <div style={{ width:12, height:12, border:`2px solid ${T3}`, borderTopColor:BLUE, borderRadius:'50%', animation:'nan-spin 0.8s linear infinite' }} /> : <Check size={13} color="#fff" />}
-                  </button>
-                  <button onClick={() => updateRecurringTask(task.id, { active: !task.active })} title={task.active?'Pause':'Resume'} style={{ width:32, height:32, borderRadius:9, background:SURF2, border:`1px solid ${BDR}`, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer' }}>
-                    {task.active ? <Pause size={13} color={T2} /> : <Play size={13} color={T2} />}
-                  </button>
-                  <button onClick={() => { removeRecurringTask(task.id); toast.success('Task removed') }} title="Delete" style={{ width:32, height:32, borderRadius:9, background:SURF2, border:`1px solid ${BDR}`, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer' }}>
-                    <Trash2 size={13} color={T2} />
-                  </button>
-                </div>
-              </div>
-              <div style={{ display:'flex', alignItems:'center', gap:10, paddingTop:10, borderTop:`1px solid ${BDR}`, flexWrap:'wrap' }}>
-                <Repeat size={11} color={T3} />
-                <span style={{ fontSize:11, color:T3 }}>{task.runCount} run{task.runCount!==1?'s':''}</span>
-                {task.lastRun && (
-                  <span style={{ fontSize:11, color:T3, display:'flex', alignItems:'center', gap:4 }}>
-                    <Clock size={10} color={T3} /> Last: {task.lastRun}
-                  </span>
-                )}
-                {nextLabel && task.frequency !== 'manual' && (
-                  <span style={{ fontSize:11, color:BLUE, display:'flex', alignItems:'center', gap:4, marginLeft:'auto' }}>
-                    <Calendar size={10} color={BLUE} /> Next: {nextLabel}
-                  </span>
-                )}
-                {task.lastTxHash && (
-                  <a href={buildTxExplorerUrl(ARC, task.lastTxHash)} target="_blank" rel="noopener noreferrer"
-                    style={{ fontSize:10, color:BLUE, fontWeight:600, textDecoration:'underline', marginLeft: nextLabel && task.frequency !== 'manual' ? 0 : 'auto' }}>
-                    View tx
-                  </a>
-                )}
-              </div>
+          {/* Amount */}
+          <div style={{ textAlign: 'center', marginBottom: 20 }}>
+            <div style={{ fontSize: 40, fontWeight: 800, color: TEXT, letterSpacing: '-0.04em', lineHeight: 1 }}>{newAmount}</div>
+            <div style={{ fontSize: 16, color: T2, fontWeight: 600, marginTop: 4 }}>USDC</div>
+          </div>
+
+          {/* Details */}
+          {[
+            { label: 'Name',         value: newName },
+            { label: 'To',           value: shortAddr(newRecipient), mono: true },
+            { label: 'Schedule',     value: `Every ${freqLabel(newFreq).toLowerCase()}` },
+            { label: 'First payment', value: newFreq === 'manual' ? 'On demand' : previewNextDate },
+          ].map((row, i, arr) => (
+            <div key={row.label} style={{
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              padding: '12px 0',
+              borderBottom: i < arr.length - 1 ? `1px solid ${BDR}` : 'none',
+            }}>
+              <span style={{ fontSize: 13, color: T2 }}>{row.label}</span>
+              <span style={{ fontSize: 13, fontWeight: 600, color: TEXT, fontFamily: row.mono ? 'monospace' : F }}>{row.value}</span>
             </div>
-          )
-        })}
-      </div>
+          ))}
+
+          <div style={{ display: 'flex', gap: 8, marginTop: 20 }}>
+            <button onClick={() => setStep('form')} style={btnGhost}>Back</button>
+            <button onClick={confirmCreate} style={btnPrimary}>
+              <Check size={15} /> Create payment
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════════
+          STEP: SUCCESS
+      ══════════════════════════════════════════════════════════════════ */}
+      {step === 'success' && lastCreated && (
+        <div style={{ background: SURF, border: `1px solid rgba(34,197,94,0.25)`, borderRadius: 16, padding: 28, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, textAlign: 'center' }}>
+          <div style={{ width: 52, height: 52, borderRadius: '50%', background: 'rgba(34,197,94,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <CheckCircle2 size={28} color={GREEN} />
+          </div>
+          <div style={{ fontSize: 17, fontWeight: 700, color: TEXT }}>Recurring payment created</div>
+          <div style={{ fontSize: 13, color: T2, lineHeight: 1.5 }}>
+            <span style={{ fontWeight: 700, color: TEXT }}>{lastCreated.amount} USDC</span> will be sent {lastCreated.freq === 'Manual' ? 'on demand' : `every ${lastCreated.freq.toLowerCase()}`}.
+          </div>
+          <button onClick={() => setStep('list')} style={{ ...btnPrimary, flex: 'none', width: '100%', marginTop: 8 }}>
+            View schedules <ArrowRight size={15} />
+          </button>
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════════
+          STEP: LIST
+      ══════════════════════════════════════════════════════════════════ */}
+      {step === 'list' && (
+        <>
+          {/* Empty state */}
+          {recurringTasks.length === 0 && (
+            <div style={{ textAlign: 'center', padding: '60px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+              <div style={{ width: 56, height: 56, borderRadius: 16, background: SURF, border: `1px solid ${BDR}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Repeat size={24} color={T3} />
+              </div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: TEXT }}>No recurring payments</div>
+              <div style={{ fontSize: 13, color: T2, maxWidth: 240, lineHeight: 1.5 }}>Automate payments you make regularly with NAN.</div>
+              <button onClick={openForm} style={{ ...btnPrimary, flex: 'none', padding: '0 24px', marginTop: 4, width: 'auto' }}>
+                <Plus size={15} /> Create recurring payment
+              </button>
+            </div>
+          )}
+
+          {/* Payment cards */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {recurringTasks.map(task => {
+              const running     = isRunning(task.id)
+              const nextLabel   = nextRunLabel(task.nextRunAt)
+              const isPausing   = pausingId === task.id
+              const isDeleting  = deletingId === task.id
+              const confirmingDel = confirmDel === task.id
+
+              return (
+                <div key={task.id} style={{
+                  background: SURF, border: `1px solid ${BDR}`,
+                  borderRadius: 14, overflow: 'hidden',
+                  opacity: isDeleting ? 0.4 : 1,
+                  transition: 'opacity 0.3s',
+                }}>
+                  {/* Card header */}
+                  <div style={{ padding: '14px 14px 12px', borderBottom: `1px solid ${BDR}` }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, flexWrap: 'wrap' }}>
+                      {/* Left: name + status */}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap', marginBottom: 4 }}>
+                          <span style={{ fontSize: 14, fontWeight: 700, color: TEXT }}>{task.name}</span>
+                          <span style={{
+                            fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20,
+                            color: task.active ? GREEN : T3,
+                            background: task.active ? 'rgba(34,197,94,0.10)' : SURF2,
+                            border: `1px solid ${task.active ? 'rgba(34,197,94,0.20)' : BDR}`,
+                          }}>
+                            {task.active ? '● Active' : '○ Paused'}
+                          </span>
+                        </div>
+                        {/* Amount */}
+                        <div style={{ fontSize: 22, fontWeight: 800, color: TEXT, letterSpacing: '-0.03em', lineHeight: 1 }}>{task.amount} <span style={{ fontSize: 13, fontWeight: 600, color: T2 }}>USDC</span></div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Card body */}
+                  <div style={{ padding: '12px 14px' }}>
+                    {/* Recipient */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, flexWrap: 'wrap', gap: 4 }}>
+                      <span style={{ fontSize: 11, color: T3, textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>To</span>
+                      <span style={{ fontSize: 12, color: TEXT, fontFamily: 'monospace' }}>{shortAddr(task.recipient)}</span>
+                    </div>
+
+                    {/* Grid: Schedule | Next | Completed */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 12 }}>
+                      {[
+                        { label: 'Schedule', value: freqLabel(task.frequency) },
+                        { label: 'Next payment', value: task.frequency === 'manual' ? 'On demand' : (nextLabel ?? fmtDate(task.nextRunAt)) },
+                        { label: 'Completed', value: task.runCount.toString() },
+                      ].map(col => (
+                        <div key={col.label} style={{ background: SURF2, borderRadius: 10, padding: '8px 10px' }}>
+                          <div style={{ fontSize: 10, color: T3, fontWeight: 600, marginBottom: 3, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{col.label}</div>
+                          <div style={{ fontSize: 12, fontWeight: 700, color: TEXT }}>{col.value}</div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Last run + tx link */}
+                    {(task.lastRun || task.lastTxHash) && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+                        {task.lastRun && (
+                          <span style={{ fontSize: 11, color: T3, display: 'flex', alignItems: 'center', gap: 4 }}>
+                            <Clock size={10} color={T3} /> Last run {task.lastRun}
+                          </span>
+                        )}
+                        {task.lastTxHash && (
+                          <a href={buildTxExplorerUrl(ARC, task.lastTxHash)} target="_blank" rel="noopener noreferrer"
+                            style={{ fontSize: 11, color: BLUE, fontWeight: 600, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 3 }}>
+                            View tx <ArrowRight size={10} />
+                          </a>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Delete confirm overlay */}
+                    {confirmingDel ? (
+                      <div style={{ background: 'rgba(239,68,68,0.07)', border: `1px solid rgba(239,68,68,0.18)`, borderRadius: 10, padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: TEXT }}>Delete this payment?</div>
+                        <div style={{ fontSize: 12, color: T2 }}>This will permanently remove the schedule.</div>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <button onClick={() => setConfirmDel(null)} style={{ ...btnGhost, flex: 1, height: 38, fontSize: 13 }}>Cancel</button>
+                          <button onClick={() => deleteTask(task.id)} style={{ flex: 1, height: 38, background: RED, color: '#fff', border: 'none', borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+                            {isDeleting ? <Spin color="#fff" /> : <><Trash2 size={13} /> Delete</>}
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      /* Action row */
+                      <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
+                        {/* Run now */}
+                        <button
+                          onClick={() => runNow(task)}
+                          disabled={!task.active || running || !address || !!runningId}
+                          style={{
+                            flex: 1, minWidth: 80, height: 36,
+                            background: running ? SURF2 : BLUE,
+                            color: running ? T2 : '#fff',
+                            border: `1px solid ${running ? BDR : BLUE}`,
+                            borderRadius: 9, fontSize: 12, fontWeight: 600,
+                            cursor: (!task.active || running || !address || !!runningId) ? 'not-allowed' : 'pointer',
+                            opacity: (!task.active || !address) ? 0.45 : 1,
+                            fontFamily: F, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
+                          }}>
+                          {running ? <><Spin size={12} color={T2} /> Running</> : <><Check size={12} /> Run now</>}
+                        </button>
+
+                        {/* Pause / Resume */}
+                        <button
+                          onClick={() => togglePause(task)}
+                          style={{
+                            flex: 1, minWidth: 80, height: 36,
+                            background: SURF2, color: TEXT,
+                            border: `1px solid ${BDR}`,
+                            borderRadius: 9, fontSize: 12, fontWeight: 600,
+                            cursor: 'pointer', fontFamily: F,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
+                          }}>
+                          {isPausing
+                            ? <Spin size={12} color={T2} />
+                            : task.active
+                              ? <><Pause size={12} /> Pause</>
+                              : <><Play size={12} /> Resume</>
+                          }
+                        </button>
+
+                        {/* Delete */}
+                        <button
+                          onClick={() => setConfirmDel(task.id)}
+                          style={{
+                            width: 36, height: 36, background: SURF2, color: T2,
+                            border: `1px solid ${BDR}`,
+                            borderRadius: 9, cursor: 'pointer',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          }}>
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+
+          {/* Add more button at bottom when list exists */}
+          {recurringTasks.length > 0 && (
+            <button onClick={openForm} style={{
+              width: '100%', height: 44, marginTop: 8,
+              background: 'transparent', color: BLUE,
+              border: `1px dashed rgba(0,102,255,0.35)`,
+              borderRadius: 12, fontSize: 13, fontWeight: 600,
+              cursor: 'pointer', fontFamily: F,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+            }}>
+              <Plus size={14} /> Add another schedule
+            </button>
+          )}
+        </>
+      )}
     </div>
   )
 }
