@@ -273,8 +273,9 @@ export function SwapPage() {
   const arcNoPair = (tokenIn === 'USDC' && tokenOut === 'NATIVE') || (tokenIn === 'NATIVE' && tokenOut === 'USDC')
   const sameToken = tokenIn === tokenOut
   const arcUnsupportedPair = !!(TOKEN_META[tokenIn]?.arcUnsupported || TOKEN_META[tokenOut]?.arcUnsupported)
-  // USDC↔EURC has no LiFi route on Arc Testnet — no DEX liquidity pool exists there yet.
-  const noLifiRoute = (tokenIn === 'USDC' && tokenOut === 'EURC') || (tokenIn === 'EURC' && tokenOut === 'USDC')
+  // EURC → USDC has no LiFi route on Arc Testnet (confirmed Circle bug — only USDC → EURC direction works).
+  // USDC → EURC is fine and should be allowed through.
+  const noLifiRoute = tokenIn === 'EURC' && tokenOut === 'USDC'
   const invalid   = sameToken || arcNoPair || arcUnsupportedPair || noLifiRoute
   // Passkey users sign client-side; Circle email/Google users go server-side
   const canReview = (isConnected || isCircleUser || isPasskeyUser) && !!amountIn && parseFloat(amountIn) > 0 && !invalid
@@ -575,7 +576,7 @@ export function SwapPage() {
               : sameToken
               ? 'Choose different tokens to swap.'
               : noLifiRoute
-              ? 'USDC ↔ EURC swaps are not available on Arc Testnet (no DEX liquidity pool yet). To convert between them, bridge your USDC to Base Sepolia and swap there.'
+              ? <span>EURC → USDC is not available on Arc Testnet (known routing gap). <button onClick={flipTokens} style={{ background: 'none', border: 'none', cursor: 'pointer', color: c.blue, fontWeight: 700, fontSize: 'inherit', padding: 0, fontFamily: 'inherit' }}>Flip to USDC → EURC</button> instead.</span>
               : `${TOKEN_META[tokenIn]?.arcUnsupported ? tokenIn : tokenOut} is not available on Arc Testnet. Bridge to another chain to trade it.`}
           </span>
         </div>
@@ -641,7 +642,7 @@ export function SwapPage() {
             : !isConnected && !isCircleUser && !isPasskeyUser ? 'Connect wallet to swap'
             : !amountIn || parseFloat(amountIn) === 0 ? 'Enter an amount'
             : arcUnsupportedPair ? 'Token not available on Arc Testnet'
-            : noLifiRoute ? 'No route on Arc Testnet — bridge first'
+            : noLifiRoute ? 'EURC → USDC not available — flip pair'
             : invalid ? 'Select different tokens'
             : 'Get quote'}
         </button>
