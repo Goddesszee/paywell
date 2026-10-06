@@ -46,7 +46,7 @@ export function FeedbackPage() {
   }
 
   if (done) return (
-    <div style={{ width: '100%', fontFamily: F, paddingBottom: 80, display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 60 }}>
+    <div style={{ width: '100%', minHeight: '100%', fontFamily: F, paddingBottom: 80, display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 60 }}>
       <div style={{ width: 64, height: 64, borderRadius: 20, background: 'rgba(0,200,83,0.10)', border: '1px solid rgba(0,200,83,0.20)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 20 }}>
         <CheckCircle size={28} color="#00C853" />
       </div>
@@ -62,7 +62,7 @@ export function FeedbackPage() {
   )
 
   return (
-    <div style={{ width: '100%', fontFamily: F, paddingBottom: 80 }}>
+    <div style={{ width: '100%', minHeight: '100%', fontFamily: F, paddingBottom: 80 }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 24 }}>
         <button onClick={() => setActiveView('home')} style={{ width: 32, height: 32, borderRadius: 8, background: C.surf, border: `1px solid ${C.bdr}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>

@@ -136,7 +136,7 @@ export function RecurringPage() {
   const totalRuns = recurringTasks.reduce((s,t) => s+t.runCount, 0)
 
   return (
-    <div style={{ fontFamily: F, maxWidth: 520, margin: '0 auto', paddingBottom: 88 }}>
+    <div style={{ fontFamily: F, width: '100%', minHeight: '100%', paddingBottom: 88 }}>
       {/* Header */}
       <div style={{ display:'flex', alignItems:'center', gap:10, padding:'20px 0 16px' }}>
         <div style={{ width:36, height:36, borderRadius:10, background:BLUE, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>

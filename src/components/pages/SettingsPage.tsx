@@ -98,7 +98,7 @@ export function SettingsPage() {
   }
 
   return (
-    <div style={{ maxWidth:480, margin:'0 auto', fontFamily:F, paddingBottom:80 }}>
+    <div style={{ width: '100%', minHeight: '100%', fontFamily:F, paddingBottom:80 }}>
       <h1 style={{ fontSize:22, fontWeight:700, letterSpacing:'-0.025em', color:TEXT, marginBottom:2 }}>Settings</h1>
       <p style={{ fontSize:13, color:T3, marginBottom:16 }}>NAN · Arc Testnet · Circle USDC</p>
 

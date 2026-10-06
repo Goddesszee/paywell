@@ -168,7 +168,7 @@ export function SupportPage() {
 
   // ── List view ────────────────────────────────────────────────────────────────
   if (view === 'list') return (
-    <div style={{ maxWidth: 600, margin: '0 auto', fontFamily: SANS }}>
+    <div style={{ width: '100%', minHeight: '100%', fontFamily: SANS }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
@@ -232,7 +232,7 @@ export function SupportPage() {
 
   // ── New ticket view ──────────────────────────────────────────────────────────
   if (view === 'new') return (
-    <div style={{ maxWidth: 600, margin: '0 auto', fontFamily: SANS }}>
+    <div style={{ width: '100%', minHeight: '100%', fontFamily: SANS }}>
       <button onClick={() => { setView('list'); setError('') }} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 0', background: 'none', border: 'none', color: 'var(--nan-text2)', fontSize: 13, cursor: 'pointer', marginBottom: 18, fontFamily: SANS }}>
         <ArrowLeft size={14} /> Back
       </button>
@@ -273,7 +273,7 @@ export function SupportPage() {
 
   // ── Ticket conversation view ─────────────────────────────────────────────────
   if (view === 'ticket' && selected) return (
-    <div style={{ maxWidth: 600, margin: '0 auto', fontFamily: SANS, display: 'flex', flexDirection: 'column', minHeight: '70vh' }}>
+    <div style={{ width: '100%', minHeight: '100%', fontFamily: SANS, display: 'flex', flexDirection: 'column' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
         <button onClick={() => { setView('list'); void fetchTickets() }} style={{ background: 'none', border: 'none', color: 'var(--nan-text2)', cursor: 'pointer', padding: 0 }}>
           <ArrowLeft size={18} color="var(--nan-text2)" />

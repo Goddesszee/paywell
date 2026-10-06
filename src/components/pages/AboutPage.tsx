@@ -33,7 +33,7 @@ export function AboutPage() {
   if (!about) return null
 
   return (
-    <div style={{ maxWidth: 640, margin: '0 auto', fontFamily: SANS }}>
+    <div style={{ width: '100%', minHeight: '100%', fontFamily: SANS }}>
       {/* Header */}
       <div style={{ marginBottom: 24 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
