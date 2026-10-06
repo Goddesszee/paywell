@@ -80,7 +80,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     try {
       const client = ucwClient()
       const response = await client.listWallets({ userToken })
-      return res.json({ wallets: response.data?.wallets ?? [] })
+      const wallets = response.data?.wallets ?? []
+
+      // Write a session record to Redis so community endpoints (suggestions,
+      // feedback, support) can resolve this user from their sessionToken.
+      try {
+        const { getRedis } = await import('./_redis')
+        const kv = getRedis()
+        if (kv && wallets.length > 0) {
+          const wallet = wallets[0]
+          // Use wallet address as the identity key — resolveSession in community.ts
+          // accepts 0x addresses as valid email-equivalent identities.
+          const email = wallet.address ?? ''
+          await kv.set(`session:${userToken}`, {
+            email,
+            walletAddress: wallet.address ?? '',
+            walletId: wallet.id ?? '',
+            createdAt: Date.now(),
+          }, { ex: 60 * 60 * 24 * 7 }) // 7 days
+        }
+      } catch { /* Redis not configured — skip session write */ }
+
+      return res.json({ wallets })
     } catch (e) {
       return err(res, 500, e instanceof Error ? e.message : 'Circle API error')
     }
