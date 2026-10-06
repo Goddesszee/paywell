@@ -268,6 +268,10 @@ export function SwapPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const appKit = React.useMemo(() => { appKitRef.current ??= new AppKit(); return appKitRef.current }, [])
 
+  // Circle API key passed per-call on swap/estimateSwap so requests run against
+  // a per-project rate limit instead of the shared anonymous quota.
+  const CIRCLE_API_KEY = import.meta.env.VITE_CIRCLE_API_KEY as string | undefined
+
   const balIn  = useTokenBalance(tokenIn,  address)
   const balOut = useTokenBalance(tokenOut, address)
 
@@ -433,7 +437,7 @@ export function SwapPage() {
       const estimate = await appKit.estimateSwap({
         from: { adapter, chain: CHAIN_KEY },
         tokenIn, tokenOut, amountIn,
-        config: { slippageBps },
+        config: { slippageBps, ...(CIRCLE_API_KEY ? { apiKey: CIRCLE_API_KEY } : {}) },
       })
       setReviewed({ estimate, tokenIn, tokenOut, amountIn, slippageBps, account: address })
       setPhase('reviewed')
@@ -452,7 +456,8 @@ export function SwapPage() {
       const result  = await appKit.swap({
         from: { adapter, chain: CHAIN_KEY },
         tokenIn:  reviewed.tokenIn, tokenOut: reviewed.tokenOut,
-        amountIn: reviewed.amountIn, config: { slippageBps: reviewed.slippageBps },
+        amountIn: reviewed.amountIn,
+        config: { slippageBps: reviewed.slippageBps, ...(CIRCLE_API_KEY ? { apiKey: CIRCLE_API_KEY } : {}) },
       })
       const rHash = (result as { txHash?: string }).txHash ?? ''
       const rUrl  = (result as { explorerUrl?: string }).explorerUrl ?? ''
