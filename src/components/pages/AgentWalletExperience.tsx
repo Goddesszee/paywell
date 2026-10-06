@@ -21,7 +21,7 @@ import {
   Wallet, Shield, Zap, BarChart3,
   Copy, Check, ChevronDown, ChevronRight,
   RefreshCw, AlertTriangle, Coins, Clock,
-  CheckCircle, Wifi, Mail, Loader, Sparkles, X as XIcon,
+  CheckCircle, Wifi, Mail, Loader, X as XIcon,
   Settings, Info,
 } from 'lucide-react'
 import { useAppStore, AgentSpendEntry } from '../../store/appStore'
@@ -907,18 +907,16 @@ function ManagePolicyModal({ onClose, C }: { onClose: () => void; C: ReturnType<
   )
 }
 
-type DashTab = 'overview' | 'recurring' | 'bridge' | 'swap' | 'services'
+type DashTab = 'overview' | 'activity' | 'services'
 
-const DASH_TABS: { id: DashTab; label: string; Icon: React.ElementType }[] = [
-  { id: 'overview',  label: 'Overview',  Icon: Wallet },
-  { id: 'recurring', label: 'Recurring', Icon: Repeat },
-  { id: 'bridge',    label: 'Bridge',    Icon: ArrowLeftRight },
-  { id: 'swap',      label: 'Swap',      Icon: ArrowUpDown },
-  { id: 'services',  label: 'Services',  Icon: Sparkles },
+const PRIMARY_TABS: { id: DashTab; label: string }[] = [
+  { id: 'overview',  label: 'Overview'  },
+  { id: 'activity',  label: 'Activity'  },
+  { id: 'services',  label: 'Services'  },
 ]
 
 function DashboardScreen({ C, onDisconnect }: { C: ReturnType<typeof useNanTheme>; onDisconnect: () => void }) {
-  const { agentWallet, setAgentWallet, agentSpendLog, auth } = useAppStore()
+  const { agentWallet, setAgentWallet, agentSpendLog, setActiveView } = useAppStore()
   const [dashTab, setDashTab]         = useState<DashTab>('overview')
   const [refreshing, setRefreshing]   = useState(false)
   const [copied, setCopied]           = useState(false)
@@ -974,17 +972,14 @@ function DashboardScreen({ C, onDisconnect }: { C: ReturnType<typeof useNanTheme
     setTimeout(() => setCopied(false), 2000)
   }
 
-  // Format blockchain name for display
   const chainLabel = agentWallet.blockchain
     ? agentWallet.blockchain.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
     : 'Arc Testnet'
 
-  // Format date
   const createdLabel = agentWallet.createDate
     ? new Date(agentWallet.createDate).toLocaleDateString('en', { year: 'numeric', month: 'short', day: 'numeric' })
     : '—'
 
-  // Build a ThemeColors-compatible object from the NAN theme tokens
   const themeColors = {
     bg:    C.bg   ?? 'var(--nan-bg)',
     surf:  C.surf,
@@ -995,241 +990,247 @@ function DashboardScreen({ C, onDisconnect }: { C: ReturnType<typeof useNanTheme
     t3:    C.t3,
   }
 
-  return (
-    <div style={{ fontFamily: F, display: 'flex', flexDirection: 'column', gap: 6, width: '100%', maxWidth: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
+  // Derive a stable label from the ISO timestamp string — no Date.now() at render time
+  const lastRefreshedLabel = agentWallet.lastRefreshed
+    ? new Date(agentWallet.lastRefreshed).toLocaleTimeString('en', { hour: '2-digit', minute: '2-digit' })
+    : null
 
-      {/* ── Tab bar: swipeable, never causes page overflow ──────────────────── */}
-      <div style={{ display: 'flex', background: C.surf, borderRadius: 12, padding: 3, marginBottom: 8, gap: 2, overflowX: 'auto', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-        {DASH_TABS.map(t => {
+  return (
+    <div style={{ fontFamily: F, width: '100%', maxWidth: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
+
+      {/* ── Page header ─────────────────────────────────────────────────────── */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, gap: 8 }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 2 }}>
+            <span style={{ fontSize: 17, fontWeight: 800, color: C.text, letterSpacing: '-0.02em' }}>NAN Agent Wallet</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+            <div style={{ width: 6, height: 6, borderRadius: '50%', background: isActive ? GREEN : AMBER, boxShadow: isActive ? `0 0 5px ${GREEN}` : 'none', flexShrink: 0 }} />
+            <span style={{ fontSize: 11, color: C.t3 }}>Connected to Circle Agent Stack</span>
+          </div>
+        </div>
+        <button
+          onClick={() => void refresh()}
+          aria-label="Refresh balance"
+          style={{ width: 34, height: 34, borderRadius: 9, background: C.surf, border: `1px solid ${C.bdr}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, WebkitTapHighlightColor: 'transparent' }}
+        >
+          <RefreshCw size={14} color={C.t2} style={{ animation: refreshing ? 'aw-spin 1s linear infinite' : 'none' }} />
+        </button>
+      </div>
+
+      {/* ── Primary tab bar ─────────────────────────────────────────────────── */}
+      <div style={{ display: 'flex', gap: 2, marginBottom: 16, background: C.surf, borderRadius: 10, padding: 3 }}>
+        {PRIMARY_TABS.map(t => {
           const active = dashTab === t.id
           return (
-            <button
-              key={t.id}
-              onClick={() => setDashTab(t.id)}
-              style={{
-                flexShrink: 0, padding: '8px 12px', border: 'none', borderRadius: 9,
-                cursor: 'pointer', fontFamily: F, fontSize: 13, fontWeight: active ? 700 : 500,
-                background: active ? BLUE : 'transparent',
-                color: active ? '#fff' : C.t2,
-                transition: 'all 0.15s', display: 'flex', alignItems: 'center',
-                justifyContent: 'center', gap: 5, whiteSpace: 'nowrap',
-                WebkitTapHighlightColor: 'transparent',
-              }}
-            >
-              <t.Icon size={13} color={active ? '#fff' : C.t3} strokeWidth={2} />
+            <button key={t.id} onClick={() => setDashTab(t.id)} style={{
+              flex: 1, padding: '7px 0', border: 'none', borderRadius: 7,
+              cursor: 'pointer', fontFamily: F, fontSize: 13, fontWeight: active ? 700 : 500,
+              background: active ? BLUE : 'transparent',
+              color: active ? '#fff' : C.t2,
+              transition: 'all 0.15s', WebkitTapHighlightColor: 'transparent',
+            }}>
               {t.label}
             </button>
           )
         })}
       </div>
 
-      {/* ── Services tab ───────────────────────────────────────────────────── */}
-      {dashTab === 'recurring' && <AgentRecurringTab C={themeColors} />}
-      {dashTab === 'bridge'    && <AgentBridgeTab    C={themeColors} />}
-      {dashTab === 'swap'      && <AgentSwapTab      C={themeColors} />}
-      {dashTab === 'services'  && <AgentServicesTab  C={themeColors} />}
+      {/* ══ SERVICES TAB ══════════════════════════════════════════════════════ */}
+      {dashTab === 'services' && <AgentServicesTab C={themeColors} />}
 
-      {/* ── Overview tab ───────────────────────────────────────────────────── */}
-      {dashTab === 'overview' && <>
-
-      {/* ── Circle Agent Stack identity banner ─────────────────────────────── */}
-      <div style={{ background: 'rgba(0,102,255,0.06)', border: '1px solid rgba(0,102,255,0.16)', borderRadius: 14, padding: '12px 16px', marginBottom: 8 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: BLUE, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2 }}>
-              NAN Agent Wallet
+      {/* ══ ACTIVITY TAB ══════════════════════════════════════════════════════ */}
+      {dashTab === 'activity' && (
+        <div>
+          {/* Total spent */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>Agent Payments</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: C.text, fontFamily: MONO }}>{totalSpent.toFixed(4)} USDC</span>
+          </div>
+          {agentSpendLog.length === 0 ? (
+            <div style={{ background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 16, padding: '36px 20px', textAlign: 'center' }}>
+              <Clock size={24} color={C.t3} style={{ margin: '0 auto 10px', display: 'block' }} />
+              <div style={{ fontSize: 13, fontWeight: 600, color: C.text, marginBottom: 4 }}>No activity yet</div>
+              <div style={{ fontSize: 12, color: C.t3 }}>Agent payments appear here automatically</div>
             </div>
-            <div style={{ fontSize: 12, color: C.t2 }}>Powered by Circle Agent Stack</div>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <div style={{ width: 7, height: 7, borderRadius: '50%', background: isActive ? GREEN : AMBER, boxShadow: isActive ? `0 0 6px ${GREEN}` : 'none' }} />
-            <span style={{ fontSize: 12, fontWeight: 700, color: isActive ? GREEN : AMBER }}>
-              {isActive ? 'Connected' : 'Inactive'}
-            </span>
-          </div>
+          ) : (
+            <div style={{ background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 16, padding: '4px 16px' }}>
+              {agentSpendLog.slice(0, 20).map((e, i) => (
+                <SpendRow key={e.id} entry={e} last={i === Math.min(agentSpendLog.length, 20) - 1} C={C} />
+              ))}
+            </div>
+          )}
         </div>
-      </div>
+      )}
 
-      {/* ── Balance card ───────────────────────────────────────────────────── */}
-      <SectionLabel label="Overview" />
-      <div style={{ background: 'linear-gradient(135deg, rgba(0,102,255,0.20) 0%, rgba(0,102,255,0.07) 100%)', border: '1px solid rgba(0,102,255,0.28)', borderRadius: 22, padding: '16px 16px 14px', position: 'relative', overflow: 'hidden', marginBottom: 8, width: '100%', boxSizing: 'border-box' }}>
-        <div style={{ position: 'absolute', top: -30, right: -30, width: 120, height: 120, borderRadius: '50%', background: 'rgba(0,102,255,0.15)', filter: 'blur(40px)', pointerEvents: 'none' }} />
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14, gap: 8 }}>
-          <div style={{ minWidth: 0, flex: 1 }}>
-            <div style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,0.45)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>Available Balance</div>
-            <div style={{ fontSize: 'clamp(24px, 7vw, 34px)', fontWeight: 800, color: '#fff', fontFamily: MONO, letterSpacing: '-0.02em', lineHeight: 1 }}>{balance.toFixed(2)}</div>
-            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)', marginTop: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>USDC · {chainLabel}</div>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8, flexShrink: 0 }}>
-            <div style={{ background: 'rgba(0,200,83,0.15)', border: '1px solid rgba(0,200,83,0.3)', borderRadius: 8, padding: '4px 10px', display: 'flex', alignItems: 'center', gap: 5 }}>
-              <div style={{ width: 6, height: 6, borderRadius: '50%', background: GREEN }} />
-              <span style={{ fontSize: 11, fontWeight: 700, color: GREEN }}>Active</span>
+      {/* ══ OVERVIEW TAB ══════════════════════════════════════════════════════ */}
+      {dashTab === 'overview' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+
+          {/* Desktop 2-col grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 12 }}>
+
+            {/* ── Balance card ──────────────────────────────────────────────── */}
+            <div style={{ background: 'rgba(0,102,255,0.12)', border: '1px solid rgba(0,102,255,0.24)', borderRadius: 18, padding: '18px 18px 14px', position: 'relative', overflow: 'hidden', boxSizing: 'border-box' }}>
+              {/* Subtle glow */}
+              <div style={{ position: 'absolute', top: -40, right: -40, width: 130, height: 130, borderRadius: '50%', background: 'rgba(0,102,255,0.18)', filter: 'blur(40px)', pointerEvents: 'none' }} />
+
+              <div style={{ fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>
+                Available to Your Agent
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 2 }}>
+                <span style={{ fontSize: 'clamp(28px, 8vw, 38px)', fontWeight: 800, color: '#fff', fontFamily: MONO, letterSpacing: '-0.03em', lineHeight: 1 }}>{balance.toFixed(2)}</span>
+                <span style={{ fontSize: 14, color: 'rgba(255,255,255,0.45)', fontWeight: 600 }}>USDC</span>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 14 }}>
+                <div style={{ width: 6, height: 6, borderRadius: '50%', background: isActive ? GREEN : AMBER }} />
+                <span style={{ fontSize: 11, color: isActive ? GREEN : AMBER, fontWeight: 600 }}>Active</span>
+                <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)', marginLeft: 4 }}>{chainLabel}</span>
+              </div>
+
+              {/* Address row */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                <div style={{ flex: 1, background: 'rgba(0,0,0,0.25)', borderRadius: 8, padding: '7px 10px', overflow: 'hidden' }}>
+                  <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', fontFamily: MONO, display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {agentWallet.address ? shortenAddress(agentWallet.address) : '—'}
+                  </span>
+                </div>
+                <button onClick={copyAddress} aria-label="Copy address" style={{ width: 32, height: 32, borderRadius: 8, flexShrink: 0, background: 'rgba(255,255,255,0.10)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitTapHighlightColor: 'transparent' }}>
+                  {copied ? <Check size={13} color={GREEN} /> : <Copy size={13} color="rgba(255,255,255,0.6)" />}
+                </button>
+              </div>
+
+              {lastRefreshedLabel && (
+                <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.22)', marginTop: 8 }}>Updated {lastRefreshedLabel}</div>
+              )}
             </div>
-            <button onClick={() => void refresh()} style={{ width: 32, height: 32, borderRadius: 9, background: 'rgba(255,255,255,0.08)', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }} aria-label="Refresh">
-              <RefreshCw size={13} color="rgba(255,255,255,0.6)" style={{ animation: refreshing ? 'aw-spin 1s linear infinite' : 'none' }} />
+
+            {/* ── Agent Controls ─────────────────────────────────────────────── */}
+            <div style={{ background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 18, padding: '16px 18px', boxSizing: 'border-box' }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: C.t3, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>Agent Controls</div>
+
+              {[
+                { label: 'Policy status', value: isActive ? 'Active' : 'Inactive', valueColor: isActive ? GREEN : AMBER },
+                { label: 'Source',        value: 'Circle Agent Stack',              valueColor: BLUE },
+              ].map(({ label, value, valueColor }, i, arr) => (
+                <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '9px 0', borderBottom: i < arr.length - 1 ? `1px solid ${C.bdr}` : 'none', gap: 8 }}>
+                  <span style={{ fontSize: 12, color: C.t2 }}>{label}</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: valueColor }}>{value}</span>
+                </div>
+              ))}
+
+              <button
+                onClick={() => setPolicyOpen(true)}
+                style={{ width: '100%', marginTop: 14, height: 38, background: 'rgba(0,102,255,0.08)', border: '1px solid rgba(0,102,255,0.2)', borderRadius: 10, fontSize: 12, fontWeight: 700, color: BLUE, fontFamily: F, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, WebkitTapHighlightColor: 'transparent' }}
+              >
+                <Settings size={13} color={BLUE} strokeWidth={2} />
+                Manage spending policy
+                <ChevronRight size={12} color={BLUE} />
+              </button>
+            </div>
+          </div>
+
+          {/* ── Wallet actions ─────────────────────────────────────────────────── */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+            {[
+              { label: 'Fund',    icon: <Coins size={16} color={BLUE} />,        action: () => setActiveView('wallet') },
+              { label: 'Send',    icon: <ArrowRight size={16} color={BLUE} />,   action: () => setActiveView('wallet') },
+              { label: 'Receive', icon: <ArrowLeft size={16} color={BLUE} />,    action: () => copyAddress() },
+            ].map(({ label, icon, action }) => (
+              <button key={label} onClick={action} style={{
+                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 5,
+                padding: '12px 8px', background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 14,
+                cursor: 'pointer', fontFamily: F, WebkitTapHighlightColor: 'transparent', transition: 'background 0.12s',
+              }}>
+                <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(0,102,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {icon}
+                </div>
+                <span style={{ fontSize: 12, fontWeight: 600, color: C.text }}>{label}</span>
+              </button>
+            ))}
+          </div>
+
+          {/* ── What your agent can do ─────────────────────────────────────────── */}
+          <div style={{ background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 16, overflow: 'hidden' }}>
+            <div style={{ padding: '14px 16px 10px', borderBottom: `1px solid ${C.bdr}` }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: C.t3, textTransform: 'uppercase', letterSpacing: '0.08em' }}>What Your Agent Can Do</div>
+            </div>
+            <div style={{ padding: '4px 16px' }}>
+              <CapabilityRow label="Hold USDC"              status="enabled"        C={C} />
+              <CapabilityRow label="Receive USDC"           status="enabled"        C={C} />
+              <CapabilityRow label="Send USDC"              status="enabled"        note="To permitted addresses" C={C} />
+              <CapabilityRow label="Pay for services"       status="enabled"        note="Pay on your behalf" C={C} />
+              <CapabilityRow label="Bridge (CCTP V2)"       status="enabled"        note="Use Bridge in main nav" C={C} />
+              <CapabilityRow label="Swap tokens"            status="enabled"        note="Use Swap in main nav" C={C} />
+              <CapabilityRow label="Recurring payments"     status="enabled"        note="Use Recurring in main nav" C={C} noBorder />
+            </div>
+          </div>
+
+          {/* ── More tools row ─────────────────────────────────────────────────── */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+            {[
+              { label: 'Bridge',    Icon: ArrowLeftRight, action: () => setActiveView('bridge') },
+              { label: 'Swap',      Icon: ArrowUpDown,    action: () => setActiveView('swap') },
+              { label: 'Recurring', Icon: Repeat,         action: () => setActiveView('recurring') },
+            ].map(({ label, Icon: Ic, action }) => (
+              <button key={label} onClick={action} style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                padding: '10px 6px', background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 12,
+                cursor: 'pointer', fontFamily: F, WebkitTapHighlightColor: 'transparent',
+              }}>
+                <Ic size={13} color={C.t2} />
+                <span style={{ fontSize: 12, fontWeight: 600, color: C.t2 }}>{label}</span>
+                <ChevronRight size={11} color={C.t3} />
+              </button>
+            ))}
+          </div>
+
+          {/* ── Wallet details (collapsible) ───────────────────────────────────── */}
+          <div style={{ background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 16, overflow: 'hidden' }}>
+            <button
+              onClick={() => setDetailsOpen(o => !o)}
+              style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', fontFamily: F, WebkitTapHighlightColor: 'transparent' }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ width: 7, height: 7, borderRadius: '50%', background: GREEN, boxShadow: `0 0 5px ${GREEN}` }} />
+                <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>Circle Agent Stack</span>
+                <span style={{ fontSize: 11, color: C.t3 }}>Connected</span>
+              </div>
+              {detailsOpen ? <ChevronDown size={14} color={C.t3} /> : <ChevronRight size={14} color={C.t3} />}
             </button>
+            {detailsOpen && (
+              <div style={{ padding: '0 16px 4px', borderTop: `1px solid ${C.bdr}` }}>
+                <InfoRow label="Wallet address" value={agentWallet.address ?? '—'}  mono C={C} />
+                <InfoRow label="Wallet ID"      value={agentWallet.walletId ?? '—'} mono C={C} />
+                <InfoRow label="Network"        value={chainLabel}                        C={C} />
+                <InfoRow label="Asset"          value="USDC"                              C={C} />
+                <InfoRow label="Account type"   value={agentWallet.accountType ?? '—'}    C={C} />
+                <InfoRow label="Wallet status"  value={agentWallet.walletState ?? 'LIVE'} C={C} />
+                <InfoRow label="Infrastructure" value="Circle Agent Stack"                C={C} />
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0' }}>
+                  <span style={{ fontSize: 12, color: C.t2 }}>Created</span>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: C.text }}>{createdLabel}</span>
+                </div>
+              </div>
+            )}
           </div>
-        </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <div style={{ flex: 1, background: 'rgba(0,0,0,0.22)', borderRadius: 10, padding: '8px 12px', overflow: 'hidden' }}>
-            <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', fontFamily: MONO }}>{agentWallet.address ? shortenAddress(agentWallet.address) : '—'}</span>
-          </div>
-          <button onClick={copyAddress} style={{ width: 36, height: 36, borderRadius: 10, flexShrink: 0, background: 'rgba(255,255,255,0.10)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitTapHighlightColor: 'transparent' }} aria-label="Copy address">
-            {copied ? <Check size={14} color={GREEN} /> : <Copy size={14} color="rgba(255,255,255,0.65)" />}
+
+          {/* ── Disconnect ────────────────────────────────────────────────────── */}
+          <button onClick={onDisconnect} style={{ width: '100%', height: 42, background: 'none', border: `1px solid ${C.bdr}`, borderRadius: 12, fontSize: 12, fontWeight: 600, color: RED, fontFamily: F, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, WebkitTapHighlightColor: 'transparent' }}>
+            <AlertTriangle size={13} color={RED} strokeWidth={2} />
+            Disconnect Agent Wallet
           </button>
-        </div>
-        {agentWallet.lastRefreshed && (
-          <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.28)', marginTop: 10 }}>
-            Updated {new Date(agentWallet.lastRefreshed).toLocaleTimeString('en', { hour: '2-digit', minute: '2-digit' })}
+          <div style={{ fontSize: 11, color: C.t3, textAlign: 'center', paddingBottom: 8 }}>
+            Your wallet and funds remain safe. Reconnect any time by logging in again.
           </div>
-        )}
-      </div>
 
-      {/* ── Agent Spending Policy ──────────────────────────────────────────── */}
-      <SectionLabel label="Agent Spending Policy" />
-      <div style={{ background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 16, padding: '4px 16px', marginBottom: 8, width: '100%', boxSizing: 'border-box' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, padding: '10px 0', borderBottom: `1px solid ${C.bdr}` }}>
-          <span style={{ fontSize: 12, color: C.t2, flexShrink: 0 }}>Status</span>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 700, color: isActive ? GREEN : AMBER, flexShrink: 0 }}>
-            <span style={{ width: 7, height: 7, borderRadius: '50%', background: isActive ? GREEN : AMBER, display: 'inline-block' }} />
-            {isActive ? 'Active' : 'Inactive'}
-          </span>
         </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, padding: '10px 0', borderBottom: `1px solid ${C.bdr}` }}>
-          <span style={{ fontSize: 12, color: C.t2, flexShrink: 0 }}>Limits</span>
-          <span style={{ fontSize: 12, color: C.t3, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>Tap Manage Policy</span>
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, padding: '10px 0' }}>
-          <span style={{ fontSize: 12, color: C.t2, flexShrink: 0 }}>Source</span>
-          <span style={{ fontSize: 12, fontWeight: 600, color: BLUE, flexShrink: 0 }}>Circle Agent Wallet</span>
-        </div>
-      </div>
-      <button
-        onClick={() => setPolicyOpen(true)}
-        style={{
-          width: '100%', height: 46, background: C.surf, border: `1px solid ${C.bdr}`,
-          borderRadius: 14, fontSize: 13, fontWeight: 700, color: BLUE, fontFamily: F,
-          cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-          gap: 8, marginBottom: 8, WebkitTapHighlightColor: 'transparent',
-          transition: 'background 0.15s',
-        }}
-      >
-        <Settings size={14} color={BLUE} strokeWidth={2} />
-        Manage Spending Policy
-      </button>
-      <div style={{ background: 'rgba(0,102,255,0.05)', border: '1px solid rgba(0,102,255,0.14)', borderRadius: 12, padding: '11px 14px', marginBottom: 8, fontSize: 12, color: C.t2, lineHeight: 1.6 }}>
-        Your Agent Wallet has a separate balance from your NAN Main Wallet. The NAN Agent can only spend funds available in its Agent Wallet according to its configured policy.
-      </div>
-
-      {/* ── What NAN Agent Can Do ───────────────────────────────────────────── */}
-      <SectionLabel label="What NAN Agent Can Do" />
-      <div style={{ background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 16, padding: '4px 16px', marginBottom: 8 }}>
-        <CapabilityRow label="Hold USDC"    status="enabled"        C={C} />
-        <CapabilityRow label="Receive USDC" status="enabled"        C={C} />
-        <CapabilityRow label="Send USDC"    status="enabled"        note="To permitted addresses" C={C} />
-        <CapabilityRow label="Agent Payments" status="enabled"      note="Pay for services on your behalf" C={C} />
-        <CapabilityRow label="Bridge"                status="enabled"  note="Circle CCTP V2 · use Bridge tab" C={C} />
-        <CapabilityRow label="Swap"                  status="enabled"  note="Circle / LiFi · use Swap tab" C={C} />
-        <CapabilityRow label="Automated Recurring Pay" status="enabled" note="Scheduled from Agent Wallet · use Recurring tab" C={C} noBorder />
-      </div>
+      )}
 
       {/* Policy modal */}
       {policyOpen && <ManagePolicyModal onClose={() => setPolicyOpen(false)} C={C} />}
-
-      {/* ── Agent Activity ─────────────────────────────────────────────────── */}
-      <SectionLabel label="Agent Activity" />
-      <div style={{ background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 16, padding: '14px 16px', marginBottom: 8 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-            <BarChart3 size={14} color={C.t2} />
-            <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>Agent Payments</span>
-          </div>
-          <span style={{ fontSize: 12, fontWeight: 700, color: C.text, fontFamily: MONO }}>{totalSpent.toFixed(4)} USDC</span>
-        </div>
-        {agentSpendLog.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '20px 0' }}>
-            <div style={{ width: 34, height: 34, borderRadius: 10, background: C.surf2, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 8px' }}>
-              <Clock size={15} color={C.t3} />
-            </div>
-            <div style={{ fontSize: 12, fontWeight: 600, color: C.text, marginBottom: 3 }}>No activity yet</div>
-            <div style={{ fontSize: 11, color: C.t3 }}>Agent payments appear here automatically</div>
-          </div>
-        ) : (
-          agentSpendLog.slice(0, 20).map((e, i) => (
-            <SpendRow key={e.id} entry={e} last={i === Math.min(agentSpendLog.length, 20) - 1} C={C} />
-          ))
-        )}
-      </div>
-
-      {/* ── Funding ────────────────────────────────────────────────────────── */}
-      <SectionLabel label="Funding" />
-      <div style={{ background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 16, padding: '14px 16px', marginBottom: 8 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-          <Coins size={14} color={BLUE} />
-          <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>How to fund your Agent Wallet</span>
-        </div>
-        <p style={{ fontSize: 12, color: C.t2, lineHeight: 1.6, margin: '0 0 10px' }}>
-          Send USDC to the Agent Wallet address. The agent uses this as its spend budget and never touches your main NAN Wallet balance.
-        </p>
-        {auth?.walletAddress && (
-          <div style={{ paddingTop: 10, borderTop: `1px solid ${C.bdr}`, fontSize: 12, color: C.t3 }}>
-            From NAN Wallet → Send → paste Agent Wallet address
-          </div>
-        )}
-      </div>
-
-      {/* ── Circle Agent Stack connection + wallet details ─────────────────── */}
-      <SectionLabel label="Circle Agent Stack" />
-      <div style={{ background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 16, padding: '14px 16px', marginBottom: 8 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, paddingBottom: 12, borderBottom: `1px solid ${C.bdr}` }}>
-          <div style={{ width: 8, height: 8, borderRadius: '50%', background: GREEN, boxShadow: `0 0 6px ${GREEN}` }} />
-          <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>Connected</span>
-          <span style={{ fontSize: 12, color: C.t3, marginLeft: 'auto' }}>Agent Wallet: Active</span>
-        </div>
-        <button
-          onClick={() => setDetailsOpen(o => !o)}
-          style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 0, fontFamily: F, WebkitTapHighlightColor: 'transparent' }}
-        >
-          <span style={{ fontSize: 13, fontWeight: 600, color: C.text }}>Wallet details</span>
-          {detailsOpen ? <ChevronDown size={15} color={C.t3} /> : <ChevronRight size={15} color={C.t3} />}
-        </button>
-        {detailsOpen && (
-          <div style={{ marginTop: 12 }}>
-            <InfoRow label="Wallet address" value={agentWallet.address ?? '—'}  mono C={C} />
-            <InfoRow label="Wallet ID"      value={agentWallet.walletId ?? '—'} mono C={C} />
-            <InfoRow label="Network"        value={chainLabel}                        C={C} />
-            <InfoRow label="Asset"          value="USDC"                              C={C} />
-            <InfoRow label="Account type"   value={agentWallet.accountType ?? '—'}    C={C} />
-            <InfoRow label="Wallet status"  value={agentWallet.walletState ?? 'LIVE'} C={C} />
-            <InfoRow label="Infrastructure" value="Circle Agent Stack"                C={C} />
-            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0' }}>
-              <span style={{ fontSize: 12, color: C.t2 }}>Created</span>
-              <span style={{ fontSize: 12, fontWeight: 600, color: C.text }}>{createdLabel}</span>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* ── Disconnect button ───────────────────────────────────────────── */}
-      <button
-        onClick={onDisconnect}
-        style={{
-          width: '100%', height: 44, background: 'none',
-          border: `1px solid ${C.bdr}`, borderRadius: 14,
-          fontSize: 13, fontWeight: 600, color: RED,
-          fontFamily: F, cursor: 'pointer',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
-          marginBottom: 8, WebkitTapHighlightColor: 'transparent',
-        }}
-      >
-        <AlertTriangle size={14} color={RED} strokeWidth={2} />
-        Disconnect Agent Wallet
-      </button>
-      <div style={{ fontSize: 11, color: C.t3, textAlign: 'center', marginBottom: 8 }}>
-        Your wallet and funds remain safe. Reconnect any time by logging in again.
-      </div>
-
-      </> /* end overview tab */}
 
     </div>
   )
