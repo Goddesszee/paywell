@@ -6,6 +6,7 @@ import {
   Eye, EyeOff, Plus, Send, ArrowLeftRight,
   Bot, Activity as ActivityIcon, Wallet,
   ArrowUpRight, ArrowDownLeft, ChevronRight, ArrowDownToLine,
+  Sparkles,
 } from 'lucide-react'
 import { useAppStore, ActivityItem } from '../../store/appStore'
 import { getUsdc } from '../../onchain-facts'
@@ -86,7 +87,7 @@ function ActionBtn({ Icon, label, primary, onClick, C }: {
 export function HomePage() {
   const C = useNanTheme()
   const { address: wagmiAddress, isConnected } = useAccount()
-  const { activity, setActiveView, auth, profile, setMainWalletBalance, setCrossChainBalances } = useAppStore()
+  const { activity, setActiveView, auth, profile, setMainWalletBalance, setCrossChainBalances, agentWallet } = useAppStore()
 
   // Circle wallet users don't connect via wagmi — fall back to their Circle wallet address
   const address = wagmiAddress ?? (auth?.circleWalletAddress as `0x${string}` | undefined)
@@ -116,6 +117,10 @@ export function HomePage() {
   const totalNum      = usdcNum + eurcNum
   const formatted     = totalNum.toFixed(2)
   const eurcFormatted = eurcNum.toFixed(2)
+
+  // Agent Wallet balance (fetched once on mount)
+  const { agentWallet } = useAppStore()
+  const agentBalance = agentWallet?.balance ?? null
 
   const [hidden, setHidden] = useState(false)
   const [hydrated, setHydrated] = useState(false)
@@ -213,25 +218,23 @@ export function HomePage() {
         )}
       </div>
 
-      {/* ── Balance cards — horizontal scroll ── */}
+      {/* ── Balance cards + Agent Wallet + NAN Agent — horizontal scroll ── */}
       <div style={{
         display: 'flex', gap: 8, marginBottom: 14, overflowX: 'auto',
         marginLeft: -14, marginRight: -14,
         paddingLeft: 14, paddingRight: 14,
         scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch',
       }}>
+        {/* USDC */}
         {[
-          { token: 'USDC',  label: 'USDC',    symbol: '$',  value: formatted,     view: 'wallet', accent: '#2775CA' },
-          { token: 'EURC',  label: 'EURC',    symbol: '€',  value: eurcFormatted, view: 'swap',   accent: '#0099CC' },
-          { token: 'USDT',  label: 'USDT',    symbol: '$',  value: '0.00',        view: 'swap',   accent: '#26A17B' },
-          { token: 'WETH',  label: 'WETH',    symbol: '',   value: '0.00',        view: 'swap',   accent: '#627EEA' },
-          { token: 'WBTC',  label: 'WBTC',    symbol: '',   value: '0.00',        view: 'swap',   accent: '#F7931A' },
+          { token: 'USDC', label: 'USDC', symbol: '$', value: formatted,     view: 'wallet', accent: '#2775CA' },
+          { token: 'EURC', label: 'EURC', symbol: '€', value: eurcFormatted, view: 'swap',   accent: '#0099CC' },
         ].map(card => (
           <button
             key={card.label}
             onClick={() => setActiveView(card.view)}
             style={{
-              flexShrink: 0, width: 120,
+              flexShrink: 0, width: 110,
               background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 16,
               padding: '12px 12px 10px', cursor: 'pointer', fontFamily: F,
               WebkitTapHighlightColor: 'transparent', textAlign: 'left',
@@ -240,7 +243,86 @@ export function HomePage() {
             <div style={{ marginBottom: 7 }}>
               <TokenLogo symbol={card.token} size={28} radius={8} />
             </div>
-            <div style={{ fontSize: 15, fontWeight: 800, color: C.text, fontFamily: MONO, letterSpacing: '-0.02em', marginBottom: 6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <div style={{ fontSize: 14, fontWeight: 800, color: C.text, fontFamily: MONO, letterSpacing: '-0.02em', marginBottom: 6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {hidden ? '••••' : `${card.symbol}${card.value}`}
+            </div>
+            <div style={{ fontSize: 10, fontWeight: 600, color: card.accent }}>{card.label}</div>
+          </button>
+        ))}
+
+        {/* Agent Wallet balance card — right after EURC */}
+        <button
+          onClick={() => setActiveView('agent-wallet')}
+          style={{
+            flexShrink: 0, width: 120,
+            background: 'linear-gradient(145deg, rgba(0,102,255,0.18) 0%, rgba(0,102,255,0.08) 100%)',
+            border: '1px solid rgba(0,102,255,0.30)',
+            borderRadius: 16,
+            padding: '12px 12px 10px', cursor: 'pointer', fontFamily: F,
+            WebkitTapHighlightColor: 'transparent', textAlign: 'left',
+          }}
+        >
+          <div style={{ marginBottom: 7, display: 'flex', alignItems: 'center', gap: 5 }}>
+            <div style={{
+              width: 28, height: 28, borderRadius: 8,
+              background: BLUE, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 2px 8px rgba(0,102,255,0.40)',
+            }}>
+              <Wallet size={14} color="#fff" strokeWidth={2} />
+            </div>
+          </div>
+          <div style={{ fontSize: 14, fontWeight: 800, color: C.text, fontFamily: MONO, letterSpacing: '-0.02em', marginBottom: 6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {hidden ? '••••' : agentBalance !== null ? `$${parseFloat(agentBalance).toFixed(2)}` : '—'}
+          </div>
+          <div style={{ fontSize: 10, fontWeight: 600, color: '#6B9FFF' }}>Agent Wallet</div>
+        </button>
+
+        {/* NAN Agent button card */}
+        <button
+          onClick={() => setActiveView('agent')}
+          style={{
+            flexShrink: 0, width: 110,
+            background: C.surf, border: `1px solid ${C.bdr}`,
+            borderRadius: 16,
+            padding: '12px 12px 10px', cursor: 'pointer', fontFamily: F,
+            WebkitTapHighlightColor: 'transparent', textAlign: 'left',
+          }}
+        >
+          <div style={{ marginBottom: 7 }}>
+            <div style={{
+              width: 28, height: 28, borderRadius: 8,
+              background: 'rgba(0,102,255,0.12)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <Sparkles size={14} color={BLUE} strokeWidth={2} />
+            </div>
+          </div>
+          <div style={{ fontSize: 13, fontWeight: 800, color: C.text, marginBottom: 6, letterSpacing: '-0.01em' }}>
+            NAN Agent
+          </div>
+          <div style={{ fontSize: 10, fontWeight: 600, color: BLUE }}>AI Assistant</div>
+        </button>
+
+        {/* Remaining tokens */}
+        {[
+          { token: 'USDT', label: 'USDT', symbol: '$', value: '0.00', view: 'swap', accent: '#26A17B' },
+          { token: 'WETH', label: 'WETH', symbol: '',  value: '0.00', view: 'swap', accent: '#627EEA' },
+          { token: 'WBTC', label: 'WBTC', symbol: '',  value: '0.00', view: 'swap', accent: '#F7931A' },
+        ].map(card => (
+          <button
+            key={card.label}
+            onClick={() => setActiveView(card.view)}
+            style={{
+              flexShrink: 0, width: 110,
+              background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 16,
+              padding: '12px 12px 10px', cursor: 'pointer', fontFamily: F,
+              WebkitTapHighlightColor: 'transparent', textAlign: 'left',
+            }}
+          >
+            <div style={{ marginBottom: 7 }}>
+              <TokenLogo symbol={card.token} size={28} radius={8} />
+            </div>
+            <div style={{ fontSize: 14, fontWeight: 800, color: C.text, fontFamily: MONO, letterSpacing: '-0.02em', marginBottom: 6 }}>
               {hidden ? '••••' : `${card.symbol}${card.value}`}
             </div>
             <div style={{ fontSize: 10, fontWeight: 600, color: card.accent }}>{card.label}</div>
@@ -253,98 +335,6 @@ export function HomePage() {
         <ActionBtn Icon={Send}            label="Send"    primary onClick={() => setActiveView('send')}    C={C} />
         <ActionBtn Icon={ArrowDownToLine} label="Receive"         onClick={() => setActiveView('receive')} C={C} />
         <ActionBtn Icon={ArrowLeftRight}  label="Convert"         onClick={() => setActiveView('swap')}    C={C} />
-      </div>
-
-      {/* ── Agent Wallet + AI Agent CTAs ── */}
-      <div style={{ marginBottom: 14 }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 10 }}>Quick actions</div>
-
-        {/* Agent Wallet — primary card */}
-        <button
-          onClick={() => setActiveView('agent-wallet')}
-          style={{
-            width: '100%',
-            padding: '18px 20px',
-            borderRadius: 20,
-            border: '1px solid rgba(0,102,255,0.28)',
-            background: 'linear-gradient(135deg, rgba(0,102,255,0.16) 0%, rgba(0,102,255,0.06) 100%)',
-            cursor: 'pointer',
-            fontFamily: F,
-            WebkitTapHighlightColor: 'transparent',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 14,
-            boxShadow: '0 4px 24px rgba(0,102,255,0.13)',
-            position: 'relative',
-            overflow: 'hidden',
-            marginBottom: 10,
-          }}
-        >
-          <div style={{
-            position: 'absolute', top: -20, right: -20,
-            width: 100, height: 100, borderRadius: '50%',
-            background: 'rgba(0,102,255,0.18)', filter: 'blur(28px)',
-            pointerEvents: 'none',
-          }} />
-          <div style={{
-            width: 48, height: 48, borderRadius: 16, flexShrink: 0,
-            background: BLUE,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 4px 16px rgba(0,102,255,0.45)',
-          }}>
-            <Wallet size={22} color="#fff" strokeWidth={1.8} />
-          </div>
-          <div style={{ textAlign: 'left', flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 15, fontWeight: 800, color: C.text, letterSpacing: '-0.02em', marginBottom: 3 }}>
-              Agent Wallet
-            </div>
-            <div style={{ fontSize: 12, color: C.t2, lineHeight: 1.4 }}>
-              Give your AI agent a wallet to pay for approved services
-            </div>
-          </div>
-          <div style={{
-            width: 30, height: 30, borderRadius: 10, flexShrink: 0,
-            background: 'rgba(0,102,255,0.15)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            <ChevronRight size={16} color={BLUE} strokeWidth={2.5} />
-          </div>
-        </button>
-
-        {/* AI Agent — secondary card */}
-        <button
-          onClick={() => setActiveView('agent')}
-          style={{
-            width: '100%',
-            padding: '14px 16px',
-            borderRadius: 16,
-            border: `1px solid ${C.bdr}`,
-            background: C.surf,
-            cursor: 'pointer',
-            fontFamily: F,
-            WebkitTapHighlightColor: 'transparent',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 12,
-          }}
-        >
-          <div style={{
-            width: 38, height: 38, borderRadius: 12, flexShrink: 0,
-            background: 'rgba(0,102,255,0.10)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            <Bot size={18} color={BLUE} strokeWidth={1.8} />
-          </div>
-          <div style={{ textAlign: 'left', flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 2 }}>
-              NAN Agent
-            </div>
-            <div style={{ fontSize: 11, color: C.t2 }}>
-              Shop, pay &amp; manage finances with AI
-            </div>
-          </div>
-          <ChevronRight size={14} color={C.t3} />
-        </button>
       </div>
 
       {/* ── Recent activity ── */}
