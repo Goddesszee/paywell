@@ -251,6 +251,13 @@ export async function getPasskeyAdapter({
     on: eip1193Provider.on?.bind(eip1193Provider) ?? (() => {}),
     removeListener: eip1193Provider.removeListener?.bind(eip1193Provider) ?? (() => {}),
     request: async (args: { method: string; params?: unknown[] }): Promise<unknown> => {
+      // wallet_switchEthereumChain and wallet_addEthereumChain are not implemented
+      // by Circle's EIP1193Provider (it only handles bundler + signing methods).
+      // ViemAdapter.switchToChain always calls wallet_switchEthereumChain in the
+      // browser — intercept it here and return null (success / already-on-chain).
+      if (args.method === 'wallet_switchEthereumChain' || args.method === 'wallet_addEthereumChain') {
+        return null
+      }
       // EIP1193Provider.request returns a full JSON-RPC envelope { jsonrpc, id, result }.
       // viem adapters expect the bare result, so unwrap here.
       const envelope = (await eip1193Provider.request({
