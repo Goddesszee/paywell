@@ -28,8 +28,6 @@ import { useAppStore, AgentSpendEntry, ActivityItem } from '../../store/appStore
 import { useNanTheme } from '../../hooks/useNanTheme'
 import { AgentServicesTab }   from './AgentServicesTab'
 import { AgentRecurringTab } from './AgentRecurringTab'
-import { AgentBridgeTab }    from './AgentBridgeTab'
-import { AgentSwapTab }      from './AgentSwapTab'
 
 // ── design tokens ─────────────────────────────────────────────────────────────
 
@@ -902,13 +900,11 @@ function ManagePolicyModal({ onClose, C }: { onClose: () => void; C: ReturnType<
 }
 
 // ── Unified bottom drawer ─────────────────────────────────────────────────────
-type DrawerView = 'fund' | 'send' | 'bridge' | 'swap' | 'recurring' | null
+type DrawerView = 'fund' | 'send' | 'recurring' | null
 
 const DRAWER_TITLES: Record<Exclude<DrawerView, null>, string> = {
   fund:      'Fund Agent Wallet',
   send:      'Send from Agent Wallet',
-  bridge:    'Bridge',
-  swap:      'Swap',
   recurring: 'Recurring Payments',
 }
 
@@ -1058,8 +1054,6 @@ function ActionDrawer({ view, agentAddress, onClose, C }: {
       </div>
     )
 
-    if (view === 'bridge')    return <AgentBridgeTab    C={themeColors} />
-    if (view === 'swap')      return <AgentSwapTab      C={themeColors} />
     if (view === 'recurring') return <AgentRecurringTab C={themeColors} />
     return null
   })()
@@ -1392,13 +1386,11 @@ function DashboardScreen({ C, onDisconnect }: { C: ReturnType<typeof useNanTheme
           </div>
 
           {/* ── Wallet actions ─────────────────────────────────────────────────── */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, minmax(0, 1fr))', gap: 6, minWidth: 0 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 6, minWidth: 0 }}>
             {([
-              { label: 'Fund',      icon: <Coins size={15} color={BLUE} />,          view: 'fund'      },
-              { label: 'Send',      icon: <ArrowRight size={15} color={BLUE} />,     view: 'send'      },
-              { label: 'Bridge',    icon: <ArrowLeftRight size={15} color={BLUE} />, view: 'bridge'    },
-              { label: 'Swap',      icon: <ArrowUpDown size={15} color={BLUE} />,    view: 'swap'      },
-              { label: 'Recurring', icon: <Repeat size={15} color={BLUE} />,         view: 'recurring' },
+              { label: 'Fund',      icon: <Coins size={15} color={BLUE} />,      view: 'fund'      },
+              { label: 'Send',      icon: <ArrowRight size={15} color={BLUE} />, view: 'send'      },
+              { label: 'Recurring', icon: <Repeat size={15} color={BLUE} />,     view: 'recurring' },
             ] as { label: string; icon: React.ReactNode; view: Exclude<DrawerView, null> }[]).map(({ label, icon, view }) => (
               <button key={label} onClick={() => setDrawerView(view)} style={{
                 display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4,
@@ -1458,16 +1450,15 @@ function DashboardScreen({ C, onDisconnect }: { C: ReturnType<typeof useNanTheme
               <CapabilityRow label="Receive USDC"           status="enabled"        C={C} />
               <CapabilityRow label="Send USDC"              status="enabled"        note="To permitted addresses" C={C} />
               <CapabilityRow label="Pay for services"       status="enabled"        note="Pay on your behalf" C={C} />
-              <CapabilityRow label="Bridge (CCTP V2)"       status="enabled"        note="Tap Bridge above" C={C} />
-              <CapabilityRow label="Swap tokens"            status="enabled"        note="Tap Swap above" C={C} />
-              <CapabilityRow label="Recurring payments"     status="enabled"        note="Tap Recurring above" C={C} noBorder />
+              <CapabilityRow label="Recurring payments"     status="enabled"        note="Tap Recurring above" C={C} />
+              <CapabilityRow label="Bridge / Swap"          status="not_configured" note="Use the main wallet Bridge & Swap tabs" C={C} noBorder />
             </div>
           </div>
 
           {/* ── Automate via chat tip ─────────────────────────────────────────── */}
           <div style={{ background: 'rgba(0,102,255,0.05)', border: '1px solid rgba(0,102,255,0.15)', borderRadius: 12, padding: '10px 14px', display: 'flex', alignItems: 'flex-start', gap: 8 }}>
             <Zap size={13} color={BLUE} style={{ flexShrink: 0, marginTop: 1 }} />
-            <span style={{ fontSize: 12, color: C.t2, lineHeight: 1.5 }}>Bridge, Swap, and Recurring Payments also run automatically when you ask NAN in the chat.</span>
+            <span style={{ fontSize: 12, color: C.t2, lineHeight: 1.5 }}>Recurring Payments run automatically when you ask NAN in the chat. Use the main wallet for Bridge and Swap.</span>
           </div>
 
           {/* ── Wallet details (collapsible) ───────────────────────────────────── */}
