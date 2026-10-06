@@ -1093,45 +1093,64 @@ function DashboardScreen({ C, onDisconnect }: { C: ReturnType<typeof useNanTheme
     : null
 
   return (
-    <div style={{ fontFamily: F, width: '100%', maxWidth: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
+    <div style={{ fontFamily: F, width: '100%', maxWidth: '100%', boxSizing: 'border-box', overflowX: 'hidden', display: 'flex', flexDirection: 'column' }}>
 
-      {/* ── Page header ─────────────────────────────────────────────────────── */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, gap: 8 }}>
-        <div style={{ minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 2 }}>
-            <span style={{ fontSize: 17, fontWeight: 800, color: C.text, letterSpacing: '-0.02em' }}>NAN Agent Wallet</span>
+      {/* ── Sticky header + tabs ────────────────────────────────────────────── */}
+      <div style={{
+        position: 'sticky', top: 0, zIndex: 20,
+        background: C.bg ?? 'var(--nan-bg)',
+        borderBottom: `1px solid ${C.bdr}`,
+        paddingTop: 'max(12px, env(safe-area-inset-top))',
+        paddingLeft: 16, paddingRight: 16, paddingBottom: 0,
+      }}>
+        {/* Header row */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, gap: 8 }}>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 16, fontWeight: 800, color: C.text, letterSpacing: '-0.02em', lineHeight: 1.2 }}>NAN Agent Wallet</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 2 }}>
+              <div style={{ width: 6, height: 6, borderRadius: '50%', background: isActive ? GREEN : AMBER, boxShadow: isActive ? `0 0 5px ${GREEN}` : 'none', flexShrink: 0 }} />
+              <span style={{ fontSize: 11, color: C.t3 }}>Connected to Circle Agent Stack</span>
+            </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-            <div style={{ width: 6, height: 6, borderRadius: '50%', background: isActive ? GREEN : AMBER, boxShadow: isActive ? `0 0 5px ${GREEN}` : 'none', flexShrink: 0 }} />
-            <span style={{ fontSize: 11, color: C.t3 }}>Connected to Circle Agent Stack</span>
-          </div>
+          <button
+            onClick={() => void refresh()}
+            aria-label="Refresh balance"
+            style={{ width: 34, height: 34, borderRadius: 9, background: C.surf, border: `1px solid ${C.bdr}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, WebkitTapHighlightColor: 'transparent' }}
+          >
+            <RefreshCw size={14} color={C.t2} style={{ animation: refreshing ? 'aw-spin 1s linear infinite' : 'none' }} />
+          </button>
         </div>
-        <button
-          onClick={() => void refresh()}
-          aria-label="Refresh balance"
-          style={{ width: 34, height: 34, borderRadius: 9, background: C.surf, border: `1px solid ${C.bdr}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, WebkitTapHighlightColor: 'transparent' }}
-        >
-          <RefreshCw size={14} color={C.t2} style={{ animation: refreshing ? 'aw-spin 1s linear infinite' : 'none' }} />
-        </button>
+
+        {/* Tab bar */}
+        <div style={{ display: 'flex', gap: 2, background: C.surf, borderRadius: 10, padding: 3, marginBottom: 0 }}>
+          {PRIMARY_TABS.map(t => {
+            const active = dashTab === t.id
+            return (
+              <button key={t.id} onClick={() => setDashTab(t.id)} style={{
+                flex: 1, padding: '7px 4px', border: 'none', borderRadius: 7,
+                cursor: 'pointer', fontFamily: F, fontSize: 13, fontWeight: active ? 700 : 500,
+                background: active ? BLUE : 'transparent',
+                color: active ? '#fff' : C.t2,
+                transition: 'all 0.15s', WebkitTapHighlightColor: 'transparent',
+                whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+              }}>
+                {t.label}
+              </button>
+            )
+          })}
+        </div>
+        {/* Spacer under tab bar */}
+        <div style={{ height: 12 }} />
       </div>
 
-      {/* ── Primary tab bar ─────────────────────────────────────────────────── */}
-      <div style={{ display: 'flex', gap: 2, marginBottom: 16, background: C.surf, borderRadius: 10, padding: 3 }}>
-        {PRIMARY_TABS.map(t => {
-          const active = dashTab === t.id
-          return (
-            <button key={t.id} onClick={() => setDashTab(t.id)} style={{
-              flex: 1, padding: '7px 0', border: 'none', borderRadius: 7,
-              cursor: 'pointer', fontFamily: F, fontSize: 13, fontWeight: active ? 700 : 500,
-              background: active ? BLUE : 'transparent',
-              color: active ? '#fff' : C.t2,
-              transition: 'all 0.15s', WebkitTapHighlightColor: 'transparent',
-            }}>
-              {t.label}
-            </button>
-          )
-        })}
-      </div>
+      {/* ── Scrollable content ──────────────────────────────────────────────── */}
+      <div style={{
+        flex: 1, overflowY: 'auto', overflowX: 'hidden',
+        padding: '12px 16px',
+        paddingBottom: 'max(120px, calc(env(safe-area-inset-bottom) + 100px))',
+        WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none',
+        boxSizing: 'border-box',
+      }}>
 
       {/* ══ SERVICES TAB ══════════════════════════════════════════════════════ */}
       {dashTab === 'services' && <AgentServicesTab C={themeColors} />}
@@ -1200,7 +1219,7 @@ function DashboardScreen({ C, onDisconnect }: { C: ReturnType<typeof useNanTheme
 
       {/* ══ OVERVIEW TAB ══════════════════════════════════════════════════════ */}
       {dashTab === 'overview' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, minWidth: 0 }}>
 
           {/* Desktop 2-col grid */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 12 }}>
@@ -1268,7 +1287,7 @@ function DashboardScreen({ C, onDisconnect }: { C: ReturnType<typeof useNanTheme
           </div>
 
           {/* ── Wallet actions ─────────────────────────────────────────────────── */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 6 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, minmax(0, 1fr))', gap: 6, minWidth: 0 }}>
             {[
               { label: 'Fund',      icon: <Coins size={15} color={BLUE} />,        action: () => setReceiveOpen(true) },
               { label: 'Send',      icon: <ArrowRight size={15} color={BLUE} />,   action: () => setSendOpen(true) },
@@ -1403,6 +1422,8 @@ function DashboardScreen({ C, onDisconnect }: { C: ReturnType<typeof useNanTheme
 
         </div>
       )}
+
+      </div>{/* end scrollable content */}
 
       {/* Policy modal */}
       {policyOpen && <ManagePolicyModal onClose={() => setPolicyOpen(false)} C={C} />}

@@ -507,18 +507,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <main style={{
         flex: 1,
         minHeight: 0,           /* critical: lets flex item shrink below content height */
-        overflowY: activeView === 'agent' ? 'hidden' : 'auto',
+        overflowY: (activeView === 'agent' || activeView === 'agent-wallet') ? 'hidden' : 'auto',
         overflowX: 'hidden',
-        paddingTop: activeView === 'agent' ? 0 : 12,
-        paddingLeft: activeView === 'agent' ? 0 : 'max(16px,env(safe-area-inset-left))',
-        paddingRight: activeView === 'agent' ? 0 : 'max(16px,env(safe-area-inset-right))',
-        paddingBottom: activeView === 'agent' ? 0 : 'max(20px,env(safe-area-inset-bottom))',
+        paddingTop: (activeView === 'agent' || activeView === 'agent-wallet') ? 0 : 12,
+        paddingLeft: (activeView === 'agent' || activeView === 'agent-wallet') ? 0 : 'max(16px,env(safe-area-inset-left))',
+        paddingRight: (activeView === 'agent' || activeView === 'agent-wallet') ? 0 : 'max(16px,env(safe-area-inset-right))',
+        paddingBottom: (activeView === 'agent' || activeView === 'agent-wallet') ? 0 : 'max(20px,env(safe-area-inset-bottom))',
         scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch',
         msOverflowStyle: 'none',
-        /* Agent view needs flex so its child flex layout (header + scroll list + composer)
-           can fill the available height correctly. Other views use block. */
-        display: activeView === 'agent' ? 'flex' : 'block',
-        flexDirection: activeView === 'agent' ? 'column' : undefined,
+        display: (activeView === 'agent' || activeView === 'agent-wallet') ? 'flex' : 'block',
+        flexDirection: (activeView === 'agent' || activeView === 'agent-wallet') ? 'column' : undefined,
         width: '100%',
         boxSizing: 'border-box',
       }}>
@@ -532,7 +530,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         borderTop: `1px solid ${C.bdr}`,
         paddingBottom: 'env(safe-area-inset-bottom,0px)',
         transition: 'background 0.25s',
-        display: activeView === 'agent' ? 'none' : undefined,
+        display: (activeView === 'agent' || activeView === 'agent-wallet') ? 'none' : undefined,
       }}>
         <div style={{ display: 'flex', maxWidth: 480, margin: '0 auto' }}>
           {NAV_ITEMS.map(({ id, label, Icon }) => {
