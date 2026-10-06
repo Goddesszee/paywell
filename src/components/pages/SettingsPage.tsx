@@ -70,13 +70,20 @@ function RowItem({
 export function SettingsPage() {
   const { address, isConnected } = useAccount()
   const { disconnect } = useDisconnect()
-  const { agentPermissions, setAgentPermissions, setOnboarding, setActiveView, theme, setTheme } = useAppStore()
+  const { agentPermissions, setAgentPermissions, setOnboarding, setActiveView, theme, setTheme, logout, auth } = useAppStore()
   const isDark = !theme || theme === 'dark'
   const chain = requireChain(ARC)
   const [editingLimits, setEditingLimits] = useState(false)
   const [daily, setDaily] = useState(String(agentPermissions.dailyLimit))
   const [perTx, setPerTx] = useState(String(agentPermissions.perTxLimit))
   const [saved, setSaved] = useState(false)
+
+  const handleLogout = () => {
+    if (!window.confirm('Log out and clear your session data?')) return
+    disconnect()
+    logout()
+    setActiveView('landing')
+  }
 
   const saveLimits = () => {
     setAgentPermissions({ dailyLimit:parseFloat(daily)||agentPermissions.dailyLimit, perTxLimit:parseFloat(perTx)||agentPermissions.perTxLimit })
@@ -213,8 +220,8 @@ export function SettingsPage() {
 
       <SectionLabel>Account</SectionLabel>
       <CardBlock>
-        {isConnected && (
-          <RowItem icon={<LogOut />} label="Disconnect wallet" onClick={() => disconnect()} danger />
+        {(isConnected || auth) && (
+          <RowItem icon={<LogOut />} label="Log out" sub="Clears session and local data" onClick={handleLogout} danger />
         )}
         <RowItem icon={<LogOut />} label="Reset onboarding" onClick={handleReset} noBorder />
       </CardBlock>

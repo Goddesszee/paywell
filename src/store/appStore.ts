@@ -152,10 +152,34 @@ export interface AgentSpendEntry {
   timestamp: string
 }
 
+// Fields that are per-user and must be wiped on logout / account switch.
+const USER_DEFAULTS = {
+  activity:         [] as ActivityItem[],
+  agentMessages:    [] as AgentMessage[],
+  agentExecutionLog: [] as AgentExecutionLog[],
+  recurringTasks:   [] as RecurringTask[],
+  a2aPayments:      [] as A2APaymentRecord[],
+  a2aTasks:         [] as A2ATask[],
+  agentWallet:      { provisioned: false, balance_usdc: '0' } as AgentWalletState,
+  agentSpendLog:    [] as AgentSpendEntry[],
+  agentDailyUsed:   0,
+  mainWalletBalance: '0',
+  mainWalletAddress: '',
+  crossChainBalances: {} as Record<string, string>,
+  notifications:    [] as AppNotification[],
+  unreadCount:      0,
+  profile:          { displayName: '', bio: '', avatarUrl: '', notifPrefs: { supportReplies: true, systemUpdates: true, payments: true } } as UserProfile,
+  favorites:        [] as FavoriteItem[],
+  recentSearches:   [] as string[],
+  selectedServiceIds: [] as string[],
+}
+
 export interface AppState {
   auth: PaywellAuth | null
   setAuth: (auth: PaywellAuth | null) => void
   setWallet: (walletAddress: string, walletId: string) => void
+  /** Full logout: clears auth and all per-user data. */
+  logout: () => void
 
   onboarding: OnboardingState
   setOnboarding: (update: Partial<OnboardingState>) => void
@@ -242,7 +266,15 @@ export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
       auth: null,
-      setAuth: (auth) => set({ auth }),
+      setAuth: (auth) => set((s) => {
+        // If the incoming wallet address differs from the current one, wipe all
+        // per-user data so the new account starts with a clean slate.
+        const prevAddr = s.auth?.walletAddress ?? s.auth?.circleWalletAddress ?? ''
+        const nextAddr = auth?.walletAddress ?? auth?.circleWalletAddress ?? ''
+        const accountChanged = !!auth && !!prevAddr && prevAddr !== nextAddr
+        return accountChanged ? { auth, ...USER_DEFAULTS } : { auth }
+      }),
+      logout: () => set({ auth: null, ...USER_DEFAULTS }),
       setWallet: (walletAddress, walletId) =>
         set((s) => ({ auth: s.auth ? { ...s.auth, walletAddress, walletId } : null })),
 
