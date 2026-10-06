@@ -515,7 +515,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         paddingBottom: activeView === 'agent' ? 0 : 'max(20px,env(safe-area-inset-bottom))',
         scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch',
         msOverflowStyle: 'none',
-        display: 'block',
+        /* Agent view needs flex so its child flex layout (header + scroll list + composer)
+           can fill the available height correctly. Other views use block. */
+        display: activeView === 'agent' ? 'flex' : 'block',
+        flexDirection: activeView === 'agent' ? 'column' : undefined,
         width: '100%',
         boxSizing: 'border-box',
       }}>

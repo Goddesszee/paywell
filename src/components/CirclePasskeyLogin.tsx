@@ -214,8 +214,13 @@ export async function getPasskeyAdapter({
   const { createViemAdapterFromProvider } = await import('@circle-fin/adapter-viem-v2')
   const credential = getStoredCredential()
   if (!credential) throw new Error('No passkey credential found — please log in with your passkey first.')
+  const { http } = await import('viem')
+  // Use the public Arc Testnet RPC for all JSON-RPC reads.
+  // The modular transport is a bundler endpoint (ERC-4337) — it only handles
+  // signing/sending via sendUserOperation, NOT standard eth_call/eth_getBalance etc.
+  const httpTransport = http(arcTestnet.rpcUrls.default.http[0])
   const modularTransport = toModularTransport(`${CIRCLE_MODULAR_URL}/arcTestnet`, clientKey)
-  const publicClient = createPublicClient({ chain: arcTestnet, transport: modularTransport })
+  const publicClient = createPublicClient({ chain: arcTestnet, transport: httpTransport })
   const account = await toCircleSmartAccount({
     client: publicClient,
     owner: toWebAuthnAccount({ credential }),
@@ -225,10 +230,7 @@ export async function getPasskeyAdapter({
     chain: arcTestnet,
     transport: modularTransport,
   })
-  // The modular transport is a bundler endpoint — it only handles signing/sending,
-  // not standard JSON-RPC reads. Use a plain HTTP transport for read calls.
-  const { http } = await import('viem')
-  const readTransport = http(arcTestnet.rpcUrls.default.http[0])({ chain: arcTestnet })
+  const readTransport = httpTransport({ chain: arcTestnet })
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const provider: import('viem').EIP1193Provider = {
