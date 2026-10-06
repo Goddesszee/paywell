@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { createPublicClient, createWalletClient } from 'viem'
+import { createPublicClient, createWalletClient, http } from 'viem'
 import { arcTestnet } from 'viem/chains'
 import {
   type P256Credential,
@@ -198,72 +198,57 @@ export function CirclePasskeyLogin({ onBack, onSuccess }: Props) {
 }
 
 /**
- * getPasskeyAdapter — returns a viem adapter backed by the stored passkey
+ * getPasskeyAdapter — returns a ViemAdapter backed by the stored passkey
  * credential so SwapPage / BridgePage can sign transactions client-side
  * without routing through the server-side Circle DCW path.
  *
+ * Uses the ViemAdapter class with getPublicClient / getWalletClient factory
+ * functions — the pattern documented by Circle for custom signers:
+ * https://docs.arc.io/app-kit/tutorials/adapter-setups
+ *
  * Usage:
- *   const adapter = await getPasskeyAdapter({ clientKey, clientUrl })
- *   await appKit.swap({ from: { adapter, chain: 'Arc_Testnet' }, ... })
+ *   const adapter = await getPasskeyAdapter({ clientKey })
+ *   await appKit.bridge({ from: { adapter, chain: 'Arc_Testnet' }, ... })
  */
 export async function getPasskeyAdapter({
   clientKey,
 }: {
   clientKey: string
 }) {
-  const { createViemAdapterFromProvider } = await import('@circle-fin/adapter-viem-v2')
+  const { ViemAdapter } = await import('@circle-fin/adapter-viem-v2')
+  const { ArcTestnet } = await import('@circle-fin/app-kit/chains')
+
   const credential = getStoredCredential()
   if (!credential) throw new Error('No passkey credential found — please log in with your passkey first.')
-  // Per Circle docs, toModularTransport handles BOTH bundler (ERC-4337) calls
-  // AND standard JSON-RPC reads (eth_call, eth_getBalance, etc.) for supported chains.
-  // createPublicClient must use modularTransport — never a bare public HTTP RPC URL —
-  // so that all RPC traffic is routed through Circle's reliable endpoint.
-  // Reference: https://developers.circle.com/wallets/modular/create-a-modular-wallet
+
+  // modularTransport handles ERC-4337 bundler calls (sendUserOperation) for Arc Testnet
   const modularTransport = toModularTransport(`${CIRCLE_MODULAR_URL}/arcTestnet`, clientKey)
-  const publicClient = createPublicClient({ chain: arcTestnet, transport: modularTransport })
+
+  // Build the MSCA once; it is deterministic so this is safe to recreate per call
+  const publicClientForAccount = createPublicClient({ chain: arcTestnet, transport: modularTransport })
   const account = await toCircleSmartAccount({
-    client: publicClient,
+    client: publicClientForAccount,
     owner: toWebAuthnAccount({ credential }),
   })
-  const walletClient = createWalletClient({
-    account,
-    chain: arcTestnet,
-    transport: modularTransport,
-  })
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const provider: import('viem').EIP1193Provider = {
-    on: () => {},
-    removeListener: () => {},
-    request: async (args: { method: string; params?: unknown }): Promise<unknown> => {
-      const { method, params } = args
-      const p = params as unknown[] | undefined
-      if (method === 'eth_requestAccounts' || method === 'eth_accounts') {
-        return [account.address]
-      }
-      if (method === 'eth_chainId') {
-        return `0x${arcTestnet.id.toString(16)}`
-      }
-      // Chain switch requests — passkey MSCA is always on Arc Testnet.
-      // Return null (success) so App Kit doesn't throw when it tries to switch.
-      if (
-        method === 'wallet_switchEthereumChain' ||
-        method === 'wallet_addEthereumChain' ||
-        method === 'eth_switchEthereumChain'
-      ) {
-        return null
-      }
-      // Signing and sending — route through the modular wallet client.
-      if (method === 'eth_sendTransaction' || method === 'eth_signTypedData_v4' || method === 'personal_sign') {
-        return walletClient.request({ method: method as never, params: p as never })
-      }
-      // All other read calls (eth_call, eth_getBalance, eth_getBlockByNumber,
-      // eth_estimateGas, eth_getTransactionReceipt, etc.) are handled by the
-      // modular transport — Circle's endpoint supports full JSON-RPC reads.
-      return publicClient.transport.request({ method, params: p as never[] })
+  // Arc Testnet primary RPC (Circle) for public reads — separate from the bundler endpoint
+  const arcRpcUrl = (import.meta.env.VITE_ARC_RPC_URL as string | undefined) || 'https://rpc.testnet.arc.io'
+
+  // ViemAdapter with getPublicClient / getWalletClient — Circle's documented adapter pattern.
+  // getPublicClient uses the Arc HTTP RPC for all read calls.
+  // getWalletClient uses the modular transport (bundler) so MSCA user-ops are submitted correctly.
+  const adapter = new ViemAdapter(
+    {
+      getPublicClient: ({ chain }) => createPublicClient({ chain, transport: http(arcRpcUrl) }),
+      getWalletClient: ({ chain }) => createWalletClient({ account, chain, transport: modularTransport }),
     },
-  } as import('viem').EIP1193Provider
-  return createViemAdapterFromProvider({ provider })
+    {
+      addressContext: 'user-controlled',
+      supportedChains: [ArcTestnet],
+    },
+  )
+
+  return adapter
 }
 
 // Standalone hook — call this in WalletPage to send USDC from the passkey wallet
