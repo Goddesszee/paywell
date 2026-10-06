@@ -5,6 +5,7 @@ import { Wallet, ArrowLeft } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
 import { CircleEmailLogin } from '../CircleEmailLogin'
 import { CircleGoogleLogin } from '../CircleGoogleLogin'
+import { CirclePasskeyLogin } from '../CirclePasskeyLogin'
 
 
 const F       = "'Inter', -apple-system, sans-serif"
@@ -16,7 +17,7 @@ const SURFACE = 'var(--nan-surface)'
 const BORDER  = 'var(--nan-bdr2)'
 const BG      = 'var(--nan-bg)'
 
-type LoginMode = 'choose' | 'email' | 'google' | 'wallet'
+type LoginMode = 'choose' | 'email' | 'google' | 'wallet' | 'passkey'
 
 export function LoginPage() {
   const { address, isConnected } = useAccount()
@@ -39,6 +40,13 @@ export function LoginPage() {
   // encryptionKey is passed by CircleEmailLogin's onSuccess(addr, userToken, email, encryptionKey)
   const onCircleSuccess = (walletAddress: string, userToken: string, email: string, encryptionKey?: string) => {
     setAuth({ email, sessionToken: userToken, userToken, encryptionKey, walletAddress, walletId: walletAddress, circleWalletAddress: walletAddress })
+    setActiveView(profile.displayName ? 'home' : 'name')
+  }
+
+  // ── Passkey / modular wallet success ──────────────────────────────────────
+  const onPasskeySuccess = (walletAddress: string) => {
+    const token = btoa(`passkey:${walletAddress}:${Date.now()}`)
+    setAuth({ email: walletAddress, sessionToken: token, walletAddress, walletId: walletAddress, circleWalletAddress: walletAddress })
     setActiveView(profile.displayName ? 'home' : 'name')
   }
 
@@ -76,6 +84,16 @@ export function LoginPage() {
       <CircleEmailLogin
         onBack={() => setMode('choose')}
         onSuccess={onCircleSuccess}
+      />
+    )
+  }
+
+  // ── passkey mode — render Modular Wallet login ───────────────────────────
+  if (mode === 'passkey') {
+    return wrap(
+      <CirclePasskeyLogin
+        onBack={() => setMode('choose')}
+        onSuccess={onPasskeySuccess}
       />
     )
   }
@@ -146,6 +164,12 @@ export function LoginPage() {
         <span>Continue with Wallet</span>
       </button>
 
+      {/* Passkey / Modular Wallet */}
+      <button onClick={() => setMode('passkey')} style={btnS(SURFACE, TEXT, BORDER)}>
+        <PasskeyIcon />
+        <span>Continue with Passkey</span>
+      </button>
+
       <p style={{ fontSize: 12, color: TEXT3, textAlign: 'center', marginTop: 14, lineHeight: 1.6 }}>
         New here? We'll create your Circle wallet automatically.
       </p>
@@ -154,6 +178,16 @@ export function LoginPage() {
 }
 
 // ── icon helpers ───────────────────────────────────────────────────────────────
+function PasskeyIcon() {
+  return (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="7" r="4"/>
+      <path d="M5.5 21a8.38 8.38 0 0 1 13 0"/>
+      <path d="M17 11l1.5 1.5L21 10"/>
+    </svg>
+  )
+}
+
 function MailIcon() {
   return (
     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

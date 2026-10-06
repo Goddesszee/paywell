@@ -15,6 +15,7 @@
 
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { initiateUserControlledWalletsClient, Blockchain } from '@circle-fin/user-controlled-wallets'
+// All SDK clients are imported statically — dynamic import() is not supported in Vercel serverless CJS runtime
 import { execFile } from 'child_process'
 import { promisify } from 'util'
 // randomUUID removed — no longer needed after switching to user-controlled wallets
@@ -337,7 +338,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     try {
-      const { initiateUserControlledWalletsClient } = await import('@circle-fin/user-controlled-wallets')
       const client = initiateUserControlledWalletsClient({ apiKey })
       // Initiate transfer — returns a challenge ID that the user pin must sign
       const r = await client.createTransaction({
@@ -383,7 +383,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Bridge via CCTP: initiate a cross-chain transfer transaction.
     // Circle's user-controlled wallets SDK handles approve + depositForBurn.
     try {
-      const { initiateUserControlledWalletsClient } = await import('@circle-fin/user-controlled-wallets')
       const client = initiateUserControlledWalletsClient({ apiKey })
       const r = await client.createTransaction({
         userToken: tok,
@@ -488,7 +487,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // Circle Agent Stack swap goes through the user-controlled wallets SDK
       // which calls LiFi under the hood. We initiate a transaction with the
       // swap calldata. For now surface the challenge ID back to the UI.
-      const { initiateUserControlledWalletsClient } = await import('@circle-fin/user-controlled-wallets')
       const client = initiateUserControlledWalletsClient({ apiKey })
       const r = await client.createTransaction({
         userToken: tok,
