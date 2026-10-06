@@ -19,7 +19,7 @@ export default defineConfig({
       'react': path.resolve(__dirname, 'node_modules/react'),
       'react-dom': path.resolve(__dirname, 'node_modules/react-dom'),
     },
-    dedupe: ['react', 'react-dom', 'react/jsx-runtime'],
+    dedupe: ['react', 'react-dom', 'react/jsx-runtime', 'zustand'],
   },
   optimizeDeps: {
     include: [
@@ -75,6 +75,7 @@ export default defineConfig({
     cors: true,
     // Fix HMR WebSocket in Arc Studio preview (proxied over HTTPS/WSS)
     hmr: {
+      host: 'i4n8lt35843fmkwziwqf3.preview.studio.arc.io',
       clientPort: 443,
       protocol: 'wss',
     },

@@ -16,7 +16,7 @@
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { initiateUserControlledWalletsClient, Blockchain, ContractExecutionBlockchain } from '@circle-fin/user-controlled-wallets'
+import { initiateUserControlledWalletsClient, Blockchain } from '@circle-fin/user-controlled-wallets'
 import { execFile } from 'child_process'
 import { promisify } from 'util'
 import { randomUUID } from 'crypto'
@@ -628,7 +628,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         userToken,
         walletId: resolvedWalletId,
         contractAddress: ARC_TESTNET_USDC,
-        blockchain: ContractExecutionBlockchain.ArcTestnet,
+        blockchain: Blockchain.ArcTestnet,
         abiFunctionSignature: 'approve(address,uint256)',
         abiParameters: [ARC_TESTNET_TOKEN_MESSENGER_V2, amountMicro],
         fee: { type: 'level', config: { feeLevel: 'MEDIUM' } },
@@ -662,7 +662,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         userToken,
         walletId,
         contractAddress: ARC_TESTNET_TOKEN_MESSENGER_V2,
-        blockchain: ContractExecutionBlockchain.ArcTestnet,
+        blockchain: Blockchain.ArcTestnet,
         abiFunctionSignature: 'depositForBurn(uint256,uint32,bytes32,address)',
         abiParameters: [amountMicro, destDomain, recipientBytes32, ARC_TESTNET_USDC],
         fee: { type: 'level', config: { feeLevel: 'MEDIUM' } },
@@ -673,6 +673,42 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json({ ok: true, step: 'burn', challengeId })
     } catch (e) {
       return err(res, 500, e instanceof Error ? e.message : 'Bridge burn failed')
+    }
+  }
+
+  // ── send-usdc — developer-controlled UCW USDC transfer (recurring + agent-actions) ─
+  if (action === 'send-usdc') {
+    const userToken = (req.headers['x-user-token'] as string) ?? body.userToken
+    const { toAddress, amount: sendUsdcAmount, walletId: sendWalletId } = body
+    if (!userToken) return err(res, 401, 'userToken required')
+    if (!toAddress || !sendUsdcAmount) return err(res, 400, 'toAddress and amount required')
+    const parsedAmt = parseFloat(sendUsdcAmount)
+    if (!parsedAmt || parsedAmt <= 0) return err(res, 400, 'amount must be greater than 0')
+    if (!/^0x[0-9a-fA-F]{40}$/.test(toAddress)) return err(res, 400, 'Invalid recipient address')
+    try {
+      // Resolve walletId if not provided
+      let resolvedWalletId = sendWalletId
+      if (!resolvedWalletId) {
+        const walletList = await client.listWallets({ userToken })
+        const aw = walletList.data?.wallets?.find(w => w.blockchain?.toLowerCase().includes('arc'))
+          ?? walletList.data?.wallets?.[0]
+        if (!aw) return err(res, 404, 'Agent wallet not found for userToken')
+        resolvedWalletId = aw.id
+      }
+      const response = await client.createTransaction({
+        userToken,
+        walletId: resolvedWalletId,
+        amounts: [sendUsdcAmount],
+        destinationAddress: toAddress,
+        tokenAddress: ARC_TESTNET_USDC,
+        blockchain: Blockchain.ArcTestnet,
+        fee: { type: 'level', config: { feeLevel: 'MEDIUM' } },
+      })
+      const challengeId = response.data?.challengeId
+      if (!challengeId) throw new Error('No challengeId returned from Circle')
+      return res.status(200).json({ ok: true, challengeId })
+    } catch (e) {
+      return err(res, 500, e instanceof Error ? e.message : 'send-usdc failed')
     }
   }
 
