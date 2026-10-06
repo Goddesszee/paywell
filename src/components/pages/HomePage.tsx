@@ -1,35 +1,34 @@
 /**
- * Mobile Home Dashboard — NAN
+ * Mobile Home Dashboard — NAN Agent-First Redesign
  *
- * MOBILE ONLY. This component renders when activeView === 'home'.
- * On desktop, AppShell immediately redirects 'home' → 'dashboard',
+ * MOBILE ONLY. AppShell redirects 'home' → 'dashboard' on desktop,
  * so this file never needs desktop layout.
  *
- * Priority order (top → bottom):
- *   1. NAN Agent entry
- *   2. Agent Wallet summary (real store balance, no fabricated data)
- *   3. Quick actions
- *   4. Recent agent activity (real data only — no fake transactions)
+ * Hierarchy:
+ *   Greeting
+ *   NAN Agent   ← primary emphasis
+ *   Agent Wallet ← infrastructure that powers the agent
+ *   Quick Actions
+ *   Recent Agent Activity
  */
 
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useEffect, useCallback, useState } from 'react'
 import {
-  Bot, Wallet, ArrowUpRight, Zap,
-  RefreshCw, ChevronRight, AlertTriangle,
-  CheckCircle2, Clock, ArrowDownLeft,
-  ShoppingBag, Repeat, Search,
+  Bot, Wallet, ArrowUpRight, Repeat,
+  ChevronRight, AlertTriangle, CheckCircle2,
+  Clock, ArrowDownLeft, ShoppingBag,
+  RefreshCw, Shield, Zap,
 } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
 import { useNanTheme } from '../../hooks/useNanTheme'
 import { NanLogo } from '../NanLogo'
 import { NotificationBell } from '../ui/NotificationBell'
 
-const BODY  = "'DM Sans', 'Inter', -apple-system, sans-serif"
-const MONO  = "'JetBrains Mono', Menlo, monospace"
+const BODY = "'DM Sans','Inter',-apple-system,sans-serif"
+const MONO = "'JetBrains Mono',Menlo,monospace"
+const BLUE = '#0066FF'
 
-// ── Agent Wallet balance refresh ──────────────────────────────────────────────
-// Reuses the same /api/agent-wallet endpoint that AgentWalletExperience uses.
-// Only calls it when the wallet is provisioned and tokens are present.
+// ── Agent Wallet balance refresh (reuses existing /api/agent-wallet endpoint) ─
 function useAgentWalletRefresh(
   userToken: string | undefined,
   walletId:  string | undefined,
@@ -48,7 +47,7 @@ function useAgentWalletRefresh(
         headers: { 'content-type': 'application/json' },
         body:    JSON.stringify({ action: 'balance', userToken, walletId }),
       })
-      if (!res.ok) { setError('Unable to load Agent Wallet right now.'); return }
+      if (!res.ok) { setError('Balance unavailable'); return }
       const data = await res.json() as { balance_usdc?: string; walletState?: string }
       setAgentWallet({
         balance_usdc:  data.balance_usdc  ?? agentWallet.balance_usdc,
@@ -56,104 +55,50 @@ function useAgentWalletRefresh(
         lastRefreshed: new Date().toISOString(),
       })
     } catch {
-      setError('Unable to load Agent Wallet right now.')
+      setError('Balance unavailable')
     } finally {
       setLoading(false)
     }
   }, [userToken, walletId, agentWallet.balance_usdc, setAgentWallet])
 
-  // Refresh once on mount when provisioned
   useEffect(() => {
-    if (agentWallet.provisioned && userToken && walletId) {
-      void refresh()
-    }
+    if (agentWallet.provisioned && userToken && walletId) void refresh()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   return { loading, error, refresh }
 }
 
-// ── Skeleton shimmer ──────────────────────────────────────────────────────────
-function Skeleton({ w, h = 14, r = 6 }: { w: number | string; h?: number; r?: number }) {
+// ── Shimmer skeleton ──────────────────────────────────────────────────────────
+function Skel({ w, h = 14, r = 7 }: { w: number | string; h?: number; r?: number }) {
   return (
     <div style={{
       width: w, height: h, borderRadius: r,
-      background: 'rgba(255,255,255,0.07)',
-      animation: 'home-pulse 1.4s ease-in-out infinite',
+      background: 'rgba(255,255,255,0.08)',
+      animation: 'hp-pulse 1.5s ease-in-out infinite',
     }} />
   )
 }
 
-// ── Activity icon helpers ─────────────────────────────────────────────────────
-function activityIcon(type: string, sign: '+' | '-') {
-  if (type === 'received')     return { Icon: ArrowDownLeft,  color: '#00C853' }
-  if (type === 'agent_purchase' || type === 'purchase') return { Icon: ShoppingBag, color: '#F0A500' }
-  if (type === 'bridge')       return { Icon: RefreshCw,      color: '#0066FF' }
-  if (type === 'swap')         return { Icon: Repeat,         color: '#8B5CF6' }
-  if (sign === '+')            return { Icon: ArrowDownLeft,  color: '#00C853' }
-  return                              { Icon: ArrowUpRight,   color: '#FF3B3B' }
+// ── Activity icon map ─────────────────────────────────────────────────────────
+function actIcon(type: string, sign: '+' | '-') {
+  if (type === 'received')                              return { Icon: ArrowDownLeft,  col: '#00C853' }
+  if (type === 'agent_purchase' || type === 'purchase') return { Icon: ShoppingBag,    col: '#F0A500' }
+  if (type === 'bridge')                                return { Icon: RefreshCw,       col: BLUE      }
+  if (type === 'swap')                                  return { Icon: Repeat,          col: '#8B5CF6' }
+  if (sign === '+')                                     return { Icon: ArrowDownLeft,  col: '#00C853' }
+  return                                                       { Icon: ArrowUpRight,   col: '#FF3B3B' }
 }
 
-function StatusDot({ status }: { status: string }) {
-  if (status === 'confirmed' || status === 'completed')
-    return <CheckCircle2 size={11} color="#00C853" />
-  if (status === 'failed')
-    return <AlertTriangle size={11} color="#FF3B3B" />
-  return <Clock size={11} color="#F0A500" />
+function StatusPip({ status }: { status: string }) {
+  if (status === 'confirmed' || status === 'completed') return <CheckCircle2 size={10} color="#00C853" />
+  if (status === 'failed')                              return <AlertTriangle  size={10} color="#FF3B3B" />
+  return <Clock size={10} color="#F0A500" />
 }
 
-// ── Section label ─────────────────────────────────────────────────────────────
-function SectionLabel({
-  text, action, onAction,
-}: { text: string; action?: string; onAction?: () => void }) {
-  const C = useNanTheme()
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-      <span style={{
-        fontSize: 11, fontWeight: 700, color: C.t3,
-        textTransform: 'uppercase', letterSpacing: '0.09em',
-      }}>{text}</span>
-      {action && onAction && (
-        <button onClick={onAction} style={{
-          display: 'flex', alignItems: 'center', gap: 2,
-          background: 'none', border: 'none', cursor: 'pointer',
-          color: C.blue, fontSize: 12, fontWeight: 600,
-          fontFamily: BODY, padding: 0,
-        }}>
-          {action}<ChevronRight size={12} color={C.blue} />
-        </button>
-      )}
-    </div>
-  )
-}
-
-// ── Quick action tile ─────────────────────────────────────────────────────────
-function QAction({
-  Icon, label, accent, onPress, C,
-}: {
-  Icon: React.ElementType; label: string; accent: string
-  onPress: () => void; C: ReturnType<typeof useNanTheme>
-}) {
-  return (
-    <button onClick={onPress} style={{
-      flex: 1, minWidth: 0,
-      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
-      padding: '14px 6px',
-      background: C.surf, border: `1px solid ${C.bdr}`,
-      borderRadius: 16, cursor: 'pointer',
-      WebkitTapHighlightColor: 'transparent',
-      fontFamily: BODY,
-    }}>
-      <div style={{
-        width: 42, height: 42, borderRadius: 12,
-        background: `${accent}18`, border: `1px solid ${accent}28`,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-      }}>
-        <Icon size={18} color={accent} />
-      </div>
-      <span style={{ fontSize: 11, fontWeight: 600, color: C.t2, lineHeight: 1.25, textAlign: 'center' }}>{label}</span>
-    </button>
-  )
+// ── Row divider ───────────────────────────────────────────────────────────────
+function Divider({ C }: { C: ReturnType<typeof useNanTheme> }) {
+  return <div style={{ height: 1, background: C.bdr, margin: '0 16px' }} />
 }
 
 // ── HomePage ──────────────────────────────────────────────────────────────────
@@ -175,187 +120,226 @@ export function HomePage() {
   const { loading: awLoading, error: awError, refresh: awRefresh } =
     useAgentWalletRefresh(userToken, walletId)
 
-  // Agent activity = agent-initiated sends + service payments, newest first, max 5
+  // Real agent activity only — no fabricated rows
   const agentActivity = [
     ...activity
       .filter(a => a.agentInitiated)
       .map(a => ({
-        id:          a.id,
-        type:        a.type as string,
-        description: a.description,
-        amount:      a.amount,
-        sign:        a.sign,
-        timestamp:   new Date(a.timestamp),
-        status:      a.status,
+        id:     a.id,
+        type:   a.type as string,
+        desc:   a.description,
+        amount: a.amount,
+        sign:   a.sign,
+        ts:     new Date(a.timestamp),
+        status: a.status,
       })),
     ...agentSpendLog.map(e => ({
-      id:          e.id,
-      type:        'agent_purchase',
-      description: e.service_name,
-      amount:      e.amount_usdc,
-      sign:        '-' as const,
-      timestamp:   new Date(e.timestamp),
-      status:      (e.paid ? 'confirmed' : 'pending') as 'confirmed' | 'pending' | 'failed',
+      id:     e.id,
+      type:   'agent_purchase',
+      desc:   e.service_name,
+      amount: e.amount_usdc,
+      sign:   '-' as const,
+      ts:     new Date(e.timestamp),
+      status: (e.paid ? 'confirmed' : 'pending') as 'confirmed' | 'pending' | 'failed',
     })),
   ]
-    .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+    .sort((a, b) => b.ts.getTime() - a.ts.getTime())
     .slice(0, 5)
 
-  // Greeting
-  const displayName = profile.displayName || auth?.email?.split('@')[0] || 'there'
-  const hr = new Date().getHours()
+  const name     = profile.displayName || auth?.email?.split('@')[0] || 'there'
+  const hr       = new Date().getHours()
   const greeting = hr < 12 ? 'Good morning' : hr < 17 ? 'Good afternoon' : 'Good evening'
+  const hasBalance = mainWalletBalance && mainWalletBalance !== '0' && mainWalletBalance !== ''
+
+  // card shared style
+  const card = (extra?: React.CSSProperties): React.CSSProperties => ({
+    background: C.surf,
+    border: `1px solid ${C.bdr}`,
+    borderRadius: 20,
+    overflow: 'hidden',
+    ...extra,
+  })
 
   return (
-    <div style={{ width: '100%', fontFamily: BODY, paddingBottom: 16, boxSizing: 'border-box' }}>
+    <div style={{ width: '100%', fontFamily: BODY, boxSizing: 'border-box', paddingBottom: 20 }}>
 
-      {/* Keyframes */}
+      {/* ── keyframes ── */}
       <style>{`
-        @keyframes home-pulse { 0%,100%{opacity:.45} 50%{opacity:1} }
-        @keyframes home-spin  { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+        @keyframes hp-pulse { 0%,100%{opacity:.4} 50%{opacity:1} }
+        @keyframes hp-spin   { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+        @keyframes hp-glow   { 0%,100%{opacity:.55} 50%{opacity:1} }
       `}</style>
 
-      {/* ── Top bar ── */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 18 }}>
-        <NanLogo height={24} />
+      {/* ════════════════════════════════════════
+          TOP BAR
+      ════════════════════════════════════════ */}
+      <div style={{
+        display: 'flex', alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingBottom: 22,
+      }}>
+        <NanLogo height={22} />
         <NotificationBell color={C.t2} />
       </div>
 
-      {/* ── Greeting + main wallet balance ── */}
-      <div style={{ marginBottom: 22 }}>
+      {/* ════════════════════════════════════════
+          GREETING
+      ════════════════════════════════════════ */}
+      <div style={{ marginBottom: 24 }}>
         <div style={{
-          fontSize: 22, fontWeight: 700, color: C.text,
-          letterSpacing: '-0.025em', lineHeight: 1.25,
+          fontSize: 24, fontWeight: 700, color: C.text,
+          letterSpacing: '-0.03em', lineHeight: 1.2,
         }}>
-          {greeting}, {displayName}
+          {greeting}, {name}
         </div>
-        <div style={{ fontSize: 13, color: C.t3, marginTop: 4 }}>
-          Main wallet
-          {mainWalletBalance && mainWalletBalance !== '0' ? (
-            <span style={{ fontFamily: MONO, fontWeight: 700, color: C.text, marginLeft: 6 }}>
-              ${mainWalletBalance}
+        <div style={{ fontSize: 13, color: C.t3, marginTop: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+          Your financial assistant
+          {hasBalance && (
+            <span style={{
+              background: C.surf2,
+              border: `1px solid ${C.bdr}`,
+              borderRadius: 20, padding: '2px 9px',
+              fontSize: 11, fontWeight: 700,
+              color: C.text, fontFamily: MONO,
+            }}>
+              ${mainWalletBalance} USDC
             </span>
-          ) : (
-            <span style={{ color: C.t3, marginLeft: 6 }}>—</span>
-          )}{' '}
-          USDC
+          )}
         </div>
       </div>
 
-      {/* ════════════════════════════════════════════════════════════
-          1. NAN AGENT — primary entry point
-      ════════════════════════════════════════════════════════════ */}
-      <div style={{ marginBottom: 14 }}>
-        <SectionLabel text="NAN Agent" />
-        <button
-          onClick={() => setActiveView('agent')}
-          style={{
-            width: '100%', textAlign: 'left', boxSizing: 'border-box',
-            display: 'flex', alignItems: 'center', gap: 14,
-            padding: '18px 16px',
-            background: 'linear-gradient(135deg,#060C1E 0%,#0D1A48 100%)',
-            border: '1px solid rgba(0,102,255,0.22)',
-            borderRadius: 20,
-            cursor: 'pointer',
-            WebkitTapHighlightColor: 'transparent',
-            boxShadow: '0 6px 32px rgba(0,102,255,0.10)',
-          }}
-        >
-          {/* Icon */}
-          <div style={{
-            width: 52, height: 52, borderRadius: 15, flexShrink: 0,
-            background: 'rgba(0,102,255,0.16)',
-            border: '1px solid rgba(0,102,255,0.32)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            <Bot size={24} color="#4D94FF" />
-          </div>
-          {/* Copy */}
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 16, fontWeight: 700, color: '#F2F3F5', marginBottom: 4 }}>NAN Agent</div>
-            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.40)', lineHeight: 1.45 }}>
-              Check balances · Send USDC · Find &amp; pay for services
+      {/* ════════════════════════════════════════
+          1. NAN AGENT — PRIMARY
+      ════════════════════════════════════════ */}
+      <button
+        onClick={() => setActiveView('agent')}
+        style={{
+          width: '100%', display: 'block', textAlign: 'left',
+          boxSizing: 'border-box', marginBottom: 12,
+          padding: '22px 20px',
+          background: C.isDark
+            ? 'linear-gradient(140deg,#060D22 0%,#0A1840 55%,#071030 100%)'
+            : 'linear-gradient(140deg,#0052CC 0%,#0066FF 100%)',
+          border: '1px solid rgba(0,102,255,0.28)',
+          borderRadius: 22,
+          cursor: 'pointer',
+          WebkitTapHighlightColor: 'transparent',
+          boxShadow: '0 8px 40px rgba(0,102,255,0.14)',
+        }}
+      >
+        {/* icon + title row */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14 }}>
+          {/* pulsing glow orb */}
+          <div style={{ position: 'relative', width: 52, height: 52, flexShrink: 0 }}>
+            <div style={{
+              position: 'absolute', inset: -4,
+              borderRadius: '50%',
+              background: 'radial-gradient(circle, rgba(0,102,255,0.35) 0%, transparent 70%)',
+              animation: 'hp-glow 2.4s ease-in-out infinite',
+            }} />
+            <div style={{
+              width: 52, height: 52, borderRadius: 15,
+              background: 'rgba(255,255,255,0.10)',
+              border: '1px solid rgba(255,255,255,0.20)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              position: 'relative',
+            }}>
+              <Bot size={24} color="#FFFFFF" />
             </div>
           </div>
-          {/* Chevron */}
+
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 18, fontWeight: 800, color: '#FFFFFF', letterSpacing: '-0.02em' }}>
+              NAN Agent
+            </div>
+            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>
+              Your AI financial assistant
+            </div>
+          </div>
+
           <div style={{
-            width: 30, height: 30, borderRadius: 9, flexShrink: 0,
-            background: 'rgba(255,255,255,0.06)',
+            width: 32, height: 32, borderRadius: 10, flexShrink: 0,
+            background: 'rgba(255,255,255,0.10)',
+            border: '1px solid rgba(255,255,255,0.15)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
-            <ChevronRight size={14} color="rgba(255,255,255,0.35)" />
+            <ChevronRight size={16} color="rgba(255,255,255,0.6)" />
           </div>
-        </button>
-      </div>
+        </div>
 
-      {/* ════════════════════════════════════════════════════════════
-          2. AGENT WALLET SUMMARY
-      ════════════════════════════════════════════════════════════ */}
-      <div style={{ marginBottom: 14 }}>
-        <SectionLabel
-          text="Agent Wallet"
-          action={agentWallet.provisioned ? 'Open' : undefined}
-          onAction={() => setActiveView('agent-wallet')}
-        />
+        {/* capability chips */}
+        <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
+          {['Check balances', 'Send USDC', 'Find services', 'Pay for services'].map(cap => (
+            <span key={cap} style={{
+              padding: '5px 11px',
+              background: 'rgba(255,255,255,0.09)',
+              border: '1px solid rgba(255,255,255,0.14)',
+              borderRadius: 20,
+              fontSize: 11, fontWeight: 600,
+              color: 'rgba(255,255,255,0.70)',
+            }}>
+              {cap}
+            </span>
+          ))}
+        </div>
+      </button>
 
+      {/* ════════════════════════════════════════
+          2. AGENT WALLET — SECONDARY
+      ════════════════════════════════════════ */}
+      <div style={{ marginBottom: 12 }}>
         {!agentWallet.provisioned ? (
-          /* Not provisioned yet */
+          /* ── Not provisioned ── */
           <button
             onClick={() => setActiveView('agent-wallet')}
             style={{
               width: '100%', textAlign: 'left', boxSizing: 'border-box',
               display: 'flex', alignItems: 'center', gap: 14,
-              padding: '16px',
-              background: C.surf, border: `1px solid ${C.bdr}`,
-              borderRadius: 18,
+              padding: '16px 18px',
+              ...card(),
               cursor: 'pointer',
               WebkitTapHighlightColor: 'transparent',
             }}
           >
             <div style={{
-              width: 46, height: 46, borderRadius: 13, flexShrink: 0,
+              width: 44, height: 44, borderRadius: 13, flexShrink: 0,
               background: C.surf2, border: `1px solid ${C.bdr}`,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}>
-              <Wallet size={20} color={C.t3} />
+              <Wallet size={19} color={C.t3} />
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 14, fontWeight: 600, color: C.text, marginBottom: 3 }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 2 }}>
                 Set up Agent Wallet
               </div>
               <div style={{ fontSize: 12, color: C.t3 }}>
-                Enable autonomous USDC payments for your agent
+                Enables NAN to act on your behalf
               </div>
             </div>
             <ChevronRight size={14} color={C.t3} />
           </button>
 
         ) : (
-          /* Provisioned — real balance card */
-          <button
-            onClick={() => setActiveView('agent-wallet')}
-            style={{
-              width: '100%', textAlign: 'left', boxSizing: 'border-box',
-              padding: '18px',
-              background: C.surf, border: `1px solid ${C.bdr}`,
-              borderRadius: 20,
-              cursor: 'pointer',
-              WebkitTapHighlightColor: 'transparent',
-            }}
-          >
-            {/* Card header */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+          /* ── Provisioned ── */
+          <div style={card()}>
+            {/* header */}
+            <div style={{
+              display: 'flex', alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '16px 18px 12px',
+            }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <div style={{
                   width: 34, height: 34, borderRadius: 10,
-                  background: 'rgba(0,102,255,0.10)',
-                  border: '1px solid rgba(0,102,255,0.20)',
+                  background: `${BLUE}14`, border: `1px solid ${BLUE}28`,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}>
-                  <Wallet size={15} color={C.blue} />
+                  <Wallet size={15} color={BLUE} />
                 </div>
                 <div>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: C.text }}>Agent Wallet</div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: C.text, textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+                    Agent Wallet
+                  </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 2 }}>
                     <div style={{
                       width: 6, height: 6, borderRadius: '50%',
@@ -368,175 +352,237 @@ export function HomePage() {
                 </div>
               </div>
 
-              {/* Refresh button — stopPropagation so it doesn't navigate */}
+              {/* refresh */}
               <button
-                onClick={e => { e.stopPropagation(); void awRefresh() }}
+                onClick={() => void awRefresh()}
                 style={{
-                  width: 32, height: 32, borderRadius: 9, flexShrink: 0,
+                  width: 30, height: 30, borderRadius: 8, flexShrink: 0,
                   background: C.surf2, border: `1px solid ${C.bdr}`,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  cursor: 'pointer',
-                  WebkitTapHighlightColor: 'transparent',
+                  cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
                 }}
               >
                 <RefreshCw
-                  size={13} color={C.t3}
-                  style={{ animation: awLoading ? 'home-spin 0.8s linear infinite' : 'none' }}
+                  size={12} color={C.t3}
+                  style={{ animation: awLoading ? 'hp-spin 0.8s linear infinite' : 'none' }}
                 />
               </button>
             </div>
 
-            {/* Balance area */}
-            {awError ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingBottom: 4 }}>
-                <AlertTriangle size={14} color={C.gold} />
-                <span style={{ fontSize: 13, color: C.t2 }}>{awError}</span>
-                <button
-                  onClick={e => { e.stopPropagation(); void awRefresh() }}
-                  style={{ marginLeft: 'auto', background: 'none', border: 'none', color: C.blue, fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: BODY }}
-                >
-                  Retry
-                </button>
-              </div>
-            ) : awLoading && agentWallet.balance_usdc === '0' ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, paddingBottom: 4 }}>
-                <Skeleton w={110} h={30} r={8} />
-                <Skeleton w={70}  h={12} r={5} />
-              </div>
-            ) : (
-              <div>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: 5 }}>
-                  <span style={{
-                    fontSize: 30, fontWeight: 800,
-                    color: C.text, fontFamily: MONO,
-                    letterSpacing: '-0.03em',
-                  }}>
-                    {parseFloat(agentWallet.balance_usdc || '0').toFixed(2)}
-                  </span>
-                  <span style={{ fontSize: 14, color: C.t3, fontWeight: 600 }}>USDC</span>
-                </div>
-                {agentWallet.lastRefreshed && (
-                  <div style={{ fontSize: 10, color: C.t3, marginTop: 3 }}>
-                    Updated {new Date(agentWallet.lastRefreshed).toLocaleTimeString('en', { hour: '2-digit', minute: '2-digit' })}
-                  </div>
-                )}
-              </div>
-            )}
+            <Divider C={C} />
 
-            {/* Footer */}
-            <div style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              marginTop: 14, paddingTop: 12,
-              borderTop: `1px solid ${C.bdr}`,
-            }}>
-              <span style={{ fontSize: 11, color: C.t3 }}>Tap to open full Agent Wallet</span>
-              <ChevronRight size={13} color={C.t3} />
+            {/* balance */}
+            <div style={{ padding: '14px 18px' }}>
+              {awError ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <AlertTriangle size={14} color={C.gold} />
+                  <span style={{ fontSize: 13, color: C.t2, flex: 1 }}>Balance unavailable</span>
+                  <button
+                    onClick={() => void awRefresh()}
+                    style={{
+                      background: 'none', border: 'none', cursor: 'pointer',
+                      color: BLUE, fontSize: 12, fontWeight: 600, fontFamily: BODY, padding: 0,
+                    }}
+                  >
+                    Retry
+                  </button>
+                </div>
+              ) : awLoading && agentWallet.balance_usdc === '0' ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                  <Skel w={100} h={32} r={9} />
+                  <Skel w={64}  h={11} r={5} />
+                </div>
+              ) : (
+                <>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 5 }}>
+                    <span style={{
+                      fontSize: 32, fontWeight: 800,
+                      color: C.text, fontFamily: MONO,
+                      letterSpacing: '-0.03em', lineHeight: 1,
+                    }}>
+                      {parseFloat(agentWallet.balance_usdc || '0').toFixed(2)}
+                    </span>
+                    <span style={{ fontSize: 14, color: C.t3, fontWeight: 600 }}>USDC</span>
+                  </div>
+                  {agentWallet.lastRefreshed && (
+                    <div style={{ fontSize: 10, color: C.t3, marginTop: 4 }}>
+                      Updated {new Date(agentWallet.lastRefreshed).toLocaleTimeString('en', { hour: '2-digit', minute: '2-digit' })}
+                    </div>
+                  )}
+                </>
+              )}
             </div>
-          </button>
+
+            <Divider C={C} />
+
+            {/* open button */}
+            <button
+              onClick={() => setActiveView('agent-wallet')}
+              style={{
+                width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: '12px 18px',
+                background: 'none', border: 'none', cursor: 'pointer',
+                WebkitTapHighlightColor: 'transparent', fontFamily: BODY,
+              }}
+            >
+              <span style={{ fontSize: 13, fontWeight: 600, color: BLUE }}>Open Agent Wallet</span>
+              <ChevronRight size={14} color={BLUE} />
+            </button>
+          </div>
         )}
       </div>
 
-      {/* ════════════════════════════════════════════════════════════
+      {/* ════════════════════════════════════════
           3. QUICK ACTIONS
-      ════════════════════════════════════════════════════════════ */}
+      ════════════════════════════════════════ */}
       <div style={{ marginBottom: 20 }}>
-        <SectionLabel text="Quick Actions" />
-        <div style={{ display: 'flex', gap: 10 }}>
-          <QAction Icon={ArrowUpRight} label="Payment"   accent={C.blue}    C={C} onPress={() => setActiveView('send')} />
-          <QAction Icon={Search}       label="Services"  accent="#8B5CF6"   C={C} onPress={() => setActiveView('agent')} />
-          <QAction Icon={Zap}          label="Agent"     accent={C.gold}    C={C} onPress={() => setActiveView('agent-wallet')} />
-          <QAction Icon={Repeat}       label="Recurring" accent={C.green}   C={C} onPress={() => setActiveView('recurring')} />
+        {/* label */}
+        <div style={{
+          fontSize: 11, fontWeight: 700, color: C.t3,
+          textTransform: 'uppercase', letterSpacing: '0.09em',
+          marginBottom: 10,
+        }}>
+          Quick Actions
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+          {[
+            { Icon: ArrowUpRight, label: 'Pay',       accent: BLUE,      view: 'send'         },
+            { Icon: Zap,          label: 'Services',  accent: '#8B5CF6', view: 'agent'        },
+            { Icon: Shield,       label: 'Spending',  accent: '#F0A500', view: 'agent-wallet' },
+            { Icon: Repeat,       label: 'Recurring', accent: C.green,   view: 'recurring'    },
+          ].map(({ Icon, label, accent, view }) => (
+            <button
+              key={label}
+              onClick={() => setActiveView(view)}
+              style={{
+                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
+                padding: '14px 6px',
+                background: C.surf, border: `1px solid ${C.bdr}`,
+                borderRadius: 16, cursor: 'pointer',
+                WebkitTapHighlightColor: 'transparent',
+                fontFamily: BODY,
+              }}
+            >
+              <div style={{
+                width: 40, height: 40, borderRadius: 12,
+                background: `${accent}18`, border: `1px solid ${accent}28`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <Icon size={17} color={accent} />
+              </div>
+              <span style={{ fontSize: 11, fontWeight: 600, color: C.t2, lineHeight: 1.2, textAlign: 'center' }}>
+                {label}
+              </span>
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* ════════════════════════════════════════════════════════════
-          4. RECENT AGENT ACTIVITY (real data only)
-      ════════════════════════════════════════════════════════════ */}
+      {/* ════════════════════════════════════════
+          4. RECENT AGENT ACTIVITY
+      ════════════════════════════════════════ */}
       <div>
-        <SectionLabel
-          text="Recent Agent Activity"
-          action={agentActivity.length > 0 ? 'See all' : undefined}
-          onAction={() => setActiveView('activity')}
-        />
+        {/* section header */}
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          marginBottom: 10,
+        }}>
+          <span style={{
+            fontSize: 11, fontWeight: 700, color: C.t3,
+            textTransform: 'uppercase', letterSpacing: '0.09em',
+          }}>
+            Recent Agent Activity
+          </span>
+          {agentActivity.length > 0 && (
+            <button
+              onClick={() => setActiveView('activity')}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 2,
+                background: 'none', border: 'none', cursor: 'pointer',
+                color: BLUE, fontSize: 12, fontWeight: 600, fontFamily: BODY, padding: 0,
+              }}
+            >
+              See all <ChevronRight size={12} color={BLUE} />
+            </button>
+          )}
+        </div>
 
         {agentActivity.length === 0 ? (
-          /* ── Empty state — exact copy matches spec ── */
+          /* ── Empty state ── */
           <div style={{
-            background: C.surf, border: `1px solid ${C.bdr}`,
-            borderRadius: 18, padding: '36px 20px', textAlign: 'center',
+            ...card(),
+            padding: '36px 20px',
+            textAlign: 'center',
           }}>
             <div style={{
               width: 48, height: 48, borderRadius: 14,
               background: C.surf2, border: `1px solid ${C.bdr}`,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              margin: '0 auto 12px',
+              margin: '0 auto 14px',
             }}>
               <Bot size={20} color={C.t3} />
             </div>
-            <div style={{ fontSize: 15, fontWeight: 600, color: C.text, marginBottom: 6 }}>
+            <div style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 6 }}>
               No agent activity yet
             </div>
-            <div style={{ fontSize: 13, color: C.t3, lineHeight: 1.55 }}>
+            <div style={{ fontSize: 13, color: C.t3, lineHeight: 1.55, maxWidth: 240, margin: '0 auto' }}>
               Your NAN Agent activity will appear here.
             </div>
           </div>
 
         ) : (
-          <div style={{
-            background: C.surf, border: `1px solid ${C.bdr}`,
-            borderRadius: 18, overflow: 'hidden',
-          }}>
+          /* ── Activity list ── */
+          <div style={card()}>
             {agentActivity.map((item, i) => {
-              const { Icon, color } = activityIcon(item.type, item.sign)
+              const { Icon, col } = actIcon(item.type, item.sign)
               const isLast = i === agentActivity.length - 1
-              const ts = item.timestamp
-              const timeStr = ts.toLocaleTimeString('en', { hour: '2-digit', minute: '2-digit' })
-              const dateStr = ts.toLocaleDateString('en', { month: 'short', day: 'numeric' })
+              const timeStr = item.ts.toLocaleTimeString('en', { hour: '2-digit', minute: '2-digit' })
+              const dateStr = item.ts.toLocaleDateString('en', { month: 'short', day: 'numeric' })
+              const amtStr = typeof item.amount === 'number'
+                ? item.amount.toFixed(item.amount < 1 ? 4 : 2)
+                : String(item.amount)
 
               return (
-                <div
-                  key={item.id}
-                  style={{
+                <React.Fragment key={item.id}>
+                  <div style={{
                     display: 'flex', alignItems: 'center', gap: 12,
                     padding: '13px 16px',
-                    borderBottom: isLast ? 'none' : `1px solid ${C.bdr}`,
-                  }}
-                >
-                  {/* Icon */}
-                  <div style={{
-                    width: 36, height: 36, borderRadius: 10, flexShrink: 0,
-                    background: `${color}14`, border: `1px solid ${color}22`,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
                   }}>
-                    <Icon size={15} color={color} />
-                  </div>
-
-                  {/* Text */}
-                  <div style={{ flex: 1, minWidth: 0 }}>
+                    {/* icon */}
                     <div style={{
-                      fontSize: 13, fontWeight: 600, color: C.text,
-                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                      width: 36, height: 36, borderRadius: 10, flexShrink: 0,
+                      background: `${col}14`, border: `1px solid ${col}22`,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
                     }}>
-                      {item.description}
+                      <Icon size={15} color={col} />
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 2 }}>
-                      <StatusDot status={item.status} />
-                      <span style={{ fontSize: 11, color: C.t3 }}>{dateStr} · {timeStr}</span>
-                    </div>
-                  </div>
 
-                  {/* Amount */}
-                  <div style={{
-                    fontSize: 13, fontWeight: 700, flexShrink: 0, fontFamily: MONO,
-                    color: item.sign === '+' ? C.green : C.red,
-                  }}>
-                    {item.sign}
-                    {typeof item.amount === 'number'
-                      ? item.amount.toFixed(item.amount < 1 ? 4 : 2)
-                      : item.amount}{' '}
-                    USDC
+                    {/* text */}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{
+                        fontSize: 13, fontWeight: 600, color: C.text,
+                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                      }}>
+                        {item.desc}
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 2 }}>
+                        <StatusPip status={item.status} />
+                        <span style={{ fontSize: 11, color: C.t3 }}>{dateStr} · {timeStr}</span>
+                      </div>
+                    </div>
+
+                    {/* amount */}
+                    <div style={{
+                      fontSize: 13, fontWeight: 700, flexShrink: 0,
+                      color: item.sign === '+' ? C.green : C.red,
+                      fontFamily: MONO,
+                    }}>
+                      {item.sign}{amtStr} USDC
+                    </div>
                   </div>
-                </div>
+                  {!isLast && <Divider C={C} />}
+                </React.Fragment>
               )
             })}
           </div>
