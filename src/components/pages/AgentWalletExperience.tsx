@@ -949,12 +949,23 @@ function ActionDrawer({ view, agentAddress, onClose, C }: {
       let d: { ok?: boolean; challengeId?: string; error?: string }
       try { d = JSON.parse(text) as typeof d } catch { throw new Error(`Server error: ${text.slice(0, 120)}`) }
       if (!r.ok || !d.ok || !d.challengeId) throw new Error(d.error ?? 'Send failed')
+      // encryptionKey is wiped on page reload for security — if missing, the
+      // user must re-authenticate (re-enter OTP) to restore it for this session.
+      if (!agentWallet.encryptionKey) {
+        setSending(false)
+        setErr('Session expired — please re-authenticate your Agent Wallet to restore signing access.')
+        return
+      }
       // Open Circle PIN popup to sign the transaction
       if (!_agentSdk) throw new Error('SDK not initialised — please reload')
-      _agentSdk.setAuthentication({ userToken, encryptionKey: agentWallet.encryptionKey ?? '' })
+      _agentSdk.setAuthentication({ userToken, encryptionKey: agentWallet.encryptionKey })
       _agentSdk.execute(d.challengeId, (execErr, execResult) => {
         setSending(false)
-        if (execErr) { setErr('Transaction signing failed — please try again'); return }
+        if (execErr) {
+          const msg = (execErr as { message?: string } | null)?.message ?? String(execErr)
+          setErr(`Transaction signing failed: ${msg}`)
+          return
+        }
         const tx = (execResult as { txHash?: string } | null)?.txHash ?? ''
         setSendTx(tx)
         setSendDone(true)

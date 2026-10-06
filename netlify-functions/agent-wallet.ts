@@ -22,6 +22,7 @@ import {
   initiateUserControlledWalletsClient,
   Blockchain,
 } from '@circle-fin/user-controlled-wallets'
+import { randomUUID } from 'crypto'
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -198,7 +199,9 @@ export const handler: Handler = async (event: HandlerEvent, _ctx: HandlerContext
         tokenId,
         destinationAddress: to,
         amounts: [sendAmount],
+        blockchain: Blockchain.ArcTestnet,
         fee: { type: 'level', config: { feeLevel: 'MEDIUM' } },
+        idempotencyKey: randomUUID(),
       })
       const challengeId = txRes.data?.challengeId
       if (!challengeId) throw new Error('No challengeId returned')
