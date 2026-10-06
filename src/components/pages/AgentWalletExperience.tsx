@@ -1131,7 +1131,15 @@ function DashboardScreen({ C, onDisconnect }: { C: ReturnType<typeof useNanTheme
       }}>
         {/* Header row */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, gap: 8 }}>
-          <div style={{ minWidth: 0 }}>
+          {/* ← back to agent chat */}
+          <button
+            onClick={() => setActiveView('agent')}
+            aria-label="Back to Agent"
+            style={{ width: 34, height: 34, borderRadius: 9, background: 'transparent', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, WebkitTapHighlightColor: 'transparent', padding: 0 }}
+          >
+            <ArrowLeft size={18} color={C.t2} strokeWidth={2.2} />
+          </button>
+          <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 16, fontWeight: 800, color: C.text, letterSpacing: '-0.02em', lineHeight: 1.2 }}>NAN Agent Wallet</div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 2 }}>
               <div style={{ width: 6, height: 6, borderRadius: '50%', background: isActive ? GREEN : AMBER, boxShadow: isActive ? `0 0 5px ${GREEN}` : 'none', flexShrink: 0 }} />

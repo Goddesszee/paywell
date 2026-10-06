@@ -121,7 +121,7 @@ function Row({ label, value, mono, last, C }: {
 }
 
 interface ThemeColors {
-  bg: string; surf: string; surf2: string; bdr: string
+  bg?: string; surf: string; surf2: string; bdr: string
   text: string; t2: string; t3: string
 }
 
@@ -539,14 +539,37 @@ export function AgentServicesTab({ C }: Props) {
   const usedCats = new Set(services.map(s => s.category))
   const visibleCats = DISPLAY_CATEGORIES.filter(c => c.id === 'all' || usedCats.has(c.id))
 
-  // Detail view
+  // Detail view — sticky back bar so users can always escape even when scrolled deep
   if (view.kind === 'detail') {
     return (
-      <ServiceDetail
-        svc={view.svc}
-        onBack={() => setView({ kind: 'list' })}
-        C={C}
-      />
+      <div style={{ fontFamily: F }}>
+        {/* Sticky back bar */}
+        <div style={{
+          position: 'sticky', top: 0, zIndex: 10,
+          background: C.bg ?? 'var(--nan-bg)',
+          paddingTop: 8, paddingBottom: 8, marginBottom: 4,
+          borderBottom: `1px solid ${C.bdr}`,
+          marginLeft: -16, marginRight: -16, paddingLeft: 16, paddingRight: 16,
+        }}>
+          <button
+            onClick={() => setView({ kind: 'list' })}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              background: 'none', border: 'none', cursor: 'pointer',
+              padding: '4px 0', fontFamily: F,
+              WebkitTapHighlightColor: 'transparent',
+            }}
+          >
+            <ArrowLeft size={16} color={C.t2} strokeWidth={2} />
+            <span style={{ fontSize: 13, color: C.t2, fontWeight: 500 }}>Back to Services</span>
+          </button>
+        </div>
+        <ServiceDetail
+          svc={view.svc}
+          onBack={() => setView({ kind: 'list' })}
+          C={C}
+        />
+      </div>
     )
   }
 

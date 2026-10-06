@@ -165,6 +165,7 @@ export function AgentRecurringTab({ C }: Props) {
 
   return (
     <div style={{ fontFamily: F, display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
 
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
