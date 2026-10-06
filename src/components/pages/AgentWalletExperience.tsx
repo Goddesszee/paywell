@@ -24,7 +24,7 @@ import {
   CheckCircle, Wifi, Mail, Loader, X as XIcon,
   Settings, Info,
 } from 'lucide-react'
-import { useAppStore, AgentSpendEntry } from '../../store/appStore'
+import { useAppStore, AgentSpendEntry, ActivityItem } from '../../store/appStore'
 import { useNanTheme } from '../../hooks/useNanTheme'
 import { AgentServicesTab }   from './AgentServicesTab'
 import { AgentRecurringTab } from './AgentRecurringTab'
@@ -915,13 +915,110 @@ const PRIMARY_TABS: { id: DashTab; label: string }[] = [
   { id: 'services',  label: 'Services'  },
 ]
 
+function ReceiveSheet({ address, onClose, C }: { address: string; onClose: () => void; C: ReturnType<typeof useNanTheme> }) {
+  const [copied, setCopied] = useState(false)
+  const copy = () => {
+    navigator.clipboard.writeText(address).catch(() => {})
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+  return (
+    <div
+      style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}
+      onClick={e => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <div style={{ width: '100%', maxWidth: 480, background: C.bg ?? 'var(--nan-bg)', borderRadius: '22px 22px 0 0', padding: '24px 20px 40px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+          <div style={{ fontSize: 16, fontWeight: 800, color: C.text }}>Receive USDC</div>
+          <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: 9, background: C.surf2, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <XIcon size={14} color={C.t2} />
+          </button>
+        </div>
+        <div style={{ fontSize: 13, color: C.t2, marginBottom: 18, lineHeight: 1.5 }}>
+          Send USDC on Arc Testnet to this address to fund your Agent Wallet.
+        </div>
+        {/* Address box */}
+        <div style={{ background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 14, padding: '16px', marginBottom: 14 }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: C.t3, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>Agent Wallet Address</div>
+          <div style={{ fontSize: 13, fontFamily: MONO, color: C.text, wordBreak: 'break-all', lineHeight: 1.7 }}>{address}</div>
+        </div>
+        {/* Network warning */}
+        <div style={{ background: 'rgba(255,149,0,0.06)', border: '1px solid rgba(255,149,0,0.2)', borderRadius: 12, padding: '10px 14px', marginBottom: 18, fontSize: 12, color: C.t2, lineHeight: 1.5 }}>
+          Only send <strong style={{ color: C.text }}>USDC on Arc Testnet</strong> to this address. Sending other tokens or on different networks may result in permanent loss.
+        </div>
+        <button onClick={copy} style={{
+          width: '100%', height: 48, background: BLUE, color: '#fff',
+          border: 'none', borderRadius: 14, fontSize: 15, fontWeight: 700,
+          cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+        }}>
+          {copied ? <><Check size={16} /> Copied!</> : <><Copy size={16} /> Copy Address</>}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function SendSheet({ address, onClose, onSend, C }: { address: string; onClose: () => void; onSend: (to: string, amount: string) => void; C: ReturnType<typeof useNanTheme> }) {
+  const [to, setTo]         = useState('')
+  const [amount, setAmount] = useState('')
+  const [err, setErr]       = useState('')
+  const submit = () => {
+    if (!to.trim() || !amount.trim() || parseFloat(amount) <= 0) { setErr('Enter a valid recipient and amount'); return }
+    setErr('')
+    onSend(to.trim(), amount.trim())
+    onClose()
+  }
+  return (
+    <div
+      style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}
+      onClick={e => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <div style={{ width: '100%', maxWidth: 480, background: C.bg ?? 'var(--nan-bg)', borderRadius: '22px 22px 0 0', padding: '24px 20px 40px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+          <div style={{ fontSize: 16, fontWeight: 800, color: C.text }}>Send from Agent Wallet</div>
+          <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: 9, background: C.surf2, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <XIcon size={14} color={C.t2} />
+          </button>
+        </div>
+        <div style={{ fontSize: 12, color: C.t3, fontFamily: MONO, marginBottom: 18 }}>From: {address.slice(0,10)}••••{address.slice(-6)}</div>
+        <div style={{ marginBottom: 12 }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: C.t2, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 5 }}>Recipient address</div>
+          <input placeholder="0x..." value={to} onChange={e => setTo(e.target.value)}
+            style={{ width: '100%', boxSizing: 'border-box', padding: '11px 14px', border: `1px solid ${C.bdr}`, borderRadius: 10, fontFamily: MONO, fontSize: 13, color: C.text, background: C.surf2, outline: 'none' }} />
+        </div>
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: C.t2, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 5 }}>Amount (USDC)</div>
+          <div style={{ position: 'relative' }}>
+            <input placeholder="0.00" type="number" min="0" step="0.01" value={amount} onChange={e => setAmount(e.target.value)}
+              style={{ width: '100%', boxSizing: 'border-box', padding: '11px 56px 11px 14px', border: `1px solid ${C.bdr}`, borderRadius: 10, fontFamily: F, fontSize: 16, fontWeight: 700, color: C.text, background: C.surf2, outline: 'none' }} />
+            <span style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', fontSize: 12, fontWeight: 700, color: C.t2 }}>USDC</span>
+          </div>
+        </div>
+        {err && <div style={{ fontSize: 12, color: '#EF4444', marginBottom: 10 }}>{err}</div>}
+        <div style={{ fontSize: 12, color: C.t3, marginBottom: 16, lineHeight: 1.5 }}>
+          Agent Wallet sends use the main wallet page. For gas-free agent execution, use the AI chat to automate payments.
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={onClose} style={{ flex: 1, height: 46, background: 'transparent', color: C.t2, border: `1px solid ${C.bdr}`, borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: F }}>Cancel</button>
+          <button onClick={submit} style={{ flex: 2, height: 46, background: BLUE, color: '#fff', border: 'none', borderRadius: 12, fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+            <ArrowRight size={15} /> Review in Wallet
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function DashboardScreen({ C, onDisconnect }: { C: ReturnType<typeof useNanTheme>; onDisconnect: () => void }) {
-  const { agentWallet, setAgentWallet, agentSpendLog, setActiveView } = useAppStore()
+  const { agentWallet, setAgentWallet, agentSpendLog, activity, recurringTasks, setActiveView } = useAppStore()
   const [dashTab, setDashTab]         = useState<DashTab>('overview')
   const [refreshing, setRefreshing]   = useState(false)
   const [copied, setCopied]           = useState(false)
   const [detailsOpen, setDetailsOpen] = useState(false)
   const [policyOpen, setPolicyOpen]   = useState(false)
+  const [receiveOpen, setReceiveOpen] = useState(false)
+  const [sendOpen, setSendOpen]       = useState(false)
+  const [inlineView, setInlineView]   = useState<'bridge' | 'swap' | 'recurring' | null>(null)
 
   const totalSpent = agentSpendLog.reduce((s, e) => s + e.amount_usdc, 0)
   const balance    = parseFloat(agentWallet.balance_usdc || '0')
@@ -1040,28 +1137,66 @@ function DashboardScreen({ C, onDisconnect }: { C: ReturnType<typeof useNanTheme
       {dashTab === 'services' && <AgentServicesTab C={themeColors} />}
 
       {/* ══ ACTIVITY TAB ══════════════════════════════════════════════════════ */}
-      {dashTab === 'activity' && (
-        <div>
-          {/* Total spent */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-            <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>Agent Payments</span>
-            <span style={{ fontSize: 13, fontWeight: 700, color: C.text, fontFamily: MONO }}>{totalSpent.toFixed(4)} USDC</span>
+      {dashTab === 'activity' && (() => {
+        // Merge agentSpendLog + main activity bridge/swap entries, sorted by time desc
+        const bridgeSwapItems: ActivityItem[] = activity.filter(a => a.type === 'bridge' || a.type === 'swap')
+        const merged = [
+          ...agentSpendLog.map(e => ({ _type: 'agent' as const, key: e.id, time: new Date(e.timestamp).getTime(), entry: e })),
+          ...bridgeSwapItems.map(a => ({ _type: 'main' as const, key: a.id ?? a.txHash ?? String(a.timestamp?.getTime?.()), time: a.timestamp instanceof Date ? a.timestamp.getTime() : new Date(a.timestamp as string).getTime(), item: a })),
+        ].sort((a, b) => b.time - a.time)
+
+        return (
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>Agent History</span>
+              <span style={{ fontSize: 12, color: C.t3 }}>Spend · Bridge · Swap</span>
+            </div>
+
+            {merged.length === 0 ? (
+              <div style={{ background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 16, padding: '36px 20px', textAlign: 'center' }}>
+                <Clock size={24} color={C.t3} style={{ margin: '0 auto 10px', display: 'block' }} />
+                <div style={{ fontSize: 13, fontWeight: 600, color: C.text, marginBottom: 4 }}>No activity yet</div>
+                <div style={{ fontSize: 12, color: C.t3 }}>Agent payments, bridge, and swap history appear here</div>
+              </div>
+            ) : (
+              <div style={{ background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 16, padding: '4px 16px' }}>
+                {merged.slice(0, 30).map((row, i) => {
+                  const isLast = i === Math.min(merged.length, 30) - 1
+                  if (row._type === 'agent') {
+                    return <SpendRow key={row.key} entry={row.entry} last={isLast} C={C} />
+                  }
+                  const a = row.item
+                  const typeColor = a.type === 'bridge' ? BLUE : GREEN
+                  const typeLabel = a.type === 'bridge' ? 'Bridge' : 'Swap'
+                  const Icon = a.type === 'bridge' ? ArrowLeftRight : ArrowUpDown
+                  return (
+                    <div key={row.key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderBottom: isLast ? 'none' : `1px solid ${C.bdr}` }}>
+                      <div style={{ width: 30, height: 30, borderRadius: 9, flexShrink: 0, background: `rgba(${a.type === 'bridge' ? '0,102,255' : '0,200,83'},0.08)`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Icon size={13} color={typeColor} />
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.description}</div>
+                        <div style={{ fontSize: 11, color: C.t3, marginTop: 1 }}>{a.timestamp instanceof Date ? a.timestamp.toLocaleString('en', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : new Date(a.timestamp).toLocaleString('en', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
+                      </div>
+                      <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: typeColor, fontFamily: MONO }}>{a.sign}{a.amount} USDC</div>
+                        <div style={{ fontSize: 10, color: a.status === 'confirmed' ? GREEN : AMBER, marginTop: 1 }}>{typeLabel}</div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+
+            {agentSpendLog.length > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 4px 0' }}>
+                <span style={{ fontSize: 12, color: C.t3 }}>Total agent spend</span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: C.text, fontFamily: MONO }}>{totalSpent.toFixed(4)} USDC</span>
+              </div>
+            )}
           </div>
-          {agentSpendLog.length === 0 ? (
-            <div style={{ background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 16, padding: '36px 20px', textAlign: 'center' }}>
-              <Clock size={24} color={C.t3} style={{ margin: '0 auto 10px', display: 'block' }} />
-              <div style={{ fontSize: 13, fontWeight: 600, color: C.text, marginBottom: 4 }}>No activity yet</div>
-              <div style={{ fontSize: 12, color: C.t3 }}>Agent payments appear here automatically</div>
-            </div>
-          ) : (
-            <div style={{ background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 16, padding: '4px 16px' }}>
-              {agentSpendLog.slice(0, 20).map((e, i) => (
-                <SpendRow key={e.id} entry={e} last={i === Math.min(agentSpendLog.length, 20) - 1} C={C} />
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+        )
+      })()}
 
       {/* ══ OVERVIEW TAB ══════════════════════════════════════════════════════ */}
       {dashTab === 'overview' && (
@@ -1133,24 +1268,77 @@ function DashboardScreen({ C, onDisconnect }: { C: ReturnType<typeof useNanTheme
           </div>
 
           {/* ── Wallet actions ─────────────────────────────────────────────────── */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 6 }}>
             {[
-              { label: 'Fund',    icon: <Coins size={16} color={BLUE} />,        action: () => setActiveView('wallet') },
-              { label: 'Send',    icon: <ArrowRight size={16} color={BLUE} />,   action: () => setActiveView('wallet') },
-              { label: 'Receive', icon: <ArrowLeft size={16} color={BLUE} />,    action: () => copyAddress() },
+              { label: 'Fund',      icon: <Coins size={15} color={BLUE} />,        action: () => setReceiveOpen(true) },
+              { label: 'Send',      icon: <ArrowRight size={15} color={BLUE} />,   action: () => setSendOpen(true) },
+              { label: 'Bridge',    icon: <ArrowLeftRight size={15} color={BLUE} />, action: () => setInlineView(v => v === 'bridge' ? null : 'bridge') },
+              { label: 'Swap',      icon: <ArrowUpDown size={15} color={BLUE} />,  action: () => setInlineView(v => v === 'swap' ? null : 'swap') },
+              { label: 'Recurring', icon: <Repeat size={15} color={BLUE} />,       action: () => setInlineView(v => v === 'recurring' ? null : 'recurring') },
             ].map(({ label, icon, action }) => (
               <button key={label} onClick={action} style={{
-                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 5,
-                padding: '12px 8px', background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 14,
+                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4,
+                padding: '10px 4px', background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 12,
                 cursor: 'pointer', fontFamily: F, WebkitTapHighlightColor: 'transparent', transition: 'background 0.12s',
               }}>
-                <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(0,102,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ width: 32, height: 32, borderRadius: 9, background: 'rgba(0,102,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   {icon}
                 </div>
-                <span style={{ fontSize: 12, fontWeight: 600, color: C.text }}>{label}</span>
+                <span style={{ fontSize: 10, fontWeight: 600, color: C.text, textAlign: 'center' }}>{label}</span>
               </button>
             ))}
           </div>
+
+          {/* ── Inline views (Bridge / Swap / Recurring) ───────────────────────── */}
+          {inlineView && (
+            <div style={{ background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 16, overflow: 'hidden' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: `1px solid ${C.bdr}` }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: C.text, textTransform: 'capitalize' }}>{inlineView}</span>
+                <button onClick={() => setInlineView(null)} style={{ width: 28, height: 28, borderRadius: 7, background: C.surf2, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitTapHighlightColor: 'transparent' }}>
+                  <XIcon size={13} color={C.t2} />
+                </button>
+              </div>
+              <div style={{ padding: '0 4px 4px' }}>
+                {inlineView === 'bridge'    && <AgentBridgeTab    C={{ bg: C.bg ?? 'var(--nan-bg)', surf: C.surf, surf2: C.surf2, bdr: C.bdr, text: C.text, t2: C.t2, t3: C.t3 }} />}
+                {inlineView === 'swap'      && <AgentSwapTab      C={{ bg: C.bg ?? 'var(--nan-bg)', surf: C.surf, surf2: C.surf2, bdr: C.bdr, text: C.text, t2: C.t2, t3: C.t3 }} />}
+                {inlineView === 'recurring' && <AgentRecurringTab C={{ bg: C.bg ?? 'var(--nan-bg)', surf: C.surf, surf2: C.surf2, bdr: C.bdr, text: C.text, t2: C.t2, t3: C.t3 }} />}
+              </div>
+            </div>
+          )}
+
+          {/* ── Pending recurring payments ──────────────────────────────────────── */}
+          {(() => {
+            const pending = recurringTasks.filter(t => t.active && t.frequency !== 'manual' && t.nextRunAt)
+            if (!pending.length) return null
+            return (
+              <div style={{ background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 16, overflow: 'hidden' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 16px 10px', borderBottom: `1px solid ${C.bdr}` }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: C.t3, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Upcoming Recurring</div>
+                  <button onClick={() => setActiveView('recurring')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, color: BLUE, fontFamily: F, display: 'flex', alignItems: 'center', gap: 3, padding: 0 }}>
+                    View all <ChevronRight size={11} color={BLUE} />
+                  </button>
+                </div>
+                <div style={{ padding: '4px 16px' }}>
+                  {pending.slice(0, 3).map((t, i) => {
+                    const isLast = i === Math.min(pending.length, 3) - 1
+                    const nextDate = t.nextRunAt ? new Date(t.nextRunAt).toLocaleDateString('en', { month: 'short', day: 'numeric' }) : '—'
+                    return (
+                      <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderBottom: isLast ? 'none' : `1px solid ${C.bdr}` }}>
+                        <div style={{ width: 32, height: 32, borderRadius: 9, flexShrink: 0, background: 'rgba(0,102,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <Repeat size={13} color={BLUE} />
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 12, fontWeight: 600, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.name}</div>
+                          <div style={{ fontSize: 11, color: C.t3 }}>{t.frequency} · next {nextDate}</div>
+                        </div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: C.text, fontFamily: MONO, flexShrink: 0 }}>{t.amount} <span style={{ fontSize: 10, color: C.t3 }}>USDC</span></div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )
+          })()}
 
           {/* ── What your agent can do ─────────────────────────────────────────── */}
           <div style={{ background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 16, overflow: 'hidden' }}>
@@ -1162,29 +1350,16 @@ function DashboardScreen({ C, onDisconnect }: { C: ReturnType<typeof useNanTheme
               <CapabilityRow label="Receive USDC"           status="enabled"        C={C} />
               <CapabilityRow label="Send USDC"              status="enabled"        note="To permitted addresses" C={C} />
               <CapabilityRow label="Pay for services"       status="enabled"        note="Pay on your behalf" C={C} />
-              <CapabilityRow label="Bridge (CCTP V2)"       status="enabled"        note="Use Bridge in main nav" C={C} />
-              <CapabilityRow label="Swap tokens"            status="enabled"        note="Use Swap in main nav" C={C} />
-              <CapabilityRow label="Recurring payments"     status="enabled"        note="Use Recurring in main nav" C={C} noBorder />
+              <CapabilityRow label="Bridge (CCTP V2)"       status="enabled"        note="Tap Bridge above" C={C} />
+              <CapabilityRow label="Swap tokens"            status="enabled"        note="Tap Swap above" C={C} />
+              <CapabilityRow label="Recurring payments"     status="enabled"        note="Tap Recurring above" C={C} noBorder />
             </div>
           </div>
 
-          {/* ── More tools row ─────────────────────────────────────────────────── */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
-            {[
-              { label: 'Bridge',    Icon: ArrowLeftRight, action: () => setActiveView('bridge') },
-              { label: 'Swap',      Icon: ArrowUpDown,    action: () => setActiveView('swap') },
-              { label: 'Recurring', Icon: Repeat,         action: () => setActiveView('recurring') },
-            ].map(({ label, Icon: Ic, action }) => (
-              <button key={label} onClick={action} style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                padding: '10px 6px', background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 12,
-                cursor: 'pointer', fontFamily: F, WebkitTapHighlightColor: 'transparent',
-              }}>
-                <Ic size={13} color={C.t2} />
-                <span style={{ fontSize: 12, fontWeight: 600, color: C.t2 }}>{label}</span>
-                <ChevronRight size={11} color={C.t3} />
-              </button>
-            ))}
+          {/* ── Automate via chat tip ─────────────────────────────────────────── */}
+          <div style={{ background: 'rgba(0,102,255,0.05)', border: '1px solid rgba(0,102,255,0.15)', borderRadius: 12, padding: '10px 14px', display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+            <Zap size={13} color={BLUE} style={{ flexShrink: 0, marginTop: 1 }} />
+            <span style={{ fontSize: 12, color: C.t2, lineHeight: 1.5 }}>Bridge, Swap, and Recurring Payments also run automatically when you ask NAN in the chat.</span>
           </div>
 
           {/* ── Wallet details (collapsible) ───────────────────────────────────── */}
@@ -1231,6 +1406,21 @@ function DashboardScreen({ C, onDisconnect }: { C: ReturnType<typeof useNanTheme
 
       {/* Policy modal */}
       {policyOpen && <ManagePolicyModal onClose={() => setPolicyOpen(false)} C={C} />}
+
+      {/* Receive sheet */}
+      {receiveOpen && agentWallet.address && (
+        <ReceiveSheet address={agentWallet.address} onClose={() => setReceiveOpen(false)} C={C} />
+      )}
+
+      {/* Send sheet */}
+      {sendOpen && agentWallet.address && (
+        <SendSheet
+          address={agentWallet.address}
+          onClose={() => setSendOpen(false)}
+          onSend={(_to, _amount) => { setActiveView('wallet') }}
+          C={C}
+        />
+      )}
 
     </div>
   )
