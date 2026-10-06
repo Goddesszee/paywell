@@ -15,16 +15,6 @@
     "api/community.ts": {
       "memory": 512,
       "maxDuration": 15
-    },
-    "api/appkit-swap.ts": {
-      "includeFiles": "node_modules/@circle-fin/**",
-      "memory": 1024,
-      "maxDuration": 60
-    },
-    "api/appkit-bridge.ts": {
-      "includeFiles": "node_modules/@circle-fin/**",
-      "memory": 1024,
-      "maxDuration": 60
     }
   },
   "headers": [
@@ -43,8 +33,6 @@
     }
   ],
   "rewrites": [
-    { "source": "/api/appkit/swap",                               "destination": "/api/appkit-swap" },
-    { "source": "/api/appkit/bridge",                             "destination": "/api/appkit-bridge" },
     { "source": "/api/otp",                                      "destination": "/api/otp" },
     { "source": "/api/chat",                                     "destination": "/api/chat" },
     { "source": "/api/misc",                                     "destination": "/api/misc" },
