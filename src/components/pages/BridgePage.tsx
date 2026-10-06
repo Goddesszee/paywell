@@ -255,12 +255,13 @@ export function BridgePage() {
           },
           amount,
         }) as BridgeResult
+        console.log('[bridge/passkey] result:', JSON.stringify({ state: result.state, steps: result.steps?.map(s => ({ name: s.name, state: s.state, error: s.error, message: s.message })) }))
         for (const step of result.steps ?? []) {
           updateStep(step.name as StepName, {
             status: step.state === 'success' ? 'done' : step.state === 'error' ? 'error' : 'idle',
             txHash: step.txHash,
           })
-          if (step.state === 'error') setErrMsg(String(step.error ?? step.message ?? step.name + ' failed').slice(0, 200))
+          if (step.state === 'error') setErrMsg(String(step.error ?? step.message ?? step.name + ' failed').slice(0, 300))
         }
         const topState = result.state
         const allStepsDone = (result.steps ?? []).filter(s => s.name !== 'mint').every(s => s.state === 'success')
@@ -269,7 +270,12 @@ export function BridgePage() {
           addActivity({ type: 'bridge', description: `Bridge to ${toChain.label}`, amount: gross, sign: '-', status: 'confirmed', counterparty: toChain.label })
         } else {
           setStatus('error')
-          if (!errMsg) setErrMsg('Bridge did not complete. Check your passkey wallet balance.')
+          // Surface the most specific error available
+          const failedStep = result.steps?.find(s => s.state === 'error')
+          const detail = failedStep
+            ? String(failedStep.error ?? failedStep.message ?? failedStep.reason ?? failedStep.name + ' step failed').slice(0, 300)
+            : `Bridge state: ${String(result.state ?? 'unknown')}. Check your passkey wallet has enough USDC and gas.`
+          setErrMsg(detail)
         }
       } catch (e: unknown) {
         setStatus('error')
