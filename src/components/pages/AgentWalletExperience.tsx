@@ -17,14 +17,14 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { W3SSdk } from '@circle-fin/w3s-pw-web-sdk'
 import {
-  ArrowLeft, ArrowRight, ArrowLeftRight, ArrowUpDown, Repeat,
+  ArrowLeft, ArrowRight, Repeat,
   Wallet, Shield, Zap, BarChart3,
   Copy, Check, ChevronDown, ChevronRight,
   RefreshCw, AlertTriangle, Coins, Clock,
   CheckCircle, Wifi, Mail, Loader, X as XIcon,
-  Settings, Info,
+  Settings, Info, ExternalLink,
 } from 'lucide-react'
-import { useAppStore, AgentSpendEntry, ActivityItem } from '../../store/appStore'
+import { useAppStore } from '../../store/appStore'
 import { useNanTheme } from '../../hooks/useNanTheme'
 import { AgentServicesTab }   from './AgentServicesTab'
 import { AgentRecurringTab } from './AgentRecurringTab'
@@ -170,23 +170,7 @@ function ConfigRow({ label, value, C }: { label: string; value: string; C: Retur
   )
 }
 
-function SpendRow({ entry, last, C }: { entry: AgentSpendEntry; last: boolean; C: ReturnType<typeof useNanTheme> }) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderBottom: last ? 'none' : `1px solid ${C.bdr}` }}>
-      <div style={{ width: 30, height: 30, borderRadius: 9, flexShrink: 0, background: 'rgba(0,102,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <Coins size={13} color={BLUE} />
-      </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 12, fontWeight: 600, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{entry.service_name}</div>
-        <div style={{ fontSize: 11, color: C.t3, marginTop: 1 }}>{new Date(entry.timestamp).toLocaleString('en', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
-      </div>
-      <div style={{ textAlign: 'right', flexShrink: 0 }}>
-        <div style={{ fontSize: 12, fontWeight: 700, color: BLUE, fontFamily: MONO }}>-{entry.amount_usdc.toFixed(4)}</div>
-        <div style={{ fontSize: 10, color: entry.paid ? GREEN : AMBER, marginTop: 1 }}>{entry.paid ? 'settled' : 'pending'}</div>
-      </div>
-    </div>
-  )
-}
+
 
 // ── SCREEN: Email entry ───────────────────────────────────────────────────────
 
@@ -1256,60 +1240,146 @@ function DashboardScreen({ C, onDisconnect }: { C: ReturnType<typeof useNanTheme
 
       {/* ══ ACTIVITY TAB ══════════════════════════════════════════════════════ */}
       {dashTab === 'activity' && (() => {
-        // Merge agentSpendLog + main activity bridge/swap entries, sorted by time desc
-        const bridgeSwapItems: ActivityItem[] = activity.filter(a => a.type === 'bridge' || a.type === 'swap')
-        const merged = [
-          ...agentSpendLog.map(e => ({ _type: 'agent' as const, key: e.id, time: new Date(e.timestamp).getTime(), entry: e })),
-          ...bridgeSwapItems.map(a => ({ _type: 'main' as const, key: a.id ?? a.txHash ?? String(a.timestamp?.getTime?.()), time: a.timestamp instanceof Date ? a.timestamp.getTime() : new Date(a.timestamp as string).getTime(), item: a })),
+        // Agent Wallet activity only — main wallet activity lives in the main Activity page.
+        // agentSpendLog = service payments; activity entries with agentInitiated = send/recurring txs.
+        const ARC_EXPLORER = 'https://explorer.testnet.arc.io'
+
+        type AgentRow = {
+          key: string
+          time: number
+          label: string
+          sublabel: string
+          amount: string
+          amountColor: string
+          sign: string
+          txHash?: string
+          status?: string
+          paid?: boolean
+        }
+
+        const rows: AgentRow[] = [
+          // Service spend entries from agentSpendLog
+          ...agentSpendLog.map(e => ({
+            key:          e.id,
+            time:         new Date(e.timestamp).getTime(),
+            label:        e.service_name,
+            sublabel:     'Service payment',
+            amount:       e.amount_usdc.toFixed(4),
+            amountColor:  AMBER,
+            sign:         '-',
+            txHash:       e.txId,
+            paid:         e.paid,
+          })),
+          // Sent / recurring txs from main activity store that were agent-initiated
+          ...activity.filter(a => a.agentInitiated).map(a => ({
+            key:         a.id,
+            time:        new Date(a.timestamp).getTime(),
+            label:       a.description || a.type,
+            sublabel:    a.type === 'sent' ? 'Agent Send' : 'Agent Payment',
+            amount:      String(a.amount),
+            amountColor: a.sign === '+' ? GREEN : RED,
+            sign:        a.sign,
+            txHash:      a.txHash,
+            status:      a.status,
+          })),
         ].sort((a, b) => b.time - a.time)
+
+        // Group by date
+        const groups: Map<string, AgentRow[]> = new Map()
+        rows.forEach(r => {
+          const d = new Date(r.time)
+          const now = new Date()
+          const diff = (now.getTime() - d.getTime()) / 86400000
+          let dlabel: string
+          if (diff < 1) dlabel = 'Today'
+          else if (diff < 2) dlabel = 'Yesterday'
+          else dlabel = d.toLocaleDateString('en', { weekday: 'long', month: 'long', day: 'numeric' })
+          if (!groups.has(dlabel)) groups.set(dlabel, [])
+          groups.get(dlabel)!.push(r)
+        })
 
         return (
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-              <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>Agent History</span>
-              <span style={{ fontSize: 12, color: C.t3 }}>Spend · Bridge · Swap</span>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>Agent Wallet Activity</span>
+              {rows.length > 0 && (
+                <span style={{ fontSize: 12, color: C.t3, fontFamily: MONO }}>
+                  Total: -{totalSpent.toFixed(4)} USDC
+                </span>
+              )}
             </div>
 
-            {merged.length === 0 ? (
+            {rows.length === 0 ? (
               <div style={{ background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 16, padding: '36px 20px', textAlign: 'center' }}>
                 <Clock size={24} color={C.t3} style={{ margin: '0 auto 10px', display: 'block' }} />
                 <div style={{ fontSize: 13, fontWeight: 600, color: C.text, marginBottom: 4 }}>No activity yet</div>
-                <div style={{ fontSize: 12, color: C.t3 }}>Agent payments, bridge, and swap history appear here</div>
+                <div style={{ fontSize: 12, color: C.t3 }}>Agent sends, service payments and recurring transactions appear here</div>
               </div>
             ) : (
-              <div style={{ background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 16, padding: '4px 16px' }}>
-                {merged.slice(0, 30).map((row, i) => {
-                  const isLast = i === Math.min(merged.length, 30) - 1
-                  if (row._type === 'agent') {
-                    return <SpendRow key={row.key} entry={row.entry} last={isLast} C={C} />
-                  }
-                  const a = row.item
-                  const typeColor = a.type === 'bridge' ? BLUE : GREEN
-                  const typeLabel = a.type === 'bridge' ? 'Bridge' : 'Swap'
-                  const Icon = a.type === 'bridge' ? ArrowLeftRight : ArrowUpDown
-                  return (
-                    <div key={row.key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderBottom: isLast ? 'none' : `1px solid ${C.bdr}` }}>
-                      <div style={{ width: 30, height: 30, borderRadius: 9, flexShrink: 0, background: `rgba(${a.type === 'bridge' ? '0,102,255' : '0,200,83'},0.08)`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <Icon size={13} color={typeColor} />
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 12, fontWeight: 600, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.description}</div>
-                        <div style={{ fontSize: 11, color: C.t3, marginTop: 1 }}>{a.timestamp instanceof Date ? a.timestamp.toLocaleString('en', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : new Date(a.timestamp).toLocaleString('en', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
-                      </div>
-                      <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                        <div style={{ fontSize: 12, fontWeight: 700, color: typeColor, fontFamily: MONO }}>{a.sign}{a.amount} USDC</div>
-                        <div style={{ fontSize: 10, color: a.status === 'confirmed' ? GREEN : AMBER, marginTop: 1 }}>{typeLabel}</div>
-                      </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                {[...groups.entries()].map(([dlabel, groupRows]) => (
+                  <div key={dlabel}>
+                    {/* Date group header */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                      <span style={{ fontSize: 10, fontWeight: 700, color: C.t3, textTransform: 'uppercase', letterSpacing: '0.07em' }}>{dlabel}</span>
+                      <div style={{ flex: 1, height: 1, background: C.bdr }} />
+                      <span style={{ fontSize: 10, color: C.t3 }}>{groupRows.length} tx{groupRows.length !== 1 ? 's' : ''}</span>
                     </div>
-                  )
-                })}
-              </div>
-            )}
 
-            {agentSpendLog.length > 0 && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 4px 0' }}>
-                <span style={{ fontSize: 12, color: C.t3 }}>Total agent spend</span>
-                <span style={{ fontSize: 12, fontWeight: 700, color: C.text, fontFamily: MONO }}>{totalSpent.toFixed(4)} USDC</span>
+                    <div style={{ background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 14, overflow: 'hidden' }}>
+                      {groupRows.map((row, i) => {
+                        const isLast = i === groupRows.length - 1
+                        const ts = new Date(row.time)
+                        const txUrl = row.txHash ? `${ARC_EXPLORER}/tx/${row.txHash}` : null
+                        return (
+                          <div key={row.key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px', borderBottom: isLast ? 'none' : `1px solid ${C.bdr}` }}>
+                            {/* Icon */}
+                            <div style={{ width: 32, height: 32, borderRadius: 9, flexShrink: 0, background: 'rgba(0,102,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                              <Coins size={13} color={BLUE} />
+                            </div>
+
+                            {/* Label + meta */}
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontSize: 12, fontWeight: 600, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.label}</div>
+                              <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '2px 6px', marginTop: 2 }}>
+                                <span style={{ fontSize: 10, color: C.t3 }}>
+                                  {ts.toLocaleDateString('en', { month: 'short', day: 'numeric' })} · {ts.toLocaleTimeString('en', { hour: '2-digit', minute: '2-digit' })}
+                                </span>
+                                <span style={{ fontSize: 10, color: C.t3 }}>{row.sublabel}</span>
+                                {row.status && (
+                                  <span style={{ fontSize: 10, color: row.status === 'confirmed' ? GREEN : AMBER, fontWeight: 600 }}>{row.status}</span>
+                                )}
+                                {row.paid !== undefined && (
+                                  <span style={{ fontSize: 10, color: row.paid ? GREEN : AMBER, fontWeight: 600 }}>{row.paid ? 'settled' : 'pending'}</span>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Amount + explorer link */}
+                            <div style={{ textAlign: 'right', flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+                              <div style={{ fontSize: 12, fontWeight: 700, color: row.amountColor, fontFamily: MONO }}>
+                                {row.sign}{row.amount} USDC
+                              </div>
+                              {txUrl ? (
+                                <a
+                                  href={txUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  style={{ fontSize: 10, color: BLUE, fontFamily: MONO, display: 'flex', alignItems: 'center', gap: 3, textDecoration: 'none' }}
+                                >
+                                  {row.txHash!.slice(0, 6)}…{row.txHash!.slice(-4)}
+                                  <ExternalLink size={9} />
+                                </a>
+                              ) : (
+                                <span style={{ fontSize: 10, color: C.t3 }}>—</span>
+                              )}
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </div>
