@@ -13,7 +13,9 @@ import {
   toModularTransport,
   toPasskeyTransport,
   toWebAuthnCredential,
+  type ToCircleSmartAccountReturnType,
 } from '@circle-fin/modular-wallets-core'
+import type { BundlerClient } from 'viem/account-abstraction'
 import { ArrowLeft, Fingerprint, LogIn } from 'lucide-react'
 
 const F       = "'Inter', -apple-system, sans-serif"
@@ -31,6 +33,19 @@ interface Props {
 
 const CREDENTIAL_KEY = 'nan_passkey_credential'
 const CIRCLE_MODULAR_URL = 'https://modular-sdk.circle.com/v1/rpc/w3s/buidl'
+
+// ── Module-level cache ────────────────────────────────────────────────────────
+// toCircleSmartAccount makes a network round-trip to Circle's bundler to fetch
+// verification gas limits. Cache the result for the lifetime of the page so
+// every bridge/swap click reuses the same account + bundlerClient instead of
+// rebuilding from scratch (saves ~1-3s per operation).
+interface PasskeyClientCache {
+  account: ToCircleSmartAccountReturnType
+  bundlerClient: BundlerClient
+  clientKey: string
+  credentialId: string // invalidate if credential rotates
+}
+let _passkeyClientCache: PasskeyClientCache | null = null
 
 function getStoredCredential(): P256Credential | null {
   try {
@@ -223,22 +238,41 @@ export async function getPasskeyAdapter({
   const credential = getStoredCredential()
   if (!credential) throw new Error('No passkey credential found — please log in with your passkey first.')
 
+  // Derive a stable credential id for cache invalidation (use rawId if present, else hash)
+  const credentialId = (credential as { rawId?: string }).rawId
+    ?? (credential as { id?: string }).id
+    ?? JSON.stringify(credential).slice(0, 40)
+
   // Step 1: read-only public client on Arc Testnet's standard HTTP RPC (not the bundler)
   const arcRpcUrl = (import.meta.env.VITE_ARC_RPC_URL as string | undefined) || 'https://rpc.testnet.arc.io'
   const readClient = createPublicClient({ chain: arcTestnet, transport: http(arcRpcUrl) })
 
-  // Step 2: BundlerClient with MSCA account — modular transport handles sendUserOperation
-  const modularTransport = toModularTransport(`${CIRCLE_MODULAR_URL}/arcTestnet`, clientKey)
-  const bundlerPublicClient = createPublicClient({ chain: arcTestnet, transport: modularTransport })
-  const account = await toCircleSmartAccount({
-    client: bundlerPublicClient,
-    owner: toWebAuthnAccount({ credential }),
-  })
-  const bundlerClient = createBundlerClient({
-    account,
-    chain: arcTestnet,
-    transport: modularTransport,
-  })
+  // Step 2: BundlerClient with MSCA account — use module-level cache to avoid
+  // rebuilding toCircleSmartAccount (network round-trip) on every bridge/swap click.
+  let account: ToCircleSmartAccountReturnType
+  let bundlerClient: BundlerClient
+
+  const cacheHit = _passkeyClientCache
+    && _passkeyClientCache.clientKey === clientKey
+    && _passkeyClientCache.credentialId === credentialId
+
+  if (cacheHit) {
+    account = _passkeyClientCache!.account
+    bundlerClient = _passkeyClientCache!.bundlerClient
+  } else {
+    const modularTransport = toModularTransport(`${CIRCLE_MODULAR_URL}/arcTestnet`, clientKey)
+    const bundlerPublicClient = createPublicClient({ chain: arcTestnet, transport: modularTransport })
+    account = await toCircleSmartAccount({
+      client: bundlerPublicClient,
+      owner: toWebAuthnAccount({ credential }),
+    })
+    bundlerClient = createBundlerClient({
+      account,
+      chain: arcTestnet,
+      transport: modularTransport,
+    })
+    _passkeyClientCache = { account, bundlerClient, clientKey, credentialId }
+  }
 
   // Step 3: Circle's EIP1193Provider wrapping bundlerClient + readClient.
   // Important: EIP1193Provider.request() returns a full JSON-RPC envelope
