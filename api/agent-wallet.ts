@@ -542,9 +542,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!to || !sendAmount || !walletId) return err(res, 400, 'to, amount, and walletId required')
     const parsed = parseFloat(sendAmount)
     if (!parsed || parsed <= 0) return err(res, 400, 'amount must be greater than 0')
-    // Validate recipient address
     if (!/^0x[0-9a-fA-F]{40}$/.test(to)) return err(res, 400, 'Invalid recipient address')
     try {
+      // Balance pre-check: surface a clear error rather than letting Circle reject
+      const balRes = await client.getWalletTokenBalance({ walletId, userToken })
+      const usdcBal = (balRes.data?.tokenBalances ?? []).find(b => b.token?.symbol === 'USDC')
+      const available = parseFloat(usdcBal?.amount ?? '0')
+      if (available < parsed) {
+        return res.status(200).json({ error: `Insufficient balance: ${available.toFixed(4)} USDC available, ${sendAmount} requested.` })
+      }
       const response = await client.createTransaction({
         userToken,
         walletId,
@@ -553,6 +559,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         tokenAddress: ARC_TESTNET_USDC,
         blockchain: Blockchain.ArcTestnet,
         fee: { type: 'level', config: { feeLevel: 'MEDIUM' } },
+        idempotencyKey: randomUUID(),
       })
       const challengeId = response.data?.challengeId
       if (!challengeId) throw new Error('No challengeId returned from Circle')
@@ -703,6 +710,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         tokenAddress: ARC_TESTNET_USDC,
         blockchain: Blockchain.ArcTestnet,
         fee: { type: 'level', config: { feeLevel: 'MEDIUM' } },
+        idempotencyKey: randomUUID(),
       })
       const challengeId = response.data?.challengeId
       if (!challengeId) throw new Error('No challengeId returned from Circle')
