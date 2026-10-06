@@ -225,10 +225,11 @@ export async function getPasskeyAdapter({
     chain: arcTestnet,
     transport: modularTransport,
   })
-  // Build a minimal EIP-1193 provider that implements the methods createViemAdapterFromProvider
-  // needs: eth_requestAccounts, eth_accounts, signing methods, plus all read calls forwarded
-  // to the bundler transport via the public client.
-  const transport = modularTransport({ chain: arcTestnet })
+  // The modular transport is a bundler endpoint — it only handles signing/sending,
+  // not standard JSON-RPC reads. Use a plain HTTP transport for read calls.
+  const { http } = await import('viem')
+  const readTransport = http(arcTestnet.rpcUrls.default.http[0])({ chain: arcTestnet })
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const provider: import('viem').EIP1193Provider = {
     on: () => {},
@@ -251,12 +252,14 @@ export async function getPasskeyAdapter({
       ) {
         return null
       }
+      // Signing and sending — route through the modular wallet client.
       if (method === 'eth_sendTransaction' || method === 'eth_signTypedData_v4' || method === 'personal_sign') {
         return walletClient.request({ method: method as never, params: p as never })
       }
-      // Forward all other RPC calls (eth_call, eth_getBlockByNumber, eth_estimateGas, etc.)
-      // directly through the transport's request function.
-      return transport.request({ method, params: p as never[] })
+      // All other read calls (eth_call, eth_getBalance, eth_getBlockByNumber,
+      // eth_estimateGas, eth_getTransactionReceipt, etc.) go through the standard
+      // Arc Testnet HTTP RPC — the bundler endpoint does not support these.
+      return readTransport.request({ method, params: p as never[] })
     },
   } as import('viem').EIP1193Provider
   return createViemAdapterFromProvider({ provider })
