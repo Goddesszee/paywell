@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import { createPublicClient, createWalletClient, custom } from 'viem'
 import { arcTestnet } from 'viem/chains'
 import {
@@ -42,11 +42,8 @@ function getStoredCredential(): P256Credential | null {
 export function CirclePasskeyLogin({ onBack, onSuccess }: Props) {
   const [status, setStatus] = useState<'idle' | 'loading' | 'error'>('idle')
   const [errorMsg, setErrorMsg] = useState('')
-  const [hasExisting, setHasExisting] = useState(false)
-
-  useEffect(() => {
-    setHasExisting(!!getStoredCredential())
-  }, [])
+  // Initialise directly from storage — avoids a setState inside a useEffect
+  const [hasExisting, setHasExisting] = useState(() => !!getStoredCredential())
 
   const clientKey = import.meta.env.VITE_CLIENT_KEY as string | undefined
   const clientUrl = import.meta.env.VITE_CLIENT_URL as string | undefined
@@ -158,7 +155,7 @@ export function CirclePasskeyLogin({ onBack, onSuccess }: Props) {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {/* Register new passkey */}
         <button
-          onClick={handleRegister}
+          onClick={() => void handleRegister()}
           disabled={status === 'loading'}
           style={{ ...btnBase, background: BLUE, color: '#fff' }}
         >
@@ -169,7 +166,7 @@ export function CirclePasskeyLogin({ onBack, onSuccess }: Props) {
         {/* Login with existing passkey */}
         {hasExisting && (
           <button
-            onClick={handleLogin}
+            onClick={() => void handleLogin()}
             disabled={status === 'loading'}
             style={{ ...btnBase, background: SURFACE, color: TEXT, border: `1px solid ${BORDER}` }}
           >
@@ -227,9 +224,9 @@ export async function getPasskeyAdapter({
     account,
     chain: arcTestnet,
     transport: custom({
-      async request({ method, params }: { method: string; params?: unknown[] }) {
+      async request({ method, params }: { method: string; params?: unknown[] }): Promise<unknown> {
         return modularTransport({ chain: arcTestnet })
-          .request({ method, params: params as never[] })
+          .request({ method, params: params as never[] }) as Promise<unknown>
       },
     }),
   })

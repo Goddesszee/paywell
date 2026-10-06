@@ -7,6 +7,7 @@ import { ArrowDown, Settings, CheckCircle, ExternalLink, RefreshCw, AlertCircle,
 import { useAppStore } from '../../store/appStore'
 import { getPasskeyAdapter } from '../CirclePasskeyLogin'
 import { swapFee, SWAP_FEE_BPS, bpsToPercent } from '../../lib/fees'
+import { W3SSdk } from '@circle-fin/w3s-pw-web-sdk'
 import { useNanTheme } from '../../hooks/useNanTheme'
 
 const CHAIN_ID  = 5042002
@@ -306,25 +307,30 @@ export function SwapPage() {
     return createViemAdapterFromProvider({ provider })
   }
 
-  // ── Circle user path: server-side swap via dev-controlled wallets (nan pattern) ─
+  // ── Circle UCW user path: estimate → PIN popup → confirm ──────────────────
   const reviewSwapCircle = async () => {
     if (!circleWalletAddress) return
+    const auth = useAppStore.getState().auth
+    if (!auth?.userToken || !auth?.circleWalletId) {
+      setPhase('error'); setErrMsg('SESSION_EXPIRED'); return
+    }
     setPhase('estimating'); setErrMsg('')
     try {
-      const resp = await fetch('/api/appkit/swap', {
+      const resp = await fetch('/api/wallet', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'quote', walletAddress: circleWalletAddress, tokenIn, tokenOut, amountIn }),
+        body: JSON.stringify({
+          action: 'ucw-swap-estimate',
+          userToken: auth.userToken,
+          walletAddress: circleWalletAddress,
+          walletId: auth.circleWalletId,
+          tokenIn, tokenOut, amountIn,
+          slippageBps,
+        }),
       })
-      const data = await resp.json() as { success?: boolean; estimatedOutput?: { amount: string; token: string }; amountOut?: string; stopLimit?: unknown; fees?: unknown[]; error?: string }
-      if (!resp.ok || data.error || data.success === false) throw new Error(data.error ?? 'Estimation failed')
-      // Shape the response into a SwapEstimate-compatible object for the review panel
-      const estimate = {
-        estimatedOutput: data.estimatedOutput ?? (data.amountOut ? { amount: data.amountOut, token: tokenOut } : undefined),
-        stopLimit: data.stopLimit,
-        fees: data.fees ?? [],
-      } as unknown as import('@circle-fin/app-kit').SwapEstimate
-      setReviewed({ estimate, tokenIn, tokenOut, amountIn, slippageBps, account: circleWalletAddress })
+      const data = await resp.json() as { estimate?: SwapEstimate; error?: string }
+      if (!resp.ok || data.error || !data.estimate) throw new Error(data.error ?? 'Estimation failed')
+      setReviewed({ estimate: data.estimate, tokenIn, tokenOut, amountIn, slippageBps, account: circleWalletAddress })
       setPhase('reviewed')
     } catch (e: unknown) {
       setPhase('error'); setErrMsg(friendlySwapError(e))
@@ -333,21 +339,61 @@ export function SwapPage() {
 
   const executeSwapCircle = async () => {
     if (!reviewed || !circleWalletAddress) return
+    const auth = useAppStore.getState().auth
+    if (!auth?.userToken || !auth?.encryptionKey || !auth?.circleWalletId) {
+      setPhase('error'); setErrMsg('SESSION_EXPIRED'); return
+    }
     setPhase('swapping'); setErrMsg('')
     try {
-      const resp = await fetch('/api/appkit/swap', {
+      // Step 1 — get challengeId from server
+      const resp = await fetch('/api/wallet', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'swap', walletAddress: circleWalletAddress, tokenIn: reviewed.tokenIn, tokenOut: reviewed.tokenOut, amountIn: reviewed.amountIn }),
+        body: JSON.stringify({
+          action: 'ucw-swap-start',
+          userToken: auth.userToken,
+          walletAddress: circleWalletAddress,
+          walletId: auth.circleWalletId,
+          tokenIn: reviewed.tokenIn,
+          tokenOut: reviewed.tokenOut,
+          amountIn: reviewed.amountIn,
+          slippageBps: reviewed.slippageBps,
+        }),
       })
-      const data = await resp.json() as { success?: boolean; pending?: boolean; txHash?: string; error?: string }
-      if (!resp.ok || data.error || data.success === false) throw new Error(data.error ?? 'Swap failed')
-      // nan pattern: swap is non-blocking, server returns pending:true immediately
-      const rHash = data.txHash ?? ''
-      setTxHash(rHash); setExplorerUrl(rHash ? `https://explorer.testnet.arc.io/tx/${rHash}` : ''); setPhase('done')
+      const data = await resp.json() as { challengeId?: string; error?: string }
+      if (!resp.ok || data.error || !data.challengeId) throw new Error(data.error ?? 'Could not start swap')
+
+      // Step 2 — open Circle PIN popup
+      const appId: string = (import.meta.env.VITE_CIRCLE_APP_ID as string | undefined) ?? ''
+      const sdk = new W3SSdk({ appSettings: { appId } })
+      sdk.setAuthentication({ userToken: auth.userToken, encryptionKey: auth.encryptionKey })
+
+      const txId = await new Promise<string>((resolve, reject) => {
+        sdk.execute(data.challengeId!, (err, result) => {
+          if (err) { reject(new Error(err instanceof Error ? err.message : 'PIN approval failed')); return }
+          const r = result as { data?: { signature?: string; transactionHash?: string; transactionId?: string } }
+          const txHash = r?.data?.transactionHash ?? r?.data?.transactionId ?? ''
+          resolve(txHash)
+        })
+      })
+
+      // Step 3 — confirm: poll until terminal
+      if (txId) {
+        const confirmResp = await fetch('/api/wallet', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'ucw-swap-confirm', userToken: auth.userToken, transactionId: txId }),
+        })
+        const confirmData = await confirmResp.json() as { result?: { txHash?: string; explorerUrl?: string }; error?: string }
+        if (!confirmResp.ok || confirmData.error) throw new Error(confirmData.error ?? 'Swap confirm failed')
+        const rHash = confirmData.result?.txHash ?? ''
+        setTxHash(rHash); setExplorerUrl(confirmData.result?.explorerUrl ?? '')
+      }
+
+      setPhase('done')
       const gross = parseFloat(reviewed.amountIn)
       void swapFee(gross)
-      addActivity({ type: 'swap', description: `Swap ${reviewed.tokenIn} → ${reviewed.tokenOut}`, amount: gross, sign: '-', status: 'confirmed', counterparty: reviewed.tokenOut, txHash: rHash })
+      addActivity({ type: 'swap', description: `Swap ${reviewed.tokenIn} → ${reviewed.tokenOut}`, amount: gross, sign: '-', status: 'confirmed', counterparty: reviewed.tokenOut, txHash: txId })
     } catch (e: unknown) {
       setPhase('error'); setErrMsg(friendlySwapError(e))
     }

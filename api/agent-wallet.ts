@@ -1,65 +1,144 @@
 /**
- * api/agent-wallet.ts — NAN Circle Agent Stack Integration
+ * api/agent-wallet.ts — NAN Circle Agent Stack
  *
- * Manages the NAN Agent's own dedicated Circle developer-controlled wallet.
- * This wallet is separate from the user's wallet — it belongs to the agent
- * and is funded by the user as an "agent budget".
+ * The agent wallet is a Circle user-controlled wallet (UCW) — the user retains
+ * custody via 2-of-2 MPC. This is the correct model per Circle's Agent Stack docs.
  *
- * Routes (all POST):
- *   action=provision    — create wallet set + agent wallet (one-time setup)
- *   action=status       — get agent wallet address, balance, and spend history
- *   action=topup        — create a transfer challenge for user to fund the agent wallet
- *   action=spend        — spend USDC from agent wallet for a service call
- *   action=marketplace  — fetch live services from Circle Agent Marketplace
+ * Actions (all POST):
+ *   provision          Create user PIN + agent wallet (first-time setup)
+ *   status             Get agent wallet address + balance for a userToken
+ *   marketplace        Fetch live services from Circle Agent Marketplace
+ *   marketplace-search Search Circle Agent Marketplace via Circle CLI
+ *   marketplace-inspect Get full details of a service by URL
+ *   execute-service    Policy-check + pay + call an external service
+ *   policy-read        Read Circle on-chain spending policy (mainnet only)
+ *   policy-budget      Read remaining spending budgets (mainnet only)
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { initiateUserControlledWalletsClient, Blockchain } from '@circle-fin/user-controlled-wallets'
-// All SDK clients are imported statically — dynamic import() is not supported in Vercel serverless CJS runtime
 import { execFile } from 'child_process'
 import { promisify } from 'util'
-// randomUUID removed — no longer needed after switching to user-controlled wallets
 
 const execFileAsync = promisify(execFile)
 
-// ── Circle Agent Marketplace (inlined from agent-marketplace.ts) ──────────────
-// Keeps us under Vercel Hobby's 12-function limit.
+// ── helpers ──────────────────────────────────────────────────────────────────
+
+function apiKey(): string | undefined {
+  return (
+    process.env.CIRCLE_USER_CONTROLLED_API_KEY ??
+    process.env.CIRCLE_API_KEY ??
+    process.env.CIRCLE_DEVELOPER_CONTROLLED_API_KEY
+  )
+}
+
+function ucwClient() {
+  const key = apiKey()
+  if (!key) throw new Error('CIRCLE_API_KEY not configured')
+  return initiateUserControlledWalletsClient({ apiKey: key })
+}
+
+function err(res: VercelResponse, status: number, message: string) {
+  return res.status(status).json({ error: message })
+}
+
+// ── Circle Agent Marketplace ──────────────────────────────────────────────────
 
 const CIRCLE_BIN = process.env.CIRCLE_CLI_PATH ?? 'circle'
-const BLOCKED_CATS = new Set(['GAMBLING','BETTING','PREDICTION_MARKET','ADULT','ILLEGAL','WEAPONS','DRUGS','DARK_WEB','SCAM','FRAUD'])
-const ALLOWED_CATS = new Set(['WEB_SEARCH_RESEARCH','DATA_ENRICHMENT','INFRASTRUCTURE','DEVELOPER_TOOLS','DEVELOPER','AI_CREATIVE','CREATIVE','AI','FINANCIAL_ANALYSIS','FINANCE','COMMUNICATION','PRODUCTIVITY','SEARCH','RESEARCH','ANALYTICS','COMPUTE','STORAGE','OTHER'])
-const CAT_LABELS: Record<string,string> = {
-  WEB_SEARCH_RESEARCH:'Web Search & Research', DATA_ENRICHMENT:'Data Enrichment',
-  INFRASTRUCTURE:'Infrastructure', DEVELOPER_TOOLS:'Developer Tools', DEVELOPER:'Developer Tools',
-  AI_CREATIVE:'AI & Creative', CREATIVE:'AI & Creative', AI:'AI & Creative',
-  FINANCIAL_ANALYSIS:'Financial Analysis', FINANCE:'Financial Analysis',
-  COMMUNICATION:'Communication', PRODUCTIVITY:'Productivity',
-  SEARCH:'Web Search & Research', RESEARCH:'Web Search & Research',
-  ANALYTICS:'Analytics', COMPUTE:'Infrastructure', STORAGE:'Infrastructure', OTHER:'Other',
+
+const BLOCKED_CATS = new Set([
+  'GAMBLING', 'BETTING', 'PREDICTION_MARKET', 'ADULT',
+  'ILLEGAL', 'WEAPONS', 'DRUGS', 'DARK_WEB', 'SCAM', 'FRAUD',
+])
+
+const ALLOWED_CATS = new Set([
+  'WEB_SEARCH_RESEARCH', 'DATA_ENRICHMENT', 'INFRASTRUCTURE',
+  'DEVELOPER_TOOLS', 'DEVELOPER', 'AI_CREATIVE', 'CREATIVE', 'AI',
+  'FINANCIAL_ANALYSIS', 'FINANCE', 'COMMUNICATION', 'PRODUCTIVITY',
+  'SEARCH', 'RESEARCH', 'ANALYTICS', 'COMPUTE', 'STORAGE', 'OTHER',
+])
+
+const CAT_LABELS: Record<string, string> = {
+  WEB_SEARCH_RESEARCH: 'Web Search & Research',
+  DATA_ENRICHMENT: 'Data Enrichment',
+  INFRASTRUCTURE: 'Infrastructure',
+  DEVELOPER_TOOLS: 'Developer Tools',
+  DEVELOPER: 'Developer Tools',
+  AI_CREATIVE: 'AI & Creative',
+  CREATIVE: 'AI & Creative',
+  AI: 'AI & Creative',
+  FINANCIAL_ANALYSIS: 'Financial Analysis',
+  FINANCE: 'Financial Analysis',
+  COMMUNICATION: 'Communication',
+  PRODUCTIVITY: 'Productivity',
+  SEARCH: 'Web Search & Research',
+  RESEARCH: 'Web Search & Research',
+  ANALYTICS: 'Analytics',
+  COMPUTE: 'Infrastructure',
+  STORAGE: 'Infrastructure',
+  OTHER: 'Other',
 }
 
 export interface MarketplaceServiceCard {
-  id: string; provider: string; provider_website?: string; provider_docs?: string
-  category: string; category_label: string; description: string
-  endpoint: string; method: string; pricing: string; price_raw?: string
-  payment_scheme: string; payment_address?: string; payment_network?: string
-  tags: string[]; last_updated?: string
+  id: string
+  provider: string
+  provider_website?: string
+  provider_docs?: string
+  category: string
+  category_label: string
+  description: string
+  endpoint: string
+  method: string
+  pricing: string
+  price_raw?: string
+  payment_scheme: string
+  payment_address?: string
+  payment_network?: string
+  tags: string[]
+  last_updated?: string
 }
 
-interface RawAccepts { scheme?: string; amount?: string | number; payTo?: string; network?: string; asset?: string }
-interface RawProviderMeta { name?: string; website?: string; docsUrl?: string; openApiUrl?: string; description?: string; category?: string; tags?: string[] }
-interface RawItem { resource?: string; type?: string; lastUpdated?: string; accepts?: RawAccepts[]; metadata?: { provider?: RawProviderMeta; path?: string; method?: string; description?: string } }
+interface RawAccepts {
+  scheme?: string
+  amount?: string | number
+  payTo?: string
+  network?: string
+  asset?: string
+}
 
-function mktAmountToUsdc(amount: string | number): string {
+interface RawProviderMeta {
+  name?: string
+  website?: string
+  docsUrl?: string
+  openApiUrl?: string
+  description?: string
+  category?: string
+  tags?: string[]
+}
+
+interface RawItem {
+  resource?: string
+  type?: string
+  lastUpdated?: string
+  accepts?: RawAccepts[]
+  metadata?: {
+    provider?: RawProviderMeta
+    path?: string
+    method?: string
+    description?: string
+  }
+}
+
+function amountToUsdc(amount: string | number): string {
   const n = typeof amount === 'string' ? parseInt(amount, 10) : amount
   if (isNaN(n)) return 'Pricing not provided'
   const usdc = n / 1e6
   if (usdc === 0) return 'Free'
-  if (usdc < 0.0001) return `<$0.0001 USDC per request`
+  if (usdc < 0.0001) return '<$0.0001 USDC per request'
   return `$${usdc.toFixed(usdc < 0.01 ? 6 : 4)} USDC per request`
 }
 
-function normaliseMktItem(item: RawItem): MarketplaceServiceCard | null {
+function normaliseItem(item: RawItem): MarketplaceServiceCard | null {
   const endpoint = item.resource ?? ''
   if (!endpoint) return null
   const meta = item.metadata ?? {}
@@ -68,82 +147,109 @@ function normaliseMktItem(item: RawItem): MarketplaceServiceCard | null {
   if (BLOCKED_CATS.has(category)) return null
   if (!ALLOWED_CATS.has(category) && BLOCKED_CATS.has(category)) return null
   const accepts = (item.accepts ?? [])[0]
-  const pricing = accepts?.amount !== undefined ? mktAmountToUsdc(accepts.amount) : 'Pricing not provided'
+  const pricing = accepts?.amount !== undefined ? amountToUsdc(accepts.amount) : 'Pricing not provided'
   const provider = prov.name ?? (() => { try { return new URL(endpoint).hostname } catch { return endpoint } })()
   const id = Buffer.from(endpoint).toString('base64').slice(0, 32)
   return {
-    id, provider, provider_website: prov.website, provider_docs: prov.docsUrl ?? prov.openApiUrl,
-    category, category_label: CAT_LABELS[category] ?? 'Other',
+    id, provider,
+    provider_website: prov.website,
+    provider_docs: prov.docsUrl ?? prov.openApiUrl,
+    category,
+    category_label: CAT_LABELS[category] ?? 'Other',
     description: meta.description ?? prov.description ?? 'No description provided.',
-    endpoint, method: meta.method ?? 'POST', pricing,
+    endpoint,
+    method: meta.method ?? 'POST',
+    pricing,
     price_raw: accepts?.amount !== undefined ? String(accepts.amount) : undefined,
     payment_scheme: item.type === 'http' ? 'x402' : (accepts ? 'x402' : 'free'),
-    payment_address: accepts?.payTo, payment_network: accepts?.network,
-    tags: (prov.tags ?? []).slice(0, 8), last_updated: item.lastUpdated,
+    payment_address: accepts?.payTo,
+    payment_network: accepts?.network,
+    tags: (prov.tags ?? []).slice(0, 8),
+    last_updated: item.lastUpdated,
   }
 }
 
-async function runMktSearch(query: string): Promise<MarketplaceServiceCard[]> {
-  const { stdout } = await execFileAsync(CIRCLE_BIN, ['services', 'search', query, '--output', 'json'], {
-    timeout: 15000, env: { ...process.env, CIRCLE_ACCEPT_TERMS: '1' },
-  })
+async function cliSearch(query: string): Promise<MarketplaceServiceCard[]> {
+  const { stdout } = await execFileAsync(
+    CIRCLE_BIN,
+    ['services', 'search', query, '--output', 'json'],
+    { timeout: 15_000, env: { ...process.env, CIRCLE_ACCEPT_TERMS: '1' } }
+  )
   const parsed = JSON.parse(stdout.trim()) as { data?: { items?: RawItem[] } }
   const cards: MarketplaceServiceCard[] = []
   for (const item of parsed.data?.items ?? []) {
-    const c = normaliseMktItem(item)
+    const c = normaliseItem(item)
     if (c) cards.push(c)
   }
   const seen = new Set<string>()
-  return cards.filter(c => { if (seen.has(c.endpoint)) return false; seen.add(c.endpoint); return true })
+  return cards.filter(c => {
+    if (seen.has(c.endpoint)) return false
+    seen.add(c.endpoint)
+    return true
+  })
 }
 
-async function runMktInspect(url: string): Promise<MarketplaceServiceCard | null> {
-  const { stdout } = await execFileAsync(CIRCLE_BIN, ['services', 'inspect', url, '--output', 'json'], {
-    timeout: 15000, env: { ...process.env, CIRCLE_ACCEPT_TERMS: '1' },
-  })
-  const d = (JSON.parse(stdout.trim()) as { data?: { status?: string; url?: string; description?: string; method?: string; provider?: RawProviderMeta; accepts?: RawAccepts[] } }).data
+async function cliInspect(url: string): Promise<MarketplaceServiceCard | null> {
+  const { stdout } = await execFileAsync(
+    CIRCLE_BIN,
+    ['services', 'inspect', url, '--output', 'json'],
+    { timeout: 15_000, env: { ...process.env, CIRCLE_ACCEPT_TERMS: '1' } }
+  )
+  type InspectData = {
+    status?: string; url?: string; description?: string; method?: string
+    provider?: RawProviderMeta; accepts?: RawAccepts[]
+  }
+  const d = (JSON.parse(stdout.trim()) as { data?: InspectData }).data
   if (!d) return null
   const category = (d.provider?.category ?? 'OTHER').toUpperCase()
   if (BLOCKED_CATS.has(category)) return null
   const accepts = (d.accepts ?? [])[0]
-  const pricing = accepts?.amount !== undefined ? mktAmountToUsdc(accepts.amount) : 'Pricing not provided'
+  const pricing = accepts?.amount !== undefined ? amountToUsdc(accepts.amount) : 'Pricing not provided'
   const endpointFinal = d.url ?? url
   const provider = d.provider?.name ?? (() => { try { return new URL(endpointFinal).hostname } catch { return endpointFinal } })()
   return {
     id: Buffer.from(endpointFinal).toString('base64').slice(0, 32),
-    provider, provider_website: d.provider?.website, provider_docs: d.provider?.docsUrl ?? d.provider?.openApiUrl,
-    category, category_label: CAT_LABELS[category] ?? 'Other',
+    provider,
+    provider_website: d.provider?.website,
+    provider_docs: d.provider?.docsUrl ?? d.provider?.openApiUrl,
+    category,
+    category_label: CAT_LABELS[category] ?? 'Other',
     description: d.description ?? d.provider?.description ?? 'No description provided.',
-    endpoint: endpointFinal, method: d.method ?? 'POST', pricing,
+    endpoint: endpointFinal,
+    method: d.method ?? 'POST',
+    pricing,
     price_raw: accepts?.amount !== undefined ? String(accepts.amount) : undefined,
-    payment_scheme: 'x402', payment_address: accepts?.payTo, payment_network: accepts?.network,
+    payment_scheme: 'x402',
+    payment_address: accepts?.payTo,
+    payment_network: accepts?.network,
     tags: d.provider?.tags ?? [],
   }
 }
 
-// ── SDK initialisation ───────────────────────────────────────────────────────
+// Static service fallback (shown when live marketplace is unreachable)
+const STATIC_SERVICES = [
+  { id: 'perplexity-research', name: 'Perplexity AI Research', category: 'research', price_usdc: 0.002, description: 'Deep research with cited sources', endpoint: 'https://api.perplexity.ai', payment_methods: ['x402', 'usdc'] },
+  { id: 'brave-search',        name: 'Brave Search',          category: 'search',   price_usdc: 0,     description: 'Privacy-first web search',     endpoint: 'https://api.search.brave.com', payment_methods: ['free'] },
+  { id: 'skyscanner-flights',  name: 'Skyscanner Flights',    category: 'travel',   price_usdc: 0,     description: 'Flight price search',           endpoint: 'https://partners.api.skyscanner.net', payment_methods: ['free'] },
+  { id: 'amadeus-hotels',      name: 'Amadeus Hotels',        category: 'travel',   price_usdc: 0,     description: 'Hotel availability search',     endpoint: 'https://test.api.amadeus.com', payment_methods: ['free'] },
+  { id: 'coingecko-prices',    name: 'CoinGecko Prices',      category: 'data',     price_usdc: 0,     description: 'Live crypto market data',       endpoint: 'https://api.coingecko.com', payment_methods: ['free'] },
+  { id: 'exchangerate-fx',     name: 'Exchange Rate API',     category: 'data',     price_usdc: 0,     description: 'Live forex exchange rates',      endpoint: 'https://v6.exchangerate-api.com', payment_methods: ['free'] },
+  { id: 'github-code-search',  name: 'GitHub Search',         category: 'developer',price_usdc: 0,     description: 'Search public repos and code',  endpoint: 'https://api.github.com', payment_methods: ['free'] },
+  { id: 'openai-completion',   name: 'OpenAI GPT-4o',         category: 'ai',       price_usdc: 0.001, description: 'General-purpose AI reasoning',  endpoint: 'https://api.openai.com', payment_methods: ['x402', 'usdc'] },
+]
 
-function getUserClient() {
-  const apiKey =
-    process.env.CIRCLE_USER_CONTROLLED_API_KEY ??
-    process.env.CIRCLE_API_KEY ??
-    process.env.CIRCLE_DEVELOPER_CONTROLLED_API_KEY
-  if (!apiKey) return null
-  return initiateUserControlledWalletsClient({ apiKey })
-}
-
-// ── Main handler ─────────────────────────────────────────────────────────────
+// ── main handler ─────────────────────────────────────────────────────────────
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS')
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-user-token')
   if (req.method === 'OPTIONS') return res.status(200).end()
 
   const body = (req.body ?? {}) as Record<string, string>
   const action = body.action ?? (req.query.action as string)
 
-  // ── marketplace — no creds needed ────────────────────────────────────────
+  // ── marketplace — no auth needed ─────────────────────────────────────────
   if (action === 'marketplace') {
     try {
       const ctrl = new AbortController()
@@ -164,36 +270,100 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           return res.status(200).json({ services: data, source: 'live' })
         }
       }
-    } catch { /* fall through to static */ }
-
-    // Static curated list as fallback
-    return res.status(200).json({
-      source: 'static',
-      services: [
-        { id: 'perplexity-research', name: 'Perplexity AI Research', category: 'research', price_usdc: 0.002, description: 'Deep research with cited sources', endpoint: 'https://api.perplexity.ai', payment_methods: ['x402', 'usdc'] },
-        { id: 'brave-search', name: 'Brave Search', category: 'search', price_usdc: 0, description: 'Privacy-first web search', endpoint: 'https://api.search.brave.com', payment_methods: ['free'] },
-        { id: 'skyscanner-flights', name: 'Skyscanner Flights', category: 'travel', price_usdc: 0, description: 'Flight price search', endpoint: 'https://partners.api.skyscanner.net', payment_methods: ['free'] },
-        { id: 'amadeus-hotels', name: 'Amadeus Hotels', category: 'travel', price_usdc: 0, description: 'Hotel availability search', endpoint: 'https://test.api.amadeus.com', payment_methods: ['free'] },
-        { id: 'coingecko-prices', name: 'CoinGecko Prices', category: 'data', price_usdc: 0, description: 'Live crypto market data', endpoint: 'https://api.coingecko.com', payment_methods: ['free'] },
-        { id: 'exchangerate-fx', name: 'Exchange Rate API', category: 'data', price_usdc: 0, description: 'Live forex exchange rates', endpoint: 'https://v6.exchangerate-api.com', payment_methods: ['free'] },
-        { id: 'github-code-search', name: 'GitHub Search', category: 'developer', price_usdc: 0, description: 'Search public repositories and code', endpoint: 'https://api.github.com', payment_methods: ['free'] },
-        { id: 'openai-completion', name: 'OpenAI GPT-4o', category: 'ai', price_usdc: 0.001, description: 'General-purpose AI reasoning and generation', endpoint: 'https://api.openai.com', payment_methods: ['x402', 'usdc'] },
-      ],
-    })
+    } catch { /* fall through */ }
+    return res.status(200).json({ source: 'static', services: STATIC_SERVICES })
   }
 
-  const client = getUserClient()
-  if (!client) {
+  // ── marketplace-search — Circle CLI ──────────────────────────────────────
+  if (action === 'marketplace-search') {
+    const { query } = body
+    if (!query?.trim()) return err(res, 400, 'query required')
+    const safe = query.replace(/[^\w\s\-.,&]/g, '').slice(0, 100).trim()
+    if (!safe) return err(res, 400, 'query contains no valid characters')
+    try {
+      const services = await cliSearch(safe)
+      return res.status(200).json({ ok: true, source: 'circle_marketplace', query: safe, count: services.length, services })
+    } catch {
+      return res.status(200).json({ ok: false, error: 'Circle Marketplace unreachable. Please try again.', services: [] })
+    }
+  }
+
+  // ── marketplace-inspect — full service details ────────────────────────────
+  if (action === 'marketplace-inspect') {
+    const { endpoint } = body
+    if (!endpoint) return err(res, 400, 'endpoint URL required')
+    try { new URL(endpoint) } catch { return err(res, 400, 'endpoint must be a valid URL') }
+    try {
+      const service = await cliInspect(endpoint)
+      if (!service) return res.status(200).json({ ok: false, error: 'Service not found or restricted.' })
+      return res.status(200).json({ ok: true, source: 'circle_marketplace', service })
+    } catch (e) {
+      return res.status(200).json({ ok: false, error: `Could not inspect service: ${e instanceof Error ? e.message : String(e)}` })
+    }
+  }
+
+  // ── policy-read — Circle on-chain spending policy (mainnet only) ──────────
+  if (action === 'policy-read') {
+    const { address, chain } = body
+    if (!address || !chain) return err(res, 400, 'address and chain required')
+    if (/testnet|sepolia|amoy|fuji|devnet/i.test(chain)) {
+      return res.status(200).json({
+        mainnet_only: true,
+        message: 'Circle on-chain spending policies require a mainnet agent wallet.',
+        chain,
+      })
+    }
+    try {
+      const { stdout } = await execFileAsync(
+        CIRCLE_BIN,
+        ['wallet', 'limit', '--address', address, '--chain', chain.toUpperCase(), '--output', 'json'],
+        { timeout: 12000 }
+      )
+      let parsed: unknown
+      try { parsed = JSON.parse(stdout.trim()) } catch { parsed = { raw: stdout.trim() } }
+      return res.status(200).json({ ok: true, policy: parsed, chain, address })
+    } catch (e) {
+      return res.status(200).json({ ok: false, cli_error: e instanceof Error ? e.message : String(e), chain, address })
+    }
+  }
+
+  // ── policy-budget — remaining spending budgets (mainnet only) ─────────────
+  if (action === 'policy-budget') {
+    const { address, chain } = body
+    if (!address) return err(res, 400, 'address required')
+    if (/testnet|sepolia|amoy|fuji|devnet/i.test(chain ?? '')) {
+      return res.status(200).json({ mainnet_only: true, message: 'Circle spending budgets require a mainnet agent wallet.', chain })
+    }
+    try {
+      const { stdout } = await execFileAsync(
+        CIRCLE_BIN,
+        ['wallet', 'limit', 'budget', '--address', address, '--output', 'json'],
+        { timeout: 12000 }
+      )
+      let parsed: unknown
+      try { parsed = JSON.parse(stdout.trim()) } catch { parsed = { raw: stdout.trim() } }
+      return res.status(200).json({ ok: true, budget: parsed })
+    } catch (e) {
+      return res.status(200).json({ ok: false, cli_error: e instanceof Error ? e.message : String(e) })
+    }
+  }
+
+  // ── from here, all actions require a valid Circle API key ─────────────────
+  let client: ReturnType<typeof ucwClient>
+  try {
+    client = ucwClient()
+  } catch {
     return res.status(503).json({
-      error: 'Circle API key not configured. Add CIRCLE_USER_CONTROLLED_API_KEY to Vercel environment variables.',
+      error: 'Circle API key not configured. Add CIRCLE_API_KEY to Vercel environment variables.',
       setup_required: true,
     })
   }
 
-  // ── provision — create user pin + agent wallet (same as main app initialize) ─
+  // ── provision — create user PIN + agent wallet ───────────────────────────
+  // Uses UCW createUserPinWithWallets — user retains custody (correct for Agent Stack)
   if (action === 'provision') {
     const { userToken } = body
-    if (!userToken) return res.status(400).json({ error: 'userToken required' })
+    if (!userToken) return err(res, 400, 'userToken required')
     try {
       const response = await client.createUserPinWithWallets({
         userToken,
@@ -205,21 +375,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json({ ok: true, challengeId })
     } catch (e) {
       const code = (e as { response?: { data?: { code?: number } } })?.response?.data?.code
-      // 155106 = user already initialized — treat as success, just list wallets
-      if (code === 155106) {
-        return res.status(200).json({ ok: true, alreadyInitialized: true })
-      }
-      return res.status(500).json({ error: e instanceof Error ? e.message : 'Provisioning failed' })
+      // 155106 = user already initialized — not an error
+      if (code === 155106) return res.status(200).json({ ok: true, alreadyInitialized: true })
+      return err(res, 500, e instanceof Error ? e.message : 'Provisioning failed')
     }
   }
 
-  // ── status — get wallets + balance for a userToken ───────────────────────
+  // ── status — get agent wallet address + balance ───────────────────────────
   if (action === 'status') {
     const userToken = (req.headers['x-user-token'] as string) ?? body.userToken
-    if (!userToken) {
-      // No token — not yet authenticated
-      return res.status(200).json({ provisioned: false })
-    }
+    if (!userToken) return res.status(200).json({ provisioned: false })
     try {
       const response = await client.listWallets({ userToken })
       const wallets = response.data?.wallets ?? []
@@ -229,7 +394,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       ) ?? wallets[0]
       if (!wallet) return res.status(200).json({ provisioned: false })
 
-      // Get balance
       let balance_usdc = '0'
       try {
         const balRes = await client.getWalletTokenBalance({ walletId: wallet.id, userToken })
@@ -238,428 +402,108 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       } catch { /* leave as 0 */ }
 
       return res.status(200).json({
-        provisioned:  true,
-        walletId:     wallet.id,
-        address:      wallet.address,
+        provisioned: true,
+        walletId:    wallet.id,
+        address:     wallet.address,
         balance_usdc,
-        blockchain:   wallet.blockchain ?? 'ARC-TESTNET',
-        accountType:  wallet.accountType ?? 'SCA',
-        custodyType:  wallet.custodyType ?? 'ENDUSER',
-        createDate:   wallet.createDate ?? null,
-        walletState:  wallet.state ?? 'LIVE',
+        blockchain:  wallet.blockchain ?? 'ARC-TESTNET',
+        accountType: wallet.accountType ?? 'SCA',
+        custodyType: wallet.custodyType ?? 'ENDUSER',
+        createDate:  wallet.createDate ?? null,
+        walletState: wallet.state ?? 'LIVE',
       })
     } catch (e) {
-      return res.status(500).json({ error: e instanceof Error ? e.message : 'Status check failed' })
+      return err(res, 500, e instanceof Error ? e.message : 'Status check failed')
     }
   }
 
-  // ── policy-read — read Circle on-chain spending limits via CLI ───────────
-  // Mainnet-only: Circle returns an error for testnet addresses.
-  // We run `circle wallet limit --output json` and return the raw result.
-  if (action === 'policy-read') {
-    const { address, chain } = body
-    if (!address || !chain) return res.status(400).json({ error: 'address and chain required' })
-
-    // Reject testnet chains — Circle CLI rejects them anyway, but we return a
-    // clear message so the UI can show an honest "mainnet only" gate.
-    const isTestnet = /testnet|sepolia|amoy|fuji|devnet/i.test(chain)
-    if (isTestnet) {
-      return res.status(200).json({
-        mainnet_only: true,
-        message: 'Circle on-chain spending policies require a mainnet agent wallet. Your wallet is on a testnet.',
-        chain,
-      })
-    }
-
-    try {
-      const circleBin = process.env.CIRCLE_CLI_PATH ?? 'circle'
-      const { stdout } = await execFileAsync(circleBin, [
-        'wallet', 'limit',
-        '--address', address,
-        '--chain', chain.toUpperCase(),
-        '--output', 'json',
-      ], { timeout: 12000 })
-      let parsed: unknown
-      try { parsed = JSON.parse(stdout.trim()) } catch { parsed = { raw: stdout.trim() } }
-      return res.status(200).json({ ok: true, policy: parsed, chain, address })
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e)
-      // Surface the CLI error clearly — e.g. "not authenticated", "wallet not found"
-      return res.status(200).json({ ok: false, cli_error: msg, chain, address })
-    }
-  }
-
-  // ── policy-budget — read remaining spending budgets via CLI ───────────────
-  if (action === 'policy-budget') {
-    const { address, chain } = body
-    if (!address) return res.status(400).json({ error: 'address required' })
-
-    const isTestnet = /testnet|sepolia|amoy|fuji|devnet/i.test(chain ?? '')
-    if (isTestnet) {
-      return res.status(200).json({
-        mainnet_only: true,
-        message: 'Circle spending budgets require a mainnet agent wallet.',
-        chain,
-      })
-    }
-
-    try {
-      const circleBin = process.env.CIRCLE_CLI_PATH ?? 'circle'
-      const { stdout } = await execFileAsync(circleBin, [
-        'wallet', 'limit', 'budget',
-        '--address', address,
-        '--output', 'json',
-      ], { timeout: 12000 })
-      let parsed: unknown
-      try { parsed = JSON.parse(stdout.trim()) } catch { parsed = { raw: stdout.trim() } }
-      return res.status(200).json({ ok: true, budget: parsed })
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e)
-      return res.status(200).json({ ok: false, cli_error: msg })
-    }
-  }
-
-  // ── send-usdc — transfer USDC from agent wallet to an address ────────────
-  if (action === 'send-usdc') {
-    const { toAddress, amount, userToken: bodyToken } = body
-    const tok = userToken || bodyToken
-    if (!tok)       return res.status(401).json({ error: 'userToken required' })
-    if (!toAddress) return res.status(400).json({ error: 'toAddress required' })
-    if (!amount)    return res.status(400).json({ error: 'amount required' })
-
-    const apiKey        = process.env.CIRCLE_API_KEY ?? process.env.CIRCLE_DEVELOPER_CONTROLLED_API_KEY
-    const entitySecret  = process.env.CIRCLE_ENTITY_SECRET ?? process.env.ENTITY_SECRET
-    const agentWalletId = process.env.AGENT_WALLET_ID
-    if (!apiKey || !entitySecret || !agentWalletId) {
-      return res.status(200).json({
-        not_configured: true,
-        error: 'Agent Wallet not configured. Set CIRCLE_API_KEY, CIRCLE_ENTITY_SECRET, and AGENT_WALLET_ID in environment variables.',
-      })
-    }
-
-    try {
-      const client = initiateUserControlledWalletsClient({ apiKey })
-      // Initiate transfer — returns a challenge ID that the user pin must sign
-      const r = await client.createTransaction({
-        userToken: tok,
-        walletId: agentWalletId,
-        destinationAddress: toAddress,
-        tokenId: process.env.USDC_TOKEN_ID ?? 'e4f3abab-7571-4f0d-a9db-9e2cfb02d97b', // ARC-TESTNET USDC
-        amounts: [amount],
-        fee: { type: 'level', config: { feeLevel: 'MEDIUM' } },
-      })
-      const txData = r.data
-      return res.status(200).json({
-        ok: true,
-        transactionId: txData?.challengeId ?? txData?.transaction?.id ?? null,
-        challengeId: txData?.challengeId ?? null,
-      })
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Transfer failed'
-      return res.status(500).json({ error: msg })
-    }
-  }
-
-  // ── bridge — CCTP V2 burn-and-mint from agent wallet ─────────────────────
-  if (action === 'bridge') {
-    const { amount, fromChain, toChain, destinationDomain, recipientAddress, userToken: bodyToken } = body
-    const tok = userToken || bodyToken
-    if (!tok) return res.status(401).json({ error: 'userToken required' })
-
-    const apiKey        = process.env.CIRCLE_API_KEY ?? process.env.CIRCLE_DEVELOPER_CONTROLLED_API_KEY
-    const entitySecret  = process.env.CIRCLE_ENTITY_SECRET ?? process.env.ENTITY_SECRET
-    const agentWalletId = process.env.AGENT_WALLET_ID
-    if (!apiKey || !entitySecret || !agentWalletId) {
-      return res.status(200).json({
-        not_configured: true,
-        error: 'Agent Wallet bridge not configured. Set CIRCLE_API_KEY, CIRCLE_ENTITY_SECRET, and AGENT_WALLET_ID.',
-      })
-    }
-
-    if (!amount || !fromChain || !toChain) {
-      return res.status(400).json({ error: 'amount, fromChain, and toChain required' })
-    }
-
-    // Bridge via CCTP: initiate a cross-chain transfer transaction.
-    // Circle's user-controlled wallets SDK handles approve + depositForBurn.
-    try {
-      const client = initiateUserControlledWalletsClient({ apiKey })
-      const r = await client.createTransaction({
-        userToken: tok,
-        walletId: agentWalletId,
-        destinationAddress: recipientAddress,
-        tokenId: process.env.USDC_TOKEN_ID ?? 'e4f3abab-7571-4f0d-a9db-9e2cfb02d97b',
-        amounts: [amount],
-        fee: { type: 'level', config: { feeLevel: 'MEDIUM' } },
-        refId: `bridge:${fromChain}→${toChain}:${Date.now()}`,
-      })
-      const txData = r.data
-      return res.status(200).json({
-        ok: true,
-        challengeId: txData?.challengeId ?? null,
-        steps: [
-          { key: 'approve', status: 'done' },
-          { key: 'burn',    status: 'done', txHash: txData?.challengeId ?? undefined },
-          { key: 'attest',  status: 'done' },
-          { key: 'mint',    status: 'done' },
-        ],
-        burnTx: txData?.challengeId ?? null,
-        note: `destinationDomain ${destinationDomain} — attestation handled by Circle CCTP relay`,
-      })
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Bridge failed'
-      return res.status(500).json({ error: msg })
-    }
-  }
-
-  // ── swap-quote — get a LiFi swap quote (no auth needed) ──────────────────
-  if (action === 'swap-quote') {
-    const { fromToken, toToken, amount } = body
-    if (!fromToken || !toToken || !amount) {
-      return res.status(400).json({ error: 'fromToken, toToken, and amount required' })
-    }
-    if (fromToken === toToken) {
-      return res.status(400).json({ error: 'fromToken and toToken must be different' })
-    }
-
-    const apiKey = process.env.CIRCLE_API_KEY ?? process.env.CIRCLE_DEVELOPER_CONTROLLED_API_KEY
-    if (!apiKey) {
-      return res.status(200).json({
-        not_configured: true,
-        error: 'Swap quote requires CIRCLE_API_KEY. Add it to environment variables.',
-      })
-    }
-
-    // Real LiFi quote via Circle's swap infrastructure.
-    // If Circle/LiFi is not available, return an honest not_configured response.
-    try {
-      const amt = parseFloat(amount)
-      // Attempt a real LiFi quote via public API (no auth required for quotes)
-      const lifiUrl = `https://li.quest/v1/quote?fromChain=1&toChain=1&fromToken=${fromToken}&toToken=${toToken}&fromAmount=${Math.round(amt * 1e6)}&fromAddress=0x0000000000000000000000000000000000000000`
-      const r = await fetch(lifiUrl, { signal: AbortSignal.timeout(5000) })
-      if (r.ok) {
-        type LiFiQuote = { estimate?: { toAmount?: string; executionDuration?: number; feeCosts?: Array<{ amountUSD?: string }> }; tool?: string; toolDetails?: { name?: string } }
-        const data = await r.json() as LiFiQuote
-        const toAmt = data.estimate?.toAmount ? (parseFloat(data.estimate.toAmount) / 1e6).toFixed(4) : '—'
-        const feeUsd = data.estimate?.feeCosts?.[0]?.amountUSD
-        return res.status(200).json({
-          ok: true,
-          quote: {
-            fromAmount: amt.toFixed(4),
-            toAmount:   toAmt,
-            rate:       `1 ${fromToken} = ${(parseFloat(toAmt) / amt).toFixed(4)} ${toToken}`,
-            fee:        feeUsd ? `~$${parseFloat(feeUsd).toFixed(4)}` : 'Included',
-            route:      data.tool ?? data.toolDetails?.name ?? 'LiFi',
-            provider:   'Circle Agent Stack / LiFi',
-          },
-        })
-      }
-      // LiFi quote failed — return an honest not_configured
-      return res.status(200).json({
-        not_configured: true,
-        error: 'Swap quotes are not available for this token pair. Try a mainnet agent wallet or a supported token pair.',
-      })
-    } catch {
-      return res.status(200).json({
-        not_configured: true,
-        error: 'Swap quote service unavailable. Ensure CIRCLE_API_KEY is set and the agent wallet is on a supported network.',
-      })
-    }
-  }
-
-  // ── swap — execute a LiFi swap from agent wallet ──────────────────────────
-  if (action === 'swap') {
-    const { fromToken, toToken, amount, agentAddress, userToken: bodyToken } = body
-    const tok = userToken || bodyToken
-    if (!tok) return res.status(401).json({ error: 'userToken required' })
-
-    const apiKey        = process.env.CIRCLE_API_KEY ?? process.env.CIRCLE_DEVELOPER_CONTROLLED_API_KEY
-    const entitySecret  = process.env.CIRCLE_ENTITY_SECRET ?? process.env.ENTITY_SECRET
-    const agentWalletId = process.env.AGENT_WALLET_ID
-    if (!apiKey || !entitySecret || !agentWalletId || !agentAddress) {
-      return res.status(200).json({
-        not_configured: true,
-        error: 'Swap requires CIRCLE_API_KEY, CIRCLE_ENTITY_SECRET, AGENT_WALLET_ID, and AGENT_WALLET_ADDRESS.',
-      })
-    }
-
-    try {
-      // Circle Agent Stack swap goes through the user-controlled wallets SDK
-      // which calls LiFi under the hood. We initiate a transaction with the
-      // swap calldata. For now surface the challenge ID back to the UI.
-      const client = initiateUserControlledWalletsClient({ apiKey })
-      const r = await client.createTransaction({
-        userToken: tok,
-        walletId: agentWalletId,
-        destinationAddress: agentAddress,
-        tokenId: process.env.USDC_TOKEN_ID ?? 'e4f3abab-7571-4f0d-a9db-9e2cfb02d97b',
-        amounts: [String(amount)],
-        fee: { type: 'level', config: { feeLevel: 'MEDIUM' } },
-        refId: `swap:${fromToken}→${toToken}:${Date.now()}`,
-      })
-      const txData = r.data
-      return res.status(200).json({
-        ok: true,
-        txHash: txData?.challengeId ?? null,
-        toAmount: amount,
-      })
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Swap failed'
-      // If Circle SDK raises "not supported", surface as not_configured
-      if (msg.includes('not supported') || msg.includes('unsupported')) {
-        return res.status(200).json({ not_configured: true, error: msg })
-      }
-      return res.status(500).json({ error: msg })
-    }
-  }
-
-  // ── marketplace-search — live Circle service discovery ──────────────────
-  if (action === 'marketplace-search') {
-    const { query: mktQuery } = body
-    if (!mktQuery?.trim()) return res.status(400).json({ error: 'query is required' })
-    const safeQ = mktQuery.replace(/[^\w\s\-.,&]/g, '').slice(0, 100).trim()
-    if (!safeQ) return res.status(400).json({ error: 'query contains no valid characters' })
-    try {
-      const services = await runMktSearch(safeQ)
-      return res.status(200).json({ ok: true, source: 'circle_marketplace', query: safeQ, count: services.length, services })
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e)
-      if (msg.includes('No services found') || msg.includes('no results')) {
-        return res.status(200).json({ ok: true, source: 'circle_marketplace', query: safeQ, count: 0, services: [] })
-      }
-      return res.status(200).json({ ok: false, error: 'Circle Marketplace unreachable. Please try again.', services: [] })
-    }
-  }
-
-  // ── marketplace-inspect — full service details ───────────────────────────
-  if (action === 'marketplace-inspect') {
-    const { endpoint: mktEndpoint } = body
-    if (!mktEndpoint) return res.status(400).json({ error: 'endpoint URL is required' })
-    try { new URL(mktEndpoint) } catch { return res.status(400).json({ error: 'endpoint must be a valid URL' }) }
-    try {
-      const service = await runMktInspect(mktEndpoint)
-      if (!service) return res.status(200).json({ ok: false, error: 'Service not found or restricted.' })
-      return res.status(200).json({ ok: true, source: 'circle_marketplace', service })
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e)
-      return res.status(200).json({ ok: false, error: `Could not inspect service: ${msg}` })
-    }
-  }
-
-  // ── execute-service — inspect price, check balance+policy, pay, execute ────
-  // This is the authoritative "Use service" backend entry point.
-  // The frontend must NEVER supply the price — we always fetch it from the CLI.
+  // ── execute-service — policy-check, pay via x402/UCW, call service ────────
   if (action === 'execute-service') {
-    const { endpoint: svcEndpoint, service_id, query: svcQuery, userToken: bodyToken, dailyLimit, dailyUsed, perServiceLimit, requireApproval, requireApprovalAbove } = body
-    const tok = (req.headers['x-user-token'] as string) ?? bodyToken
-    if (!svcEndpoint && !service_id) return res.status(400).json({ error: 'endpoint or service_id required' })
-    if (!svcQuery?.trim())           return res.status(400).json({ error: 'query required' })
+    const {
+      endpoint: svcEndpoint, service_id, query: svcQuery,
+      userToken: bodyToken,
+      dailyLimit, dailyUsed, perServiceLimit,
+      requireApproval, requireApprovalAbove,
+    } = body
+    const userToken = (req.headers['x-user-token'] as string) ?? bodyToken
+    if (!svcEndpoint && !service_id) return err(res, 400, 'endpoint or service_id required')
+    if (!svcQuery?.trim()) return err(res, 400, 'query required')
 
-    // Step 1 — get authoritative service metadata (price, payment address)
+    // Step 1: authoritative service metadata
     let serviceCard: MarketplaceServiceCard | null = null
     if (svcEndpoint) {
-      try { serviceCard = await runMktInspect(svcEndpoint) } catch { /* fallback to static */ }
+      try { serviceCard = await cliInspect(svcEndpoint) } catch { /* ignore */ }
     }
 
-    // Step 2 — get real agent wallet balance from Circle (ignore any UI value)
+    // Step 2: real agent wallet balance
     let realBalance = 0
-    if (tok) {
+    if (userToken) {
       try {
-        const statusClient = getUserClient()
-        if (statusClient) {
-          const walletList = await statusClient.listWallets({ userToken: tok })
-          const aw = (walletList.data?.wallets ?? []).find(w =>
-            w.blockchain?.toLowerCase().includes('arc') || w.blockchain?.toLowerCase().includes('testnet')
-          ) ?? walletList.data?.wallets?.[0]
-          if (aw) {
-            const balRes = await statusClient.getWalletTokenBalance({ walletId: aw.id, userToken: tok })
-            const usdcBal = (balRes.data?.tokenBalances ?? []).find(b => b.token?.symbol === 'USDC')
-            realBalance = parseFloat(usdcBal?.amount ?? '0')
-          }
+        const walletList = await client.listWallets({ userToken })
+        const aw = (walletList.data?.wallets ?? []).find(w =>
+          w.blockchain?.toLowerCase().includes('arc') || w.blockchain?.toLowerCase().includes('testnet')
+        ) ?? walletList.data?.wallets?.[0]
+        if (aw) {
+          const balRes = await client.getWalletTokenBalance({ walletId: aw.id, userToken })
+          const usdcBal = (balRes.data?.tokenBalances ?? []).find(b => b.token?.symbol === 'USDC')
+          realBalance = parseFloat(usdcBal?.amount ?? '0')
         }
       } catch { /* leave at 0 */ }
     }
 
-    // Step 3 — resolve cost_usdc (authoritative from marketplace > static registry > 0)
+    // Step 3: resolve cost
+    const STATIC_COSTS: Record<string, number> = {
+      'perplexity-research': 0.002,
+      'openai-completion': 0.001,
+    }
     let cost_usdc = 0
-    if (serviceCard?.price_raw) {
-      cost_usdc = parseInt(serviceCard.price_raw, 10) / 1e6
-    }
-    // If this is a known static service, use registry pricing
-    const STATIC_COSTS: Record<string, { cost: number }> = {
-      'perplexity-research': { cost: 0.002 },
-      'openai-completion':   { cost: 0.001 },
-    }
-    if (service_id && STATIC_COSTS[service_id]) {
-      cost_usdc = cost_usdc || STATIC_COSTS[service_id].cost
-    }
+    if (serviceCard?.price_raw) cost_usdc = parseInt(serviceCard.price_raw, 10) / 1e6
+    if (service_id && STATIC_COSTS[service_id]) cost_usdc = cost_usdc || STATIC_COSTS[service_id]
 
-    // Step 4 — policy check (using values caller sends, or ultra-conservative defaults)
-    const dLimit  = parseFloat(dailyLimit  ?? '0') || 20
-    const dUsed   = parseFloat(dailyUsed   ?? '0') || 0
-    const perSvc  = parseFloat(perServiceLimit ?? '0') || 5
+    // Step 4: policy check
+    const dLimit   = parseFloat(dailyLimit  ?? '0') || 20
+    const dUsed    = parseFloat(dailyUsed   ?? '0') || 0
+    const perSvc   = parseFloat(perServiceLimit ?? '0') || 5
     const reqAbove = parseFloat(requireApprovalAbove ?? '5') || 5
     const reqApproval = requireApproval === 'true' || requireApproval === '1'
     const remaining = dLimit - dUsed
 
-    if (cost_usdc > remaining) {
-      return res.status(200).json({
-        ok: false,
-        blocked: true,
-        reason: `This service costs ${cost_usdc.toFixed(4)} USDC but you only have ${remaining.toFixed(2)} USDC left in your daily budget.`,
-        cost_usdc, real_balance: realBalance.toFixed(6), service: serviceCard,
-      })
-    }
-    if (cost_usdc > perSvc) {
-      return res.status(200).json({
-        ok: false,
-        blocked: true,
-        reason: `This service costs ${cost_usdc.toFixed(4)} USDC which exceeds your per-service limit of ${perSvc} USDC.`,
-        cost_usdc, real_balance: realBalance.toFixed(6), service: serviceCard,
-      })
-    }
-    if (cost_usdc > 0 && realBalance < cost_usdc) {
-      return res.status(200).json({
-        ok: false,
-        blocked: true,
-        reason: `Your Agent Wallet doesn't have enough USDC. Need ${cost_usdc.toFixed(4)} USDC, have ${realBalance.toFixed(6)} USDC.`,
-        cost_usdc, real_balance: realBalance.toFixed(6), service: serviceCard,
-      })
-    }
+    if (cost_usdc > remaining)
+      return res.status(200).json({ ok: false, blocked: true, reason: `Service costs ${cost_usdc.toFixed(4)} USDC but only ${remaining.toFixed(2)} USDC left in daily budget.`, cost_usdc, real_balance: realBalance.toFixed(6) })
+    if (cost_usdc > perSvc)
+      return res.status(200).json({ ok: false, blocked: true, reason: `Service costs ${cost_usdc.toFixed(4)} USDC which exceeds per-service limit of ${perSvc} USDC.`, cost_usdc, real_balance: realBalance.toFixed(6) })
+    if (cost_usdc > 0 && realBalance < cost_usdc)
+      return res.status(200).json({ ok: false, blocked: true, reason: `Agent Wallet balance (${realBalance.toFixed(6)} USDC) is below service cost (${cost_usdc.toFixed(4)} USDC).`, cost_usdc, real_balance: realBalance.toFixed(6) })
 
-    // Step 5 — if requires confirmation, return a pre-execution card (no payment yet)
-    const needsConfirm = reqApproval || (cost_usdc > 0 && cost_usdc > reqAbove)
+    // Step 5: confirmation gate
     const confirmed = body.confirmed === 'true' || body.confirmed === '1'
-    if (needsConfirm && !confirmed && cost_usdc > 0) {
+    if ((reqApproval || cost_usdc > reqAbove) && !confirmed && cost_usdc > 0) {
       return res.status(200).json({
         ok: true,
         awaiting_confirmation: true,
-        cost_usdc, real_balance: realBalance.toFixed(6),
-        service: serviceCard,
+        cost_usdc, real_balance: realBalance.toFixed(6), service: serviceCard,
         message: `Ready to use ${serviceCard?.provider ?? service_id ?? 'service'} for ${cost_usdc.toFixed(4)} USDC. Confirm to proceed.`,
       })
     }
 
-    // Step 6 — call agent-execute to run the actual service (it handles nanopayment internally)
+    // Step 6: call agent-execute
     const host = req.headers.host ?? 'localhost:3001'
     const proto = host.includes('localhost') ? 'http' : 'https'
     const baseUrl = `${proto}://${host}`
     let executeResult: string | null = null
     let executeError: string | null = null
-    let nanopayment: { paid: boolean; txId?: string; amount_usdc?: number; skipped_reason?: string } = { paid: false }
+    const nanopayment: { paid: boolean; txId?: string; amount_usdc?: number } = { paid: false }
 
-    const execServiceId = service_id ?? serviceCard?.id ?? 'brave-search'
     try {
       const execRes = await fetch(`${baseUrl}/api/agent-execute`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ service_id: execServiceId, query: svcQuery, params: {} }),
-        signal: AbortSignal.timeout(30000),
+        body: JSON.stringify({ service_id: service_id ?? serviceCard?.id ?? 'brave-search', query: svcQuery, params: {} }),
+        signal: AbortSignal.timeout(30_000),
       })
       if (execRes.ok) {
         const d = await execRes.json() as { result?: string; error?: string; nanopayment?: typeof nanopayment }
         executeResult = d.result ?? null
-        nanopayment   = d.nanopayment ?? nanopayment
         if (d.error && !d.result) executeError = d.error
       } else {
         executeError = `Service returned HTTP ${execRes.status}`
@@ -669,28 +513,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (executeError && !executeResult) {
-      return res.status(200).json({
-        ok: false,
-        execute_error: true,
-        reason: executeError,
-        cost_usdc, service: serviceCard,
-        nanopayment,
-      })
+      return res.status(200).json({ ok: false, execute_error: true, reason: executeError, cost_usdc, service: serviceCard, nanopayment })
     }
 
-    // Step 7 — return success with real result
-    const txRef = nanopayment.txId ?? `nan-svc-${Date.now().toString(36)}`
     return res.status(200).json({
       ok: true,
       executed: true,
       result: executeResult,
       cost_usdc,
       real_balance: realBalance.toFixed(6),
-      tx_ref: txRef,
+      tx_ref: `nan-svc-${Date.now().toString(36)}`,
       service: serviceCard,
       nanopayment,
     })
   }
 
-  return res.status(400).json({ error: `Unknown action: ${action ?? '(none)'}` })
+  return err(res, 400, `Unknown action: ${action ?? '(none)'}`)
 }

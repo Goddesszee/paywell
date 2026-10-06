@@ -18,6 +18,11 @@ const BK = '#0066FF'
 const WH = 'var(--nan-surface2)'
 const SANS = 'Inter, sans-serif'
 
+// ── Typed wrappers for App Kit bridge result (state field not yet in public types) ──
+interface BridgeStep { name: string; state: string; txHash?: string; explorerUrl?: string; error?: string; message?: string; reason?: string }
+interface BridgeResult { steps?: BridgeStep[]; state?: string }
+type AppKitChain = Parameters<InstanceType<typeof AppKit>['bridge']>[0]['from']['chain']
+
 // ── CCTP V2 Sandbox fee endpoint ──────────────────────────────────────────────
 const CCTP_FEE_API = 'https://iris-api-sandbox.circle.com/v2/burn/USDC/fees'
 
@@ -200,29 +205,22 @@ export function BridgePage() {
         updateStep('approve', { status: 'active' })
         const adapter = await getPasskeyAdapter({ clientKey, clientUrl })
         const result = await appKit.bridge({
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          from: { adapter, chain: fromChain.kitName as any },
+          from: { adapter, chain: fromChain.kitName as AppKitChain },
           to: {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            chain: toChain.kitName as any,
+            chain: toChain.kitName as AppKitChain,
             recipientAddress: auth?.circleWalletAddress as string,
             useForwarder: true,
           },
           amount,
-        })
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const resultAny = result as any
+        }) as BridgeResult
         for (const step of result.steps ?? []) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const stepAny = step as any
           updateStep(step.name as StepName, {
             status: step.state === 'success' ? 'done' : step.state === 'error' ? 'error' : 'idle',
             txHash: step.txHash,
           })
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-          if (step.state === 'error') setErrMsg(String(stepAny.error ?? stepAny.message ?? step.name + ' failed').slice(0, 200))
+          if (step.state === 'error') setErrMsg(String(step.error ?? step.message ?? step.name + ' failed').slice(0, 200))
         }
-        const topState = resultAny.state as string | undefined
+        const topState = result.state
         const allStepsDone = (result.steps ?? []).filter(s => s.name !== 'mint').every(s => s.state === 'success')
         if (topState === 'success' || topState === 'pending' || allStepsDone) {
           setStatus('done')
@@ -249,31 +247,24 @@ export function BridgePage() {
 
       updateStep('approve', { status: 'active' })
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const result = await appKit.bridge({
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
-        from: { adapter, chain: fromChain.kitName as any },
+        from: { adapter, chain: fromChain.kitName as AppKitChain },
         // Use Circle's Orbit forwarder for the destination — the relayer handles
         // the mint transaction on the destination chain so we never need to
         // switchChain a second time or re-acquire the provider on a different network.
         to: {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
-          chain: toChain.kitName as any,
+          chain: toChain.kitName as AppKitChain,
           recipientAddress: wagmiAddress as string,
           useForwarder: true,
         },
         amount,
-      })
+      }) as BridgeResult
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const resultAny = result as any
-      console.log('[bridge] result state:', resultAny.state, 'steps:', result.steps?.map(s => s.name + ':' + s.state).join(', '))
+      console.log('[bridge] result state:', result.state, 'steps:', result.steps?.map(s => s.name + ':' + s.state).join(', '))
 
       for (const step of result.steps ?? []) {
         const name = step.name as StepName
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const stepAny = step as any
-        const errDetail: string | undefined = stepAny.error ?? stepAny.message ?? stepAny.reason
+        const errDetail = step.error ?? step.message ?? step.reason
         updateStep(name, {
           status: step.state === 'success' ? 'done' : step.state === 'error' ? 'error' : 'idle',
           txHash: step.txHash,
@@ -285,7 +276,7 @@ export function BridgePage() {
       }
 
       // App Kit bridge result uses result.state === 'success' (per Circle docs)
-      const topState = resultAny.state as string | undefined
+      const topState = result.state
       const allStepsDone = (result.steps ?? []).filter(s => s.name !== 'mint').every(s => s.state === 'success')
       if (topState === 'success' || allStepsDone) {
         setStatus('done')
@@ -296,8 +287,7 @@ export function BridgePage() {
         addActivity({ type:'bridge', description:`Bridge to ${toChain.label}`, amount:gross, sign:'-', status:'confirmed', counterparty:toChain.label })
       } else {
         const failedStep = result.steps?.find(s => s.state === 'error')
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const stepErr = failedStep ? ((failedStep as any).error ?? (failedStep as any).message ?? failedStep.name + ' step failed') : 'Bridge returned non-success state.'
+        const stepErr = failedStep ? (failedStep.error ?? failedStep.message ?? failedStep.name + ' step failed') : 'Bridge returned non-success state.'
         setStatus('error')
         setErrMsg(stepErr.slice(0, 200))
       }
