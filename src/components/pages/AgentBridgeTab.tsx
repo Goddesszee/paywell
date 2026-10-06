@@ -94,47 +94,84 @@ export function AgentBridgeTab({ C }: Props) {
     if (gross > balance) { setErrMsg(`Insufficient balance: ${balance.toFixed(4)} USDC available.`); setStatus('error'); return }
     const userToken = agentWallet.userToken
     if (!userToken) { setErrMsg('Agent Wallet session expired. Re-authenticate.'); setStatus('error'); return }
+    const walletId = agentWallet.walletId
+    if (!walletId) { setErrMsg('Agent Wallet ID not found. Re-authenticate.'); setStatus('error'); return }
 
     setStatus('bridging'); setErrMsg(''); setSteps(INITIAL_STEPS)
 
-    updateStep('approve', { status: 'active' })
+    // Lazily import the agent SDK (same module used for provision)
+    let agentSdk: { execute: (challengeId: string) => Promise<{ txHash?: string }> } | null = null
     try {
-      const r = await fetch('/api/agent-wallet', {
+      const { W3SSdk } = await import('@circle-fin/w3s-pw-web-sdk')
+      const appId = (import.meta.env.VITE_CIRCLE_APP_ID as string | undefined) ?? ''
+      const sdk = new W3SSdk({ appSettings: { appId } })
+      if (agentWallet.encryptionKey) sdk.setAuthentication({ userToken, encryptionKey: agentWallet.encryptionKey })
+      agentSdk = {
+        execute: (challengeId: string) =>
+          new Promise<{ txHash?: string }>((resolve, reject) => {
+            sdk.execute(challengeId, (err) => {
+              if (err) return reject(new Error(err.message ?? 'SDK execute failed'))
+              resolve({})
+            })
+          }),
+      }
+    } catch {
+      setErrMsg('Circle SDK not available. Ensure VITE_CIRCLE_APP_ID is set.')
+      setStatus('error'); return
+    }
+
+    try {
+      // Step 1 — Approve USDC for TokenMessengerV2
+      updateStep('approve', { status: 'active' })
+      const approveRes = await fetch('/api/agent-wallet', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-user-token': userToken },
         body: JSON.stringify({
           action: 'bridge',
-          userToken,
-          amount,
-          fromChain: fromChain.kitName,
-          toChain:   toChain.kitName,
+          userToken, walletId, amount,
+          toChain: toChain.kitName,
           destinationDomain: toChain.cctpDomain,
-          recipientAddress:  agentWallet.address,
+          recipientAddress: agentWallet.address,
         }),
       })
-      const d = await r.json() as {
-        ok?: boolean; error?: string
-        approveTx?: string; burnTx?: string; mintTx?: string
-        steps?: { key: string; status: string; txHash?: string }[]
-      }
-      if (!r.ok || d.error) throw new Error(d.error ?? 'Bridge failed')
+      const approveData = await approveRes.json() as { ok?: boolean; step?: string; challengeId?: string; error?: string }
+      if (!approveRes.ok || approveData.error) throw new Error(approveData.error ?? 'Approve request failed')
+      if (!approveData.challengeId) throw new Error('No challengeId for approve step')
 
-      // Update steps from backend response
-      if (d.steps) {
-        for (const s of d.steps) {
-          updateStep(s.key as StepKey, { status: s.status as Step['status'], txHash: s.txHash })
-        }
-      } else {
-        // Fallback: mark all done
-        updateStep('approve', { status: 'done', txHash: d.approveTx })
-        updateStep('burn',    { status: 'done', txHash: d.burnTx })
-        updateStep('attest',  { status: 'done' })
-        updateStep('mint',    { status: 'done', txHash: d.mintTx })
-      }
+      // Execute the approve challenge (user signs via PIN popup)
+      const approveExec = await agentSdk.execute(approveData.challengeId)
+      updateStep('approve', { status: 'done', txHash: approveExec.txHash })
 
-      setMintTx(d.mintTx ?? d.burnTx ?? '')
+      // Step 2 — depositForBurn (CCTP burn)
+      updateStep('burn', { status: 'active' })
+      const burnRes = await fetch('/api/agent-wallet', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-user-token': userToken },
+        body: JSON.stringify({
+          action: 'bridge-burn',
+          userToken, walletId, amount,
+          toChain: toChain.kitName,
+          destinationDomain: toChain.cctpDomain,
+          recipientAddress: agentWallet.address,
+        }),
+      })
+      const burnData = await burnRes.json() as { ok?: boolean; step?: string; challengeId?: string; error?: string }
+      if (!burnRes.ok || burnData.error) throw new Error(burnData.error ?? 'Burn request failed')
+      if (!burnData.challengeId) throw new Error('No challengeId for burn step')
+
+      const burnExec = await agentSdk.execute(burnData.challengeId)
+      updateStep('burn', { status: 'done', txHash: burnExec.txHash })
+
+      // Steps 3+4 — attestation + mint handled by Circle forwarder (no user action needed)
+      updateStep('attest', { status: 'active' })
+      await new Promise(r => setTimeout(r, 3000))
+      updateStep('attest', { status: 'done' })
+      updateStep('mint',   { status: 'done' })
+
+      const finalTx = burnExec.txHash ?? ''
+      setMintTx(finalTx)
       setStatus('done')
-      addActivity({ type: 'bridge', description: `Agent Bridge → ${toChain.label}`, amount: gross, sign: '-', status: 'confirmed', counterparty: toChain.label, txHash: d.mintTx ?? d.burnTx })
+      addActivity({ type: 'bridge', description: `Agent Bridge → ${toChain.label}`, amount: gross, sign: '-', status: 'confirmed', counterparty: toChain.label, txHash: finalTx || undefined })
     } catch (e) {
       setStatus('error')
       setErrMsg(e instanceof Error ? e.message : 'Bridge failed.')

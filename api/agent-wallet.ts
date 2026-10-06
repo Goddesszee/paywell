@@ -16,9 +16,15 @@
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { initiateUserControlledWalletsClient, Blockchain } from '@circle-fin/user-controlled-wallets'
+import { initiateUserControlledWalletsClient, Blockchain, ContractExecutionBlockchain } from '@circle-fin/user-controlled-wallets'
 import { execFile } from 'child_process'
 import { promisify } from 'util'
+import { randomUUID } from 'crypto'
+
+// Arc Testnet USDC ERC-20 contract address
+const ARC_TESTNET_USDC = '0x3600000000000000000000000000000000000000'
+// CCTP V2 TokenMessengerV2 on Arc Testnet
+const ARC_TESTNET_TOKEN_MESSENGER_V2 = '0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA'
 
 const execFileAsync = promisify(execFile)
 
@@ -544,7 +550,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         walletId,
         amounts: [sendAmount],
         destinationAddress: to,
-        tokenId: 'USDC',
+        tokenAddress: ARC_TESTNET_USDC,
+        blockchain: Blockchain.ArcTestnet,
         fee: { type: 'level', config: { feeLevel: 'MEDIUM' } },
       })
       const challengeId = response.data?.challengeId
@@ -555,131 +562,117 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   }
 
-  // ── swap-quote — proxy to App Kit (DCW) or return not_configured ──────────
+  // ── swap-quote — LiFi quote (Arc Testnet has no DEX; honest not-available) ─
   if (action === 'swap-quote') {
-    const { fromToken: ft, toToken: tt, amount: swapAmt, agentAddress } = body
+    const { fromToken: ft, toToken: tt, amount: swapAmt } = body
     if (!ft || !tt || !swapAmt) return err(res, 400, 'fromToken, toToken, amount required')
-    // Forward to the local App Kit server if it's reachable
-    const host = (req.headers.host as string) ?? 'localhost:3001'
-    const proto = host.includes('localhost') ? 'http' : 'https'
-    // On Vercel/Netlify (no server/), return a clear not_configured response
-    const isServerless = !host.includes('localhost') && !host.includes('127.0.0.1')
-    if (isServerless) {
-      // Try IRIS fee API as a lightweight quote proxy for same-chain USDC swaps
-      return res.status(200).json({
-        ok: true,
-        quote: {
-          fromAmount: swapAmt,
-          toAmount: (parseFloat(swapAmt) * 0.997).toFixed(6),
-          rate: `1 ${ft} ≈ 0.997 ${tt}`,
-          fee: '0.3%',
-          route: `${ft} → ${tt}`,
-          provider: 'Circle (est.)',
-        },
-      })
-    }
-    try {
-      const r = await fetch(`${proto}://${host}/api/appkit/swap`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'quote', walletAddress: agentAddress, tokenIn: ft, tokenOut: tt, amountIn: swapAmt }),
-        signal: AbortSignal.timeout(15_000),
-      })
-      const d = await r.json() as { success?: boolean; amountOut?: string; error?: string }
-      if (!d.success) return res.status(200).json({ ok: false, not_configured: true, error: d.error ?? 'Quote failed' })
-      const toAmt = d.amountOut ?? (parseFloat(swapAmt) * 0.997).toFixed(6)
-      return res.status(200).json({
-        ok: true,
-        quote: {
-          fromAmount: swapAmt,
-          toAmount: toAmt,
-          rate: `1 ${ft} ≈ ${(parseFloat(toAmt) / parseFloat(swapAmt)).toFixed(4)} ${tt}`,
-          provider: 'Circle App Kit',
-        },
-      })
-    } catch (e) {
-      return res.status(200).json({ ok: false, not_configured: true, error: e instanceof Error ? e.message : 'Quote failed' })
-    }
+    // Arc Testnet has no live DEX liquidity — swap is not available for UCW agent wallets on this chain.
+    // Return a clear, honest message instead of a fake quote.
+    return res.status(200).json({
+      ok: false,
+      not_available: true,
+      error: `Token swaps are not available for agent wallets on Arc Testnet. No DEX has live liquidity on this network. Use Bridge to move USDC to another chain where swaps are supported.`,
+    })
   }
 
-  // ── swap — proxy to App Kit (DCW) ─────────────────────────────────────────
+  // ── swap — not available on Arc Testnet ───────────────────────────────────
   if (action === 'swap') {
-    const userToken = (req.headers['x-user-token'] as string) ?? body.userToken
-    const { fromToken: ft, toToken: tt, amount: swapAmt, agentAddress } = body
-    if (!userToken) return err(res, 401, 'userToken required')
-    if (!ft || !tt || !swapAmt || !agentAddress) return err(res, 400, 'fromToken, toToken, amount, agentAddress required')
-    const host = (req.headers.host as string) ?? 'localhost:3001'
-    const proto = host.includes('localhost') ? 'http' : 'https'
-    const isServerless = !host.includes('localhost') && !host.includes('127.0.0.1')
-    if (isServerless) {
-      return res.status(200).json({ ok: false, not_configured: true, error: 'Swap requires the Circle App Kit server (CIRCLE_DEVELOPER_CONTROLLED_API_KEY + CIRCLE_ENTITY_SECRET). Set these env vars and redeploy.' })
-    }
-    try {
-      const r = await fetch(`${proto}://${host}/api/appkit/swap`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'swap', walletAddress: agentAddress, tokenIn: ft, tokenOut: tt, amountIn: swapAmt }),
-        signal: AbortSignal.timeout(30_000),
-      })
-      const d = await r.json() as { success?: boolean; pending?: boolean; error?: string; txHash?: string }
-      if (!d.success) return res.status(200).json({ ok: false, not_configured: true, error: d.error ?? 'Swap failed' })
-      return res.status(200).json({ ok: true, txHash: d.txHash ?? '', pending: d.pending })
-    } catch (e) {
-      return res.status(200).json({ ok: false, not_configured: true, error: e instanceof Error ? e.message : 'Swap failed' })
-    }
+    return res.status(200).json({
+      ok: false,
+      not_available: true,
+      error: 'Token swaps are not available for agent wallets on Arc Testnet. Use Bridge to move USDC cross-chain.',
+    })
   }
 
-  // ── bridge — proxy to App Kit (DCW) ──────────────────────────────────────
-  if (action === 'bridge') {
+  // ── bridge — UCW createUserTransactionContractExecutionChallenge (CCTP V2) ─
+  // Step 1: USDC approve → challengeId for user to sign via PIN
+  // Step 2 (separate call action='bridge-burn'): depositForBurn → challengeId
+  // This matches the Circle UCW pattern: each on-chain tx needs a challengeId executed by the SDK.
+  if (action === 'bridge' || action === 'bridge-approve') {
     const userToken = (req.headers['x-user-token'] as string) ?? body.userToken
-    const { amount: bridgeAmt, fromChain: _fromChain, toChain, destinationDomain: _dd, recipientAddress } = body
+    const { amount: bridgeAmt, walletId, toChain, destinationDomain, recipientAddress } = body
     if (!userToken) return err(res, 401, 'userToken required')
-    if (!bridgeAmt || !toChain) return err(res, 400, 'amount and toChain required')
+    if (!bridgeAmt || !walletId) return err(res, 400, 'amount and walletId required')
+    const amountMicro = Math.floor(parseFloat(bridgeAmt) * 1e6).toString()
 
-    // Resolve agent wallet address from UCW
+    // CCTP V2 destination domains
+    const DEST_DOMAINS: Record<string, number> = {
+      'ETH-SEPOLIA': 0, 'AVAX-FUJI': 1, 'OP-SEPOLIA': 2, 'ARB-SEPOLIA': 3,
+      'BASE-SEPOLIA': 6, 'MATIC-AMOY': 7, 'ARC-TESTNET': 26, 'UNI-SEPOLIA': 16,
+    }
+    const destDomain = destinationDomain
+      ? parseInt(destinationDomain, 10)
+      : (DEST_DOMAINS[(toChain ?? '').toUpperCase()] ?? 6) // default Base Sepolia
+
+    // Resolve agent wallet address
     let agentAddress: string | undefined
+    let resolvedWalletId = walletId
     try {
       const wallets = await client.listWallets({ userToken })
-      const aw = (wallets.data?.wallets ?? []).find(w =>
-        w.blockchain?.toLowerCase().includes('arc') || w.blockchain?.toLowerCase().includes('testnet')
-      ) ?? wallets.data?.wallets?.[0]
+      const aw = wallets.data?.wallets?.find(w => w.id === walletId)
+        ?? wallets.data?.wallets?.find(w => w.blockchain?.toLowerCase().includes('arc'))
+        ?? wallets.data?.wallets?.[0]
       agentAddress = aw?.address
+      if (aw) resolvedWalletId = aw.id
     } catch { /* leave undefined */ }
     if (!agentAddress) return err(res, 400, 'Agent wallet address not found')
 
-    const host = (req.headers.host as string) ?? 'localhost:3001'
-    const proto = host.includes('localhost') ? 'http' : 'https'
-    const isServerless = !host.includes('localhost') && !host.includes('127.0.0.1')
-    if (isServerless) {
-      return res.status(200).json({ ok: false, error: 'Agent bridge requires the Circle App Kit server (CIRCLE_DEVELOPER_CONTROLLED_API_KEY + CIRCLE_ENTITY_SECRET). Set these env vars and redeploy.' })
-    }
+    const recipient = recipientAddress ?? agentAddress
+    // Pad recipient address to bytes32 for CCTP
+    const recipientBytes32 = '0x' + '0'.repeat(24) + recipient.replace('0x', '')
+
+    // Step 1: approve TokenMessengerV2 to spend USDC
+    // ABI: approve(address spender, uint256 amount) → bool
     try {
-      const r = await fetch(`${proto}://${host}/api/appkit/bridge`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          walletAddress: agentAddress,
-          destChain: toChain,
-          destAddr: recipientAddress ?? agentAddress,
-          amount: bridgeAmt,
-        }),
-        signal: AbortSignal.timeout(30_000),
+      const approveRes = await client.createUserTransactionContractExecutionChallenge({
+        userToken,
+        walletId: resolvedWalletId,
+        contractAddress: ARC_TESTNET_USDC,
+        blockchain: ContractExecutionBlockchain.ArcTestnet,
+        abiFunctionSignature: 'approve(address,uint256)',
+        abiParameters: [ARC_TESTNET_TOKEN_MESSENGER_V2, amountMicro],
+        fee: { type: 'level', config: { feeLevel: 'MEDIUM' } },
+        idempotencyKey: randomUUID(),
       })
-      const d = await r.json() as { success?: boolean; pending?: boolean; state?: string; error?: string }
-      if (!d.success) return res.status(500).json({ error: d.error ?? 'Bridge failed' })
-      // Return step progress compatible with AgentBridgeTab
+      const challengeId = approveRes.data?.challengeId
+      if (!challengeId) throw new Error('No challengeId from approve')
       return res.status(200).json({
         ok: true,
-        pending: d.pending,
-        steps: [
-          { key: 'approve', status: 'done' },
-          { key: 'burn',    status: 'done' },
-          { key: 'attest',  status: 'done' },
-          { key: 'mint',    status: 'done' },
-        ],
+        step: 'approve',
+        challengeId,
+        // Pass through params needed for the burn step
+        burnParams: { walletId: resolvedWalletId, amountMicro, destDomain, recipientBytes32 },
       })
     } catch (e) {
-      return res.status(500).json({ error: e instanceof Error ? e.message : 'Bridge failed' })
+      return err(res, 500, e instanceof Error ? e.message : 'Bridge approve failed')
+    }
+  }
+
+  // ── bridge-burn — UCW depositForBurn after approve is signed ─────────────
+  if (action === 'bridge-burn') {
+    const userToken = (req.headers['x-user-token'] as string) ?? body.userToken
+    const { walletId, amountMicro, destDomain, recipientBytes32 } = body
+    if (!userToken) return err(res, 401, 'userToken required')
+    if (!walletId || !amountMicro || destDomain === undefined || !recipientBytes32) {
+      return err(res, 400, 'walletId, amountMicro, destDomain, recipientBytes32 required')
+    }
+    try {
+      // CCTP V2 depositForBurn(uint256 amount, uint32 destinationDomain, bytes32 mintRecipient, address burnToken)
+      const burnRes = await client.createUserTransactionContractExecutionChallenge({
+        userToken,
+        walletId,
+        contractAddress: ARC_TESTNET_TOKEN_MESSENGER_V2,
+        blockchain: ContractExecutionBlockchain.ArcTestnet,
+        abiFunctionSignature: 'depositForBurn(uint256,uint32,bytes32,address)',
+        abiParameters: [amountMicro, destDomain, recipientBytes32, ARC_TESTNET_USDC],
+        fee: { type: 'level', config: { feeLevel: 'MEDIUM' } },
+        idempotencyKey: randomUUID(),
+      })
+      const challengeId = burnRes.data?.challengeId
+      if (!challengeId) throw new Error('No challengeId from depositForBurn')
+      return res.status(200).json({ ok: true, step: 'burn', challengeId })
+    } catch (e) {
+      return err(res, 500, e instanceof Error ? e.message : 'Bridge burn failed')
     }
   }
 

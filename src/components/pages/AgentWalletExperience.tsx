@@ -584,13 +584,7 @@ function ErrorScreen({ message, onRetry, C }: { message: string; onRetry: () => 
 
 // ── SCREEN: Dashboard ─────────────────────────────────────────────────────────
 
-function SectionLabel({ label }: { label: string }) {
-  return (
-    <div style={{ fontSize: 11, fontWeight: 700, color: '#50556A', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10, marginTop: 4 }}>
-      {label}
-    </div>
-  )
-}
+
 
 function InfoRow({ label, value, mono, C }: { label: string; value: string; mono?: boolean; C: ReturnType<typeof useNanTheme> }) {
   return (

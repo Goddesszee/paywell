@@ -86,12 +86,12 @@ export function AgentSwapTab({ C }: Props) {
         }),
       })
       const d = await r.json() as {
-        ok?: boolean; error?: string; not_configured?: boolean
+        ok?: boolean; error?: string; not_configured?: boolean; not_available?: boolean
         quote?: QuoteResult
       }
-      if (d.not_configured) {
+      if (d.not_available || d.not_configured) {
         setStatus('error')
-        setErrMsg('Swap is not yet configured for this Agent Wallet. Add CIRCLE_API_KEY, CIRCLE_ENTITY_SECRET, AGENT_WALLET_ID, and AGENT_WALLET_ADDRESS to your environment variables.')
+        setErrMsg(d.error ?? 'Swap is not available for Agent Wallets on Arc Testnet. Use Bridge to move USDC cross-chain.')
         return
       }
       if (!r.ok || d.error || !d.quote) throw new Error(d.error ?? 'Quote failed')
@@ -138,9 +138,9 @@ export function AgentSwapTab({ C }: Props) {
         ok?: boolean; error?: string; not_configured?: boolean
         txHash?: string; toAmount?: string
       }
-      if (d.not_configured) {
+      if ((d as { not_available?: boolean }).not_available || d.not_configured) {
         setStatus('error')
-        setErrMsg('Swap backend not configured. Set CIRCLE_API_KEY, CIRCLE_ENTITY_SECRET, AGENT_WALLET_ID, and AGENT_WALLET_ADDRESS.')
+        setErrMsg((d as { error?: string }).error ?? 'Swap is not available for Agent Wallets on Arc Testnet. Use Bridge to move USDC cross-chain.')
         return
       }
       if (!r.ok || d.error) throw new Error(d.error ?? 'Swap failed')
