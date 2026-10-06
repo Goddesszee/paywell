@@ -40,6 +40,8 @@ export default defineConfig({
       'clsx',
       'tailwind-merge',
       'zustand',
+      'zustand/middleware',
+      'zustand/react',
       // Circle App Kit + adapters — pre-bundle so they share the same React instance
       // as the rest of the app (prevents "Invalid hook call" on lazy-loaded pages).
       '@circle-fin/app-kit',
@@ -73,9 +75,10 @@ export default defineConfig({
   server: {
     allowedHosts: true,
     cors: true,
-    // Fix HMR WebSocket in Arc Studio preview (proxied over HTTPS/WSS)
+    // Fix HMR WebSocket in Arc Studio preview (proxied over HTTPS/WSS).
+    // Do NOT hard-code host here — the session hostname changes between restarts.
+    // clientPort + protocol is enough: the browser uses window.location.host automatically.
     hmr: {
-      host: 'i4n8lt35843fmkwziwqf3.preview.studio.arc.io',
       clientPort: 443,
       protocol: 'wss',
     },
