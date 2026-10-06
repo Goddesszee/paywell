@@ -254,7 +254,7 @@ export function SwapPage() {
   const [errMsg,   setErrMsg]   = useState('')
   const [txHash,   setTxHash]   = useState('')
   const [explorerUrl, setExplorerUrl] = useState('')
-  const [slippageBps, setSlippageBps] = useState(100)
+  const [slippageBps, setSlippageBps] = useState(300) // 3% default per Circle App Kit docs
 
   const [showSellModal, setShowSellModal] = useState(false)
   const [showBuyModal,  setShowBuyModal]  = useState(false)

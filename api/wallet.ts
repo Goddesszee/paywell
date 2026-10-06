@@ -240,7 +240,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const estimate = await kit.estimateSwap({
         from: { adapter, chain: 'Arc_Testnet' },
         tokenIn, tokenOut, amountIn,
-        config: { slippageBps: slippageBps ? Number(slippageBps) : 100 },
+        // SCA wallets (UCW) must use 'approve' — USDC permit uses ecrecover which rejects SCA signatures
+        config: { slippageBps: slippageBps ? Number(slippageBps) : 300, allowanceStrategy: 'approve' },
       })
       return res.json({ estimate })
     } catch (e) {
@@ -281,7 +282,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       void kit.swap({
         from: { adapter, chain: 'Arc_Testnet' },
         tokenIn, tokenOut, amountIn,
-        config: { slippageBps: slippageBps ? Number(slippageBps) : 100 },
+        // SCA wallets (UCW) must use 'approve' — USDC permit uses ecrecover which rejects SCA signatures
+        config: { slippageBps: slippageBps ? Number(slippageBps) : 300, allowanceStrategy: 'approve' },
       }).catch(() => { /* handled by ucw-swap-confirm */ })
 
       // Wait up to 30s for the challenge to be issued
