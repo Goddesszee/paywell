@@ -7,7 +7,7 @@ import {
   Activity as ActivityIcon,
   ArrowUpRight, ArrowDownLeft, ChevronRight,
   ArrowDownToLine, Sparkles, Bot,
-  CheckCircle2, Clock, Bell, ShoppingBag,
+  CheckCircle2, Clock, ShoppingBag,
 } from 'lucide-react'
 import { useAppStore, ActivityItem } from '../../store/appStore'
 import { getUsdc } from '../../onchain-facts'
@@ -217,19 +217,8 @@ export function HomePage() {
           </div>
         </div>
 
-        {/* Right: bell + Add Money */}
+        {/* Right: Add Money */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-          <button
-            onClick={() => setActiveView('notifications')}
-            style={{
-              width: 38, height: 38, borderRadius: 12,
-              background: C.surf2, border: `1px solid ${C.bdr}`,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
-            }}
-          >
-            <Bell size={16} color={C.t2} strokeWidth={2} />
-          </button>
           <button
             onClick={() => setActiveView('onramp')}
             style={{
