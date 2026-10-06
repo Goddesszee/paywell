@@ -29,6 +29,7 @@ interface Props {
 }
 
 const CREDENTIAL_KEY = 'nan_passkey_credential'
+const CIRCLE_MODULAR_URL = 'https://modular-sdk.circle.com/v1/rpc/w3s/buidl'
 
 function getStoredCredential(): P256Credential | null {
   try {
@@ -46,11 +47,14 @@ export function CirclePasskeyLogin({ onBack, onSuccess }: Props) {
   const [hasExisting, setHasExisting] = useState(() => !!getStoredCredential())
 
   const clientKey = import.meta.env.VITE_CLIENT_KEY as string | undefined
-  const clientUrl = import.meta.env.VITE_CLIENT_URL as string | undefined
+  // VITE_CLIENT_URL must be https://modular-sdk.circle.com/v1/rpc/w3s/buidl
+  // Fall back to the canonical URL so the env var being wrong/missing doesn't break passkey.
+  const clientUrl = (import.meta.env.VITE_CLIENT_URL as string | undefined)
+    || 'https://modular-sdk.circle.com/v1/rpc/w3s/buidl'
 
   async function buildAccount(credential: P256Credential) {
-    if (!clientKey || !clientUrl) throw new Error('Modular Wallets not configured — add VITE_CLIENT_KEY to .env')
-    const modularTransport = toModularTransport(`${clientUrl}/arcTestnet`, clientKey)
+    if (!clientKey) throw new Error('VITE_CLIENT_KEY is not set. Add it in Circle Console → Client Keys.')
+    const modularTransport = toModularTransport(`${CIRCLE_MODULAR_URL}/arcTestnet`, clientKey)
     const publicClient = createPublicClient({ chain: arcTestnet, transport: modularTransport })
     const account = await toCircleSmartAccount({
       client: publicClient,
@@ -68,7 +72,7 @@ export function CirclePasskeyLogin({ onBack, onSuccess }: Props) {
     setStatus('loading')
     setErrorMsg('')
     try {
-      const passkeyTransport = toPasskeyTransport(clientUrl, clientKey)
+      const passkeyTransport = toPasskeyTransport(CIRCLE_MODULAR_URL, clientKey)
       const credential = await toWebAuthnCredential({
         transport: passkeyTransport,
         mode: WebAuthnMode.Register,
@@ -102,7 +106,7 @@ export function CirclePasskeyLogin({ onBack, onSuccess }: Props) {
     setStatus('loading')
     setErrorMsg('')
     try {
-      const passkeyTransport = toPasskeyTransport(clientUrl, clientKey)
+      const passkeyTransport = toPasskeyTransport(CIRCLE_MODULAR_URL, clientKey)
       const credential = await toWebAuthnCredential({
         transport: passkeyTransport,
         mode: WebAuthnMode.Login,
@@ -204,15 +208,13 @@ export function CirclePasskeyLogin({ onBack, onSuccess }: Props) {
  */
 export async function getPasskeyAdapter({
   clientKey,
-  clientUrl,
 }: {
   clientKey: string
-  clientUrl: string
 }) {
   const { createViemAdapterFromProvider } = await import('@circle-fin/adapter-viem-v2')
   const credential = getStoredCredential()
   if (!credential) throw new Error('No passkey credential found — please log in with your passkey first.')
-  const modularTransport = toModularTransport(`${clientUrl}/arcTestnet`, clientKey)
+  const modularTransport = toModularTransport(`${CIRCLE_MODULAR_URL}/arcTestnet`, clientKey)
   const publicClient = createPublicClient({ chain: arcTestnet, transport: modularTransport })
   const account = await toCircleSmartAccount({
     client: publicClient,
@@ -237,12 +239,10 @@ export async function getPasskeyAdapter({
 // Standalone hook — call this in WalletPage to send USDC from the passkey wallet
 export async function sendFromPasskeyWallet({
   clientKey,
-  clientUrl,
   to,
   amount,
 }: {
   clientKey: string
-  clientUrl: string
   to: `0x${string}`
   amount: bigint
 }): Promise<string> {
@@ -250,7 +250,7 @@ export async function sendFromPasskeyWallet({
   const credential = getStoredCredential()
   if (!credential) throw new Error('No passkey credential found. Please log in first.')
 
-  const modularTransport = toModularTransport(`${clientUrl}/arcTestnet`, clientKey)
+  const modularTransport = toModularTransport(`${CIRCLE_MODULAR_URL}/arcTestnet`, clientKey)
   const publicClient = createPublicClient({ chain: arcTestnet, transport: modularTransport })
   const account = await toCircleSmartAccount({
     client: publicClient,

@@ -56,8 +56,11 @@ export function SuggestionsPage() {
         headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
         body: JSON.stringify({ title, description, category }),
       })
-      const data = await res.json() as { success: boolean; error?: string }
-      if (!data.success) throw new Error(data.error ?? 'Failed')
+      const text = await res.text()
+      let data: { success: boolean; error?: string; message?: string }
+      try { data = JSON.parse(text) as typeof data }
+      catch { throw new Error(res.status === 503 ? 'Service temporarily unavailable — please try again shortly.' : `Server error (${res.status})`) }
+      if (!data.success) throw new Error(data.error ?? data.message ?? 'Failed')
       setDone(true)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Something went wrong.')

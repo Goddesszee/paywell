@@ -77,13 +77,19 @@ export function SupportPage() {
 
   const token = auth?.sessionToken
 
+  async function safeJson<T>(res: Response): Promise<T | null> {
+    const text = await res.text()
+    try { return JSON.parse(text) as T }
+    catch { return null }
+  }
+
   const fetchTickets = async () => {
     if (!token) return
     setLoading(true)
     try {
       const res = await fetch('/api/support/tickets', { headers: { authorization: `Bearer ${token}` } })
-      const data = await res.json() as { tickets: SupportTicket[] }
-      if (data.tickets) setTickets(data.tickets)
+      const data = await safeJson<{ tickets: SupportTicket[] }>(res)
+      if (data?.tickets) setTickets(data.tickets)
     } finally {
       setLoading(false)
     }
@@ -93,8 +99,8 @@ export function SupportPage() {
     if (!token) return
     try {
       const res = await fetch(`/api/support/tickets/${t.id}`, { headers: { authorization: `Bearer ${token}` } })
-      const data = await res.json() as { ticket: SupportTicket }
-      if (data.ticket) {
+      const data = await safeJson<{ ticket: SupportTicket }>(res)
+      if (data?.ticket) {
         setSelected(data.ticket)
         setTickets(prev => prev.map(x => x.id === t.id ? { ...x, hasUnreadAdmin: false } : x))
       }
@@ -118,7 +124,9 @@ export function SupportPage() {
         headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
         body: JSON.stringify({ subject: newSubject.trim(), message: newMessage.trim() }),
       })
-      const data = await res.json() as { ticket: SupportTicket }
+      const data = await safeJson<{ ticket: SupportTicket; success?: boolean; error?: string; message?: string }>(res)
+      if (!data) throw new Error(res.status === 503 ? 'Service temporarily unavailable — please try again shortly.' : `Server error (${res.status})`)
+      if (data.error ?? data.message) throw new Error(data.error ?? data.message)
       if (data.ticket) {
         setTickets(prev => [data.ticket, ...prev])
         setNewSubject('')
@@ -127,8 +135,8 @@ export function SupportPage() {
         setView('ticket')
         void fetchNotifications()
       }
-    } catch {
-      setError('Failed to submit. Please try again.')
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to submit. Please try again.')
     } finally {
       setSubmitLoading(false)
     }
@@ -143,8 +151,8 @@ export function SupportPage() {
         headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
         body: JSON.stringify({ message: replyText.trim() }),
       })
-      const data = await res.json() as { ticket: SupportTicket }
-      if (data.ticket) {
+      const data = await safeJson<{ ticket: SupportTicket }>(res)
+      if (data?.ticket) {
         setSelected(data.ticket)
         setTickets(prev => prev.map(x => x.id === data.ticket.id ? data.ticket : x))
         setReplyText('')

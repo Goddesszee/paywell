@@ -203,7 +203,7 @@ export function BridgePage() {
       if (fromChain.chainId !== 5042002) { setErrMsg('Passkey wallet bridge is only supported from Arc Testnet currently.'); setStatus('error'); return }
       try {
         updateStep('approve', { status: 'active' })
-        const adapter = await getPasskeyAdapter({ clientKey, clientUrl })
+        const adapter = await getPasskeyAdapter({ clientKey })
         const result = await appKit.bridge({
           from: { adapter, chain: fromChain.kitName as AppKitChain },
           to: {

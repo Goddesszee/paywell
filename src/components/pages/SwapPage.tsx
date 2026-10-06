@@ -301,7 +301,7 @@ export function SwapPage() {
       const clientKey = import.meta.env.VITE_CLIENT_KEY as string | undefined
       const clientUrl = import.meta.env.VITE_CLIENT_URL as string | undefined
       if (!clientKey || !clientUrl) throw new Error('Modular Wallets not configured (VITE_CLIENT_KEY missing)')
-      return getPasskeyAdapter({ clientKey, clientUrl })
+      return getPasskeyAdapter({ clientKey })
     }
     if (!connector) throw new Error('Wallet not connected')
     // Switch wallet to Arc Testnet before creating the adapter
