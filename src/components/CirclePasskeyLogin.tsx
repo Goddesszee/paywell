@@ -242,6 +242,15 @@ export async function getPasskeyAdapter({
       if (method === 'eth_chainId') {
         return `0x${arcTestnet.id.toString(16)}`
       }
+      // Chain switch requests — passkey MSCA is always on Arc Testnet.
+      // Return null (success) so App Kit doesn't throw when it tries to switch.
+      if (
+        method === 'wallet_switchEthereumChain' ||
+        method === 'wallet_addEthereumChain' ||
+        method === 'eth_switchEthereumChain'
+      ) {
+        return null
+      }
       if (method === 'eth_sendTransaction' || method === 'eth_signTypedData_v4' || method === 'personal_sign') {
         return walletClient.request({ method: method as never, params: p as never })
       }
