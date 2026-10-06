@@ -440,11 +440,11 @@ export function BridgePage() {
       {status==='error' && errMsg && (
         errMsg === 'SESSION_EXPIRED' ? (
           <div style={{ background:WH, border:`1px solid ${B}`, borderRadius:10, padding:'12px 14px', marginBottom:16, fontSize:13, color:T }}>
-            <div style={{ fontWeight:600, marginBottom:4 }}>Re-authentication needed</div>
-            <div style={{ fontSize:12, color:T2, marginBottom:10 }}>To sign bridge transactions, please log in again. Your wallet and balance are safe.</div>
-            <button onClick={() => { useAppStore.getState().setAuth({ ...useAppStore.getState().auth!, userToken: undefined, encryptionKey: undefined }); useAppStore.getState().setActiveView('login') }}
+            <div style={{ fontWeight:600, marginBottom:4 }}>PIN required</div>
+            <div style={{ fontSize:12, color:T2, marginBottom:10 }}>Enter your amount again and confirm with your Circle PIN. Your wallet and balance are safe.</div>
+            <button onClick={() => { setStatus('idle'); setErrMsg(''); setSteps(INITIAL_STEPS) }}
               style={{ padding:'7px 16px', background:BK, border:'none', borderRadius:8, color:'#fff', fontSize:13, fontWeight:600, cursor:'pointer', fontFamily:SANS }}>
-              Log in again
+              Try again
             </button>
           </div>
         ) : (

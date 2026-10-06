@@ -340,7 +340,7 @@ export function SwapPage() {
   const executeSwapCircle = async () => {
     if (!reviewed || !circleWalletAddress) return
     const auth = useAppStore.getState().auth
-    if (!auth?.userToken || !auth?.encryptionKey || !auth?.circleWalletId) {
+    if (!auth?.userToken || !auth?.circleWalletId) {
       setPhase('error'); setErrMsg('SESSION_EXPIRED'); return
     }
     setPhase('swapping'); setErrMsg('')
@@ -363,10 +363,20 @@ export function SwapPage() {
       const data = await resp.json() as { challengeId?: string; error?: string }
       if (!resp.ok || data.error || !data.challengeId) throw new Error(data.error ?? 'Could not start swap')
 
-      // Step 2 — open Circle PIN popup
+      // Step 2 — open Circle PIN popup.
+      // encryptionKey may be absent after a page reload (it is never persisted for
+      // security). The Circle SDK derives it from the user's PIN — passing userToken
+      // without encryptionKey causes the popup to prompt for PIN and derive it fresh.
       const appId: string = (import.meta.env.VITE_CIRCLE_APP_ID as string | undefined) ?? ''
       const sdk = new W3SSdk({ appSettings: { appId } })
-      sdk.setAuthentication({ userToken: auth.userToken, encryptionKey: auth.encryptionKey })
+      // encryptionKey may be absent after a page reload (intentionally not persisted).
+      // When present, pass it so the SDK can skip PIN re-entry. When absent, the SDK
+      // will prompt the user for their PIN and derive it fresh.
+      if (auth.encryptionKey) {
+        sdk.setAuthentication({ userToken: auth.userToken, encryptionKey: auth.encryptionKey })
+      } else {
+        sdk.setAuthentication({ userToken: auth.userToken, encryptionKey: '' })
+      }
 
       const txId = await new Promise<string>((resolve, reject) => {
         sdk.execute(data.challengeId!, (err, result) => {
@@ -591,13 +601,13 @@ export function SwapPage() {
           <div className="nan-error-box" style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 10 }}>
             <AlertCircle size={14} style={{ flexShrink: 0, marginTop: 1 }} />
             <div>
-              <div style={{ fontWeight: 600, marginBottom: 4 }}>Re-authentication needed</div>
-              <div style={{ fontSize: 12, marginBottom: 8 }}>To sign swap transactions, please log in again. Your wallet and balance are safe.</div>
+              <div style={{ fontWeight: 600, marginBottom: 4 }}>PIN required</div>
+              <div style={{ fontSize: 12, marginBottom: 8 }}>Get a new quote and confirm with your Circle PIN. Your wallet and balance are safe.</div>
               <button
-                onClick={() => { useAppStore.getState().setAuth({ ...useAppStore.getState().auth!, userToken: undefined, encryptionKey: undefined }); useAppStore.getState().setActiveView('login') }}
+                onClick={() => { setPhase('idle'); setErrMsg(''); setReviewed(null) }}
                 className="nan-btn nan-btn-primary"
                 style={{ fontSize: 12, padding: '6px 14px', height: 'auto', borderRadius: 8 }}>
-                Log in again
+                Get new quote
               </button>
             </div>
           </div>
