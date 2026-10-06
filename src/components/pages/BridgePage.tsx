@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
+import { W3SSdk } from '@circle-fin/w3s-pw-web-sdk'
 import { useAccount, useChainId, useSwitchChain } from 'wagmi'
 import { AppKit } from '@circle-fin/app-kit'
 import { createViemAdapterFromProvider } from '@circle-fin/adapter-viem-v2'
@@ -161,36 +162,77 @@ export function BridgePage() {
     setErrMsg('')
     setSteps(INITIAL_STEPS)
 
-    // ── Circle user path: server-side bridge via dev-controlled wallets (nan pattern) ─
+    // ── Circle UCW user path (email / Google login) — PIN popup via W3SSdk ───
     if (isCircleUser && wagmiAddress === undefined) {
-      const userAddress = auth?.circleWalletAddress
+      const authState = useAppStore.getState().auth
+      const userAddress = authState?.circleWalletAddress
       if (!userAddress) { setErrMsg('No Circle wallet address found.'); setStatus('error'); return }
+      if (!authState?.userToken || !authState?.circleWalletId) { setErrMsg('Session expired — please log in again.'); setStatus('error'); return }
       if (fromChain.chainId !== 5042002) { setErrMsg('Circle wallet bridge is only supported from Arc Testnet. Connect a browser wallet to bridge from other chains.'); setStatus('error'); return }
       try {
         updateStep('approve', { status: 'active' })
-        const resp = await fetch('/api/appkit/bridge', {
+
+        // Step 1 — get bridge challengeId from server
+        const startResp = await fetch('/api/wallet', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
+            action: 'ucw-bridge-start',
+            userToken: authState.userToken,
             walletAddress: userAddress,
+            walletId: authState.circleWalletId,
             destChain: toChain.kitName,
-            destAddr: userAddress,
             amount,
           }),
         })
-        const data = await resp.json() as { success?: boolean; pending?: boolean; state?: string; burnTxHash?: string; error?: string }
-        if (!resp.ok || data.error || data.success === false) throw new Error(data.error ?? 'Bridge failed')
-        // nan pattern: bridge is non-blocking — Circle's Orbit forwarder handles mint
-        // Mark all steps done since the server confirmed submission
+        const startData = await startResp.json() as { challengeId?: string; error?: string }
+        if (!startResp.ok || startData.error || !startData.challengeId) throw new Error(startData.error ?? 'Bridge start failed')
+
         updateStep('approve', { status: 'done' })
-        updateStep('burn', { status: 'done', txHash: data.burnTxHash })
-        updateStep('fetchAttestation', { status: 'done' })
-        updateStep('mint', { status: 'done' })
+        updateStep('burn', { status: 'active' })
+
+        // Step 2 — open Circle PIN popup
+        const appId = (import.meta.env.VITE_CIRCLE_APP_ID as string | undefined) ?? ''
+        const sdk = new W3SSdk({ appSettings: { appId } })
+        if (authState.encryptionKey) {
+          sdk.setAuthentication({ userToken: authState.userToken, encryptionKey: authState.encryptionKey })
+        } else {
+          sdk.setAuthentication({ userToken: authState.userToken, encryptionKey: '' })
+        }
+
+        const txId = await new Promise<string>((resolve, reject) => {
+          sdk.execute(startData.challengeId!, (err, result) => {
+            if (err) { reject(new Error(err instanceof Error ? err.message : 'PIN approval failed')); return }
+            const r = result as { data?: { transactionHash?: string; transactionId?: string } }
+            resolve(r?.data?.transactionHash ?? r?.data?.transactionId ?? '')
+          })
+        })
+
+        updateStep('burn', { status: 'done', txHash: txId })
+        updateStep('fetchAttestation', { status: 'active' })
+
+        // Step 3 — poll until confirmed
+        if (txId) {
+          const confirmResp = await fetch('/api/wallet', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'ucw-bridge-confirm', userToken: authState.userToken, transactionId: txId }),
+          })
+          const confirmData = await confirmResp.json() as { success?: boolean; txHash?: string; error?: string }
+          if (!confirmResp.ok || confirmData.error) throw new Error(confirmData.error ?? 'Bridge confirm failed')
+          updateStep('fetchAttestation', { status: 'done' })
+          updateStep('mint', { status: 'done', txHash: confirmData.txHash })
+        } else {
+          updateStep('fetchAttestation', { status: 'done' })
+          updateStep('mint', { status: 'done' })
+        }
+
         setStatus('done')
-        addActivity({ type:'bridge', description:`Bridge to ${toChain.label}`, amount:gross, sign:'-', status:'confirmed', counterparty:toChain.label, txHash: data.burnTxHash })
+        addActivity({ type: 'bridge', description: `Bridge to ${toChain.label}`, amount: gross, sign: '-', status: 'confirmed', counterparty: toChain.label, txHash: txId })
       } catch (e: unknown) {
         setStatus('error')
         setErrMsg(e instanceof Error ? e.message : 'Bridge failed.')
+        setSteps(prev => prev.map(s => s.status === 'active' ? { ...s, status: 'error' } : s))
       }
       return
     }

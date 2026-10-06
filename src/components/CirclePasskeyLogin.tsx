@@ -226,7 +226,9 @@ export async function getPasskeyAdapter({
     transport: modularTransport,
   })
   // Build a minimal EIP-1193 provider that implements the methods createViemAdapterFromProvider
-  // needs: eth_requestAccounts, eth_accounts, plus all other calls forwarded to the bundler.
+  // needs: eth_requestAccounts, eth_accounts, signing methods, plus all read calls forwarded
+  // to the bundler transport via the public client.
+  const transport = modularTransport({ chain: arcTestnet })
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const provider: import('viem').EIP1193Provider = {
     on: () => {},
@@ -243,8 +245,9 @@ export async function getPasskeyAdapter({
       if (method === 'eth_sendTransaction' || method === 'eth_signTypedData_v4' || method === 'personal_sign') {
         return walletClient.request({ method: method as never, params: p as never })
       }
-      return modularTransport({ chain: arcTestnet })
-        .request({ method, params: p as never[] })
+      // Forward all other RPC calls (eth_call, eth_getBlockByNumber, eth_estimateGas, etc.)
+      // directly through the transport's request function.
+      return transport.request({ method, params: p as never[] })
     },
   } as import('viem').EIP1193Provider
   return createViemAdapterFromProvider({ provider })
