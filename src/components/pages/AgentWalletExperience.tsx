@@ -945,7 +945,9 @@ function ActionDrawer({ view, agentAddress, onClose, C }: {
         headers: { 'Content-Type': 'application/json', 'x-user-token': userToken },
         body: JSON.stringify({ action: 'send', userToken, walletId, to: to.trim(), amount }),
       })
-      const d = await r.json() as { ok?: boolean; challengeId?: string; error?: string }
+      const text = await r.text()
+      let d: { ok?: boolean; challengeId?: string; error?: string }
+      try { d = JSON.parse(text) as typeof d } catch { throw new Error(`Server error: ${text.slice(0, 120)}`) }
       if (!r.ok || !d.ok || !d.challengeId) throw new Error(d.error ?? 'Send failed')
       // Open Circle PIN popup to sign the transaction
       if (!_agentSdk) throw new Error('SDK not initialised — please reload')
