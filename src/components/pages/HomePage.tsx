@@ -13,7 +13,7 @@ import { useAppStore, ActivityItem } from '../../store/appStore'
 import { getUsdc } from '../../onchain-facts'
 import { useNanTheme, NanTheme } from '../../hooks/useNanTheme'
 import { TokenLogo } from '../ui/TokenLogo'
-import { useSyncMultiChainBalances } from '../../hooks/useMultiChainBalances'
+import { useMultiChainBalances, useSyncMultiChainBalances } from '../../hooks/useMultiChainBalances'
 
 const F    = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif"
 const MONO = "'JetBrains Mono', 'SF Mono', Menlo, monospace"
@@ -154,9 +154,12 @@ export function HomePage() {
 
   const usdcNum       = rawBalance !== undefined ? Number(rawBalance) / 1e6 : 0
   const eurcNum       = rawEurc    !== undefined ? Number(rawEurc)    / 1e6 : 0
-  const totalNum      = usdcNum + eurcNum
-  const formatted     = totalNum.toFixed(2)
   const eurcFormatted = eurcNum.toFixed(2)
+
+  // Cross-chain USDC total (Arc + all other testnet chains)
+  const { total: crossChainTotal } = useMultiChainBalances(address)
+  const totalNum  = parseFloat(crossChainTotal) + eurcNum
+  const formatted = totalNum.toFixed(2)
 
 
   const [hidden,   setHidden]   = useState(false)
@@ -166,10 +169,10 @@ export function HomePage() {
   /* eslint-enable react/set-state-in-effect */
 
   useEffect(() => {
-    if (rawBalance !== undefined && address) {
-      setMainWalletBalance(usdcNum.toFixed(2), address)
+    if (address && parseFloat(crossChainTotal) > 0) {
+      setMainWalletBalance(formatted, address)
     }
-  }, [rawBalance, address, usdcNum, setMainWalletBalance])
+  }, [crossChainTotal, eurcNum, address, formatted, setMainWalletBalance])
 
   useSyncMultiChainBalances(address, setCrossChainBalances)
 
