@@ -118,9 +118,7 @@ export function HomePage() {
   const formatted     = totalNum.toFixed(2)
   const eurcFormatted = eurcNum.toFixed(2)
 
-  // Agent Wallet balance (fetched once on mount)
-  const { agentWallet } = useAppStore()
-  const agentBalance = agentWallet?.balance ?? null
+  const agentBalance = agentWallet?.balance_usdc ?? null
 
   const [hidden, setHidden] = useState(false)
   const [hydrated, setHydrated] = useState(false)
