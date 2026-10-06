@@ -165,10 +165,28 @@ export function BridgePage() {
     // ── Circle UCW user path (email / Google login) — PIN popup via W3SSdk ───
     if (isCircleUser && wagmiAddress === undefined) {
       const authState = useAppStore.getState().auth
-      const userAddress = authState?.circleWalletAddress
-      if (!userAddress) { setErrMsg('No Circle wallet address found.'); setStatus('error'); return }
-      if (!authState?.userToken || !authState?.circleWalletId) { setErrMsg('Session expired — please log in again.'); setStatus('error'); return }
+      if (!authState?.userToken) { setErrMsg('Session expired — please log in again.'); setStatus('error'); return }
       if (fromChain.chainId !== 5042002) { setErrMsg('Circle wallet bridge is only supported from Arc Testnet. Connect a browser wallet to bridge from other chains.'); setStatus('error'); return }
+
+      // Resolve walletId + address — fetch fresh if not cached (handles older login sessions)
+      let resolvedWalletId = authState.circleWalletId
+      let resolvedAddress  = authState.circleWalletAddress
+      if (!resolvedWalletId || !resolvedAddress) {
+        try {
+          const wr = await fetch('/api/wallet', { headers: { 'x-user-token': authState.userToken } })
+          const wd = await wr.json() as { wallets?: { id: string; address: string }[] }
+          const w  = wd.wallets?.[0]
+          resolvedWalletId = w?.id
+          resolvedAddress  = w?.address
+          if (resolvedWalletId && resolvedAddress) {
+            useAppStore.getState().setAuth({ ...authState, circleWalletId: resolvedWalletId, circleWalletAddress: resolvedAddress, walletAddress: resolvedAddress, walletId: resolvedWalletId })
+          }
+        } catch { /* ignore — will fail at bridge-start with a clearer error */ }
+      }
+      const userAddress = resolvedAddress
+      const walletId    = resolvedWalletId
+      if (!userAddress || !walletId) { setErrMsg('Could not load Circle wallet — please log out and log in again.'); setStatus('error'); return }
+
       try {
         updateStep('approve', { status: 'active' })
 
@@ -180,7 +198,7 @@ export function BridgePage() {
             action: 'ucw-bridge-start',
             userToken: authState.userToken,
             walletAddress: userAddress,
-            walletId: authState.circleWalletId,
+            walletId,
             destChain: toChain.kitName,
             amount,
           }),
