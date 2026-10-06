@@ -275,32 +275,6 @@ export function HomePage() {
           <div style={{ fontSize: 10, fontWeight: 600, color: '#6B9FFF' }}>Agent Wallet</div>
         </button>
 
-        {/* NAN Agent button card */}
-        <button
-          onClick={() => setActiveView('agent')}
-          style={{
-            flexShrink: 0, width: 110,
-            background: C.surf, border: `1px solid ${C.bdr}`,
-            borderRadius: 16,
-            padding: '12px 12px 10px', cursor: 'pointer', fontFamily: F,
-            WebkitTapHighlightColor: 'transparent', textAlign: 'left',
-          }}
-        >
-          <div style={{ marginBottom: 7 }}>
-            <div style={{
-              width: 28, height: 28, borderRadius: 8,
-              background: 'rgba(0,102,255,0.12)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              <Sparkles size={14} color={BLUE} strokeWidth={2} />
-            </div>
-          </div>
-          <div style={{ fontSize: 13, fontWeight: 800, color: C.text, marginBottom: 6, letterSpacing: '-0.01em' }}>
-            NAN Agent
-          </div>
-          <div style={{ fontSize: 10, fontWeight: 600, color: BLUE }}>AI Assistant</div>
-        </button>
-
         {/* Remaining tokens */}
         {[
           { token: 'USDT', label: 'USDT', symbol: '$', value: '0.00', view: 'swap', accent: '#26A17B' },
@@ -330,9 +304,37 @@ export function HomePage() {
 
       {/* ── Primary actions ── */}
       <div style={{ display: 'flex', justifyContent: 'space-around', marginBottom: 16 }}>
-        <ActionBtn Icon={Send}            label="Send"    primary onClick={() => setActiveView('send')}    C={C} />
-        <ActionBtn Icon={ArrowDownToLine} label="Receive"         onClick={() => setActiveView('receive')} C={C} />
-        <ActionBtn Icon={ArrowLeftRight}  label="Convert"         onClick={() => setActiveView('swap')}    C={C} />
+        <ActionBtn Icon={Send}            label="Send"      primary onClick={() => setActiveView('send')}    C={C} />
+        <ActionBtn Icon={ArrowDownToLine} label="Receive"           onClick={() => setActiveView('receive')} C={C} />
+        <ActionBtn Icon={ArrowLeftRight}  label="Convert"           onClick={() => setActiveView('swap')}    C={C} />
+        <ActionBtn Icon={Sparkles}        label="NAN Agent"         onClick={() => setActiveView('agent')}   C={C} />
+      </div>
+
+      {/* ── Quick actions ── */}
+      <div style={{ marginBottom: 14 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 10 }}>Quick actions</div>
+
+        {/* Agent Wallet card */}
+        <button
+          onClick={() => setActiveView('agent-wallet')}
+          style={{
+            width: '100%', padding: '16px 18px', borderRadius: 18, marginBottom: 10,
+            border: '1px solid rgba(0,102,255,0.28)',
+            background: 'linear-gradient(135deg, rgba(0,102,255,0.14) 0%, rgba(0,102,255,0.05) 100%)',
+            cursor: 'pointer', fontFamily: F, WebkitTapHighlightColor: 'transparent',
+            display: 'flex', alignItems: 'center', gap: 14,
+            boxShadow: '0 4px 20px rgba(0,102,255,0.10)',
+          }}
+        >
+          <div style={{ width: 48, height: 48, borderRadius: 14, flexShrink: 0, background: BLUE, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 14px rgba(0,102,255,0.4)' }}>
+            <Wallet size={22} color="#fff" strokeWidth={1.8} />
+          </div>
+          <div style={{ textAlign: 'left', flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 15, fontWeight: 800, color: C.text, letterSpacing: '-0.02em', marginBottom: 2 }}>Agent Wallet</div>
+            <div style={{ fontSize: 12, color: C.t2 }}>Give your AI agent a wallet to pay for approved services</div>
+          </div>
+          <ChevronRight size={16} color={BLUE} strokeWidth={2.5} />
+        </button>
       </div>
 
       {/* ── Recent activity ── */}
