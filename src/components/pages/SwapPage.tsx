@@ -17,7 +17,9 @@ const CHAIN_KEY = 'Arc_Testnet'
 // Addresses on Arc Testnet (chainId 5042002). null = native/no ERC-20 on this chain.
 const TOKEN_META: Record<string, { label: string; color: string; address: `0x${string}` | null; decimals: number; logo: string; arcUnsupported?: boolean }> = {
   USDC:  { label: 'USD Coin',        color: '#2775CA', address: '0x3600000000000000000000000000000000000000', decimals: 6,  logo: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48/logo.png' },
-  EURC:  { label: 'Euro Coin',       color: '#0099CC', address: '0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a', decimals: 6,  logo: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x1aBaEA1f7C830bD89Acc67eC4af516284b1bC33c/logo.png' },
+  EURC:  { label: 'Euro Coin',        color: '#0099CC', address: '0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a', decimals: 6,  logo: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x1aBaEA1f7C830bD89Acc67eC4af516284b1bC33c/logo.png' },
+  // cirBTC is live on Arc Testnet — confirmed address from Circle docs
+  cirBTC:{ label: 'Circle Wrapped BTC', color: '#F7931A', address: '0xf0C4a4CE82A5746AbAAd9425360Ab04fbBA432BF', decimals: 8, logo: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599/logo.png' },
   // Tokens below have no deployed contract on Arc Testnet — they are shown in
   // the selector for cross-chain awareness but flagged as unavailable on this chain.
   USDT:  { label: 'Tether USD',       color: '#26A17B', address: null, decimals: 6,  logo: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xdAC17F958D2ee523a2206206994597C13D831ec7/logo.png',  arcUnsupported: true },
@@ -244,8 +246,9 @@ export function SwapPage() {
   React.useEffect(() => {
     if (!swapPrefill) return
     if (swapPrefill.amount) setAmountIn(swapPrefill.amount)
-    if (swapPrefill.fromToken && (swapPrefill.fromToken === 'USDC' || swapPrefill.fromToken === 'EURC')) setTokenIn(swapPrefill.fromToken)
-    if (swapPrefill.toToken   && (swapPrefill.toToken   === 'USDC' || swapPrefill.toToken   === 'EURC')) setTokenOut(swapPrefill.toToken)
+    const supported = ['USDC', 'EURC', 'cirBTC']
+    if (swapPrefill.fromToken && supported.includes(swapPrefill.fromToken)) setTokenIn(swapPrefill.fromToken)
+    if (swapPrefill.toToken   && supported.includes(swapPrefill.toToken))   setTokenOut(swapPrefill.toToken)
     setSwapPrefill(null)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -273,10 +276,8 @@ export function SwapPage() {
   const arcNoPair = (tokenIn === 'USDC' && tokenOut === 'NATIVE') || (tokenIn === 'NATIVE' && tokenOut === 'USDC')
   const sameToken = tokenIn === tokenOut
   const arcUnsupportedPair = !!(TOKEN_META[tokenIn]?.arcUnsupported || TOKEN_META[tokenOut]?.arcUnsupported)
-  // EURC → USDC has no LiFi route on Arc Testnet (confirmed Circle bug — only USDC → EURC direction works).
-  // USDC → EURC is fine and should be allowed through.
-  const noLifiRoute = tokenIn === 'EURC' && tokenOut === 'USDC'
-  const invalid   = sameToken || arcNoPair || arcUnsupportedPair || noLifiRoute
+  // All 3 Arc Testnet tokens (USDC, EURC, cirBTC) route in both directions per Circle docs.
+  const invalid   = sameToken || arcNoPair || arcUnsupportedPair
   // Passkey users sign client-side; Circle email/Google users go server-side
   const canReview = (isConnected || isCircleUser || isPasskeyUser) && !!amountIn && parseFloat(amountIn) > 0 && !invalid
 
@@ -567,7 +568,7 @@ export function SwapPage() {
       </div>
 
       {/* ── Warnings ── */}
-      {(sameToken || arcNoPair || arcUnsupportedPair || noLifiRoute) && (
+      {(sameToken || arcNoPair || arcUnsupportedPair) && (
         <div className="nan-warn-box" style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 10 }}>
           <AlertCircle size={14} style={{ flexShrink: 0, marginTop: 1 }} />
           <span>
@@ -575,9 +576,7 @@ export function SwapPage() {
               ? 'USDC and NATIVE are the same asset on Arc.'
               : sameToken
               ? 'Choose different tokens to swap.'
-              : noLifiRoute
-              ? <span>EURC → USDC is not available on Arc Testnet (known routing gap). <button onClick={flipTokens} style={{ background: 'none', border: 'none', cursor: 'pointer', color: c.blue, fontWeight: 700, fontSize: 'inherit', padding: 0, fontFamily: 'inherit' }}>Flip to USDC → EURC</button> instead.</span>
-              : `${TOKEN_META[tokenIn]?.arcUnsupported ? tokenIn : tokenOut} is not available on Arc Testnet. Bridge to another chain to trade it.`}
+              : `${TOKEN_META[tokenIn]?.arcUnsupported ? tokenIn : tokenOut} is not available on Arc Testnet. Only USDC, EURC, and cirBTC can be swapped here.`}
           </span>
         </div>
       )}
@@ -642,7 +641,6 @@ export function SwapPage() {
             : !isConnected && !isCircleUser && !isPasskeyUser ? 'Connect wallet to swap'
             : !amountIn || parseFloat(amountIn) === 0 ? 'Enter an amount'
             : arcUnsupportedPair ? 'Token not available on Arc Testnet'
-            : noLifiRoute ? 'EURC → USDC not available — flip pair'
             : invalid ? 'Select different tokens'
             : 'Get quote'}
         </button>
