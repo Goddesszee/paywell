@@ -135,6 +135,7 @@ export interface AgentWalletState {
   balance_usdc: string
   lastRefreshed?: string
   userToken?: string
+  encryptionKey?: string
   blockchain?: string
   accountType?: string
   custodyType?: string
@@ -496,6 +497,8 @@ export const useAppStore = create<AppState>()(
         // for the full login session. Swap estimation works with userToken alone;
         // swap execution needs encryptionKey too and will prompt re-login if missing.
         if (p.auth) p.auth = { ...p.auth, encryptionKey: undefined }
+        // agentWallet.encryptionKey must also never survive a reload
+        if (p.agentWallet) p.agentWallet = { ...p.agentWallet, encryptionKey: undefined }
         return {
           ...current,
           ...p,

@@ -924,19 +924,58 @@ function ActionDrawer({ view, agentAddress, onClose, C }: {
   onClose: () => void
   C: ReturnType<typeof useNanTheme>
 }) {
-  const [copied, setCopied] = useState(false)
-  const [to, setTo]         = useState('')
-  const [amount, setAmount] = useState('')
-  const [err, setErr]       = useState('')
+  const { agentWallet, addActivity } = useAppStore()
+  const [copied, setCopied]   = useState(false)
+  const [to, setTo]           = useState('')
+  const [amount, setAmount]   = useState('')
+  const [err, setErr]         = useState('')
+  const [sending, setSending] = useState(false)
+  const [sendDone, setSendDone] = useState(false)
+  const [sendTx, setSendTx]   = useState('')
 
   const copy = () => {
     navigator.clipboard.writeText(agentAddress).catch(() => {})
     setCopied(true); setTimeout(() => setCopied(false), 2000)
   }
 
-  const submitSend = () => {
+  const submitSend = async () => {
     if (!to.trim() || !amount.trim() || parseFloat(amount) <= 0) { setErr('Enter a valid recipient and amount'); return }
-    setErr(''); onClose()
+    if (!/^0x[0-9a-fA-F]{40}$/.test(to.trim())) { setErr('Invalid recipient address — must be a 0x Ethereum address'); return }
+    const userToken = agentWallet.userToken
+    const walletId  = agentWallet.walletId
+    if (!userToken || !walletId) { setErr('Agent Wallet session expired — please re-authenticate'); return }
+    setErr(''); setSending(true)
+    try {
+      const r = await fetch('/api/agent-wallet', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-user-token': userToken },
+        body: JSON.stringify({ action: 'send', userToken, walletId, to: to.trim(), amount }),
+      })
+      const d = await r.json() as { ok?: boolean; challengeId?: string; error?: string }
+      if (!r.ok || !d.ok || !d.challengeId) throw new Error(d.error ?? 'Send failed')
+      // Open Circle PIN popup to sign the transaction
+      if (!_agentSdk) throw new Error('SDK not initialised — please reload')
+      _agentSdk.setAuthentication({ userToken, encryptionKey: agentWallet.encryptionKey ?? '' })
+      _agentSdk.execute(d.challengeId, (execErr, execResult) => {
+        setSending(false)
+        if (execErr) { setErr('Transaction signing failed — please try again'); return }
+        const tx = (execResult as { txHash?: string } | null)?.txHash ?? ''
+        setSendTx(tx)
+        setSendDone(true)
+        addActivity({
+          type: 'sent',
+          description: `Agent Send → ${to.trim().slice(0, 8)}…${to.trim().slice(-4)}`,
+          amount: parseFloat(amount),
+          sign: '-',
+          status: 'confirmed',
+          counterparty: to.trim(),
+          txHash: tx || undefined,
+        })
+      })
+    } catch (e) {
+      setSending(false)
+      setErr(e instanceof Error ? e.message : 'Send failed')
+    }
   }
 
   const themeColors = { bg: C.bg ?? 'var(--nan-bg)', surf: C.surf, surf2: C.surf2, bdr: C.bdr, text: C.text, t2: C.t2, t3: C.t3 }
@@ -962,28 +1001,53 @@ function ActionDrawer({ view, agentAddress, onClose, C }: {
 
     if (view === 'send') return (
       <div>
-        <div style={{ fontSize: 12, color: C.t3, fontFamily: MONO, marginBottom: 18 }}>From: {agentAddress.slice(0,10)}••••{agentAddress.slice(-6)}</div>
-        <div style={{ marginBottom: 12 }}>
-          <div style={{ fontSize: 11, fontWeight: 600, color: C.t2, textTransform: 'uppercase' as const, letterSpacing: '0.05em', marginBottom: 5 }}>Recipient address</div>
-          <input placeholder="0x..." value={to} onChange={e => setTo(e.target.value)}
-            style={{ width: '100%', boxSizing: 'border-box' as const, padding: '11px 14px', border: `1px solid ${C.bdr}`, borderRadius: 10, fontFamily: MONO, fontSize: 13, color: C.text, background: C.surf2, outline: 'none' }} />
-        </div>
-        <div style={{ marginBottom: 16 }}>
-          <div style={{ fontSize: 11, fontWeight: 600, color: C.t2, textTransform: 'uppercase' as const, letterSpacing: '0.05em', marginBottom: 5 }}>Amount (USDC)</div>
-          <div style={{ position: 'relative' as const }}>
-            <input placeholder="0.00" type="number" min="0" step="0.01" value={amount} onChange={e => setAmount(e.target.value)}
-              style={{ width: '100%', boxSizing: 'border-box' as const, padding: '11px 56px 11px 14px', border: `1px solid ${C.bdr}`, borderRadius: 10, fontFamily: F, fontSize: 16, fontWeight: 700, color: C.text, background: C.surf2, outline: 'none' }} />
-            <span style={{ position: 'absolute' as const, right: 14, top: '50%', transform: 'translateY(-50%)', fontSize: 12, fontWeight: 700, color: C.t2 }}>USDC</span>
+        {sendDone ? (
+          <div style={{ textAlign: 'center', paddingTop: 16 }}>
+            <div style={{ width: 60, height: 60, borderRadius: 18, margin: '0 auto 16px', background: 'rgba(0,200,83,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid rgba(0,200,83,0.3)' }}>
+              <Check size={28} color={GREEN} strokeWidth={2} />
+            </div>
+            <div style={{ fontSize: 16, fontWeight: 800, color: C.text, marginBottom: 6 }}>Sent!</div>
+            <div style={{ fontSize: 13, color: C.t2, marginBottom: 4 }}>{amount} USDC sent to</div>
+            <div style={{ fontSize: 12, fontFamily: MONO, color: C.t3, marginBottom: 20, wordBreak: 'break-all' as const }}>{to}</div>
+            {sendTx && (
+              <div style={{ fontSize: 11, color: BLUE, fontFamily: MONO, marginBottom: 20 }}>
+                Tx: {sendTx.slice(0, 14)}…{sendTx.slice(-6)}
+              </div>
+            )}
+            <button onClick={onClose} style={{ width: '100%', height: 46, background: BLUE, color: '#fff', border: 'none', borderRadius: 12, fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: F }}>Done</button>
           </div>
-        </div>
-        {err && <div style={{ fontSize: 12, color: RED, marginBottom: 10 }}>{err}</div>}
-        <div style={{ fontSize: 12, color: C.t3, marginBottom: 16, lineHeight: 1.5 }}>For gas-free agent execution, use the AI chat to automate payments.</div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button onClick={onClose} style={{ flex: 1, height: 46, background: 'transparent', color: C.t2, border: `1px solid ${C.bdr}`, borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: F }}>Cancel</button>
-          <button onClick={submitSend} style={{ flex: 2, height: 46, background: BLUE, color: '#fff', border: 'none', borderRadius: 12, fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-            <ArrowRight size={15} /> Continue
-          </button>
-        </div>
+        ) : (
+          <>
+            <div style={{ fontSize: 12, color: C.t3, fontFamily: MONO, marginBottom: 18 }}>From: {agentAddress.slice(0,10)}••••{agentAddress.slice(-6)}</div>
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: C.t2, textTransform: 'uppercase' as const, letterSpacing: '0.05em', marginBottom: 5 }}>Recipient address</div>
+              <input placeholder="0x..." value={to} onChange={e => setTo(e.target.value)} disabled={sending}
+                style={{ width: '100%', boxSizing: 'border-box' as const, padding: '11px 14px', border: `1px solid ${C.bdr}`, borderRadius: 10, fontFamily: MONO, fontSize: 13, color: C.text, background: C.surf2, outline: 'none' }} />
+            </div>
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: C.t2, textTransform: 'uppercase' as const, letterSpacing: '0.05em', marginBottom: 5 }}>Amount (USDC)</div>
+              <div style={{ position: 'relative' as const }}>
+                <input placeholder="0.00" type="number" min="0" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} disabled={sending}
+                  style={{ width: '100%', boxSizing: 'border-box' as const, padding: '11px 56px 11px 14px', border: `1px solid ${C.bdr}`, borderRadius: 10, fontFamily: F, fontSize: 16, fontWeight: 700, color: C.text, background: C.surf2, outline: 'none' }} />
+                <span style={{ position: 'absolute' as const, right: 14, top: '50%', transform: 'translateY(-50%)', fontSize: 12, fontWeight: 700, color: C.t2 }}>USDC</span>
+              </div>
+            </div>
+            {err && <div style={{ fontSize: 12, color: RED, marginBottom: 10 }}>{err}</div>}
+            {sending && (
+              <div style={{ fontSize: 12, color: BLUE, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Loader size={13} style={{ animation: 'aw-spin 1s linear infinite' }} /> Circle PIN popup opening — sign to send…
+              </div>
+            )}
+            <div style={{ fontSize: 12, color: C.t3, marginBottom: 16, lineHeight: 1.5 }}>A Circle PIN popup will appear to authorise the transaction.</div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={onClose} disabled={sending} style={{ flex: 1, height: 46, background: 'transparent', color: C.t2, border: `1px solid ${C.bdr}`, borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: sending ? 'not-allowed' : 'pointer', fontFamily: F }}>Cancel</button>
+              <button onClick={() => void submitSend()} disabled={sending || !to.trim() || !amount || parseFloat(amount) <= 0}
+                style={{ flex: 2, height: 46, background: sending || !to.trim() || !amount ? C.surf2 : BLUE, color: sending || !to.trim() || !amount ? C.t3 : '#fff', border: 'none', borderRadius: 12, fontSize: 14, fontWeight: 700, cursor: sending || !to.trim() || !amount ? 'not-allowed' : 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                {sending ? <><Loader size={14} style={{ animation: 'aw-spin 1s linear infinite' }} /> Sending…</> : <><ArrowRight size={15} /> Send USDC</>}
+              </button>
+            </div>
+          </>
+        )}
       </div>
     )
 
@@ -1510,6 +1574,7 @@ export function AgentWalletExperience() {
             balance_usdc: '0',
             lastRefreshed: new Date().toISOString(),
             userToken: loginRes.userToken,
+            encryptionKey: loginRes.encryptionKey,
           })
           setNewAddress(d.address)
           setNewWalletId(d.walletId ?? '')
