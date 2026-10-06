@@ -113,7 +113,7 @@ export function DashboardPage() {
     functionName: 'balanceOf',
     args: address ? [address] : undefined,
     chainId: ARC,
-    query: { enabled: !!address && !!usdcFact },
+    query: { enabled: !!address && !!usdcFact, refetchInterval: 15_000 },
   })
 
   const formatted = rawBalance !== undefined

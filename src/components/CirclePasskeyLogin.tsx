@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { createPublicClient, createWalletClient, custom } from 'viem'
+import { createPublicClient, createWalletClient } from 'viem'
 import { arcTestnet } from 'viem/chains'
 import {
   type P256Credential,
@@ -220,20 +220,34 @@ export async function getPasskeyAdapter({
     client: publicClient,
     owner: toWebAuthnAccount({ credential }),
   })
-  // Build a WalletClient backed by the smart account and expose it as an EIP-1193
-  // provider so @circle-fin/adapter-viem-v2 createViemAdapterFromProvider can use it.
   const walletClient = createWalletClient({
     account,
     chain: arcTestnet,
-    transport: custom({
-      async request({ method, params }: { method: string; params?: unknown[] }): Promise<unknown> {
-        return modularTransport({ chain: arcTestnet })
-          .request({ method, params: params as never[] }) as Promise<unknown>
-      },
-    }),
+    transport: modularTransport,
   })
-  // createViemAdapterFromProvider accepts any EIP-1193-like object; walletClient satisfies it
-  return createViemAdapterFromProvider({ provider: walletClient as unknown as import('viem').EIP1193Provider })
+  // Build a minimal EIP-1193 provider that implements the methods createViemAdapterFromProvider
+  // needs: eth_requestAccounts, eth_accounts, plus all other calls forwarded to the bundler.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const provider: import('viem').EIP1193Provider = {
+    on: () => {},
+    removeListener: () => {},
+    request: async (args: { method: string; params?: unknown }): Promise<unknown> => {
+      const { method, params } = args
+      const p = params as unknown[] | undefined
+      if (method === 'eth_requestAccounts' || method === 'eth_accounts') {
+        return [account.address]
+      }
+      if (method === 'eth_chainId') {
+        return `0x${arcTestnet.id.toString(16)}`
+      }
+      if (method === 'eth_sendTransaction' || method === 'eth_signTypedData_v4' || method === 'personal_sign') {
+        return walletClient.request({ method: method as never, params: p as never })
+      }
+      return modularTransport({ chain: arcTestnet })
+        .request({ method, params: p as never[] })
+    },
+  } as import('viem').EIP1193Provider
+  return createViemAdapterFromProvider({ provider })
 }
 
 // Standalone hook — call this in WalletPage to send USDC from the passkey wallet
