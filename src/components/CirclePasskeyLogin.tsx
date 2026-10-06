@@ -214,13 +214,13 @@ export async function getPasskeyAdapter({
   const { createViemAdapterFromProvider } = await import('@circle-fin/adapter-viem-v2')
   const credential = getStoredCredential()
   if (!credential) throw new Error('No passkey credential found — please log in with your passkey first.')
-  const { http } = await import('viem')
-  // Use the public Arc Testnet RPC for all JSON-RPC reads.
-  // The modular transport is a bundler endpoint (ERC-4337) — it only handles
-  // signing/sending via sendUserOperation, NOT standard eth_call/eth_getBalance etc.
-  const httpTransport = http(arcTestnet.rpcUrls.default.http[0])
+  // Per Circle docs, toModularTransport handles BOTH bundler (ERC-4337) calls
+  // AND standard JSON-RPC reads (eth_call, eth_getBalance, etc.) for supported chains.
+  // createPublicClient must use modularTransport — never a bare public HTTP RPC URL —
+  // so that all RPC traffic is routed through Circle's reliable endpoint.
+  // Reference: https://developers.circle.com/wallets/modular/create-a-modular-wallet
   const modularTransport = toModularTransport(`${CIRCLE_MODULAR_URL}/arcTestnet`, clientKey)
-  const publicClient = createPublicClient({ chain: arcTestnet, transport: httpTransport })
+  const publicClient = createPublicClient({ chain: arcTestnet, transport: modularTransport })
   const account = await toCircleSmartAccount({
     client: publicClient,
     owner: toWebAuthnAccount({ credential }),
@@ -230,7 +230,6 @@ export async function getPasskeyAdapter({
     chain: arcTestnet,
     transport: modularTransport,
   })
-  const readTransport = httpTransport({ chain: arcTestnet })
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const provider: import('viem').EIP1193Provider = {
@@ -259,9 +258,9 @@ export async function getPasskeyAdapter({
         return walletClient.request({ method: method as never, params: p as never })
       }
       // All other read calls (eth_call, eth_getBalance, eth_getBlockByNumber,
-      // eth_estimateGas, eth_getTransactionReceipt, etc.) go through the standard
-      // Arc Testnet HTTP RPC — the bundler endpoint does not support these.
-      return readTransport.request({ method, params: p as never[] })
+      // eth_estimateGas, eth_getTransactionReceipt, etc.) are handled by the
+      // modular transport — Circle's endpoint supports full JSON-RPC reads.
+      return publicClient.transport.request({ method, params: p as never[] })
     },
   } as import('viem').EIP1193Provider
   return createViemAdapterFromProvider({ provider })
