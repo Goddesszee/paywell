@@ -273,7 +273,9 @@ export function SwapPage() {
   const arcNoPair = (tokenIn === 'USDC' && tokenOut === 'NATIVE') || (tokenIn === 'NATIVE' && tokenOut === 'USDC')
   const sameToken = tokenIn === tokenOut
   const arcUnsupportedPair = !!(TOKEN_META[tokenIn]?.arcUnsupported || TOKEN_META[tokenOut]?.arcUnsupported)
-  const invalid   = sameToken || arcNoPair || arcUnsupportedPair
+  // USDC↔EURC has no LiFi route on Arc Testnet — no DEX liquidity pool exists there yet.
+  const noLifiRoute = (tokenIn === 'USDC' && tokenOut === 'EURC') || (tokenIn === 'EURC' && tokenOut === 'USDC')
+  const invalid   = sameToken || arcNoPair || arcUnsupportedPair || noLifiRoute
   // Passkey users sign client-side; Circle email/Google users go server-side
   const canReview = (isConnected || isCircleUser || isPasskeyUser) && !!amountIn && parseFloat(amountIn) > 0 && !invalid
 
@@ -564,12 +566,16 @@ export function SwapPage() {
       </div>
 
       {/* ── Warnings ── */}
-      {(sameToken || arcNoPair || arcUnsupportedPair) && (
-        <div className="nan-warn-box" style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-          <AlertCircle size={14} />
+      {(sameToken || arcNoPair || arcUnsupportedPair || noLifiRoute) && (
+        <div className="nan-warn-box" style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 10 }}>
+          <AlertCircle size={14} style={{ flexShrink: 0, marginTop: 1 }} />
           <span>
-            {arcNoPair ? 'USDC and NATIVE are the same asset on Arc.'
-              : sameToken ? 'Choose different tokens to swap.'
+            {arcNoPair
+              ? 'USDC and NATIVE are the same asset on Arc.'
+              : sameToken
+              ? 'Choose different tokens to swap.'
+              : noLifiRoute
+              ? 'USDC ↔ EURC swaps are not available on Arc Testnet (no DEX liquidity pool yet). To convert between them, bridge your USDC to Base Sepolia and swap there.'
               : `${TOKEN_META[tokenIn]?.arcUnsupported ? tokenIn : tokenOut} is not available on Arc Testnet. Bridge to another chain to trade it.`}
           </span>
         </div>
@@ -635,6 +641,7 @@ export function SwapPage() {
             : !isConnected && !isCircleUser && !isPasskeyUser ? 'Connect wallet to swap'
             : !amountIn || parseFloat(amountIn) === 0 ? 'Enter an amount'
             : arcUnsupportedPair ? 'Token not available on Arc Testnet'
+            : noLifiRoute ? 'No route on Arc Testnet — bridge first'
             : invalid ? 'Select different tokens'
             : 'Get quote'}
         </button>
