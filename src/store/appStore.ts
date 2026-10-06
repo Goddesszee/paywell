@@ -14,6 +14,8 @@ export interface PaywellAuth {
   encryptionKey?: string
   circleWalletAddress?: string
   circleWalletId?: string
+  /** Set when the user logged in via Circle Modular Wallet (passkey/WebAuthn) */
+  isPasskeyUser?: boolean
 }
 
 // ── Recurring Payment Task ─────────────────────────────────────────────────

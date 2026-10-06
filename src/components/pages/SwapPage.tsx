@@ -5,6 +5,7 @@ import { createViemAdapterFromProvider } from '@circle-fin/adapter-viem-v2'
 import { erc20Abi, type EIP1193Provider } from 'viem'
 import { ArrowDown, Settings, CheckCircle, ExternalLink, RefreshCw, AlertCircle, X, Search } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
+import { getPasskeyAdapter } from '../CirclePasskeyLogin'
 import { swapFee, SWAP_FEE_BPS, bpsToPercent } from '../../lib/fees'
 import { useNanTheme } from '../../hooks/useNanTheme'
 
@@ -220,9 +221,11 @@ export function SwapPage() {
   const { connector, isConnected, address: wagmiAddress } = useAccount()
   const auth = useAppStore(s => s.auth)
   const circleWalletAddress = auth?.circleWalletAddress as `0x${string}` | undefined
-  const isCircleUser = !wagmiAddress && !!circleWalletAddress
-  // Use wagmi address for connected wallets; fall back to Circle wallet address
-  const address = wagmiAddress ?? (isCircleUser ? circleWalletAddress : undefined)
+  const isPasskeyUser = !wagmiAddress && !!auth?.isPasskeyUser
+  // Passkey users sign client-side (MSCA); email/Google users go server-side
+  const isCircleUser = !wagmiAddress && !!circleWalletAddress && !isPasskeyUser
+  // Use wagmi address for connected wallets; fall back to Circle/passkey wallet address
+  const address = wagmiAddress ?? ((isCircleUser || isPasskeyUser) ? circleWalletAddress : undefined)
   const chainId = useChainId()
   const { switchChainAsync } = useSwitchChain()
   const addActivity = useAppStore(s => s.addActivity)
@@ -270,8 +273,8 @@ export function SwapPage() {
   const sameToken = tokenIn === tokenOut
   const arcUnsupportedPair = !!(TOKEN_META[tokenIn]?.arcUnsupported || TOKEN_META[tokenOut]?.arcUnsupported)
   const invalid   = sameToken || arcNoPair || arcUnsupportedPair
-  // Circle users can swap when they have a wallet address (server-side path)
-  const canReview = (isConnected || isCircleUser) && !!amountIn && parseFloat(amountIn) > 0 && !invalid
+  // Passkey users sign client-side; Circle email/Google users go server-side
+  const canReview = (isConnected || isCircleUser || isPasskeyUser) && !!amountIn && parseFloat(amountIn) > 0 && !invalid
 
   // Display address: prefer connected wagmi wallet, fall back to Circle wallet
   const displayAddress = address ?? circleWalletAddress ?? ''
@@ -289,6 +292,13 @@ export function SwapPage() {
   }, [balIn])
 
   const getAdapter = async () => {
+    // Passkey (MSCA) path — sign client-side via Circle Modular Wallets
+    if (isPasskeyUser) {
+      const clientKey = import.meta.env.VITE_CLIENT_KEY as string | undefined
+      const clientUrl = import.meta.env.VITE_CLIENT_URL as string | undefined
+      if (!clientKey || !clientUrl) throw new Error('Modular Wallets not configured (VITE_CLIENT_KEY missing)')
+      return getPasskeyAdapter({ clientKey, clientUrl })
+    }
     if (!connector) throw new Error('Wallet not connected')
     // Switch wallet to Arc Testnet before creating the adapter
     if (chainId !== CHAIN_ID) await switchChainAsync({ chainId: CHAIN_ID })
@@ -566,7 +576,7 @@ export function SwapPage() {
           style={{ height: 54, borderRadius: 14, background: canReview ? c.blue : c.surf2, color: canReview ? '#fff' : c.t3, border: `1px solid ${canReview ? c.blue : c.bdr}`, fontSize: 15, fontWeight: 700, cursor: canReview ? 'pointer' : 'not-allowed', transition: 'all 0.15s' }}>
           {phase === 'estimating' ? <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}><span className="nan-spinner" />Getting quote…</span>
             : phase === 'swapping' ? <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}><span className="nan-spinner" />Swapping…</span>
-            : !isConnected && !isCircleUser ? 'Connect wallet to swap'
+            : !isConnected && !isCircleUser && !isPasskeyUser ? 'Connect wallet to swap'
             : !amountIn || parseFloat(amountIn) === 0 ? 'Enter an amount'
             : arcUnsupportedPair ? 'Token not available on Arc Testnet'
             : invalid ? 'Select different tokens'

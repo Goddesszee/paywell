@@ -46,7 +46,7 @@ export function LoginPage() {
   // ── Passkey / modular wallet success ──────────────────────────────────────
   const onPasskeySuccess = (walletAddress: string) => {
     const token = btoa(`passkey:${walletAddress}:${Date.now()}`)
-    setAuth({ email: walletAddress, sessionToken: token, walletAddress, walletId: walletAddress, circleWalletAddress: walletAddress })
+    setAuth({ email: walletAddress, sessionToken: token, walletAddress, walletId: walletAddress, circleWalletAddress: walletAddress, isPasskeyUser: true })
     setActiveView(profile.displayName ? 'home' : 'name')
   }
 

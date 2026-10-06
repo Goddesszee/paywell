@@ -5,6 +5,7 @@ import { createViemAdapterFromProvider } from '@circle-fin/adapter-viem-v2'
 import type { EIP1193Provider } from 'viem'
 import { ArrowLeftRight, ArrowDownUp, CheckCircle, ExternalLink, Loader, Info } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
+import { getPasskeyAdapter } from '../CirclePasskeyLogin'
 import { bridgeFee, BRIDGE_FEE_BPS, bpsToPercent, BRIDGE_FEE_MIN_USDC } from '../../lib/fees'
 
 
@@ -67,7 +68,9 @@ interface LiveFee { bps: number; label: string; fetched: boolean }
 export function BridgePage() {
   const { connector, isConnected, address: wagmiAddress } = useAccount()
   const auth = useAppStore(s => s.auth)
-  const isCircleUser = !wagmiAddress && !!auth?.circleWalletAddress
+  const isPasskeyUser = !wagmiAddress && !!auth?.isPasskeyUser
+  // Passkey users sign client-side (MSCA); email/Google users go server-side
+  const isCircleUser = !wagmiAddress && !!auth?.circleWalletAddress && !isPasskeyUser
   const chainId = useChainId()
   const { switchChainAsync } = useSwitchChain()
   const addActivity = useAppStore(s => s.addActivity)
@@ -187,6 +190,55 @@ export function BridgePage() {
       return
     }
 
+    // ── Passkey (MSCA) path — sign client-side via Circle Modular Wallets ──────
+    const clientKey = import.meta.env.VITE_CLIENT_KEY as string | undefined
+    const clientUrl = import.meta.env.VITE_CLIENT_URL as string | undefined
+    if (isPasskeyUser) {
+      if (!clientKey || !clientUrl) { setErrMsg('Modular Wallets not configured (VITE_CLIENT_KEY missing)'); setStatus('error'); return }
+      if (fromChain.chainId !== 5042002) { setErrMsg('Passkey wallet bridge is only supported from Arc Testnet currently.'); setStatus('error'); return }
+      try {
+        updateStep('approve', { status: 'active' })
+        const adapter = await getPasskeyAdapter({ clientKey, clientUrl })
+        const result = await appKit.bridge({
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          from: { adapter, chain: fromChain.kitName as any },
+          to: {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            chain: toChain.kitName as any,
+            recipientAddress: auth?.circleWalletAddress as string,
+            useForwarder: true,
+          },
+          amount,
+        })
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const resultAny = result as any
+        for (const step of result.steps ?? []) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const stepAny = step as any
+          updateStep(step.name as StepName, {
+            status: step.state === 'success' ? 'done' : step.state === 'error' ? 'error' : 'idle',
+            txHash: step.txHash,
+          })
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+          if (step.state === 'error') setErrMsg(String(stepAny.error ?? stepAny.message ?? step.name + ' failed').slice(0, 200))
+        }
+        const topState = resultAny.state as string | undefined
+        const allStepsDone = (result.steps ?? []).filter(s => s.name !== 'mint').every(s => s.state === 'success')
+        if (topState === 'success' || topState === 'pending' || allStepsDone) {
+          setStatus('done')
+          addActivity({ type: 'bridge', description: `Bridge to ${toChain.label}`, amount: gross, sign: '-', status: 'confirmed', counterparty: toChain.label })
+        } else {
+          setStatus('error')
+          if (!errMsg) setErrMsg('Bridge did not complete. Check your passkey wallet balance.')
+        }
+      } catch (e: unknown) {
+        setStatus('error')
+        setErrMsg(e instanceof Error ? e.message : 'Bridge failed.')
+        setSteps(prev => prev.map(s => s.status === 'active' ? { ...s, status: 'error' } : s))
+      }
+      return
+    }
+
     // ── Wagmi browser wallet path ───────────────────────────────────────────
     if (!connector || !isConnected) return
     try {
@@ -258,7 +310,7 @@ export function BridgePage() {
 
   const reset = () => { setStatus('idle'); setSteps(INITIAL_STEPS); setAmount('') }
 
-  if (!isConnected && !isCircleUser) return (
+  if (!isConnected && !isCircleUser && !isPasskeyUser) return (
     <div style={{ padding:32, textAlign:'center', fontFamily:SANS, color:T2 }}>Connect your wallet to bridge USDC</div>
   )
 

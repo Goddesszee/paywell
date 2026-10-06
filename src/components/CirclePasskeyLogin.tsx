@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { createPublicClient } from 'viem'
+import { createPublicClient, createWalletClient, custom } from 'viem'
 import { arcTestnet } from 'viem/chains'
 import {
   type P256Credential,
@@ -194,6 +194,47 @@ export function CirclePasskeyLogin({ onBack, onSuccess }: Props) {
       </div>
     </div>
   )
+}
+
+/**
+ * getPasskeyAdapter — returns a viem adapter backed by the stored passkey
+ * credential so SwapPage / BridgePage can sign transactions client-side
+ * without routing through the server-side Circle DCW path.
+ *
+ * Usage:
+ *   const adapter = await getPasskeyAdapter({ clientKey, clientUrl })
+ *   await appKit.swap({ from: { adapter, chain: 'Arc_Testnet' }, ... })
+ */
+export async function getPasskeyAdapter({
+  clientKey,
+  clientUrl,
+}: {
+  clientKey: string
+  clientUrl: string
+}) {
+  const { createViemAdapterFromProvider } = await import('@circle-fin/adapter-viem-v2')
+  const credential = getStoredCredential()
+  if (!credential) throw new Error('No passkey credential found — please log in with your passkey first.')
+  const modularTransport = toModularTransport(`${clientUrl}/arcTestnet`, clientKey)
+  const publicClient = createPublicClient({ chain: arcTestnet, transport: modularTransport })
+  const account = await toCircleSmartAccount({
+    client: publicClient,
+    owner: toWebAuthnAccount({ credential }),
+  })
+  // Build a WalletClient backed by the smart account and expose it as an EIP-1193
+  // provider so @circle-fin/adapter-viem-v2 createViemAdapterFromProvider can use it.
+  const walletClient = createWalletClient({
+    account,
+    chain: arcTestnet,
+    transport: custom({
+      async request({ method, params }: { method: string; params?: unknown[] }) {
+        return modularTransport({ chain: arcTestnet })
+          .request({ method, params: params as never[] })
+      },
+    }),
+  })
+  // createViemAdapterFromProvider accepts any EIP-1193-like object; walletClient satisfies it
+  return createViemAdapterFromProvider({ provider: walletClient as unknown as import('viem').EIP1193Provider })
 }
 
 // Standalone hook — call this in WalletPage to send USDC from the passkey wallet
