@@ -240,13 +240,30 @@ export async function getPasskeyAdapter({
     transport: modularTransport,
   })
 
-  // Step 3: Circle's EIP1193Provider wrapping bundlerClient + readClient
+  // Step 3: Circle's EIP1193Provider wrapping bundlerClient + readClient.
+  // Important: EIP1193Provider.request() returns a full JSON-RPC envelope
+  // { jsonrpc, id, result } rather than a bare result value. The viem-based
+  // createViemAdapterFromProvider expects a standard EIP-1193 provider where
+  // request() returns the bare result. Wrap with a shim that unwraps .result.
   const eip1193Provider = new EIP1193Provider(bundlerClient, readClient)
 
-  // Step 4 / 5: createViemAdapterFromProvider with Circle's EIP1193Provider.
-  // The provider wraps the bundler client so sendTransaction calls are routed
-  // through sendUserOperation automatically — no hand-rolled dispatch needed.
-  return createViemAdapterFromProvider({ provider: eip1193Provider })
+  const viemCompatibleProvider = {
+    on: eip1193Provider.on?.bind(eip1193Provider) ?? (() => {}),
+    removeListener: eip1193Provider.removeListener?.bind(eip1193Provider) ?? (() => {}),
+    request: async (args: { method: string; params?: unknown[] }): Promise<unknown> => {
+      // EIP1193Provider.request returns a full JSON-RPC envelope { jsonrpc, id, result }.
+      // viem adapters expect the bare result, so unwrap here.
+      const envelope = (await eip1193Provider.request({
+        jsonrpc: '2.0',
+        id: Date.now(),
+        method: args.method,
+        params: args.params,
+      })) as { result: unknown }
+      return envelope.result
+    },
+  }
+
+  return createViemAdapterFromProvider({ provider: viemCompatibleProvider as import('viem').EIP1193Provider })
 }
 
 // Standalone hook — call this in WalletPage to send USDC from the passkey wallet
