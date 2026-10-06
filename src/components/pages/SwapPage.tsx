@@ -268,10 +268,6 @@ export function SwapPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const appKit = React.useMemo(() => { appKitRef.current ??= new AppKit(); return appKitRef.current }, [])
 
-  // Circle API key passed per-call on swap/estimateSwap so requests run against
-  // a per-project rate limit instead of the shared anonymous quota.
-  const CIRCLE_API_KEY = import.meta.env.VITE_CIRCLE_API_KEY as string | undefined
-
   const balIn  = useTokenBalance(tokenIn,  address)
   const balOut = useTokenBalance(tokenOut, address)
 
@@ -420,10 +416,11 @@ export function SwapPage() {
   // ── Normalise raw Circle service errors into friendly messages ───────────
   const friendlySwapError = (e: unknown): string => {
     const msg = e instanceof Error ? e.message : String(e)
-    if (msg.toLowerCase().includes('no route') || msg.toLowerCase().includes('route or resource not found'))
-      return `No swap route found for ${tokenIn} → ${tokenOut} on Arc Testnet right now. Circle's swap service may not yet support this pair on testnet. Try again later or bridge to a mainnet chain to swap there.`
+    if (msg.toLowerCase().includes('no route') || msg.toLowerCase().includes('route or resource not found') || msg.toLowerCase().includes('no swap route'))
+      return `No swap route available for ${tokenIn} → ${tokenOut} on Arc Testnet right now. Circle's swap liquidity is occasionally unavailable on testnet — please wait a few seconds and try again.`
     if (msg.toLowerCase().includes('insufficient')) return `Insufficient balance to swap ${amountIn} ${tokenIn}.`
     if (msg.toLowerCase().includes('slippage')) return `Price moved too much. Try raising the slippage tolerance in settings.`
+    if (msg.toLowerCase().includes('validation failed') && msg.toLowerCase().includes('apikey')) return `Swap configuration error. Please refresh the page and try again.`
     return msg
   }
 
@@ -437,7 +434,7 @@ export function SwapPage() {
       const estimate = await appKit.estimateSwap({
         from: { adapter, chain: CHAIN_KEY },
         tokenIn, tokenOut, amountIn,
-        config: { slippageBps, ...(CIRCLE_API_KEY ? { apiKey: CIRCLE_API_KEY } : {}) },
+        config: { slippageBps },
       })
       setReviewed({ estimate, tokenIn, tokenOut, amountIn, slippageBps, account: address })
       setPhase('reviewed')
@@ -457,7 +454,7 @@ export function SwapPage() {
         from: { adapter, chain: CHAIN_KEY },
         tokenIn:  reviewed.tokenIn, tokenOut: reviewed.tokenOut,
         amountIn: reviewed.amountIn,
-        config: { slippageBps: reviewed.slippageBps, ...(CIRCLE_API_KEY ? { apiKey: CIRCLE_API_KEY } : {}) },
+        config: { slippageBps: reviewed.slippageBps },
       })
       const rHash = (result as { txHash?: string }).txHash ?? ''
       const rUrl  = (result as { explorerUrl?: string }).explorerUrl ?? ''
