@@ -134,7 +134,10 @@ export function AgentBridgeTab({ C }: Props) {
           recipientAddress: agentWallet.address,
         }),
       })
-      const approveData = await approveRes.json() as { ok?: boolean; step?: string; challengeId?: string; error?: string }
+      const approveData = await approveRes.json() as {
+        ok?: boolean; step?: string; challengeId?: string; error?: string
+        burnParams?: { walletId: string; amountMicro: string; destDomain: number; recipientBytes32: string }
+      }
       if (!approveRes.ok || approveData.error) throw new Error(approveData.error ?? 'Approve request failed')
       if (!approveData.challengeId) throw new Error('No challengeId for approve step')
 
@@ -143,16 +146,23 @@ export function AgentBridgeTab({ C }: Props) {
       updateStep('approve', { status: 'done', txHash: approveExec.txHash })
 
       // Step 2 — depositForBurn (CCTP burn)
+      // Use burnParams passed back by the approve step — they contain the
+      // pre-computed walletId, amountMicro, destDomain, and recipientBytes32
+      // that the backend already resolved. Sending raw fields here would give
+      // the backend undefined values and trigger "API parameter invalid".
       updateStep('burn', { status: 'active' })
+      const bp = approveData.burnParams
+      if (!bp) throw new Error('Approve step did not return burnParams — please retry')
       const burnRes = await fetch('/api/agent-wallet', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-user-token': userToken },
         body: JSON.stringify({
           action: 'bridge-burn',
-          userToken, walletId, amount,
-          toChain: toChain.kitName,
-          destinationDomain: toChain.cctpDomain,
-          recipientAddress: agentWallet.address,
+          userToken,
+          walletId:        bp.walletId,
+          amountMicro:     bp.amountMicro,
+          destDomain:      bp.destDomain,
+          recipientBytes32: bp.recipientBytes32,
         }),
       })
       const burnData = await burnRes.json() as { ok?: boolean; step?: string; challengeId?: string; error?: string }
