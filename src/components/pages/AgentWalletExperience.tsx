@@ -1448,7 +1448,7 @@ export function AgentWalletExperience() {
 
   if (screen === 'detect') {
     return (
-      <div style={{ maxWidth: 480, width: '100%', margin: '0 auto', padding: 0, fontFamily: F, boxSizing: 'border-box' }}>
+      <div style={{ width: '100%', minHeight: '100%', padding: 0, fontFamily: F, boxSizing: 'border-box' }}>
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 320 }}>
           <svg width="28" height="28" viewBox="0 0 28 28" style={{ animation: 'aw-spin 0.9s linear infinite' }}>
             <circle cx="14" cy="14" r="11" fill="none" stroke="rgba(0,102,255,0.2)" strokeWidth="3" />
@@ -1474,7 +1474,7 @@ export function AgentWalletExperience() {
         }
       `}</style>
 
-      <div style={{ maxWidth: 480, width: '100%', margin: '0 auto', padding: 0, fontFamily: F, boxSizing: 'border-box', overflowX: 'hidden' }}>
+      <div style={{ width: '100%', minHeight: '100%', padding: 0, fontFamily: F, boxSizing: 'border-box', overflowX: 'hidden' }}>
         {/* header */}
         {showBack && (
           <BackButton onBack={() => { if (screen === 'setup') setScreen('edu'); else setActiveView('home') }} C={C} />
