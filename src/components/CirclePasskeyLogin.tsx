@@ -235,12 +235,24 @@ export async function getPasskeyAdapter({
   const arcRpcUrl = (import.meta.env.VITE_ARC_RPC_URL as string | undefined) || 'https://rpc.testnet.arc.io'
 
   // ViemAdapter with getPublicClient / getWalletClient — Circle's documented adapter pattern.
-  // getPublicClient uses the Arc HTTP RPC for all read calls.
-  // getWalletClient uses the modular transport (bundler) so MSCA user-ops are submitted correctly.
+  // getPublicClient uses the Arc HTTP RPC for all read calls (separate from the bundler endpoint).
+  // getWalletClient uses the modular transport so MSCA user-ops are submitted correctly.
+  //
+  // switchChain is overridden as a no-op: the MSCA is always on Arc Testnet and the modular
+  // transport does not implement wallet_switchEthereumChain. ViemAdapter.switchToChain calls
+  // walletClient.switchChain internally — without this override it throws
+  // "The method you're trying to call is not implemented".
   const adapter = new ViemAdapter(
     {
       getPublicClient: ({ chain }) => createPublicClient({ chain, transport: http(arcRpcUrl) }),
-      getWalletClient: ({ chain }) => createWalletClient({ account, chain, transport: modularTransport }),
+      getWalletClient: ({ chain }) => {
+        const wc = createWalletClient({ account, chain, transport: modularTransport })
+        // Extend with a no-op switchChain so ViemAdapter.switchToChain doesn't throw
+        return {
+          ...wc,
+          switchChain: () => Promise.resolve(undefined),
+        }
+      },
     },
     {
       addressContext: 'user-controlled',
