@@ -19,7 +19,11 @@
     },
     "api/community.ts": {
       "memory": 512,
-      "maxDuration": 15
+      "maxDuration": 20
+    },
+    "api/support.ts": {
+      "memory": 256,
+      "maxDuration": 10
     }
   },
   "headers": [

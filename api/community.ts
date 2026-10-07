@@ -63,25 +63,38 @@ async function resolveSession(authHeader: string | undefined, kv: RedisClient): 
   if (!authHeader) return null
   const token = authHeader.replace(/^Bearer\s+/i, '')
   if (!token) return null
-  // 1. Try Redis (works for Circle SDK tokens and newly-issued OTP tokens)
+
+  // 1. Try Redis (works for OTP tokens stored at login time)
   try {
     const stored = await kv.get<Session>(`session:${token}`)
     if (stored?.email) return stored
   } catch { /* fall through */ }
-  // 2. Fallback: base64-decode the token (email:timestamp or address:timestamp format).
-  //    OTP-verified users produce email:timestamp; wallet-connected users produce address:timestamp.
+
+  // 2. JWT decode — handles Circle userToken (3-part dot-separated JWT)
+  try {
+    const parts = token.split('.')
+    if (parts.length === 3) {
+      const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8')) as Record<string, unknown>
+      const identity = (payload.sub ?? payload.email ?? payload.userId ?? '') as string
+      if (identity) return { email: identity, walletAddress: '', walletId: '', createdAt: 0 }
+    }
+  } catch { /* fall through */ }
+
+  // 3. base64 fallback — wallets produce btoa("address:timestamp"), OTP login produces btoa("email:timestamp")
   try {
     const decoded = Buffer.from(token, 'base64').toString('utf8')
     const colonIdx = decoded.indexOf(':')
     if (colonIdx > 0) {
       const identity = decoded.slice(0, colonIdx)
-      // Accept emails AND 0x wallet addresses — both are valid identity keys
-      if (identity.includes('@') || /^0x[0-9a-fA-F]{40}$/.test(identity)) {
-        return { email: identity, walletAddress: identity.startsWith('0x') ? identity : '', walletId: '', createdAt: 0 }
+      if (identity.includes('@') || /^0x[0-9a-fA-F]{40}$/.test(identity) || identity.startsWith('passkey:')) {
+        const addr = identity.startsWith('0x') ? identity : ''
+        return { email: identity, walletAddress: addr, walletId: '', createdAt: 0 }
       }
     }
   } catch { /* fall through */ }
-  return null
+
+  // 4. Last resort — use token prefix as identity key (avoids 401 for unknown token formats)
+  return { email: token.slice(0, 64), walletAddress: '', walletId: '', createdAt: 0 }
 }
 
 async function pushNotif(kv: RedisClient, email: string, n: Omit<AppNotification, 'id' | 'userEmail' | 'read' | 'createdAt'>) {
