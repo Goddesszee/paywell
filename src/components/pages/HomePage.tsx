@@ -14,6 +14,7 @@ import { getUsdc } from '../../onchain-facts'
 import { useNanTheme, NanTheme } from '../../hooks/useNanTheme'
 import { TokenLogo } from '../ui/TokenLogo'
 import { useMultiChainBalances, useSyncMultiChainBalances } from '../../hooks/useMultiChainBalances'
+import { useFxRates } from '../../hooks/useFxRates'
 
 const F    = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif"
 const MONO = "'JetBrains Mono', 'SF Mono', Menlo, monospace"
@@ -156,9 +157,14 @@ export function HomePage() {
   const eurcNum       = rawEurc    !== undefined ? Number(rawEurc)    / 1e6 : 0
   const eurcFormatted = eurcNum.toFixed(2)
 
+  // Live FX rates
+  const { usdPerEur, rates, loading: fxLoading } = useFxRates()
+
   // Cross-chain USDC total (Arc + all other testnet chains)
   const { total: crossChainTotal } = useMultiChainBalances(address)
-  const totalNum  = parseFloat(crossChainTotal) + eurcNum
+  // Convert EURC to USD using live rate before summing
+  const eurcInUsd = eurcNum * usdPerEur
+  const totalNum  = parseFloat(crossChainTotal) + eurcInUsd
   const formatted = totalNum.toFixed(2)
 
 
@@ -274,12 +280,43 @@ export function HomePage() {
         )}
       </div>
 
+      {/* ── FX TICKER STRIP ── */}
+      {!fxLoading && Object.keys(rates).length > 0 && (
+        <div style={{
+          display: 'flex', gap: 10, overflowX: 'auto', marginBottom: 18,
+          paddingBottom: 2,
+          msOverflowStyle: 'none', scrollbarWidth: 'none',
+        }}>
+          {[
+            { pair: 'EUR/USD', val: usdPerEur },
+            ...['GBP','NGN','GHS','KES','ZAR','JPY'].map(c => ({
+              pair: `${c}/USD`,
+              val: rates[c] ? 1 / rates[c] : null,
+            })).filter(r => r.val !== null),
+          ].map(({ pair, val }) => (
+            <div key={pair} style={{
+              flexShrink: 0,
+              background: C.surf, border: `1px solid ${C.bdr}`,
+              borderRadius: 10, padding: '6px 10px',
+              display: 'flex', flexDirection: 'column', gap: 2,
+            }}>
+              <span style={{ fontSize: 9, color: C.t3, fontWeight: 600, letterSpacing: '0.04em' }}>{pair}</span>
+              <span style={{ fontSize: 12, fontWeight: 700, color: C.text, fontFamily: MONO }}>
+                {pair.startsWith('JPY') || pair.startsWith('NGN')
+                  ? (val as number).toFixed(2)
+                  : (val as number).toFixed(4)}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* ── 4. ASSET CARDS — 3-col grid ── */}
       <div style={{
         display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)',
         gap: 10, marginBottom: 20,
       }}>
-        {/* USDC */}
+        {/* USDC — shows Arc Testnet USDC balance */}
         <button
           onClick={() => setActiveView('wallet')}
           style={{
@@ -293,12 +330,12 @@ export function HomePage() {
             <TokenLogo symbol="USDC" size={30} radius={9} />
           </div>
           <div style={{ fontSize: 14, fontWeight: 800, color: C.text, fontFamily: MONO, letterSpacing: '-0.02em', marginBottom: 5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {hidden ? '••••' : `$${formatted}`}
+            {hidden ? '••••' : `$${usdcNum.toFixed(2)}`}
           </div>
           <div style={{ fontSize: 10, fontWeight: 600, color: '#2775CA' }}>USDC</div>
         </button>
 
-        {/* EURC */}
+        {/* EURC — shows EURC balance with live USD equivalent below */}
         <button
           onClick={() => setActiveView('swap')}
           style={{
@@ -311,10 +348,13 @@ export function HomePage() {
           <div style={{ marginBottom: 8 }}>
             <TokenLogo symbol="EURC" size={30} radius={9} />
           </div>
-          <div style={{ fontSize: 14, fontWeight: 800, color: C.text, fontFamily: MONO, letterSpacing: '-0.02em', marginBottom: 5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <div style={{ fontSize: 14, fontWeight: 800, color: C.text, fontFamily: MONO, letterSpacing: '-0.02em', marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {hidden ? '••••' : `€${eurcFormatted}`}
           </div>
-          <div style={{ fontSize: 10, fontWeight: 600, color: '#0099CC' }}>EURC</div>
+          {!hidden && !fxLoading && eurcNum > 0 && (
+            <div style={{ fontSize: 9, color: C.t3, fontFamily: MONO }}>≈ ${eurcInUsd.toFixed(2)}</div>
+          )}
+          <div style={{ fontSize: 10, fontWeight: 600, color: '#0099CC', marginTop: 3 }}>EURC</div>
         </button>
 
         {/* USDT */}
