@@ -1,6 +1,9 @@
 [build]
 builder = "NIXPACKS"
-buildCommand = "bun install"
+buildCommand = "bun install --frozen-lockfile"
+
+[build.nixpacksPlan.phases.setup]
+nixPkgs = ["nodejs_22", "bun"]
 
 [deploy]
 startCommand = "bun run server/index.ts"
