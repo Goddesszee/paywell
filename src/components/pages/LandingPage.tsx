@@ -9,14 +9,10 @@ const SLIDES = [
     img: '/john.jpg',
     accent: 'Your money,',
     headline: ' your agent, your rules.',
-    sub: 'NAN gives your AI agent a real wallet — funded by you, limited by you, working for you around the clock.',
-    cardTitle: 'Recent Activity',
-    cardAmount: '+$203.50 received',
-    cardRows: [
-      { icon: '⚡', label: 'NAN Agent paid',    sub: 'Service · 2 min ago' },
-      { icon: '💸', label: 'USDC sent',          sub: 'To 0x3e…f4 · confirmed' },
-      { icon: '🔄', label: 'Recurring active',   sub: 'Next: tomorrow 9 AM' },
-    ],
+    sub: 'NAN gives your AI agent a real wallet — funded by you, limited by you, working for you.',
+    cardTitle: null,
+    cardAmount: '',
+    cardRows: [],
   },
   {
     img: '/girl.jpg',
@@ -55,7 +51,8 @@ function Dots({ total, active, go }: { total: number; active: number; go: (i: nu
 }
 
 /* ── Floating UI card overlaid on the photo ────────────────────────────────── */
-function MockCard({ title, amount, rows }: { title: string; amount: string; rows: { icon: string; label: string; sub: string }[] }) {
+function MockCard({ title, amount, rows }: { title: string | null; amount: string; rows: { icon: string; label: string; sub: string }[] }) {
+  if (!title) return null
   return (
     <div style={{
       position: 'absolute', bottom: 28, left: 16,
@@ -142,61 +139,56 @@ export function LandingPage() {
         position: 'fixed', inset: 0, fontFamily: F,
         background: '#FFFFFF',
         display: 'flex', flexDirection: 'column',
-        overflowY: 'auto',
+        overflow: 'hidden',
+        height: '100dvh',
       }}>
-        {/* Top: text content */}
-        <div style={{ padding: '52px 28px 0' }}>
+        {/* Top: dots + headline — compact */}
+        <div style={{ padding: '36px 24px 12px', flexShrink: 0 }}>
           <Dots total={SLIDES.length} active={slide} go={go} />
           <h1 style={{
-            fontSize: 'clamp(28px,8vw,38px)', fontWeight: 900,
+            fontSize: 'clamp(24px,7vw,32px)', fontWeight: 900,
             lineHeight: 1.1, letterSpacing: '-0.03em',
-            color: '#1A1A2E', margin: '0 0 20px',
+            color: '#1A1A2E', margin: 0,
           }}>
             <span style={{ color: BLUE }}>{cur.accent}</span>
             {cur.headline}
           </h1>
         </div>
 
-        {/* Middle: photo with arched top + floating card */}
+        {/* Middle: photo — fills remaining space */}
         <div style={{
-          position: 'relative', margin: '0 0',
-          flex: 1, minHeight: 380,
+          position: 'relative', flex: 1, overflow: 'hidden',
           opacity: fading ? 0 : 1, transition: 'opacity 0.25s',
+          borderTopLeftRadius: 28, borderTopRightRadius: 28,
+          margin: '0 0',
         }}>
-          {/* Arched photo */}
           <div style={{
             position: 'absolute', inset: 0,
             backgroundImage: `url(${cur.img})`,
             backgroundSize: 'cover',
-            backgroundPosition: 'center 15%',
-            borderTopLeftRadius: '50% 28px',
-            borderTopRightRadius: '50% 28px',
-            overflow: 'hidden',
-          }}>
-            {/* subtle darken at bottom */}
-            <div style={{
-              position: 'absolute', bottom: 0, left: 0, right: 0, height: '45%',
-              background: 'linear-gradient(0deg, rgba(0,0,0,0.35) 0%, transparent 100%)',
-            }} />
-          </div>
-
-          {/* Floating card */}
+            backgroundPosition: 'center 10%',
+          }} />
+          {/* bottom gradient so buttons stay readable */}
+          <div style={{
+            position: 'absolute', bottom: 0, left: 0, right: 0, height: '30%',
+            background: 'linear-gradient(0deg, rgba(255,255,255,0.25) 0%, transparent 100%)',
+          }} />
           <MockCard title={cur.cardTitle} amount={cur.cardAmount} rows={cur.cardRows} />
         </div>
 
-        {/* Bottom: CTA */}
+        {/* Bottom: CTAs — always visible */}
         <div style={{
-          background: '#FFFFFF',
-          padding: '24px 24px calc(env(safe-area-inset-bottom,0px) + 28px)',
+          background: '#FFFFFF', flexShrink: 0,
+          padding: `16px 24px calc(env(safe-area-inset-bottom,0px) + 16px)`,
           display: 'flex', flexDirection: 'column', gap: 4,
         }}>
           <button
             onClick={() => setActiveView('login')}
             style={{
-              width: '100%', height: 56,
+              width: '100%', height: 52,
               background: BLUE, color: '#fff',
               border: 'none', borderRadius: 16,
-              fontSize: 17, fontWeight: 700,
+              fontSize: 16, fontWeight: 700,
               cursor: 'pointer', fontFamily: F,
               boxShadow: '0 6px 24px rgba(0,102,255,0.40)',
               letterSpacing: '-0.01em',
@@ -207,10 +199,10 @@ export function LandingPage() {
           <button
             onClick={() => setActiveView('login')}
             style={{
-              width: '100%', height: 52,
+              width: '100%', height: 44,
               background: 'transparent', color: BLUE,
               border: 'none', borderRadius: 16,
-              fontSize: 16, fontWeight: 600,
+              fontSize: 15, fontWeight: 600,
               cursor: 'pointer', fontFamily: F,
             }}
           >
