@@ -7,3 +7,4 @@ contracts/cache/
 contracts/out/
 .circle/
 *.log
+data/

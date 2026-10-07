@@ -8,7 +8,38 @@ import express from 'express'
 import cors from 'cors'
 import crypto from 'crypto'
 import path from 'path'
+import fs from 'fs'
 import { createGatewayMiddleware } from '@circle-fin/x402-batching/server'
+
+// ── Persistence helpers ───────────────────────────────────────────────────────
+// Stores are persisted to DATA_DIR as JSON files so they survive Railway restarts.
+// On Railway: add a Volume mounted at /data in your service settings.
+// Locally: data/ dir is created automatically next to server/.
+const DATA_DIR = process.env.DATA_DIR ?? path.join(path.dirname(new URL(import.meta.url).pathname), '..', 'data')
+try { fs.mkdirSync(DATA_DIR, { recursive: true }) } catch { /* already exists */ }
+
+function dataPath(name: string) { return path.join(DATA_DIR, `${name}.json`) }
+
+function loadStore<T>(name: string, fallback: T): T {
+  try {
+    const raw = fs.readFileSync(dataPath(name), 'utf8')
+    return JSON.parse(raw) as T
+  } catch {
+    return fallback
+  }
+}
+
+function saveStore(name: string, data: unknown) {
+  try { fs.writeFileSync(dataPath(name), JSON.stringify(data), 'utf8') } catch { /* disk full / read-only */ }
+}
+
+// Debounced save — batches rapid writes into one disk write per 2s
+const saveTimers = new Map<string, ReturnType<typeof setTimeout>>()
+function debouncedSave(name: string, data: unknown) {
+  const existing = saveTimers.get(name)
+  if (existing) clearTimeout(existing)
+  saveTimers.set(name, setTimeout(() => { saveStore(name, data); saveTimers.delete(name) }, 2000))
+}
 
 const app = express()
 const PORT = Number(process.env.PORT ?? 3001)
@@ -37,9 +68,11 @@ function _paywall(price: string): express.RequestHandler {
   return (_req, _res, next) => next()
 }
 
-// ── in-memory stores (replace with DB for production) ─────────────────────────
+// ── Stores (persisted to DATA_DIR, loaded on startup) ─────────────────────────
 const otpStore = new Map<string, { otp: string; token: string; expiresAt: number }>()
-const sessionStore = new Map<string, { email: string; walletAddress: string; walletId: string; createdAt: number }>()
+const sessionStore = new Map(
+  Object.entries(loadStore<Record<string, { email: string; walletAddress: string; walletId: string; createdAt: number }>>('sessions', {}))
+)
 const activityStore = new Map<string, Array<{
   id: string; type: string; description: string
   amount: string; sign: string; timestamp: string
@@ -47,22 +80,20 @@ const activityStore = new Map<string, Array<{
 }>>()
 
 // ── Global transaction ledger ─────────────────────────────────────────────────
-// Accumulates every transaction reported from the frontend (main wallet + agent).
-// Reported via POST /api/tx-track. Capped at 2000 entries.
 interface TxRecord {
   id: string
   walletType: 'main' | 'agent'
   walletAddress: string
   userEmail: string
-  type: string          // 'sent' | 'received' | 'agent_spend' | 'bridge' | 'swap' | 'purchase'
-  amount: number        // USDC value
+  type: string
+  amount: number
   description: string
   counterparty?: string
   txHash?: string
   chain?: string
   timestamp: string
 }
-const txLedger: TxRecord[] = []
+const txLedger: TxRecord[] = loadStore<TxRecord[]>('tx-ledger', [])
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -655,7 +686,9 @@ interface SupportTicket {
   hasUnreadCustomer: boolean // admin has unread customer messages
 }
 
-const supportStore = new Map<string, SupportTicket>() // ticketId -> ticket
+const supportStore = new Map<string, SupportTicket>(
+  Object.entries(loadStore<Record<string, SupportTicket>>('support-tickets', {}))
+)
 
 function getTicketsByEmail(email: string): SupportTicket[] {
   return [...supportStore.values()].filter(t => t.userEmail === email).sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
@@ -685,6 +718,7 @@ app.post('/api/support/tickets', (req, res) => {
     createdAt: now, updatedAt: now, hasUnreadAdmin: false, hasUnreadCustomer: true,
   }
   supportStore.set(id, ticket)
+  debouncedSave('support-tickets', Object.fromEntries(supportStore))
   if (identity.email !== 'anonymous') {
     addNotification(identity.email, {
       type: 'support',
@@ -725,6 +759,7 @@ app.post('/api/support/tickets/:id/reply', (req, res) => {
   ticket.updatedAt = now
   if (ticket.status === 'resolved') ticket.status = 'open'
   ticket.hasUnreadCustomer = true
+  debouncedSave('support-tickets', Object.fromEntries(supportStore))
   res.json({ success: true, ticket })
 })
 
@@ -756,13 +791,14 @@ app.post('/api/admin/support/tickets/:id/reply', (req, res) => {
   }
   if (status) ticket.status = status
   ticket.updatedAt = now
+  debouncedSave('support-tickets', Object.fromEntries(supportStore))
   res.json({ success: true, ticket })
 })
 
 // Mark ticket unread for admin (after reading)
 app.post('/api/admin/support/tickets/:id/read', (_req, res) => {
   const ticket = supportStore.get(_req.params.id)
-  if (ticket) ticket.hasUnreadCustomer = false
+  if (ticket) { ticket.hasUnreadCustomer = false; debouncedSave('support-tickets', Object.fromEntries(supportStore)) }
   res.json({ success: true })
 })
 
@@ -823,7 +859,7 @@ interface FaqItem {
   order: number
 }
 
-const faqStore: FaqItem[] = [
+const FAQ_DEFAULTS: FaqItem[] = [
   { id: 'faq-1', category: 'Getting Started', question: 'What is NAN?', answer: 'NAN is an AI-powered financial platform that lets you give AI agents USDC budgets and permission rules so they can make payments on your behalf. You stay in control — agents only spend what you allow.', order: 0 },
   { id: 'faq-2', category: 'Getting Started', question: 'How do I create an account?', answer: 'Sign in with your email address. NAN uses a secure one-time password (OTP) sent to your inbox — no password required. Once verified, your account is ready instantly.', order: 1 },
   { id: 'faq-3', category: 'Getting Started', question: 'What blockchain does NAN use?', answer: 'NAN runs on Arc Testnet, where USDC is the native gas token. This means every transaction costs USDC, with stable and predictable fees.', order: 2 },
@@ -837,6 +873,7 @@ const faqStore: FaqItem[] = [
   { id: 'faq-11', category: 'Security & Privacy', question: 'Who has access to my account?', answer: 'Only you. NAN never stores private keys. Authentication uses email OTP. Agents only act within the permissions you grant them.', order: 10 },
   { id: 'faq-12', category: 'Support', question: 'How do I contact support?', answer: 'Open the Support section from the menu and submit a request. Our team typically responds within 24 hours.', order: 11 },
 ]
+const faqStore: FaqItem[] = loadStore<FaqItem[]>('faqs', FAQ_DEFAULTS)
 
 app.get('/api/faqs', (_req, res) => {
   res.json({ success: true, faqs: faqStore.sort((a, b) => a.order - b.order) })
@@ -857,15 +894,18 @@ app.post('/api/admin/faqs', (req, res) => {
       order: faqStore.length,
     }
     faqStore.push(newFaq)
+    debouncedSave('faqs', faqStore)
     res.json({ success: true, faqs: faqStore })
   } else if (action === 'update' && id && faq) {
     const idx = faqStore.findIndex(f => f.id === id)
     if (idx === -1) { res.status(404).json({ success: false, error: 'Not found' }); return }
     faqStore[idx] = { ...faqStore[idx], ...faq, id }
+    debouncedSave('faqs', faqStore)
     res.json({ success: true, faqs: faqStore })
   } else if (action === 'delete' && id) {
     const idx = faqStore.findIndex(f => f.id === id)
     if (idx !== -1) faqStore.splice(idx, 1)
+    debouncedSave('faqs', faqStore)
     res.json({ success: true, faqs: faqStore })
   } else {
     res.status(400).json({ success: false, error: 'Invalid action' })
@@ -917,7 +957,7 @@ interface FeedbackEntry {
   reviewed: boolean
   createdAt: string
 }
-const feedbackStore: FeedbackEntry[] = []
+const feedbackStore: FeedbackEntry[] = loadStore<FeedbackEntry[]>('feedback', [])
 
 app.post('/api/feedback', (req, res) => {
   // Feedback is allowed from both authenticated and anonymous users.
@@ -934,6 +974,7 @@ app.post('/api/feedback', (req, res) => {
     createdAt: new Date().toISOString(),
   }
   feedbackStore.unshift(entry)
+  debouncedSave('feedback', feedbackStore)
   res.json({ success: true, id: entry.id })
 })
 
@@ -948,6 +989,7 @@ app.post('/api/admin/feedback/:id/review', (req, res) => {
   const entry = feedbackStore.find(f => f.id === req.params.id)
   if (!entry) { res.status(404).json({ success: false, error: 'Not found' }); return }
   entry.reviewed = true
+  debouncedSave('feedback', feedbackStore)
   res.json({ success: true })
 })
 
@@ -966,7 +1008,7 @@ interface SuggestionEntry {
   createdAt: string
   updatedAt: string
 }
-const suggestionStore: SuggestionEntry[] = []
+const suggestionStore: SuggestionEntry[] = loadStore<SuggestionEntry[]>('suggestions', [])
 
 app.post('/api/suggestions', (req, res) => {
   // Suggestions are allowed from both authenticated and anonymous users.
@@ -985,6 +1027,7 @@ app.post('/api/suggestions', (req, res) => {
     updatedAt: new Date().toISOString(),
   }
   suggestionStore.unshift(entry)
+  debouncedSave('suggestions', suggestionStore)
   res.json({ success: true, id: entry.id })
 })
 
@@ -1010,6 +1053,7 @@ app.patch('/api/admin/suggestions/:id', (req, res) => {
   if (status) entry.status = status
   if (adminNote !== undefined) entry.adminNote = String(adminNote).slice(0, 1000)
   entry.updatedAt = new Date().toISOString()
+  debouncedSave('suggestions', suggestionStore)
   res.json({ success: true, suggestion: entry })
 })
 
@@ -1130,6 +1174,7 @@ app.post('/api/tx-track', (req, res) => {
   }
   txLedger.unshift(record)
   if (txLedger.length > 2000) txLedger.splice(2000)
+  debouncedSave('tx-ledger', txLedger)
   res.json({ success: true, id: record.id })
 })
 
@@ -1159,6 +1204,7 @@ app.get('/api/admin/tx-report', (_req, res) => {
 const _origSet = sessionStore.set.bind(sessionStore)
 sessionStore.set = function(key: string, value: { email: string; walletAddress: string; walletId: string; createdAt: number }) {
   _origSet(key, value)
+  debouncedSave('sessions', Object.fromEntries(sessionStore))
   const list = loginHistory.get(value.email) ?? []
   // Only record if this is a brand-new session (not an overwrite)
   if (!list.find(l => l.ts === new Date(value.createdAt).toISOString())) {
