@@ -264,14 +264,14 @@ export function ActivityPage() {
                               fontSize: 11, color: BLUE, fontFamily: MONO,
                               display: 'flex', alignItems: 'center', gap: 3,
                               textDecoration: 'none', fontWeight: 600,
+                              background: 'rgba(0,102,255,0.08)',
+                              padding: '3px 7px', borderRadius: 6,
                             }}
                           >
-                            {item.txHash!.slice(0, 6)}…{item.txHash!.slice(-4)}
+                            {item.txHash!.slice(0, 8)}…{item.txHash!.slice(-6)}
                             <ExternalLink size={10} color={BLUE} />
                           </a>
-                        ) : (
-                          <span style={{ fontSize: 10, color: C.t3 }}>no tx hash</span>
-                        )}
+                        ) : null}
                       </div>
                     </div>
                   )
