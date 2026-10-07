@@ -12,6 +12,7 @@ import {
 import { useAppStore, ActivityItem } from '../../store/appStore'
 import { getUsdc } from '../../onchain-facts'
 import { useNanTheme, NanTheme } from '../../hooks/useNanTheme'
+import { NotificationBell } from '../ui/NotificationBell'
 import { TokenLogo } from '../ui/TokenLogo'
 import { useMultiChainBalances, useSyncMultiChainBalances } from '../../hooks/useMultiChainBalances'
 import { useFxRates } from '../../hooks/useFxRates'
@@ -222,22 +223,23 @@ export function HomePage() {
           </div>
         </div>
 
-        {/* Right: Add Money */}
+        {/* Right: Notification bell + Add Money */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+          <NotificationBell color={C.t2} />
           <button
             onClick={() => setActiveView('onramp')}
             style={{
-              display: 'flex', alignItems: 'center', gap: 6,
-              padding: '10px 16px', borderRadius: 14,
+              display: 'flex', alignItems: 'center', gap: 5,
+              padding: '7px 12px', borderRadius: 12,
               background: C.blue, border: 'none',
-              color: '#fff', fontSize: 13, fontWeight: 700,
+              color: '#fff', fontSize: 12, fontWeight: 700,
               cursor: 'pointer', fontFamily: F,
-              boxShadow: '0 4px 16px rgba(0,102,255,0.40)',
+              boxShadow: '0 3px 12px rgba(0,102,255,0.35)',
               WebkitTapHighlightColor: 'transparent',
               letterSpacing: '-0.01em',
             }}
           >
-            <Plus size={14} strokeWidth={2.5} />
+            <Plus size={12} strokeWidth={2.5} />
             Add Money
           </button>
         </div>
