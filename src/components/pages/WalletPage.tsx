@@ -14,6 +14,7 @@ import { Badge } from '../ui/Badge'
 import { useAppStore, ActivityItem } from '../../store/appStore'
 import { formatAddress, formatUSDC, parseOnchainError } from '../../utils/format'
 import { useCircleTransaction } from '../../hooks/useCircleTransaction'
+import { sendFromPasskeyWallet } from '../CirclePasskeyLogin'
 import { TokenLogo } from '../ui/TokenLogo'
 import { getUsdc, requireChain, buildTxExplorerUrl } from '@/onchain-facts'
 import { Amount, usdcDecimalsFor } from '@/onchain-money'
@@ -138,6 +139,7 @@ export function WalletPage({ initialSubView = 'main' }: { initialSubView?: Walle
         address={address}
         chainId={chainId}
         isCircleUser={isCircleUser}
+        isPasskeyUser={!!auth?.isPasskeyUser}
         onBack={() => setSubView('main')}
         onSuccess={() => { void refetch(); setSubView('main') }}
         addActivity={addActivity}
@@ -339,6 +341,7 @@ function SendFlow({
   address: _address,
   chainId,
   isCircleUser,
+  isPasskeyUser,
   onBack,
   onSuccess,
   addActivity,
@@ -346,6 +349,7 @@ function SendFlow({
   address: string
   chainId?: number
   isCircleUser?: boolean
+  isPasskeyUser?: boolean
   onBack: () => void
   onSuccess: () => void
   addActivity: (item: Omit<ActivityItem, 'id' | 'timestamp'>) => void
@@ -407,7 +411,7 @@ function SendFlow({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [writeError])
 
-  const isCirclePending = isCircleUser && (circleStatus === 'creating' || circleStatus === 'approving' || circleStatus === 'polling')
+  const isCirclePending = (isCircleUser || isPasskeyUser) && (circleStatus === 'creating' || circleStatus === 'approving' || circleStatus === 'polling')
   const displayStep: SendStep = (isPending || isConfirming || isCirclePending) ? 'submitting' : step
 
   const validateRecipient = () => {
@@ -426,6 +430,38 @@ function SendFlow({
   }
 
   const handleSend = () => {
+    if (isPasskeyUser) {
+      // Circle Modular Wallet (passkey/WebAuthn) path — uses sendFromPasskeyWallet
+      const clientKey = import.meta.env.VITE_CLIENT_KEY as string | undefined
+      if (!clientKey) {
+        setStep('error')
+        toast.error('VITE_CLIENT_KEY is not set')
+        return
+      }
+      const rawAmount = BigInt(Math.round(parseFloat(amount) * 10 ** selectedToken.decimals))
+      setStep('submitting')
+      void sendFromPasskeyWallet({
+        clientKey,
+        to: recipient as `0x${string}`,
+        amount: rawAmount,
+      }).then(hash => {
+        setStep('success')
+        addActivity({
+          type: 'sent',
+          description: noteRef.current || `Sent ${selectedToken.symbol}`,
+          amount: parseFloat(amountRef.current),
+          sign: '-',
+          status: 'confirmed',
+          counterparty: formatAddress(recipientRef.current),
+          txHash: hash,
+        })
+        toast.success(`Sent ${amountRef.current} ${selectedToken.symbol} successfully`)
+      }).catch(err => {
+        setStep('error')
+        toast.error(err instanceof Error ? err.message : 'Transaction failed')
+      })
+      return
+    }
     if (isCircleUser) {
       // Circle user-controlled wallet path: create transfer challenge on backend,
       // execute via sdk.execute() popup, then poll until COMPLETE

@@ -289,7 +289,12 @@ export const useAppStore = create<AppState>()(
       addActivity: (item) =>
         set((s) => ({
           activity: [
-            { ...item, id: `act-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, timestamp: new Date() },
+            {
+              ...item,
+              id: `act-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+              // Preserve real block timestamp if provided; only fall back to now for manual entries
+              timestamp: (item as Partial<ActivityItem>).timestamp ?? new Date(),
+            },
             ...s.activity,
           ],
         })),

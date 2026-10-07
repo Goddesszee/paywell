@@ -29,7 +29,12 @@ export function usePaymentWatcher() {
       return
     }
 
-    const seen: Set<string> = new Set()
+    // Pre-seed seen set from persisted store so items already in storage
+    // don't trigger "new received" notifications on the first poll
+    const existingActivity = useAppStore.getState().activity
+    const seen: Set<string> = new Set(
+      existingActivity.map(a => a.txHash ?? a.id).filter(Boolean)
+    )
     let isFirst = true
     let cancelled = false
 
@@ -60,7 +65,8 @@ export function usePaymentWatcher() {
                 counterparty: item.counterparty,
                 txHash: item.txHash,
                 chain: item.chain,
-              })
+                timestamp: item.timestamp,
+              } as Omit<ActivityItem, 'id'>)
             }
           })
           return
@@ -82,7 +88,8 @@ export function usePaymentWatcher() {
               counterparty: item.counterparty,
               txHash: item.txHash,
               chain: item.chain,
-            })
+              timestamp: item.timestamp,
+            } as Omit<ActivityItem, 'id'>)
           }
           addLocalNotification({
             type: 'payment',
