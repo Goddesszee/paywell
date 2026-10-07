@@ -11,6 +11,7 @@ import { useAccount } from 'wagmi'
 import { useNanTheme } from '../../hooks/useNanTheme'
 import { NotificationBell } from '../ui/NotificationBell'
 import { NanLogo } from '../NanLogo'
+import { usePaymentWatcher } from '../../hooks/usePaymentWatcher'
 
 const F = "'Inter',-apple-system,sans-serif"
 const ADMIN_ADDRESS = (import.meta.env.VITE_ADMIN_ADDRESS as string ?? '').toLowerCase()
@@ -293,6 +294,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { address } = useAccount()
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [paletteOpen, setPaletteOpen] = useState(false)
+
+  // Global payment watcher — polls every 30 s regardless of which screen is open.
+  // Fires notifications + adds to the activity store on new incoming USDC transfers.
+  usePaymentWatcher()
   const isAdmin = !!address && (ADMIN_ADDRESS === '' || address.toLowerCase() === ADMIN_ADDRESS)
   const [adminToast, setAdminToast] = useState(false)
   const mq = typeof window !== 'undefined' ? window.matchMedia('(min-width: 769px)') : null

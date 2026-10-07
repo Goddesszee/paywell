@@ -1,12 +1,12 @@
-import React, { useState, useCallback } from 'react'
+import React, { useState } from 'react'
 import {
   ArrowUpRight, ArrowDownLeft, Bot,
   Filter, Search, CheckCircle2, Clock, XCircle,
   ExternalLink, ArrowLeftRight, ShoppingBag, RefreshCw,
 } from 'lucide-react'
-import { useAppStore, ActivityItem } from '../../store/appStore'
+import { useAppStore } from '../../store/appStore'
 import { useNanTheme } from '../../hooks/useNanTheme'
-import { useOnchainActivity } from '../../hooks/useOnchainActivity'
+import { forceActivityRefresh } from '../../hooks/usePaymentWatcher'
 import { useAccount } from 'wagmi'
 
 const F    = "'Inter', -apple-system, sans-serif"
@@ -85,48 +85,23 @@ function timeStr(date: Date): string {
 
 export function ActivityPage() {
   const C = useNanTheme()
-  const { activity, addActivity, addLocalNotification, auth } = useAppStore()
+  const { activity, auth } = useAppStore()
   const { address: wagmiAddress } = useAccount()
   const address = wagmiAddress ?? (auth?.circleWalletAddress as `0x${string}` | undefined)
   const [activeFilter, setActiveFilter] = useState<FilterId>('all')
   const [search, setSearch] = useState('')
+  const [refreshing, setRefreshing] = useState(false)
 
-  // Callback fired by the hook for each genuinely new received transfer.
-  // Adds the item to the store and pushes a local notification.
-  const handleNewReceived = useCallback((item: ActivityItem) => {
-    // Only add if not already in the store (dedup by txHash or id)
-    const existing = useAppStore.getState().activity
-    const key = item.txHash ?? item.id
-    const alreadyIn = existing.some(a => (a.txHash ?? a.id) === key)
-    if (!alreadyIn) {
-      addActivity({
-        type: 'received',
-        description: `Received ${item.amount.toFixed(2)} USDC`,
-        amount: item.amount,
-        sign: '+',
-        status: 'confirmed',
-        counterparty: item.counterparty,
-        txHash: item.txHash,
-      })
-    }
-    addLocalNotification({
-      type: 'payment',
-      title: 'USDC received',
-      body: `You received ${item.amount.toFixed(2)} USDC${item.counterparty ? ` from ${item.counterparty}` : ''}`,
-    })
-  }, [addActivity, addLocalNotification])
+  // Trigger an immediate re-poll from the global watcher (no local async state)
+  function handleRefresh() {
+    setRefreshing(true)
+    forceActivityRefresh()
+    // Brief visual spinner — actual data arrives via store subscription
+    setTimeout(() => setRefreshing(false), 2000)
+  }
 
-  const { items: onchainItems, loading: onchainLoading, refetch } = useOnchainActivity(
-    address,
-    handleNewReceived,
-  )
-
-  // Merge onchain items with the store, deduplicating by txHash / id.
-  // Store items win for non-onchain types (bridge, swap, agent); onchain items
-  // provide the authoritative view for sent/received.
-  const storeIds = new Set(activity.map(a => a.txHash ?? a.id))
-  const onchainOnly = onchainItems.filter(i => !storeIds.has(i.txHash ?? i.id))
-  const merged = [...activity, ...onchainOnly]
+  // All items come from the store, kept up to date by usePaymentWatcher in AppShell
+  const merged = [...activity]
     .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
 
   const FILTERS: { id: FilterId; label: string }[] = [
@@ -173,19 +148,19 @@ export function ActivityPage() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
         <h1 style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.025em', color: C.text, margin: 0 }}>Activity</h1>
         <button
-          onClick={() => void refetch()}
-          disabled={onchainLoading}
+          onClick={handleRefresh}
+          disabled={refreshing}
           style={{
             display: 'flex', alignItems: 'center', gap: 5,
             padding: '6px 12px', borderRadius: 10,
             background: C.surf, border: `1px solid ${C.bdr}`,
             color: C.t2, fontSize: 12, fontWeight: 600,
-            cursor: onchainLoading ? 'not-allowed' : 'pointer',
-            fontFamily: F, opacity: onchainLoading ? 0.6 : 1,
+            cursor: refreshing ? 'not-allowed' : 'pointer',
+            fontFamily: F, opacity: refreshing ? 0.6 : 1,
           }}
         >
-          <RefreshCw size={12} style={{ animation: onchainLoading ? 'nan-spin 0.8s linear infinite' : 'none' }} />
-          {onchainLoading ? 'Syncing…' : 'Refresh'}
+          <RefreshCw size={12} style={{ animation: refreshing ? 'nan-spin 0.8s linear infinite' : 'none' }} />
+          {refreshing ? 'Syncing…' : 'Refresh'}
         </button>
       </div>
       <p style={{ fontSize: 12, color: C.t3, marginBottom: 16 }}>
@@ -231,22 +206,20 @@ export function ActivityPage() {
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             margin: '0 auto 12px',
           }}>
-            {onchainLoading
+            {refreshing
               ? <RefreshCw size={20} color={C.blue} style={{ animation: 'nan-spin 0.8s linear infinite' }} />
               : <Filter size={20} color={C.t3} />
             }
           </div>
           <div style={{ fontSize: 15, fontWeight: 600, color: C.text, marginBottom: 5 }}>
-            {onchainLoading ? 'Loading transactions…' : 'No transactions'}
+            {refreshing ? 'Syncing…' : 'No transactions'}
           </div>
           <div style={{ fontSize: 13, color: C.t3 }}>
-            {onchainLoading
-              ? 'Fetching your onchain activity'
-              : !address
-                ? 'Connect a wallet to see your transaction history'
-                : search
-                  ? `No results for "${search}"`
-                  : 'Your NAN wallet activity will appear here. Refreshes every 30 seconds.'}
+            {!address
+              ? 'Connect a wallet to see your transaction history'
+              : search
+                ? `No results for "${search}"`
+                : 'Your NAN wallet activity will appear here. Auto-refreshes every 30 seconds.'}
           </div>
         </div>
       ) : (

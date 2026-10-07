@@ -48,6 +48,8 @@ export interface ActivityItem {
   counterparty?: string
   txHash?: string
   agentInitiated?: boolean
+  /** Chain name for explorer URL routing (e.g. "Arc Testnet", "Base Sepolia") */
+  chain?: string
 }
 
 export interface AgentPermissions {
