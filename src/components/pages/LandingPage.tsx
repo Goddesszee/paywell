@@ -1,9 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { useAppStore } from '../../store/appStore'
-import { useNanTheme } from '../../hooks/useNanTheme'
 
 const F    = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif"
 const BLUE = '#0066FF'
+const BG   = '#FFFFFF'
+const TEXT = '#1A1A2E'
+const T2   = '#6B7280'
+const DOTS_INACTIVE = '#D0D0E0'
 
 const SLIDES = [
   {
@@ -48,7 +51,6 @@ function Dots({ total, active, go, inactiveBg }: {
 /* ── Main ──────────────────────────────────────────────────────────────────── */
 export function LandingPage() {
   const setActiveView = useAppStore(s => s.setActiveView)
-  const C = useNanTheme()
   const [slide, setSlide]   = useState(0)
   const [fading, setFading] = useState(false)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -85,28 +87,25 @@ export function LandingPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const cur      = SLIDES[slide]
-  const dotBg    = C.isDark ? 'rgba(255,255,255,0.18)' : '#D0D0E0'
-  const gradBot  = C.isDark
-    ? 'linear-gradient(0deg, rgba(0,0,0,0.35) 0%, transparent 100%)'
-    : 'linear-gradient(0deg, rgba(255,255,255,0.25) 0%, transparent 100%)'
+  const cur     = SLIDES[slide]
+  const gradBot = 'linear-gradient(0deg, rgba(255,255,255,0.25) 0%, transparent 100%)'
 
   /* ── MOBILE ── */
   if (!isDesktop) {
     return (
       <div style={{
         position: 'fixed', inset: 0, fontFamily: F,
-        background: C.bg,
+        background: BG,
         display: 'flex', flexDirection: 'column',
         overflow: 'hidden', height: '100dvh',
       }}>
         {/* Top: dots + headline */}
         <div style={{ padding: '36px 24px 12px', flexShrink: 0 }}>
-          <Dots total={SLIDES.length} active={slide} go={go} inactiveBg={dotBg} />
+          <Dots total={SLIDES.length} active={slide} go={go} inactiveBg={DOTS_INACTIVE} />
           <h1 style={{
             fontSize: 'clamp(24px,7vw,32px)', fontWeight: 900,
             lineHeight: 1.1, letterSpacing: '-0.03em',
-            color: C.text, margin: 0,
+            color: TEXT, margin: 0,
           }}>
             <span style={{ color: BLUE }}>{cur.accent}</span>
             {cur.headline}
@@ -133,7 +132,7 @@ export function LandingPage() {
 
         {/* Bottom: CTAs */}
         <div style={{
-          background: C.bg, flexShrink: 0,
+          background: BG, flexShrink: 0,
           padding: `16px 24px calc(env(safe-area-inset-bottom,0px) + 16px)`,
           display: 'flex', flexDirection: 'column', gap: 4,
         }}>
@@ -172,7 +171,7 @@ export function LandingPage() {
   return (
     <div style={{
       position: 'fixed', inset: 0, fontFamily: F,
-      background: C.bg,
+      background: BG,
       display: 'flex', alignItems: 'stretch',
     }}>
       {/* Left panel — text + CTAs */}
@@ -191,15 +190,15 @@ export function LandingPage() {
               <path d="M69,480 L240,313 L253,317 L324,383 L324,102 L78,348 L69,370 Z" fill="#fff"/>
             </svg>
           </div>
-          <span style={{ fontWeight: 800, fontSize: 20, letterSpacing: '-0.04em', color: C.text }}>nan</span>
+          <span style={{ fontWeight: 800, fontSize: 20, letterSpacing: '-0.04em', color: TEXT }}>nan</span>
         </div>
 
-        <Dots total={SLIDES.length} active={slide} go={go} inactiveBg={dotBg} />
+        <Dots total={SLIDES.length} active={slide} go={go} inactiveBg={DOTS_INACTIVE} />
 
         <h1 style={{
           fontSize: 'clamp(32px,3.2vw,52px)', fontWeight: 900,
           lineHeight: 1.1, letterSpacing: '-0.04em',
-          color: C.text, margin: '0 0 18px',
+          color: TEXT, margin: '0 0 18px',
           opacity: fading ? 0 : 1, transition: 'opacity 0.25s',
         }}>
           <span style={{ color: BLUE }}>{cur.accent}</span>
@@ -207,7 +206,7 @@ export function LandingPage() {
         </h1>
 
         <p style={{
-          fontSize: 16, color: C.t2,
+          fontSize: 16, color: T2,
           lineHeight: 1.65, marginBottom: 40, maxWidth: 380,
           opacity: fading ? 0 : 1, transition: 'opacity 0.25s',
         }}>
