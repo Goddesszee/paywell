@@ -18,6 +18,7 @@ import { useAppStore } from '../store/appStore'
 import { useAccount } from 'wagmi'
 
 const STORAGE_KEY = 'nan-push-subscribed-v1'
+const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? ''
 
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
@@ -51,7 +52,7 @@ export function usePushNotifications() {
     async function subscribe() {
       try {
         // Fetch VAPID public key from server (avoids hardcoding in client)
-        const keyRes  = await fetch('/api/push/vapid-public-key')
+        const keyRes  = await fetch(`${API_BASE}/api/push/vapid-public-key`)
         const keyData = await keyRes.json() as { publicKey: string | null }
         if (!keyData.publicKey) return   // VAPID not configured on server
 
@@ -64,7 +65,7 @@ export function usePushNotifications() {
           applicationServerKey: urlBase64ToUint8Array(keyData.publicKey).buffer as ArrayBuffer,
         })
 
-        await fetch('/api/push/subscribe', {
+        await fetch(`${API_BASE}/api/push/subscribe`, {
           method:  'POST',
           headers: { 'content-type': 'application/json' },
           body:    JSON.stringify({ address, subscription: sub.toJSON() }),
