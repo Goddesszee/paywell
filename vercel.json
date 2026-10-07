@@ -63,6 +63,10 @@
     { "source": "/api/admin/support/tickets/:id/reply",          "destination": "/api/community?route=admin/support/tickets/reply&_id=:id" },
     { "source": "/api/notifications",                            "destination": "/api/community?route=notifications" },
     { "source": "/api/notifications/read",                       "destination": "/api/community?route=notifications/read" },
+    { "source": "/api/admin/support/tickets/:id/read",           "destination": "/api/community?route=admin/support/tickets/read&_id=:id" },
+    { "source": "/api/tx-track",                                 "destination": "/api/community?route=tx-track" },
+    { "source": "/api/admin/tx-report",                          "destination": "/api/community?route=admin/tx-report" },
+    { "source": "/api/admin/analytics",                          "destination": "/api/community?route=admin/analytics" },
     { "source": "/(.*)",                                         "destination": "/index.html" }
   ]
 }

@@ -132,11 +132,10 @@ async function routeHandler(req: VercelRequest, res: VercelResponse) {
   // ── feedback ─────────────────────────────────────────────────────────────────
 
   if (route === 'feedback' && req.method === 'POST') {
-    if (!sess) return res.status(401).json({ success: false, error: 'Unauthorized' })
     const { rating, comment = '', category = 'general' } = req.body as { rating: number; comment?: string; category?: string }
     if (!rating || rating < 1 || rating > 5) return res.status(400).json({ success: false, error: 'rating 1-5 required' })
     const entry: FeedbackEntry = {
-      id: genId('fb'), userEmail: sess.email,
+      id: genId('fb'), userEmail: sess?.email ?? 'anonymous',
       rating: Math.round(rating), comment: String(comment).slice(0, 1000),
       category, reviewed: false, createdAt: new Date().toISOString(),
     }
@@ -166,11 +165,10 @@ async function routeHandler(req: VercelRequest, res: VercelResponse) {
   // ── suggestions ──────────────────────────────────────────────────────────────
 
   if (route === 'suggestions' && req.method === 'POST') {
-    if (!sess) return res.status(401).json({ success: false, error: 'Unauthorized' })
     const { title, description = '', category = 'general' } = req.body as { title: string; description?: string; category?: string }
     if (!title?.trim()) return res.status(400).json({ success: false, error: 'title required' })
     const entry: SuggestionEntry = {
-      id: genId('sug'), userEmail: sess.email,
+      id: genId('sug'), userEmail: sess?.email ?? 'anonymous',
       title: String(title).slice(0, 200), description: String(description).slice(0, 2000),
       category, status: 'new', adminNote: '',
       createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
@@ -315,6 +313,92 @@ async function routeHandler(req: VercelRequest, res: VercelResponse) {
     await kv.del(key)
     if (updated.length) await kv.rpush(key, ...updated)
     return res.status(200).json({ success: true })
+  }
+
+  // ── admin: mark ticket read ───────────────────────────────────────────────────
+  if (route === 'admin/support/tickets/read' && req.method === 'POST') {
+    if (!id) return res.status(400).json({ success: false, error: 'id required' })
+    const ticket = await kv.get<SupportTicket>(`ticket:${id}`)
+    if (ticket) { ticket.hasUnreadCustomer = false; await kv.set(`ticket:${id}`, ticket) }
+    return res.status(200).json({ success: true })
+  }
+
+  // ── tx tracking ───────────────────────────────────────────────────────────────
+  if (route === 'tx-track' && req.method === 'POST') {
+    const { walletType = 'main', walletAddress = '', type, amount, description, counterparty, txHash, chain, userEmail } = req.body as Record<string, string>
+    if (!type) return res.status(400).json({ success: false, error: 'type required' })
+    const record = {
+      id: genId('tx'),
+      walletType, walletAddress,
+      userEmail: sess?.email ?? userEmail ?? 'anonymous',
+      type, amount: Math.abs(Number(amount) || 0),
+      description: String(description ?? type),
+      counterparty, txHash, chain: chain ?? 'Arc Testnet',
+      timestamp: new Date().toISOString(),
+    }
+    await kv.lpush('tx:ledger', record)
+    await kv.ltrim('tx:ledger', 0, 1999)
+    return res.status(200).json({ success: true, id: record.id })
+  }
+
+  if (route === 'admin/tx-report' && req.method === 'GET') {
+    const all = (await kv.lrange<{ walletType: string; amount: number; type: string; timestamp: string; walletAddress: string; userEmail: string; description: string; txHash?: string; chain?: string }>('tx:ledger', 0, 1999)) ?? []
+    const totalVolume = all.reduce((s, t) => s + (Number(t.amount) || 0), 0)
+    const mainVolume  = all.filter(t => t.walletType === 'main').reduce((s, t) => s + (Number(t.amount) || 0), 0)
+    const agentVolume = all.filter(t => t.walletType === 'agent').reduce((s, t) => s + (Number(t.amount) || 0), 0)
+    const byType = all.reduce<Record<string, { count: number; volume: number }>>((acc, t) => {
+      if (!acc[t.type]) acc[t.type] = { count: 0, volume: 0 }
+      acc[t.type].count++; acc[t.type].volume += Number(t.amount) || 0
+      return acc
+    }, {})
+    return res.status(200).json({
+      success: true,
+      totalVolume: Math.round(totalVolume * 100) / 100,
+      mainVolume:  Math.round(mainVolume  * 100) / 100,
+      agentVolume: Math.round(agentVolume * 100) / 100,
+      txCount: all.length,
+      byType,
+      recent: all.slice(0, 100),
+    })
+  }
+
+  // ── admin: analytics overview ─────────────────────────────────────────────────
+  if (route === 'admin/analytics' && req.method === 'GET') {
+    const [feedback, suggestions, allTicketIds] = await Promise.all([
+      kv.lrange<FeedbackEntry>('feedback:all', 0, 499),
+      kv.lrange<SuggestionEntry>('suggestions:all', 0, 499),
+      kv.lrange<string>('tickets:all', 0, 499),
+    ])
+    const fb = feedback ?? []
+    const sug = suggestions ?? []
+    const ticketIds = allTicketIds ?? []
+    const tickets = (await Promise.all(ticketIds.map(tid => kv.get<SupportTicket>(`ticket:${tid}`)))).filter(Boolean) as SupportTicket[]
+    const txAll = (await kv.lrange<{ amount: number; walletType: string }>('tx:ledger', 0, 1999)) ?? []
+    const avgRating = fb.length ? Math.round((fb.reduce((s, f) => s + f.rating, 0) / fb.length) * 10) / 10 : 0
+    const totalVolume  = txAll.reduce((s, t) => s + (Number(t.amount) || 0), 0)
+    const mainVolume   = txAll.filter(t => t.walletType === 'main').reduce((s, t) => s + (Number(t.amount) || 0), 0)
+    const agentVolume  = txAll.filter(t => t.walletType === 'agent').reduce((s, t) => s + (Number(t.amount) || 0), 0)
+    // Count unique sessions via Redis key scan (best-effort)
+    let totalUsers = 0
+    try {
+      const keys = await kv.keys('session:*')
+      totalUsers = keys.length
+    } catch { /* scan not supported on all plans */ }
+    return res.status(200).json({
+      success: true,
+      totalUsers,
+      totalFeedback: fb.length,
+      avgRating,
+      totalSuggestions: sug.length,
+      openSuggestions: sug.filter(s => s.status === 'new' || s.status === 'reviewing').length,
+      auditEntries: 0,
+      totalTickets: tickets.length,
+      openTickets: tickets.filter(t => t.status !== 'resolved').length,
+      totalTxCount: txAll.length,
+      totalVolume:  Math.round(totalVolume  * 100) / 100,
+      mainVolume:   Math.round(mainVolume   * 100) / 100,
+      agentVolume:  Math.round(agentVolume  * 100) / 100,
+    })
   }
 
   return res.status(404).json({ success: false, error: `Unknown route: ${route}` })
