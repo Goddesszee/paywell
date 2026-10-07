@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useAppStore } from '../../store/appStore'
+import { useNanTheme } from '../../hooks/useNanTheme'
 
 const F    = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif"
 const BLUE = '#0066FF'
@@ -20,7 +21,11 @@ const SLIDES = [
 ]
 
 /* ── Slide dot bar ─────────────────────────────────────────────────────────── */
-function Dots({ total, active, go }: { total: number; active: number; go: (i: number) => void }) {
+function Dots({ total, active, go, inactiveBg }: {
+  total: number; active: number
+  go: (i: number) => void
+  inactiveBg: string
+}) {
   return (
     <div style={{ display: 'flex', gap: 5, marginBottom: 28 }}>
       {Array.from({ length: total }).map((_, i) => (
@@ -30,7 +35,7 @@ function Dots({ total, active, go }: { total: number; active: number; go: (i: nu
           style={{
             height: 4, borderRadius: 2,
             width: i === active ? 28 : 20,
-            background: i === active ? BLUE : '#D0D0E0',
+            background: i === active ? BLUE : inactiveBg,
             border: 'none', cursor: 'pointer', padding: 0,
             transition: 'all 0.3s',
           }}
@@ -43,8 +48,9 @@ function Dots({ total, active, go }: { total: number; active: number; go: (i: nu
 /* ── Main ──────────────────────────────────────────────────────────────────── */
 export function LandingPage() {
   const setActiveView = useAppStore(s => s.setActiveView)
-  const [slide, setSlide]     = useState(0)
-  const [fading, setFading]   = useState(false)
+  const C = useNanTheme()
+  const [slide, setSlide]   = useState(0)
+  const [fading, setFading] = useState(false)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const mq = typeof window !== 'undefined' ? window.matchMedia('(min-width: 769px)') : null
   const [isDesktop, setIsDesktop] = useState(mq ? mq.matches : false)
@@ -79,24 +85,28 @@ export function LandingPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const cur = SLIDES[slide]
+  const cur      = SLIDES[slide]
+  const dotBg    = C.isDark ? 'rgba(255,255,255,0.18)' : '#D0D0E0'
+  const gradBot  = C.isDark
+    ? 'linear-gradient(0deg, rgba(0,0,0,0.35) 0%, transparent 100%)'
+    : 'linear-gradient(0deg, rgba(255,255,255,0.25) 0%, transparent 100%)'
 
   /* ── MOBILE ── */
   if (!isDesktop) {
     return (
       <div style={{
         position: 'fixed', inset: 0, fontFamily: F,
-        background: '#FFFFFF',
+        background: C.bg,
         display: 'flex', flexDirection: 'column',
         overflow: 'hidden', height: '100dvh',
       }}>
         {/* Top: dots + headline */}
         <div style={{ padding: '36px 24px 12px', flexShrink: 0 }}>
-          <Dots total={SLIDES.length} active={slide} go={go} />
+          <Dots total={SLIDES.length} active={slide} go={go} inactiveBg={dotBg} />
           <h1 style={{
             fontSize: 'clamp(24px,7vw,32px)', fontWeight: 900,
             lineHeight: 1.1, letterSpacing: '-0.03em',
-            color: '#1A1A2E', margin: 0,
+            color: C.text, margin: 0,
           }}>
             <span style={{ color: BLUE }}>{cur.accent}</span>
             {cur.headline}
@@ -117,13 +127,13 @@ export function LandingPage() {
           }} />
           <div style={{
             position: 'absolute', bottom: 0, left: 0, right: 0, height: '30%',
-            background: 'linear-gradient(0deg, rgba(255,255,255,0.25) 0%, transparent 100%)',
+            background: gradBot,
           }} />
         </div>
 
         {/* Bottom: CTAs */}
         <div style={{
-          background: '#FFFFFF', flexShrink: 0,
+          background: C.bg, flexShrink: 0,
           padding: `16px 24px calc(env(safe-area-inset-bottom,0px) + 16px)`,
           display: 'flex', flexDirection: 'column', gap: 4,
         }}>
@@ -162,7 +172,7 @@ export function LandingPage() {
   return (
     <div style={{
       position: 'fixed', inset: 0, fontFamily: F,
-      background: '#FFFFFF',
+      background: C.bg,
       display: 'flex', alignItems: 'stretch',
     }}>
       {/* Left panel — text + CTAs */}
@@ -174,21 +184,22 @@ export function LandingPage() {
       }}>
         {/* Logo */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 56 }}>
-          <div style={{ width: 32, height: 32, borderRadius: 9, background: BLUE, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ width: 32, height: 32, borderRadius: 9, background: BLUE,
+            display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <svg viewBox="0 0 324 480" width="14" height="20" fill="none">
               <path d="M255,0 L84,167 L71,163 L0,97 L0,378 L246,132 L255,110 Z" fill="#fff"/>
               <path d="M69,480 L240,313 L253,317 L324,383 L324,102 L78,348 L69,370 Z" fill="#fff"/>
             </svg>
           </div>
-          <span style={{ fontWeight: 800, fontSize: 20, letterSpacing: '-0.04em', color: '#1A1A2E' }}>nan</span>
+          <span style={{ fontWeight: 800, fontSize: 20, letterSpacing: '-0.04em', color: C.text }}>nan</span>
         </div>
 
-        <Dots total={SLIDES.length} active={slide} go={go} />
+        <Dots total={SLIDES.length} active={slide} go={go} inactiveBg={dotBg} />
 
         <h1 style={{
           fontSize: 'clamp(32px,3.2vw,52px)', fontWeight: 900,
           lineHeight: 1.1, letterSpacing: '-0.04em',
-          color: '#1A1A2E', margin: '0 0 18px',
+          color: C.text, margin: '0 0 18px',
           opacity: fading ? 0 : 1, transition: 'opacity 0.25s',
         }}>
           <span style={{ color: BLUE }}>{cur.accent}</span>
@@ -196,7 +207,7 @@ export function LandingPage() {
         </h1>
 
         <p style={{
-          fontSize: 16, color: '#6B7280',
+          fontSize: 16, color: C.t2,
           lineHeight: 1.65, marginBottom: 40, maxWidth: 380,
           opacity: fading ? 0 : 1, transition: 'opacity 0.25s',
         }}>
