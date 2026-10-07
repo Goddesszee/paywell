@@ -43,3 +43,56 @@ self.addEventListener('fetch', (e) => {
     })
   );
 });
+
+// ── Web Push ──────────────────────────────────────────────────────────────────
+// Receives push messages from the server chain watcher and shows a native
+// browser notification even when the app tab is closed.
+
+self.addEventListener('push', (e) => {
+  if (!e.data) return;
+
+  let data = {};
+  try { data = e.data.json(); } catch { data = { title: 'NAN', body: e.data.text() }; }
+
+  const title   = data.title   || 'NAN Payment';
+  const body    = data.body    || 'You have a new transaction';
+  const txHash  = data.txHash  || '';
+  const amount  = data.amount  || '';
+
+  const options = {
+    body,
+    icon:  '/icon-192.png',
+    badge: '/icon-192.png',
+    tag:   txHash || `payment-${Date.now()}`,
+    renotify: false,
+    data: { txHash, amount, url: '/' },
+    actions: [
+      { action: 'view', title: 'View Activity' },
+    ],
+  };
+
+  e.waitUntil(self.registration.showNotification(title, options));
+});
+
+// When the user taps the notification, open/focus the app and navigate to Activity.
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close();
+
+  const targetUrl = e.notification.data?.url || '/';
+
+  if (e.action === 'view' || !e.action) {
+    e.waitUntil(
+      clients.matchAll({ type: 'window', includeUncontrolled: true }).then(windowClients => {
+        // If app is already open, focus it
+        for (const client of windowClients) {
+          if (client.url.includes(self.location.origin) && 'focus' in client) {
+            client.postMessage({ type: 'PUSH_NAV', view: 'activity' });
+            return client.focus();
+          }
+        }
+        // Otherwise open a new tab
+        if (clients.openWindow) return clients.openWindow(targetUrl);
+      })
+    );
+  }
+});

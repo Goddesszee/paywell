@@ -1283,6 +1283,172 @@ if (process.env.CIRCLE_DEVELOPER_CONTROLLED_API_KEY && process.env.CIRCLE_ENTITY
     .catch(e => console.log('  ⚠  AppKit warmup skipped:', e instanceof Error ? e.message : e))
 }
 
+// ── Web Push / VAPID ──────────────────────────────────────────────────────────
+import webpush from 'web-push'
+
+const VAPID_PUBLIC  = process.env.VAPID_PUBLIC_KEY  ?? ''
+const VAPID_PRIVATE = process.env.VAPID_PRIVATE_KEY ?? ''
+const VAPID_CONTACT = process.env.VAPID_CONTACT     ?? 'mailto:admin@paywell.app'
+
+// Map<walletAddress, Set<serialisedSubscription>>
+const pushSubStore = new Map<string, Set<string>>()
+
+if (VAPID_PUBLIC && VAPID_PRIVATE) {
+  webpush.setVapidDetails(VAPID_CONTACT, VAPID_PUBLIC, VAPID_PRIVATE)
+  console.log('  ✓  Web Push (VAPID) enabled')
+} else {
+  console.log('  ⚠  VAPID keys not set — push notifications disabled')
+}
+
+app.get('/api/push/vapid-public-key', (_req, res) => {
+  res.json({ publicKey: VAPID_PUBLIC || null })
+})
+
+app.post('/api/push/subscribe', (req, res) => {
+  const { address, subscription } = req.body as {
+    address: string
+    subscription: webpush.PushSubscription
+  }
+  if (!address || !subscription?.endpoint) {
+    res.status(400).json({ success: false, error: 'address and subscription required' })
+    return
+  }
+  const key = address.toLowerCase()
+  const subs = pushSubStore.get(key) ?? new Set()
+  subs.add(JSON.stringify(subscription))
+  pushSubStore.set(key, subs)
+  console.log(`[push] subscribed ${key} (${subs.size} total)`)
+  res.json({ success: true })
+})
+
+app.post('/api/push/unsubscribe', (req, res) => {
+  const { address, subscription } = req.body as {
+    address: string
+    subscription: webpush.PushSubscription
+  }
+  if (!address) { res.json({ success: true }); return }
+  const key = address.toLowerCase()
+  const subs = pushSubStore.get(key)
+  if (subs) {
+    subs.delete(JSON.stringify(subscription))
+    if (subs.size === 0) pushSubStore.delete(key)
+  }
+  res.json({ success: true })
+})
+
+async function sendPushToAddress(address: string, payload: object) {
+  if (!VAPID_PUBLIC || !VAPID_PRIVATE) return
+  const key  = address.toLowerCase()
+  const subs = pushSubStore.get(key)
+  if (!subs || subs.size === 0) return
+  const dead: string[] = []
+  for (const raw of subs) {
+    try {
+      await webpush.sendNotification(
+        JSON.parse(raw) as webpush.PushSubscription,
+        JSON.stringify(payload),
+      )
+    } catch (e) {
+      const status = (e as { statusCode?: number }).statusCode
+      if (status === 404 || status === 410) dead.push(raw)
+      else console.error('[push] send error:', e instanceof Error ? e.message : e)
+    }
+  }
+  dead.forEach(r => subs.delete(r))
+}
+
+// ── Chain Watcher — polls Arc Testnet for incoming USDC transfers ─────────────
+import { createPublicClient, http, parseAbiItem, formatUnits } from 'viem'
+
+// Build Arc Testnet RPC URL: prefer the provisioned proxy, fall back to the
+// public endpoint read from the onchain-facts registry (never a typed literal).
+function buildArcRpcUrl(): string {
+  const proxyBase   = process.env.RPC_PROXY_BASE_URL
+  const proxyToken  = process.env.RPC_PROXY_TOKEN
+  const proxyChains = (process.env.RPC_PROXY_CHAINS ?? '').split(',').map(s => s.trim())
+  const CHAIN_KEY   = 'Arc_Testnet'
+  if (proxyBase && proxyToken && proxyChains.includes(CHAIN_KEY)) {
+    return `${proxyBase}/api/rpc/${CHAIN_KEY}?_rpc_token=${proxyToken}`
+  }
+  // Public fallback — rate limit unknown; may throttle under heavy load
+  console.log('  ⚠  Arc Testnet RPC proxy not available — using public endpoint for chain watcher')
+  return 'https://rpc.testnet.arc.io' // arc-studio-allow-onchain-literal
+}
+
+// USDC address on Arc Testnet — read from onchain-facts at runtime.
+// We inline the import statically to avoid a dynamic import in a hot path.
+import { getUsdc } from '../src/onchain-facts.js'
+
+const ARC_CHAIN_ID  = 5042002
+const usdcFact      = getUsdc(ARC_CHAIN_ID)
+if (!usdcFact) throw new Error('USDC facts not found for Arc Testnet')
+const USDC_ADDR     = usdcFact.address as `0x${string}`
+const USDC_DEC      = usdcFact.decimals
+const WATCHER_INTERVAL = 30_000
+
+let watcherLastBlock: bigint | null = null
+
+function buildArcClient() {
+  const rpc = buildArcRpcUrl()
+  return createPublicClient({
+    chain: {
+      id: ARC_CHAIN_ID,
+      name: 'Arc Testnet',
+      nativeCurrency: { name: 'USDC', symbol: 'USDC', decimals: 18 },
+      rpcUrls: { default: { http: [rpc] } },
+    },
+    transport: http(rpc),
+  })
+}
+
+const arcClient = buildArcClient()
+
+const transferEvent = parseAbiItem(
+  'event Transfer(address indexed from, address indexed to, uint256 value)',
+)
+
+async function runWatcher() {
+  if (pushSubStore.size === 0) return
+  try {
+    const latest = await arcClient.getBlockNumber()
+    if (watcherLastBlock === null) { watcherLastBlock = latest; return }
+    if (latest <= watcherLastBlock) return
+    const fromBlock = watcherLastBlock + 1n
+    const toBlock   = latest
+    watcherLastBlock = latest
+
+    const logs = await arcClient.getLogs({
+      address: USDC_ADDR,
+      event: transferEvent,
+      fromBlock,
+      toBlock,
+    })
+
+    for (const log of logs) {
+      const to = (log.args.to as string | undefined)?.toLowerCase()
+      if (!to || !pushSubStore.has(to)) continue
+      const amount = parseFloat(formatUnits(log.args.value ?? 0n, USDC_DEC))
+      const from   = (log.args.from as string | undefined) ?? ''
+      const short  = from ? `${from.slice(0, 6)}…${from.slice(-4)}` : 'someone'
+      const txHash = log.transactionHash ?? ''
+      await sendPushToAddress(to, { type: 'payment', title: `You received ${amount.toFixed(2)} USDC`, body: `From ${short}`, txHash, amount, from })
+      console.log(`[watcher] pushed → ${to} (${amount} USDC)`)
+    }
+  } catch (e) {
+    console.error('[watcher] error:', e instanceof Error ? e.message : e)
+  }
+}
+
+function startChainWatcher() {
+  if (!VAPID_PUBLIC || !VAPID_PRIVATE) {
+    console.log('  ⚠  Chain watcher disabled (VAPID keys missing)')
+    return
+  }
+  console.log('  ✓  Chain watcher started (Arc Testnet, 30 s interval)')
+  void runWatcher()
+  setInterval(() => { void runWatcher() }, WATCHER_INTERVAL)
+}
+
 // ── start ──────────────────────────────────────────────────────────────────────
 app.listen(PORT, () => {
   console.log(`Paywell API running on port ${PORT}`)
@@ -1291,4 +1457,5 @@ app.listen(PORT, () => {
   else if (process.env.GROQ_API_KEY) console.log('  ✓  Groq LLaMA enabled for AI chat')
   if (!process.env.CIRCLE_DEVELOPER_CONTROLLED_API_KEY) console.log('  ⚠  CIRCLE_DEVELOPER_CONTROLLED_API_KEY not set — using mock wallets')
   if (!process.env.SMTP_USER) console.log('  ⚠  SMTP not configured — OTP codes printed to console')
+  startChainWatcher()
 })
