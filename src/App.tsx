@@ -1,5 +1,6 @@
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { useAppStore } from './store/appStore'
+import { SplashScreen } from './components/SplashScreen'
 import { AppShell } from './components/layout/AppShell'
 import { AgentWalletExperience } from './components/pages/AgentWalletExperience'
 import { LandingPage } from './components/pages/LandingPage'
@@ -35,6 +36,14 @@ import { DashboardPage } from './components/pages/DashboardPage'
 
 export default function App() {
   const { activeView } = useAppStore()
+  const [splashDone, setSplashDone] = useState(() => {
+    // only show splash on first ever visit per session
+    if (sessionStorage.getItem('nan_splash_shown')) return true
+    sessionStorage.setItem('nan_splash_shown', '1')
+    return false
+  })
+
+  if (!splashDone) return <SplashScreen onDone={() => setSplashDone(true)} />
 
   // Public pages — no shell
   if (activeView === 'landing') return <LandingPage />
