@@ -19,24 +19,21 @@ import { useFxRates } from '../../hooks/useFxRates'
 const F    = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif"
 const MONO = "'JetBrains Mono', 'SF Mono', Menlo, monospace"
 const ARC  = 5042002
-const BLUE = '#0066FF'
-const GREEN = '#00C853'
-const RED   = '#FF3B3B'
 const EURC_ADDRESS = '0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a' as const
 
 // ─── Transaction row ──────────────────────────────────────────────────────────
 
-function txTypeIcon(item: ActivityItem) {
-  if (item.agentInitiated) return { icon: <Bot size={15} color={BLUE} />, bg: 'rgba(0,102,255,0.10)' }
+function txTypeIcon(item: ActivityItem, C: NanTheme) {
+  if (item.agentInitiated) return { icon: <Bot size={15} color={C.blue} />, bg: C.blueDim }
   if (item.type === 'bridge') return { icon: <ArrowLeftRight size={15} color="#818CF8" />, bg: 'rgba(129,140,248,0.10)' }
-  if (item.type === 'purchase' || item.type === 'agent_purchase') return { icon: <ShoppingBag size={15} color="#F0A500" />, bg: 'rgba(240,165,0,0.10)' }
-  if (item.sign === '+') return { icon: <ArrowDownLeft size={15} color={GREEN} />, bg: 'rgba(0,200,83,0.10)' }
-  return { icon: <ArrowUpRight size={15} color={RED} />, bg: 'rgba(255,59,59,0.10)' }
+  if (item.type === 'purchase' || item.type === 'agent_purchase') return { icon: <ShoppingBag size={15} color={C.gold} />, bg: `rgba(240,165,0,0.10)` }
+  if (item.sign === '+') return { icon: <ArrowDownLeft size={15} color={C.green} />, bg: 'rgba(0,200,83,0.10)' }
+  return { icon: <ArrowUpRight size={15} color={C.red} />, bg: 'rgba(255,59,59,0.10)' }
 }
 
 function TxRow({ item, C, last }: { item: ActivityItem; C: NanTheme; last: boolean }) {
   const isIn = item.sign === '+'
-  const { icon, bg } = txTypeIcon(item)
+  const { icon, bg } = txTypeIcon(item, C)
   const ts = new Date(item.timestamp)
   const timeLabel = ts.toLocaleTimeString('en', { hour: '2-digit', minute: '2-digit' })
   const dateLabel = ts.toLocaleDateString('en', { month: 'short', day: 'numeric' })
@@ -49,7 +46,6 @@ function TxRow({ item, C, last }: { item: ActivityItem; C: NanTheme; last: boole
       padding: '12px 0',
       borderBottom: last ? 'none' : `1px solid ${C.bdr}`,
     }}>
-      {/* Icon */}
       <div style={{
         width: 38, height: 38, borderRadius: 11, flexShrink: 0,
         background: bg,
@@ -57,8 +53,6 @@ function TxRow({ item, C, last }: { item: ActivityItem; C: NanTheme; last: boole
       }}>
         {icon}
       </div>
-
-      {/* Description + meta */}
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 13, fontWeight: 600, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {item.description}
@@ -68,15 +62,13 @@ function TxRow({ item, C, last }: { item: ActivityItem; C: NanTheme; last: boole
             <span style={{ fontSize: 11, color: C.t3 }}>{item.counterparty}</span>
           )}
           <span style={{ fontSize: 10, color: C.t3 }}>{dateLabel} · {timeLabel}</span>
-          {isConfirmed && <CheckCircle2 size={10} color={GREEN} />}
-          {isPending   && <Clock        size={10} color="#F0A500" />}
+          {isConfirmed && <CheckCircle2 size={10} color={C.green} />}
+          {isPending   && <Clock        size={10} color={C.gold} />}
         </div>
       </div>
-
-      {/* Amount */}
       <span style={{
         fontFamily: MONO, fontSize: 13, fontWeight: 700,
-        color: isIn ? GREEN : RED, flexShrink: 0,
+        color: isIn ? C.green : C.red, flexShrink: 0,
       }}>
         {item.sign}{item.amount}
       </span>
@@ -98,25 +90,25 @@ function ActionBtn({ Icon, label, primary, ai, onClick, C }: {
     }}>
       <div style={{
         width: 52, height: 52, borderRadius: 18,
-        background: primary ? BLUE : ai ? 'rgba(0,102,255,0.13)' : C.surf2,
-        border: primary ? 'none' : ai ? '1px solid rgba(0,102,255,0.30)' : `1px solid ${C.bdr}`,
+        background: primary ? C.blue : ai ? C.blueDim : C.surf2,
+        border: primary ? 'none' : ai ? `1px solid ${C.blueBd}` : `1px solid ${C.bdr}`,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        boxShadow: primary ? '0 6px 20px rgba(0,102,255,0.40)' : ai ? '0 2px 12px rgba(0,102,255,0.18)' : 'none',
+        boxShadow: primary ? `0 6px 20px ${C.blue}66` : ai ? `0 2px 12px ${C.blue}30` : 'none',
         flexShrink: 0, position: 'relative',
       }}>
-        <Icon size={20} color={primary ? '#fff' : ai ? BLUE : C.t2} strokeWidth={1.9} />
+        <Icon size={20} color={primary ? '#fff' : ai ? C.blue : C.t2} strokeWidth={1.9} />
         {ai && (
           <div style={{
             position: 'absolute', top: -4, right: -4,
             width: 14, height: 14, borderRadius: '50%',
-            background: BLUE, border: '2px solid #08090B',
+            background: C.blue, border: `2px solid ${C.bg}`,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
             <Sparkles size={7} color="#fff" strokeWidth={2.5} />
           </div>
         )}
       </div>
-      <span style={{ fontSize: 11, fontWeight: ai ? 700 : 600, color: ai ? BLUE : C.t2, whiteSpace: 'nowrap' }}>{label}</span>
+      <span style={{ fontSize: 11, fontWeight: ai ? 700 : 600, color: ai ? C.blue : C.t2, whiteSpace: 'nowrap' }}>{label}</span>
     </button>
   )
 }
@@ -211,7 +203,7 @@ export function HomePage() {
           >
             {profile.avatarUrl
               ? <img src={profile.avatarUrl} alt="avatar" style={{ width: 40, height: 40, objectFit: 'cover' }} />
-              : <span style={{ fontSize: 15, fontWeight: 700, color: BLUE }}>
+              : <span style={{ fontSize: 15, fontWeight: 700, color: C.blue }}>
                   {(profile.displayName || auth?.email || 'N').slice(0, 1).toUpperCase()}
                 </span>
             }
@@ -233,7 +225,7 @@ export function HomePage() {
             style={{
               display: 'flex', alignItems: 'center', gap: 6,
               padding: '10px 16px', borderRadius: 14,
-              background: BLUE, border: 'none',
+              background: C.blue, border: 'none',
               color: '#fff', fontSize: 13, fontWeight: 700,
               cursor: 'pointer', fontFamily: F,
               boxShadow: '0 4px 16px rgba(0,102,255,0.40)',
@@ -400,7 +392,7 @@ export function HomePage() {
         >
           <div style={{
             width: 48, height: 48, borderRadius: 15, flexShrink: 0,
-            background: BLUE, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: C.blue, display: 'flex', alignItems: 'center', justifyContent: 'center',
             boxShadow: '0 4px 16px rgba(0,102,255,0.35)',
           }}>
             <Bot size={22} color="#fff" strokeWidth={1.8} />
@@ -413,7 +405,7 @@ export function HomePage() {
               Give your AI agent a wallet to pay for approved services
             </div>
           </div>
-          <ChevronRight size={17} color={BLUE} strokeWidth={2.5} />
+          <ChevronRight size={17} color={C.blue} strokeWidth={2.5} />
         </button>
       </div>
 
@@ -424,7 +416,7 @@ export function HomePage() {
           <button
             onClick={() => setActiveView('activity')}
             style={{
-              fontSize: 12, color: BLUE, background: 'none', border: 'none',
+              fontSize: 12, color: C.blue, background: 'none', border: 'none',
               cursor: 'pointer', fontFamily: F,
               display: 'flex', alignItems: 'center', gap: 3,
               fontWeight: 600, WebkitTapHighlightColor: 'transparent',
