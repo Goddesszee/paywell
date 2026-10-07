@@ -203,9 +203,10 @@ export function HomePage() {
           >
             {profile.avatarUrl
               ? <img src={profile.avatarUrl} alt="avatar" style={{ width: 40, height: 40, objectFit: 'cover' }} />
-              : <span style={{ fontSize: 15, fontWeight: 700, color: C.blue }}>
-                  {(profile.displayName || auth?.email || 'N').slice(0, 1).toUpperCase()}
-                </span>
+              : <svg viewBox="0 0 324 480" width="18" height="25" fill="none">
+                  <path d="M255,0 L84,167 L71,163 L0,97 L0,378 L246,132 L255,110 Z" fill={C.blue}/>
+                  <path d="M69,480 L240,313 L253,317 L324,383 L324,102 L78,348 L69,370 Z" fill={C.blue}/>
+                </svg>
             }
           </button>
           <div style={{ minWidth: 0 }}>
@@ -374,7 +375,7 @@ export function HomePage() {
         <ActionBtn Icon={Send}            label="Send"      primary onClick={() => setActiveView('send')}    C={C} />
         <ActionBtn Icon={ArrowDownToLine} label="Receive"           onClick={() => setActiveView('receive')} C={C} />
         <ActionBtn Icon={ArrowLeftRight}  label="Convert"           onClick={() => setActiveView('swap')}    C={C} />
-        <ActionBtn Icon={Bot}             label="NAN Agent" ai      onClick={() => setActiveView('agent')}   C={C} />
+        <ActionBtn Icon={Bot}             label="NAN AI"    ai      onClick={() => setActiveView('agent')}   C={C} />
       </div>
 
       {/* ── 6. QUICK ACTIONS — Agent Wallet management card ── */}
