@@ -1408,10 +1408,15 @@ const transferEvent = parseAbiItem(
 )
 
 async function runWatcher() {
-  if (pushSubStore.size === 0) return
   try {
     const latest = await arcClient.getBlockNumber()
-    if (watcherLastBlock === null) { watcherLastBlock = latest; return }
+    if (watcherLastBlock === null) {
+      // Always initialize the cursor, even with no subscribers yet,
+      // so we don't miss transfers that arrive before the first user subscribes.
+      watcherLastBlock = latest
+      return
+    }
+    if (pushSubStore.size === 0) return
     if (latest <= watcherLastBlock) return
     const fromBlock = watcherLastBlock + 1n
     const toBlock   = latest

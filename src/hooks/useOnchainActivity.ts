@@ -39,16 +39,36 @@ export async function fetchOnchainActivity(
   const decimals = usdc.decimals
 
   const latest = await client.getBlockNumber()
-  const fromBlock = latest > 10_000n ? latest - 10_000n : 0n
 
+  // Arc Testnet RPC rejects ranges > ~1 000 blocks with "requested range too large".
+  // Paginate over up to 5 pages of 1 000 blocks each (5 000 blocks of history).
+  const PAGE_SIZE = 1_000n
+  const MAX_PAGES = 5
   const transferEvent = parseAbiItem(
     'event Transfer(address indexed from, address indexed to, uint256 value)',
   )
 
-  const [sentLogs, receivedLogs] = await Promise.all([
-    client.getLogs({ address: usdcAddr, event: transferEvent, args: { from: addr }, fromBlock, toBlock: latest }),
-    client.getLogs({ address: usdcAddr, event: transferEvent, args: { to: addr },   fromBlock, toBlock: latest }),
-  ])
+  type TransferLog = { args: { from?: string; to?: string; value?: bigint }; blockNumber: bigint | null; transactionHash: string | null; logIndex: number | null }
+  const sentLogs: TransferLog[] = []
+  const receivedLogs: TransferLog[] = []
+
+  for (let page = 0; page < MAX_PAGES; page++) {
+    const toBlock   = latest - BigInt(page) * PAGE_SIZE
+    const fromBlock = toBlock > PAGE_SIZE ? toBlock - PAGE_SIZE + 1n : 0n
+    if (toBlock < 0n) break
+    try {
+      const [s, r] = await Promise.all([
+        client.getLogs({ address: usdcAddr, event: transferEvent, args: { from: addr }, fromBlock, toBlock }),
+        client.getLogs({ address: usdcAddr, event: transferEvent, args: { to: addr },   fromBlock, toBlock }),
+      ])
+      sentLogs.push(...(s as TransferLog[]))
+      receivedLogs.push(...(r as TransferLog[]))
+    } catch {
+      // Range rejected — stop paginating
+      break
+    }
+    if (fromBlock === 0n) break
+  }
 
   // Fetch block timestamps for all unique block numbers so we show real times
   const blockNums = [...new Set([...sentLogs, ...receivedLogs].map(l => l.blockNumber).filter(Boolean))] as bigint[]
@@ -70,8 +90,8 @@ export async function fetchOnchainActivity(
     const val = log.args.value ?? 0n
     const amount = parseFloat(formatUnits(val, decimals))
     const counterparty = isIn
-      ? (log.args.from as string | undefined)
-      : (log.args.to  as string | undefined)
+      ? (log.args.from)
+      : (log.args.to)
     const ts = log.blockNumber ? (blockTimestamps.get(log.blockNumber) ?? new Date()) : new Date()
     return {
       id: log.transactionHash ?? `${log.blockNumber}-${log.logIndex}`,
