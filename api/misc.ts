@@ -94,5 +94,5 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   }
 
-  return res.status(400).json({ error: 'Unknown route. Use ?route=activity-feed, ?route=agent-registry, or ?route=faucet' })
+  return res.status(400).json({ error: 'Unknown route.' })
 }
