@@ -2,33 +2,33 @@ import { useEffect, useRef, useState } from 'react'
 import { useAppStore } from '../../store/appStore'
 
 const F = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif"
-const BLUE = '#5B4FE9'   // purple-blue like the screenshot
+const BLUE = '#0066FF'   // NAN electric blue
 
 const SLIDES = [
   {
     img: '/john.jpg',
-    accent: 'Send money',
-    headline: ' to over 40 countries with speed and ease.',
-    sub: 'Pay for services, send USDC and let your AI agent work for you.',
-    cardTitle: 'Send',
-    cardAmount: '203,650.00',
+    accent: 'Your money,',
+    headline: ' your agent, your rules.',
+    sub: 'NAN gives your AI agent a real wallet — funded by you, limited by you, working for you around the clock.',
+    cardTitle: 'Recent Activity',
+    cardAmount: '+$203.50 received',
     cardRows: [
-      { icon: '🏦', label: 'Bank Account',   sub: 'Transfer to banks' },
-      { icon: '📱', label: 'Mobile Money',   sub: 'Transfer to mobile money' },
-      { icon: '⚡', label: 'NAN Agent',       sub: 'Pay via your AI agent' },
+      { icon: '⚡', label: 'NAN Agent paid',    sub: 'Service · 2 min ago' },
+      { icon: '💸', label: 'USDC sent',          sub: 'To 0x3e…f4 · confirmed' },
+      { icon: '🔄', label: 'Recurring active',   sub: 'Next: tomorrow 9 AM' },
     ],
   },
   {
     img: '/girl.jpg',
-    accent: 'AI-powered',
-    headline: ' finance at your fingertips.',
-    sub: 'NAN Agent handles payments and approved services — safely, within your limits.',
+    accent: 'USDC payments',
+    headline: ' handled by AI, controlled by you.',
+    sub: 'Set limits, approve services and watch NAN Agent handle the rest — on Arc, Base, and beyond.',
     cardTitle: 'Agent Wallet',
     cardAmount: '84.17 USDC',
     cardRows: [
-      { icon: '🤖', label: 'NAN Agent',      sub: 'Active · Arc Testnet' },
-      { icon: '🔒', label: 'Spend Limits',   sub: 'You stay in control' },
-      { icon: '✅', label: 'Auto Pay',        sub: 'Approved services only' },
+      { icon: '🤖', label: 'NAN Agent',       sub: 'Active · Arc Testnet' },
+      { icon: '🔒', label: 'Spend limit',      sub: '$50 / day · you control' },
+      { icon: '✅', label: 'Auto Pay on',       sub: 'Approved services only' },
     ],
   },
 ]
@@ -58,8 +58,8 @@ function Dots({ total, active, go }: { total: number; active: number; go: (i: nu
 function MockCard({ title, amount, rows }: { title: string; amount: string; rows: { icon: string; label: string; sub: string }[] }) {
   return (
     <div style={{
-      position: 'absolute', bottom: 32, right: 16,
-      width: '62%', maxWidth: 260,
+      position: 'absolute', bottom: 28, left: 16,
+      width: '68%', maxWidth: 270,
       background: 'rgba(18,20,32,0.88)',
       backdropFilter: 'blur(20px)',
       WebkitBackdropFilter: 'blur(20px)',
@@ -198,7 +198,7 @@ export function LandingPage() {
               border: 'none', borderRadius: 16,
               fontSize: 17, fontWeight: 700,
               cursor: 'pointer', fontFamily: F,
-              boxShadow: '0 6px 24px rgba(91,79,233,0.40)',
+              boxShadow: '0 6px 24px rgba(0,102,255,0.40)',
               letterSpacing: '-0.01em',
             }}
           >
@@ -274,7 +274,7 @@ export function LandingPage() {
               border: 'none', borderRadius: 14,
               fontSize: 16, fontWeight: 700,
               cursor: 'pointer', fontFamily: F,
-              boxShadow: '0 6px 24px rgba(91,79,233,0.35)',
+              boxShadow: '0 6px 24px rgba(0,102,255,0.35)',
             }}
           >
             Sign up
