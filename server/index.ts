@@ -45,6 +45,24 @@ const activityStore = new Map<string, Array<{
   status: string; counterparty?: string; txHash?: string; agentInitiated?: boolean
 }>>()
 
+// ── Global transaction ledger ─────────────────────────────────────────────────
+// Accumulates every transaction reported from the frontend (main wallet + agent).
+// Reported via POST /api/tx-track. Capped at 2000 entries.
+interface TxRecord {
+  id: string
+  walletType: 'main' | 'agent'
+  walletAddress: string
+  userEmail: string
+  type: string          // 'sent' | 'received' | 'agent_spend' | 'bridge' | 'swap' | 'purchase'
+  amount: number        // USDC value
+  description: string
+  counterparty?: string
+  txHash?: string
+  chain?: string
+  timestamp: string
+}
+const txLedger: TxRecord[] = []
+
 // ── helpers ───────────────────────────────────────────────────────────────────
 
 function genToken(len = 32) {
@@ -642,56 +660,63 @@ function getTicketsByEmail(email: string): SupportTicket[] {
   return [...supportStore.values()].filter(t => t.userEmail === email).sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
 }
 
-// Create ticket
+// Resolve caller identity: session email > wallet address header > anonymous
+function resolveIdentity(req: express.Request): { email: string; walletAddress: string } {
+  const auth = req.headers.authorization ?? ''
+  const token = auth.startsWith('Bearer ') ? auth.slice(7) : ''
+  const session = token ? sessionStore.get(token) : undefined
+  if (session) return { email: session.email, walletAddress: session.walletAddress }
+  const wallet = (req.headers['x-wallet-address'] as string | undefined ?? req.body?.walletAddress ?? '').toLowerCase()
+  const email = wallet ? `wallet:${wallet}` : 'anonymous'
+  return { email, walletAddress: wallet }
+}
+
+// Create ticket (no auth required — wallet address used as identity fallback)
 app.post('/api/support/tickets', (req, res) => {
-  const session = requireSession(req, res)
-  if (!session) return
+  const identity = resolveIdentity(req)
   const { subject, message } = req.body as { subject: string; message: string }
   if (!subject || !message) { res.status(400).json({ success: false, error: 'subject and message required' }); return }
   const id = `TKT-${Date.now().toString(36).toUpperCase()}`
   const now = new Date().toISOString()
   const ticket: SupportTicket = {
-    id, userEmail: session.email, subject, status: 'open',
+    id, userEmail: identity.email, subject, status: 'open',
     messages: [{ id: `msg-${Date.now()}`, author: 'customer', content: message, timestamp: now }],
     createdAt: now, updatedAt: now, hasUnreadAdmin: false, hasUnreadCustomer: true,
   }
   supportStore.set(id, ticket)
-  // Create notification for customer (ticket created confirmation)
-  addNotification(session.email, {
-    type: 'support',
-    title: 'Support request received',
-    body: `Your request "${subject}" has been submitted. We'll get back to you shortly.`,
-    ticketId: id,
-  })
+  if (identity.email !== 'anonymous') {
+    addNotification(identity.email, {
+      type: 'support',
+      title: 'Support request received',
+      body: `Your request "${subject}" has been submitted. We'll get back to you shortly.`,
+      ticketId: id,
+    })
+  }
   res.json({ success: true, ticket })
 })
 
-// Get tickets for current user
+// Get tickets for current user (session or wallet)
 app.get('/api/support/tickets', (req, res) => {
-  const session = requireSession(req, res)
-  if (!session) return
-  res.json({ success: true, tickets: getTicketsByEmail(session.email) })
+  const identity = resolveIdentity(req)
+  res.json({ success: true, tickets: getTicketsByEmail(identity.email) })
 })
 
 // Get single ticket
 app.get('/api/support/tickets/:id', (req, res) => {
-  const session = requireSession(req, res)
-  if (!session) return
+  const identity = resolveIdentity(req)
   const ticket = supportStore.get(req.params.id)
   if (!ticket) { res.status(404).json({ success: false, error: 'Not found' }); return }
-  if (ticket.userEmail !== session.email) { res.status(403).json({ success: false, error: 'Forbidden' }); return }
-  // Mark customer as having read admin messages
+  if (ticket.userEmail !== identity.email) { res.status(403).json({ success: false, error: 'Forbidden' }); return }
   ticket.hasUnreadAdmin = false
   res.json({ success: true, ticket })
 })
 
 // Customer reply
 app.post('/api/support/tickets/:id/reply', (req, res) => {
-  const session = requireSession(req, res)
-  if (!session) return
+  const identity = resolveIdentity(req)
   const ticket = supportStore.get(req.params.id)
   if (!ticket) { res.status(404).json({ success: false, error: 'Not found' }); return }
-  if (ticket.userEmail !== session.email) { res.status(403).json({ success: false, error: 'Forbidden' }); return }
+  if (ticket.userEmail !== identity.email) { res.status(403).json({ success: false, error: 'Forbidden' }); return }
   const { message } = req.body as { message: string }
   if (!message) { res.status(400).json({ success: false, error: 'message required' }); return }
   const now = new Date().toISOString()
@@ -1062,6 +1087,9 @@ app.get('/api/admin/analytics', (_req, res) => {
     : 0
   const totalSuggestions = suggestionStore.length
   const openSuggestions = suggestionStore.filter(s => s.status === 'new' || s.status === 'reviewing').length
+  const totalVolume = txLedger.reduce((s, t) => s + t.amount, 0)
+  const mainVolume  = txLedger.filter(t => t.walletType === 'main').reduce((s, t) => s + t.amount, 0)
+  const agentVolume = txLedger.filter(t => t.walletType === 'agent').reduce((s, t) => s + t.amount, 0)
   res.json({
     success: true,
     totalUsers: totalSessions,
@@ -1070,6 +1098,58 @@ app.get('/api/admin/analytics', (_req, res) => {
     totalSuggestions,
     openSuggestions,
     auditEntries: auditLog.length,
+    totalTxCount: txLedger.length,
+    totalVolume: Math.round(totalVolume * 100) / 100,
+    mainVolume: Math.round(mainVolume * 100) / 100,
+    agentVolume: Math.round(agentVolume * 100) / 100,
+  })
+})
+
+// ── Transaction tracker ───────────────────────────────────────────────────────
+// Called by the frontend whenever a transaction completes (main wallet or agent).
+app.post('/api/tx-track', (req, res) => {
+  const session = getSession(req.headers.authorization)
+  const body = req.body as Partial<TxRecord>
+  if (!body.type || body.amount === undefined) {
+    res.status(400).json({ success: false, error: 'type and amount required' })
+    return
+  }
+  const record: TxRecord = {
+    id: `tx-${genToken(8)}`,
+    walletType: body.walletType ?? 'main',
+    walletAddress: body.walletAddress ?? session?.walletAddress ?? 'unknown',
+    userEmail: session?.email ?? body.userEmail ?? 'anonymous',
+    type: body.type,
+    amount: Math.abs(Number(body.amount)),
+    description: String(body.description ?? body.type),
+    counterparty: body.counterparty,
+    txHash: body.txHash,
+    chain: body.chain ?? 'Arc Testnet',
+    timestamp: new Date().toISOString(),
+  }
+  txLedger.unshift(record)
+  if (txLedger.length > 2000) txLedger.splice(2000)
+  res.json({ success: true, id: record.id })
+})
+
+app.get('/api/admin/tx-report', (_req, res) => {
+  const totalVolume = txLedger.reduce((s, t) => s + t.amount, 0)
+  const mainVolume  = txLedger.filter(t => t.walletType === 'main').reduce((s, t) => s + t.amount, 0)
+  const agentVolume = txLedger.filter(t => t.walletType === 'agent').reduce((s, t) => s + t.amount, 0)
+  const byType = txLedger.reduce<Record<string, { count: number; volume: number }>>((acc, t) => {
+    if (!acc[t.type]) acc[t.type] = { count: 0, volume: 0 }
+    acc[t.type].count++
+    acc[t.type].volume = Math.round((acc[t.type].volume + t.amount) * 100) / 100
+    return acc
+  }, {})
+  res.json({
+    success: true,
+    totalVolume: Math.round(totalVolume * 100) / 100,
+    mainVolume:  Math.round(mainVolume  * 100) / 100,
+    agentVolume: Math.round(agentVolume * 100) / 100,
+    txCount: txLedger.length,
+    byType,
+    recent: txLedger.slice(0, 100),
   })
 })
 

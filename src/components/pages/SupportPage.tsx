@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import {
   MessageSquare, Plus, ChevronRight, ArrowLeft,
   Send, Clock, CheckCircle, AlertCircle, RotateCcw
@@ -77,6 +77,15 @@ export function SupportPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const token = auth?.sessionToken
+  const walletAddress = auth?.walletAddress ?? ''
+
+  // Build auth headers: session token preferred, wallet address as fallback
+  function authHeaders(extra?: Record<string, string>): Record<string, string> {
+    const h: Record<string, string> = { ...extra }
+    if (token) h['authorization'] = `Bearer ${token}`
+    else if (walletAddress) h['x-wallet-address'] = walletAddress
+    return h
+  }
 
   async function safeJson<T>(res: Response): Promise<T | null> {
     const text = await res.text()
@@ -84,22 +93,22 @@ export function SupportPage() {
     catch { return null }
   }
 
-  const fetchTickets = async () => {
-    if (!token) return
+  const fetchTickets = useCallback(async () => {
+    if (!token && !walletAddress) return
     setLoading(true)
     try {
-      const res = await fetch(`${API}/api/support/tickets`, { headers: { authorization: `Bearer ${token}` } })
+      const res = await fetch(`${API}/api/support/tickets`, { headers: authHeaders() })
       const data = await safeJson<{ tickets: SupportTicket[] }>(res)
       if (data?.tickets) setTickets(data.tickets)
     } finally {
       setLoading(false)
     }
-  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, walletAddress])
 
   const openTicket = async (t: SupportTicket) => {
-    if (!token) return
     try {
-      const res = await fetch(`${API}/api/support/tickets/${t.id}`, { headers: { authorization: `Bearer ${token}` } })
+      const res = await fetch(`${API}/api/support/tickets/${t.id}`, { headers: authHeaders() })
       const data = await safeJson<{ ticket: SupportTicket }>(res)
       if (data?.ticket) {
         setSelected(data.ticket)
@@ -113,7 +122,7 @@ export function SupportPage() {
   }
 
   const submitNew = async () => {
-    if (!token || !newSubject.trim() || !newMessage.trim()) {
+    if (!newSubject.trim() || !newMessage.trim()) {
       setError('Please fill in both fields.')
       return
     }
@@ -122,11 +131,11 @@ export function SupportPage() {
     try {
       const res = await fetch(`${API}/api/support/tickets`, {
         method: 'POST',
-        headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
+        headers: authHeaders({ 'content-type': 'application/json' }),
         body: JSON.stringify({ subject: newSubject.trim(), message: newMessage.trim() }),
       })
       const data = await safeJson<{ ticket: SupportTicket; success?: boolean; error?: string; message?: string }>(res)
-      if (!data) throw new Error(res.status === 503 ? 'Service temporarily unavailable — please try again shortly.' : `Server error (${res.status})`)
+      if (!data) throw new Error(res.status === 503 ? 'Service temporarily unavailable. Please try again shortly.' : `Server error (${res.status})`)
       if (data.error ?? data.message) throw new Error(data.error ?? data.message)
       if (data.ticket) {
         setTickets(prev => [data.ticket, ...prev])
@@ -144,12 +153,12 @@ export function SupportPage() {
   }
 
   const sendReply = async () => {
-    if (!token || !selected || !replyText.trim()) return
+    if (!selected || !replyText.trim()) return
     setReplyLoading(true)
     try {
       const res = await fetch(`${API}/api/support/tickets/${selected.id}/reply`, {
         method: 'POST',
-        headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
+        headers: authHeaders({ 'content-type': 'application/json' }),
         body: JSON.stringify({ message: replyText.trim() }),
       })
       const data = await safeJson<{ ticket: SupportTicket }>(res)
@@ -164,19 +173,7 @@ export function SupportPage() {
     }
   }
 
-  // eslint-disable-next-line react/set-state-in-effect
-  useEffect(() => { void fetchTickets() }, [token]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  // ── No session — wagmi-only users ────────────────────────────────────────────
-  if (!token) return (
-    <div style={{ width: '100%', fontFamily: SANS, padding: '40px 16px', textAlign: 'center' }}>
-      <MessageSquare size={36} color="var(--nan-text3)" style={{ margin: '0 auto 16px' }} />
-      <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--nan-text)', marginBottom: 8 }}>Sign in required</div>
-      <div style={{ fontSize: 13, color: 'var(--nan-text2)', lineHeight: 1.6, maxWidth: 280, margin: '0 auto' }}>
-        Support tickets require an email account. Sign in with your email to submit and track requests.
-      </div>
-    </div>
-  )
+  useEffect(() => { void fetchTickets() }, [fetchTickets])
 
   // ── List view ────────────────────────────────────────────────────────────────
   if (view === 'list') return (

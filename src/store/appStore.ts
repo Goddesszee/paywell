@@ -286,18 +286,35 @@ export const useAppStore = create<AppState>()(
       setOnboarding: (update) => set((s) => ({ onboarding: { ...s.onboarding, ...update } })),
 
       activity: [],
-      addActivity: (item) =>
+      addActivity: (item) => {
         set((s) => ({
           activity: [
             {
               ...item,
               id: `act-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-              // Preserve real block timestamp if provided; only fall back to now for manual entries
               timestamp: (item as Partial<ActivityItem>).timestamp ?? new Date(),
             },
             ...s.activity,
           ],
-        })),
+        }))
+        // Report to server ledger (fire-and-forget — never block the UI)
+        const state = get()
+        const token = state.auth?.sessionToken
+        fetch('/api/tx-track', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}) },
+          body: JSON.stringify({
+            walletType: 'main',
+            walletAddress: state.auth?.walletAddress ?? state.mainWalletAddress ?? '',
+            type: item.type,
+            amount: item.amount,
+            description: item.description,
+            counterparty: item.counterparty,
+            txHash: (item as Partial<ActivityItem>).txHash,
+            chain: (item as Partial<ActivityItem>).chain ?? 'Arc Testnet',
+          }),
+        }).catch(() => {})
+      },
 
       agentPermissions: {
         enabled: true, dailyLimit: 20, perTxLimit: 10, perServiceLimit: 5,
@@ -479,7 +496,26 @@ export const useAppStore = create<AppState>()(
       agentWallet: { provisioned: false, balance_usdc: '0' },
       setAgentWallet: (w) => set((s) => ({ agentWallet: { ...s.agentWallet, ...w } })),
       agentSpendLog: [],
-      addAgentSpend: (e) => set((s) => ({ agentSpendLog: [e, ...s.agentSpendLog].slice(0, 200) })),
+      addAgentSpend: (e) => {
+        set((s) => ({ agentSpendLog: [e, ...s.agentSpendLog].slice(0, 200) }))
+        // Report to server ledger (fire-and-forget)
+        const state = get()
+        const token = state.auth?.sessionToken
+        fetch('/api/tx-track', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}) },
+          body: JSON.stringify({
+            walletType: 'agent',
+            walletAddress: state.agentWallet?.address ?? '',
+            userEmail: state.auth?.email ?? 'anonymous',
+            type: 'agent_spend',
+            amount: e.amount_usdc,
+            description: e.service_name,
+            txHash: e.txId,
+            chain: 'Arc Testnet',
+          }),
+        }).catch(() => {})
+      },
 
       selectedServiceIds: [],
       selectService: (id) =>

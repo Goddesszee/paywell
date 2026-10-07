@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useAppStore } from '../../store/appStore'
 import { BarChart3, Users, Zap, ArrowUpRight, ArrowDownLeft, RefreshCw, Shield, Globe, Cpu, CheckCircle, XCircle, Activity, ArrowLeft, Send, Plus, Trash2, Edit3, Save, X, Info, ChevronRight, ChevronLeft } from 'lucide-react'
 
@@ -935,11 +935,162 @@ interface AdminAnalytics {
   auditEntries: number
   totalTickets?: number
   openTickets?: number
+  totalTxCount?: number
+  totalVolume?: number
+  mainVolume?: number
+  agentVolume?: number
+}
+
+interface TxRecord {
+  id: string
+  walletType: 'main' | 'agent'
+  walletAddress: string
+  userEmail: string
+  type: string
+  amount: number
+  description: string
+  counterparty?: string
+  txHash?: string
+  chain?: string
+  timestamp: string
+}
+
+interface TxReport {
+  totalVolume: number
+  mainVolume: number
+  agentVolume: number
+  txCount: number
+  byType: Record<string, { count: number; volume: number }>
+  recent: TxRecord[]
+}
+
+function AdminTxPanel() {
+  const [report, setReport] = useState<TxReport | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [search, setSearch] = useState('')
+  const [typeFilter, setTypeFilter] = useState('all')
+  const [walletFilter, setWalletFilter] = useState<'all' | 'main' | 'agent'>('all')
+
+  const load = useCallback(() => {
+    setLoading(true)
+    fetch('/api/admin/tx-report')
+      .then(r => r.json())
+      .then((d: TxReport & { success: boolean }) => { if (d.success !== false) setReport(d) })
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [])
+
+  // eslint-disable-next-line react/set-state-in-effect
+  useEffect(() => { void (async () => { load() })() }, [load])
+
+  const txTypes = report ? ['all', ...Object.keys(report.byType)] : ['all']
+  const visible = (report?.recent ?? [])
+    .filter(t => walletFilter === 'all' || t.walletType === walletFilter)
+    .filter(t => typeFilter === 'all' || t.type === typeFilter)
+    .filter(t => !search || t.description.toLowerCase().includes(search.toLowerCase())
+      || t.walletAddress.toLowerCase().includes(search.toLowerCase())
+      || t.userEmail.toLowerCase().includes(search.toLowerCase())
+      || (t.txHash ?? '').toLowerCase().includes(search.toLowerCase()))
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+        <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: '-0.02em' }}>Transaction Volume</div>
+        <button onClick={load} style={{ padding: '6px 12px', borderRadius: 8, background: S, border: `1px solid ${B}`, color: 'var(--nan-text2)', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: SANS }}>Refresh</button>
+      </div>
+
+      {/* Volume summary cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 20, marginTop: 16 }}>
+        {[
+          { label: 'Total Volume', value: report ? `$${report.totalVolume.toFixed(2)}` : '—', sub: `${report?.txCount ?? 0} transactions`, color: '#0066FF' },
+          { label: 'Main Wallet', value: report ? `$${report.mainVolume.toFixed(2)}` : '—', sub: 'User transactions', color: '#00C853' },
+          { label: 'Agent Wallet', value: report ? `$${report.agentVolume.toFixed(2)}` : '—', sub: 'Agent spend', color: '#F0A500' },
+        ].map(card => (
+          <div key={card.label} style={{ background: S, border: `1px solid ${B}`, borderRadius: 12, padding: '14px 16px' }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--nan-text3)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>{card.label}</div>
+            <div style={{ fontSize: 22, fontWeight: 800, color: card.color, letterSpacing: '-0.03em' }}>{card.value}</div>
+            <div style={{ fontSize: 11, color: 'var(--nan-text2)', marginTop: 2 }}>{card.sub}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* By-type breakdown */}
+      {report && Object.keys(report.byType).length > 0 && (
+        <div style={{ background: S, border: `1px solid ${B}`, borderRadius: 12, padding: '14px 16px', marginBottom: 16 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--nan-text3)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>By Type</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {Object.entries(report.byType).map(([type, { count, volume }]) => (
+              <div key={type} style={{ background: 'var(--nan-surface2)', border: `1px solid ${B}`, borderRadius: 8, padding: '6px 12px', fontSize: 12 }}>
+                <span style={{ fontWeight: 700, textTransform: 'capitalize', color: 'var(--nan-text)' }}>{type}</span>
+                <span style={{ color: 'var(--nan-text2)', marginLeft: 6 }}>{count}× · ${volume.toFixed(2)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Filters */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search address, email, hash…"
+          style={{ flex: 1, minWidth: 160, padding: '8px 12px', borderRadius: 9, background: S, border: `1px solid ${B}`, color: 'var(--nan-text)', fontSize: 13, fontFamily: SANS, outline: 'none' }} />
+        {(['all', 'main', 'agent'] as const).map(w => (
+          <button key={w} onClick={() => setWalletFilter(w)}
+            style={{ padding: '8px 12px', borderRadius: 9, border: `1px solid ${walletFilter === w ? '#0066FF' : B}`, background: walletFilter === w ? 'rgba(0,102,255,0.10)' : S, color: walletFilter === w ? '#0066FF' : 'var(--nan-text2)', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: SANS, textTransform: 'capitalize' }}>{w}</button>
+        ))}
+        <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}
+          style={{ padding: '8px 10px', borderRadius: 9, background: S, border: `1px solid ${B}`, color: 'var(--nan-text)', fontSize: 12, fontFamily: SANS, cursor: 'pointer' }}>
+          {txTypes.map(t => <option key={t} value={t}>{t}</option>)}
+        </select>
+      </div>
+
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: 40, color: 'var(--nan-text2)', fontSize: 13 }}>Loading…</div>
+      ) : visible.length === 0 ? (
+        <div style={{ background: S, border: `1px solid ${B}`, borderRadius: 14, padding: '48px 20px', textAlign: 'center', color: 'var(--nan-text2)', fontSize: 13 }}>
+          No transactions tracked yet. They appear here as users make transfers.
+        </div>
+      ) : (
+        <div style={{ background: S, border: `1px solid ${B}`, borderRadius: 14, overflow: 'hidden' }}>
+          {/* Header */}
+          <div style={{ display: 'grid', gridTemplateColumns: '60px 1fr 80px 70px 90px', gap: 8, padding: '10px 16px', borderBottom: `1px solid ${B}`, background: 'var(--nan-surface2)' }}>
+            {['Wallet', 'Description', 'Amount', 'Type', 'Time'].map(h => (
+              <div key={h} style={{ fontSize: 10, fontWeight: 700, color: 'var(--nan-text3)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{h}</div>
+            ))}
+          </div>
+          {visible.slice(0, 200).map((t, i) => (
+            <div key={t.id} style={{ display: 'grid', gridTemplateColumns: '60px 1fr 80px 70px 90px', gap: 8, padding: '11px 16px', borderBottom: i < visible.length - 1 ? `1px solid ${B}` : 'none', alignItems: 'center' }}>
+              <div>
+                <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 20, background: t.walletType === 'agent' ? 'rgba(240,165,0,0.12)' : 'rgba(0,102,255,0.10)', color: t.walletType === 'agent' ? '#F0A500' : '#0066FF' }}>
+                  {t.walletType}
+                </span>
+              </div>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--nan-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.description}</div>
+                <div style={{ fontSize: 10, color: 'var(--nan-text3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {t.userEmail !== 'anonymous' ? t.userEmail.split('@')[0] + '***' : 'anon'}
+                  {t.txHash ? ` · ${t.txHash.slice(0, 8)}…` : ''}
+                </div>
+              </div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: t.type === 'received' ? '#00C853' : 'var(--nan-text)' }}>
+                ${t.amount.toFixed(2)}
+              </div>
+              <div>
+                <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 20, background: 'var(--nan-surface2)', color: 'var(--nan-text2)', textTransform: 'capitalize' }}>{t.type}</span>
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--nan-text3)' }}>
+                {new Date(t.timestamp).toLocaleString('en', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
 }
 
 function AdminDashboardInner() {
   const { activity, setActiveView } = useAppStore()
-  const [tab, setTab] = useState<'overview' | 'support' | 'faqs' | 'about' | 'activity' | 'circle' | 'users' | 'feedback' | 'suggestions' | 'audit'>('overview')
+  const [tab, setTab] = useState<'overview' | 'transactions' | 'support' | 'faqs' | 'about' | 'activity' | 'circle' | 'users' | 'feedback' | 'suggestions' | 'audit'>('overview')
   const [now] = useState(new Date())
   const [analytics, setAnalytics] = useState<AdminAnalytics | null>(null)
 
@@ -984,16 +1135,17 @@ function AdminDashboardInner() {
   ]
 
   const tabs = [
-    { id: 'overview',    label: 'Overview' },
-    { id: 'support',     label: 'Support' },
-    { id: 'feedback',    label: 'Feedback' },
-    { id: 'suggestions', label: 'Suggestions' },
-    { id: 'faqs',        label: 'FAQs' },
-    { id: 'about',       label: 'About' },
-    { id: 'activity',    label: 'Activity' },
-    { id: 'circle',      label: 'Circle Infra' },
-    { id: 'users',       label: 'Users' },
-    { id: 'audit',       label: 'Audit Log' },
+    { id: 'overview',     label: 'Overview' },
+    { id: 'transactions', label: 'Transactions' },
+    { id: 'support',      label: 'Support' },
+    { id: 'feedback',     label: 'Feedback' },
+    { id: 'suggestions',  label: 'Suggestions' },
+    { id: 'faqs',         label: 'FAQs' },
+    { id: 'about',        label: 'About' },
+    { id: 'activity',     label: 'Activity' },
+    { id: 'circle',       label: 'Circle Infra' },
+    { id: 'users',        label: 'Users' },
+    { id: 'audit',        label: 'Audit Log' },
   ] as const
 
   return (
@@ -1037,7 +1189,15 @@ function AdminDashboardInner() {
           <div>
             <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: '-0.02em', marginBottom: 16 }}>Platform Overview</div>
 
-            {/* Server-side stats */}
+            {/* Volume stats */}
+            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--nan-text3)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>Transaction Volume</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 24 }}>
+              <MetricCard label="Total Volume" value={analytics?.totalVolume != null ? `$${analytics.totalVolume.toFixed(2)}` : '—'} sub={`${analytics?.totalTxCount ?? 0} tracked txs`} icon={<BarChart3 size={16} />} />
+              <MetricCard label="Main Wallet" value={analytics?.mainVolume != null ? `$${analytics.mainVolume.toFixed(2)}` : '—'} sub="User transfers" icon={<ArrowUpRight size={16} />} />
+              <MetricCard label="Agent Wallet" value={analytics?.agentVolume != null ? `$${analytics.agentVolume.toFixed(2)}` : '—'} sub="Agent spend" icon={<Zap size={16} />} />
+            </div>
+
+            {/* User & engagement stats */}
             <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--nan-text3)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>Users & Engagement</div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12, marginBottom: 24 }}>
               <MetricCard label="Email Sessions" value={analytics ? String(analytics.totalUsers) : '—'} sub="Signed-in users (server)" icon={<Users size={16} />} />
@@ -1103,6 +1263,9 @@ function AdminDashboardInner() {
             )}
           </div>
         )}
+
+        {/* ── TRANSACTIONS ── */}
+        {tab === 'transactions' && <AdminTxPanel />}
 
         {/* ── SUPPORT ── */}
         {tab === 'support' && <AdminSupportPanel />}
