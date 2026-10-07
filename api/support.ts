@@ -14,7 +14,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node'
 import crypto from 'crypto'
 import { getRedis, REDIS_NOT_CONFIGURED } from './_redis'
 
-const H = { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+const _H = { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
 
 interface SupportMessage { id: string; author: 'customer'|'admin'; content: string; timestamp: string }
 interface SupportTicket {

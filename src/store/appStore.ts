@@ -211,6 +211,7 @@ export interface AppState {
   notifications: AppNotification[]
   unreadCount: number
   setNotifications: (n: AppNotification[]) => void
+  addLocalNotification: (n: Omit<AppNotification, 'id' | 'userEmail' | 'read' | 'createdAt'>) => void
   markNotificationRead: (id: string) => void
   markAllNotificationsRead: () => void
   fetchNotifications: () => Promise<void>
@@ -356,6 +357,19 @@ export const useAppStore = create<AppState>()(
       unreadCount: 0,
       setNotifications: (notifications) =>
         set({ notifications, unreadCount: notifications.filter(n => !n.read).length }),
+      addLocalNotification: (n) =>
+        set((s) => {
+          const auth = s.auth
+          const notification: AppNotification = {
+            ...n,
+            id: `local-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+            userEmail: auth?.email ?? '',
+            read: false,
+            createdAt: new Date().toISOString(),
+          }
+          const notifications = [notification, ...s.notifications]
+          return { notifications, unreadCount: notifications.filter(x => !x.read).length }
+        }),
       markNotificationRead: (id) =>
         set((s) => {
           const notifications = s.notifications.map(n => n.id === id ? { ...n, read: true } : n)

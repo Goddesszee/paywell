@@ -1,11 +1,13 @@
-import React, { useState } from 'react'
+import React, { useState, useCallback } from 'react'
 import {
   ArrowUpRight, ArrowDownLeft, Bot,
   Filter, Search, CheckCircle2, Clock, XCircle,
-  ExternalLink, ArrowLeftRight, ShoppingBag,
+  ExternalLink, ArrowLeftRight, ShoppingBag, RefreshCw,
 } from 'lucide-react'
-import { useAppStore } from '../../store/appStore'
+import { useAppStore, ActivityItem } from '../../store/appStore'
 import { useNanTheme } from '../../hooks/useNanTheme'
+import { useOnchainActivity } from '../../hooks/useOnchainActivity'
+import { useAccount } from 'wagmi'
 
 const F    = "'Inter', -apple-system, sans-serif"
 const MONO = "'JetBrains Mono', Menlo, monospace"
@@ -83,9 +85,49 @@ function timeStr(date: Date): string {
 
 export function ActivityPage() {
   const C = useNanTheme()
-  const { activity } = useAppStore()
+  const { activity, addActivity, addLocalNotification, auth } = useAppStore()
+  const { address: wagmiAddress } = useAccount()
+  const address = wagmiAddress ?? (auth?.circleWalletAddress as `0x${string}` | undefined)
   const [activeFilter, setActiveFilter] = useState<FilterId>('all')
   const [search, setSearch] = useState('')
+
+  // Callback fired by the hook for each genuinely new received transfer.
+  // Adds the item to the store and pushes a local notification.
+  const handleNewReceived = useCallback((item: ActivityItem) => {
+    // Only add if not already in the store (dedup by txHash or id)
+    const existing = useAppStore.getState().activity
+    const key = item.txHash ?? item.id
+    const alreadyIn = existing.some(a => (a.txHash ?? a.id) === key)
+    if (!alreadyIn) {
+      addActivity({
+        type: 'received',
+        description: `Received ${item.amount.toFixed(2)} USDC`,
+        amount: item.amount,
+        sign: '+',
+        status: 'confirmed',
+        counterparty: item.counterparty,
+        txHash: item.txHash,
+      })
+    }
+    addLocalNotification({
+      type: 'payment',
+      title: 'USDC received',
+      body: `You received ${item.amount.toFixed(2)} USDC${item.counterparty ? ` from ${item.counterparty}` : ''}`,
+    })
+  }, [addActivity, addLocalNotification])
+
+  const { items: onchainItems, loading: onchainLoading, refetch } = useOnchainActivity(
+    address,
+    handleNewReceived,
+  )
+
+  // Merge onchain items with the store, deduplicating by txHash / id.
+  // Store items win for non-onchain types (bridge, swap, agent); onchain items
+  // provide the authoritative view for sent/received.
+  const storeIds = new Set(activity.map(a => a.txHash ?? a.id))
+  const onchainOnly = onchainItems.filter(i => !storeIds.has(i.txHash ?? i.id))
+  const merged = [...activity, ...onchainOnly]
+    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
 
   const FILTERS: { id: FilterId; label: string }[] = [
     { id: 'all',      label: 'All' },
@@ -97,7 +139,7 @@ export function ActivityPage() {
   ]
 
   // Main wallet only — agent_purchase entries without agentInitiated flag belong to agent wallet
-  const mainActivity = activity.filter(item => item.type !== 'agent_purchase' || item.agentInitiated)
+  const mainActivity = merged.filter(item => item.type !== 'agent_purchase' || item.agentInitiated)
 
   const filtered = mainActivity.filter(item => {
     if (activeFilter === 'sent')     return item.type === 'sent'
@@ -128,7 +170,24 @@ export function ActivityPage() {
   return (
     <div style={{ width: '100%', minHeight: '100%', fontFamily: F, paddingBottom: 80 }}>
 
-      <h1 style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.025em', color: C.text, marginBottom: 4 }}>Activity</h1>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+        <h1 style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.025em', color: C.text, margin: 0 }}>Activity</h1>
+        <button
+          onClick={() => void refetch()}
+          disabled={onchainLoading}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 5,
+            padding: '6px 12px', borderRadius: 10,
+            background: C.surf, border: `1px solid ${C.bdr}`,
+            color: C.t2, fontSize: 12, fontWeight: 600,
+            cursor: onchainLoading ? 'not-allowed' : 'pointer',
+            fontFamily: F, opacity: onchainLoading ? 0.6 : 1,
+          }}
+        >
+          <RefreshCw size={12} style={{ animation: onchainLoading ? 'nan-spin 0.8s linear infinite' : 'none' }} />
+          {onchainLoading ? 'Syncing…' : 'Refresh'}
+        </button>
+      </div>
       <p style={{ fontSize: 12, color: C.t3, marginBottom: 16 }}>
         Your NAN wallet transactions. Agent Wallet activity is in the Agent Wallet tab.
       </p>
@@ -172,11 +231,22 @@ export function ActivityPage() {
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             margin: '0 auto 12px',
           }}>
-            <Filter size={20} color={C.t3} />
+            {onchainLoading
+              ? <RefreshCw size={20} color={C.blue} style={{ animation: 'nan-spin 0.8s linear infinite' }} />
+              : <Filter size={20} color={C.t3} />
+            }
           </div>
-          <div style={{ fontSize: 15, fontWeight: 600, color: C.text, marginBottom: 5 }}>No transactions</div>
+          <div style={{ fontSize: 15, fontWeight: 600, color: C.text, marginBottom: 5 }}>
+            {onchainLoading ? 'Loading transactions…' : 'No transactions'}
+          </div>
           <div style={{ fontSize: 13, color: C.t3 }}>
-            {search ? `No results for "${search}"` : 'Your NAN wallet activity will appear here'}
+            {onchainLoading
+              ? 'Fetching your onchain activity'
+              : !address
+                ? 'Connect a wallet to see your transaction history'
+                : search
+                  ? `No results for "${search}"`
+                  : 'Your NAN wallet activity will appear here. Refreshes every 30 seconds.'}
           </div>
         </div>
       ) : (
