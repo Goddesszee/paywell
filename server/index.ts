@@ -894,13 +894,13 @@ interface FeedbackEntry {
 const feedbackStore: FeedbackEntry[] = []
 
 app.post('/api/feedback', (req, res) => {
-  const session = requireSession(req, res)
-  if (!session) return
+  // Feedback is allowed from both authenticated and anonymous users.
+  const session = getSession(req.headers.authorization)
   const { rating, comment = '', category = 'general' } = req.body as { rating: number; comment?: string; category?: string }
   if (!rating || rating < 1 || rating > 5) { res.status(400).json({ success: false, error: 'rating 1-5 required' }); return }
   const entry: FeedbackEntry = {
     id: `fb-${genToken(8)}`,
-    userEmail: session.email,
+    userEmail: session?.email ?? 'anonymous',
     rating: Math.round(rating),
     comment: String(comment).slice(0, 1000),
     category,
@@ -943,13 +943,13 @@ interface SuggestionEntry {
 const suggestionStore: SuggestionEntry[] = []
 
 app.post('/api/suggestions', (req, res) => {
-  const session = requireSession(req, res)
-  if (!session) return
+  // Suggestions are allowed from both authenticated and anonymous users.
+  const session = getSession(req.headers.authorization)
   const { title, description = '', category = 'general' } = req.body as { title: string; description?: string; category?: string }
   if (!title?.trim()) { res.status(400).json({ success: false, error: 'title required' }); return }
   const entry: SuggestionEntry = {
     id: `sug-${genToken(8)}`,
-    userEmail: session.email,
+    userEmail: session?.email ?? 'anonymous',
     title: String(title).slice(0, 200),
     description: String(description).slice(0, 2000),
     category,
@@ -963,10 +963,14 @@ app.post('/api/suggestions', (req, res) => {
 })
 
 app.get('/api/suggestions', (req, res) => {
-  const session = requireSession(req, res)
-  if (!session) return
-  const mine = suggestionStore.filter(s => s.userEmail === session.email)
-  res.json({ success: true, suggestions: mine })
+  // Return the current user's suggestions if authenticated, otherwise all anonymous ones.
+  const session = getSession(req.headers.authorization)
+  if (session) {
+    const mine = suggestionStore.filter(s => s.userEmail === session.email)
+    res.json({ success: true, suggestions: mine })
+  } else {
+    res.json({ success: true, suggestions: [] })
+  }
 })
 
 app.get('/api/admin/suggestions', (_req, res) => {

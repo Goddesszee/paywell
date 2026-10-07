@@ -84,7 +84,6 @@ export default defineConfig({
     hmr: {
       clientPort: 443,
       protocol: 'wss',
-      host: 'io70ix8g260i8ia1p2h28.preview.studio.arc.io',
     },
     proxy: {
       '/api': {
