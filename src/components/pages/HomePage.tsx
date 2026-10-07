@@ -178,7 +178,9 @@ export function HomePage() {
     || auth?.email?.split('@')[0]
     || 'there'
 
-  const recent = activity.slice(0, 4)
+  const recent = [...activity]
+    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+    .slice(0, 4)
 
   return (
     <div style={{ maxWidth: 480, width: '100%', margin: '0 auto', fontFamily: F, paddingBottom: 32 }}>

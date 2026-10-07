@@ -54,7 +54,8 @@ export function usePaymentWatcher() {
         // AND isFirst is now false (just flipped above) — use a separate flag.
         if (wasFirst && items.length > 0) {
           const existingKeys = new Set(activity.map((a: ActivityItem) => a.txHash ?? a.id))
-          items.forEach(item => {
+          // Iterate oldest-first so each addActivity prepend results in newest at top
+          ;[...items].reverse().forEach(item => {
             if (!existingKeys.has(item.txHash ?? item.id)) {
               addActivity({
                 type: item.type,

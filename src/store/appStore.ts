@@ -412,7 +412,16 @@ export const useAppStore = create<AppState>()(
           })
           if (!res.ok) return
           const data = await res.json() as { notifications: AppNotification[] }
-          set({ notifications: data.notifications, unreadCount: data.notifications.filter(n => !n.read).length })
+          // Merge server notifications with local ones (e.g. payment notifications
+          // generated client-side). Keep local-only entries that aren't on the server,
+          // and use server state for everything else so read-status is authoritative.
+          set((s) => {
+            const serverIds = new Set(data.notifications.map(n => n.id))
+            const localOnly = s.notifications.filter(n => n.id.startsWith('local-') && !serverIds.has(n.id))
+            const merged = [...localOnly, ...data.notifications]
+              .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+            return { notifications: merged, unreadCount: merged.filter(n => !n.read).length }
+          })
         } catch { /* ignore */ }
       },
 
