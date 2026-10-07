@@ -7,6 +7,7 @@
 import express from 'express'
 import cors from 'cors'
 import crypto from 'crypto'
+import path from 'path'
 import { createGatewayMiddleware } from '@circle-fin/x402-batching/server'
 
 const app = express()
@@ -1537,6 +1538,15 @@ function startChainWatcher() {
   void runWatcher()
   setInterval(() => { void runWatcher() }, WATCHER_INTERVAL)
 }
+
+// ── Serve Vite build (production) ─────────────────────────────────────────────
+// In dev, Vite proxies /api to this server; in production Express serves both.
+const DIST = path.join(path.dirname(new URL(import.meta.url).pathname), '..', 'dist')
+app.use(express.static(DIST))
+// SPA fallback: any non-API route returns index.html
+app.get(/^(?!\/api).*$/, (_req, res) => {
+  res.sendFile(path.join(DIST, 'index.html'))
+})
 
 // ── start ──────────────────────────────────────────────────────────────────────
 app.listen(PORT, () => {

@@ -1,6 +1,6 @@
 [build]
 builder = "NIXPACKS"
-buildCommand = "bun install --frozen-lockfile"
+buildCommand = "bun install --frozen-lockfile && bun run build"
 
 [build.nixpacksPlan.phases.setup]
 nixPkgs = ["nodejs_22", "bun"]
