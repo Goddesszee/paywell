@@ -3,7 +3,9 @@ import { useAppStore } from '../../store/appStore'
 import { BarChart3, Users, Zap, ArrowUpRight, ArrowDownLeft, RefreshCw, Shield, Globe, Cpu, CheckCircle, XCircle, Activity, ArrowLeft, Send, Plus, Trash2, Edit3, Save, X, Info, ChevronRight, ChevronLeft } from 'lucide-react'
 
 // ── Admin Password Gate ────────────────────────────────────────────────────────
-const ADMIN_PW = (import.meta.env.VITE_ADMIN_PASSWORD as string | undefined) || 'admin123'
+const ADMIN_PW = (import.meta.env.VITE_ADMIN_PASSWORD as string | undefined)
+  || (import.meta.env.ADMIN_PASSWORD as string | undefined)
+  || 'admin123'
 const SESSION_KEY = 'nan_admin_unlocked'
 
 function AdminPasswordGate({ onUnlock }: { onUnlock: () => void }) {
