@@ -36,14 +36,18 @@ export function usePaymentWatcher() {
     async function poll() {
       if (cancelled) return
       try {
+        const wasFirst = isFirst
         const { items, newReceived } = await fetchOnchainActivity(address!, seen, isFirst)
         isFirst = false
         if (cancelled) return
 
         const { addActivity, addLocalNotification, activity } = useAppStore.getState()
 
-        // On first poll: merge full history into store (without notifications)
-        if (newReceived.length === 0 && items.length > 0) {
+        // On the first poll (isFirst was true before the call above set it to false):
+        // merge the full history into the store without firing notifications.
+        // We detect "this was the first run" by checking newReceived is empty
+        // AND isFirst is now false (just flipped above) — use a separate flag.
+        if (wasFirst && items.length > 0) {
           const existingKeys = new Set(activity.map((a: ActivityItem) => a.txHash ?? a.id))
           items.forEach(item => {
             if (!existingKeys.has(item.txHash ?? item.id)) {

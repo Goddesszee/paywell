@@ -22,6 +22,7 @@ export default defineConfig({
     dedupe: ['react', 'react-dom', 'react/jsx-runtime', 'zustand'],
   },
   optimizeDeps: {
+    exclude: ['web-push'],
     include: [
       'react',
       'react-dom',
@@ -56,6 +57,8 @@ export default defineConfig({
   build: {
     chunkSizeWarningLimit: 1500,
     rollupOptions: {
+      // web-push is a server-only package — never bundle it for the browser
+      external: ['web-push'],
       output: {
         // Function-based chunking: anything that touches React hooks —
         // including @reown/appkit* and @walletconnect/* which ConnectKit
