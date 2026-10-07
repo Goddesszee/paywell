@@ -1148,7 +1148,7 @@ function AdminDashboardInner() {
   ] as const
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--nan-bg)', fontFamily: SANS, color: 'var(--nan-text)' }}>
+    <div style={{ height: '100vh', background: 'var(--nan-bg)', fontFamily: SANS, color: 'var(--nan-text)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       {/* Header */}
       <div style={{ background: 'var(--nan-surface2)', borderBottom: '1px solid var(--nan-bdr)', padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 50 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -1170,7 +1170,7 @@ function AdminDashboardInner() {
       </div>
 
       {/* Tab bar */}
-      <div style={{ background: 'var(--nan-surface2)', borderBottom: '1px solid var(--nan-bdr)', display: 'flex', overflowX: 'auto', padding: '0 20px' }}>
+      <div style={{ background: 'var(--nan-surface2)', borderBottom: '1px solid var(--nan-bdr)', display: 'flex', overflowX: 'auto', padding: '0 20px', flexShrink: 0 }}>
         {tabs.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)} style={{
             padding: '12px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer', background: 'none',
@@ -1181,6 +1181,7 @@ function AdminDashboardInner() {
         ))}
       </div>
 
+      <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
       <div style={{ padding: '20px', maxWidth: 900, margin: '0 auto' }}>
 
         {/* ── OVERVIEW ── */}
@@ -1268,6 +1269,12 @@ function AdminDashboardInner() {
 
         {/* ── SUPPORT ── */}
         {tab === 'support' && <AdminSupportPanel />}
+
+        {/* ── FEEDBACK ── */}
+        {tab === 'feedback' && <AdminFeedbackPanel />}
+
+        {/* ── SUGGESTIONS ── */}
+        {tab === 'suggestions' && <AdminSuggestionsPanel />}
 
         {/* ── FAQS ── */}
         {tab === 'faqs' && <AdminFAQPanel />}
@@ -1366,6 +1373,7 @@ function AdminDashboardInner() {
             </div>
           </div>
         )}
+      </div>
       </div>
     </div>
   )
