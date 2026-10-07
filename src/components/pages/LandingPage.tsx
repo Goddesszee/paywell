@@ -99,8 +99,19 @@ export function LandingPage() {
         display: 'flex', flexDirection: 'column',
         overflow: 'hidden', height: '100dvh',
       }}>
-        {/* Top: dots + headline */}
+        {/* Top: logo + dots + headline */}
         <div style={{ padding: '36px 24px 12px', flexShrink: 0 }}>
+          {/* NAN logo top-left */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
+            <div style={{ width: 32, height: 32, borderRadius: 9, background: BLUE, flexShrink: 0,
+              display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <svg viewBox="0 0 324 480" width="13" height="19" fill="none">
+                <path d="M255,0 L84,167 L71,163 L0,97 L0,378 L246,132 L255,110 Z" fill="#fff"/>
+                <path d="M69,480 L240,313 L253,317 L324,383 L324,102 L78,348 L69,370 Z" fill="#fff"/>
+              </svg>
+            </div>
+            <span style={{ fontWeight: 800, fontSize: 18, letterSpacing: '-0.04em', color: TEXT }}>NAN</span>
+          </div>
           <Dots total={SLIDES.length} active={slide} go={go} inactiveBg={DOTS_INACTIVE} />
           <h1 style={{
             fontSize: 'clamp(24px,7vw,32px)', fontWeight: 900,
