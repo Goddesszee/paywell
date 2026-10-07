@@ -4,6 +4,7 @@ import { useAppStore } from '../../store/appStore'
 import { useNanTheme } from '../../hooks/useNanTheme'
 
 const F = "'Inter', -apple-system, sans-serif"
+const API = (import.meta.env.VITE_API_URL as string | undefined) ?? ''
 const CATEGORIES = [
   { id: 'feature',       label: '✨ Feature Idea' },
   { id: 'improvement',   label: '⚡ Improvement' },
@@ -40,7 +41,7 @@ export function SuggestionsPage() {
   useEffect(() => {
     // eslint-disable-next-line react/set-state-in-effect
     if (!token) { setLoading(false); return }
-    fetch('/api/suggestions', { headers: { authorization: `Bearer ${token}` } })
+    fetch(`${API}/api/suggestions`, { headers: { authorization: `Bearer ${token}` } })
       .then(r => r.json())
       .then((d: { success: boolean; suggestions: Suggestion[] }) => { if (d.success) setSuggestions(d.suggestions) })
       .catch(() => {})
@@ -51,7 +52,7 @@ export function SuggestionsPage() {
     if (!title.trim()) { setError('Please enter a title.'); return }
     setSubmitting(true); setError('')
     try {
-      const res = await fetch('/api/suggestions', {
+      const res = await fetch(`${API}/api/suggestions`, {
         method: 'POST',
         headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
         body: JSON.stringify({ title, description, category }),

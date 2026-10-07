@@ -4,6 +4,7 @@ import { useAppStore } from '../../store/appStore'
 import { useNanTheme } from '../../hooks/useNanTheme'
 
 const F = "'Inter', -apple-system, sans-serif"
+const API = (import.meta.env.VITE_API_URL as string | undefined) ?? ''
 const CATEGORIES = [
   { id: 'general',  label: 'General' },
   { id: 'payments', label: 'Payments' },
@@ -27,7 +28,7 @@ export function FeedbackPage() {
     if (!rating) { setError('Please select a star rating.'); return }
     setSubmitting(true); setError('')
     try {
-      const res = await fetch('/api/feedback', {
+      const res = await fetch(`${API}/api/feedback`, {
         method: 'POST',
         headers: { 'content-type': 'application/json', authorization: `Bearer ${auth?.sessionToken ?? ''}` },
         body: JSON.stringify({ rating, comment, category }),

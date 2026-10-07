@@ -6,6 +6,7 @@ import {
 import { useAppStore } from '../../store/appStore'
 
 const SANS = "var(--nan-font, 'Inter', sans-serif)"
+const API = (import.meta.env.VITE_API_URL as string | undefined) ?? ''
 
 interface SupportMessage {
   id: string
@@ -87,7 +88,7 @@ export function SupportPage() {
     if (!token) return
     setLoading(true)
     try {
-      const res = await fetch('/api/support/tickets', { headers: { authorization: `Bearer ${token}` } })
+      const res = await fetch(`${API}/api/support/tickets`, { headers: { authorization: `Bearer ${token}` } })
       const data = await safeJson<{ tickets: SupportTicket[] }>(res)
       if (data?.tickets) setTickets(data.tickets)
     } finally {
@@ -98,7 +99,7 @@ export function SupportPage() {
   const openTicket = async (t: SupportTicket) => {
     if (!token) return
     try {
-      const res = await fetch(`/api/support/tickets/${t.id}`, { headers: { authorization: `Bearer ${token}` } })
+      const res = await fetch(`${API}/api/support/tickets/${t.id}`, { headers: { authorization: `Bearer ${token}` } })
       const data = await safeJson<{ ticket: SupportTicket }>(res)
       if (data?.ticket) {
         setSelected(data.ticket)
@@ -119,7 +120,7 @@ export function SupportPage() {
     setSubmitLoading(true)
     setError('')
     try {
-      const res = await fetch('/api/support/tickets', {
+      const res = await fetch(`${API}/api/support/tickets`, {
         method: 'POST',
         headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
         body: JSON.stringify({ subject: newSubject.trim(), message: newMessage.trim() }),
@@ -146,7 +147,7 @@ export function SupportPage() {
     if (!token || !selected || !replyText.trim()) return
     setReplyLoading(true)
     try {
-      const res = await fetch(`/api/support/tickets/${selected.id}/reply`, {
+      const res = await fetch(`${API}/api/support/tickets/${selected.id}/reply`, {
         method: 'POST',
         headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
         body: JSON.stringify({ message: replyText.trim() }),
@@ -165,6 +166,17 @@ export function SupportPage() {
 
   // eslint-disable-next-line react/set-state-in-effect
   useEffect(() => { void fetchTickets() }, [token]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── No session — wagmi-only users ────────────────────────────────────────────
+  if (!token) return (
+    <div style={{ width: '100%', fontFamily: SANS, padding: '40px 16px', textAlign: 'center' }}>
+      <MessageSquare size={36} color="var(--nan-text3)" style={{ margin: '0 auto 16px' }} />
+      <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--nan-text)', marginBottom: 8 }}>Sign in required</div>
+      <div style={{ fontSize: 13, color: 'var(--nan-text2)', lineHeight: 1.6, maxWidth: 280, margin: '0 auto' }}>
+        Support tickets require an email account. Sign in with your email to submit and track requests.
+      </div>
+    </div>
+  )
 
   // ── List view ────────────────────────────────────────────────────────────────
   if (view === 'list') return (
@@ -335,7 +347,7 @@ export function SupportPage() {
         </div>
       ) : (
         <button onClick={() => {
-          void fetch(`/api/support/tickets/${selected.id}/reply`, {
+          void fetch(`${API}/api/support/tickets/${selected.id}/reply`, {
             method: 'POST',
             headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
             body: JSON.stringify({ message: 'Reopening this request.' }),
