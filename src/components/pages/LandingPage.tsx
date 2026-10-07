@@ -100,18 +100,18 @@ export function LandingPage() {
         overflow: 'hidden', height: '100dvh',
       }}>
         {/* Top: logo left + dots right on same row */}
-        <div style={{ padding: '36px 24px 12px', flexShrink: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+        <div style={{ padding: '16px 24px 12px', flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
             {/* NAN logo top-left */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div style={{ width: 32, height: 32, borderRadius: 9, background: BLUE, flexShrink: 0,
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ width: 40, height: 40, borderRadius: 11, background: BLUE, flexShrink: 0,
                 display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <svg viewBox="0 0 324 480" width="13" height="19" fill="none">
+                <svg viewBox="0 0 324 480" width="17" height="24" fill="none">
                   <path d="M255,0 L84,167 L71,163 L0,97 L0,378 L246,132 L255,110 Z" fill="#fff"/>
                   <path d="M69,480 L240,313 L253,317 L324,383 L324,102 L78,348 L69,370 Z" fill="#fff"/>
                 </svg>
               </div>
-              <span style={{ fontWeight: 800, fontSize: 18, letterSpacing: '-0.04em', color: TEXT }}>NAN</span>
+              <span style={{ fontWeight: 800, fontSize: 20, letterSpacing: '-0.04em', color: TEXT }}>NAN</span>
             </div>
             {/* Dots top-right */}
             <Dots total={SLIDES.length} active={slide} go={go} inactiveBg={DOTS_INACTIVE} />
