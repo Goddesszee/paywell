@@ -1,8 +1,81 @@
 import { useState, useEffect, useRef } from 'react'
 import { useAppStore } from '../../store/appStore'
-
-
 import { BarChart3, Users, Zap, ArrowUpRight, ArrowDownLeft, RefreshCw, Shield, Globe, Cpu, CheckCircle, XCircle, Activity, ArrowLeft, Send, Plus, Trash2, Edit3, Save, X, Info, ChevronRight, ChevronLeft } from 'lucide-react'
+
+// ── Admin Password Gate ────────────────────────────────────────────────────────
+const ADMIN_PW = (import.meta.env.VITE_ADMIN_PASSWORD as string | undefined) || 'admin123'
+const SESSION_KEY = 'nan_admin_unlocked'
+
+function AdminPasswordGate({ onUnlock }: { onUnlock: () => void }) {
+  const { setActiveView } = useAppStore()
+  const [pw, setPw] = useState('')
+  const [error, setError] = useState('')
+  const [shaking, setShaking] = useState(false)
+
+  const attempt = () => {
+    if (pw === ADMIN_PW) {
+      sessionStorage.setItem(SESSION_KEY, '1')
+      onUnlock()
+    } else {
+      setError('Incorrect password.')
+      setShaking(true)
+      setPw('')
+      setTimeout(() => setShaking(false), 400)
+    }
+  }
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+      background: 'var(--nan-bg)', fontFamily: "'Inter', sans-serif", zIndex: 10,
+    }}>
+      <div style={{
+        width: 'min(360px, calc(100vw - 40px))',
+        background: 'var(--nan-surface)', border: '1px solid var(--nan-bdr)',
+        borderRadius: 20, padding: '36px 28px',
+        boxShadow: '0 24px 64px rgba(0,0,0,0.18)',
+        animation: shaking ? 'nan-shake 0.4s ease' : undefined,
+      }}>
+        <style>{`@keyframes nan-shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-6px)}40%,80%{transform:translateX(6px)}}`}</style>
+        <div style={{ textAlign: 'center', marginBottom: 24 }}>
+          <div style={{ width: 52, height: 52, borderRadius: 14, background: 'rgba(0,102,255,0.10)', border: '1px solid rgba(0,102,255,0.20)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px' }}>
+            <Shield size={22} color="#0066FF" />
+          </div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--nan-text)', letterSpacing: '-0.02em' }}>Admin Access</div>
+          <div style={{ fontSize: 13, color: 'var(--nan-text2)', marginTop: 4 }}>Enter the admin password to continue</div>
+        </div>
+        <input
+          type="password"
+          value={pw}
+          onChange={e => { setPw(e.target.value); setError('') }}
+          onKeyDown={e => e.key === 'Enter' && attempt()}
+          placeholder="Password"
+          autoFocus
+          style={{
+            width: '100%', padding: '12px 14px', borderRadius: 11, boxSizing: 'border-box',
+            background: 'var(--nan-surface2)', border: `1px solid ${error ? '#FF3B3B' : 'var(--nan-bdr)'}`,
+            color: 'var(--nan-text)', fontSize: 15, fontFamily: "'Inter', sans-serif", outline: 'none',
+            marginBottom: error ? 8 : 16,
+          }}
+        />
+        {error && <div style={{ fontSize: 12, color: '#FF3B3B', marginBottom: 12, fontWeight: 500 }}>{error}</div>}
+        <button
+          onClick={attempt}
+          style={{ width: '100%', padding: '12px', borderRadius: 11, background: '#0066FF', color: '#fff', fontSize: 14, fontWeight: 600, border: 'none', cursor: 'pointer', fontFamily: "'Inter', sans-serif", marginBottom: 10 }}
+        >
+          Unlock Dashboard
+        </button>
+        <button
+          onClick={() => setActiveView('home')}
+          style={{ width: '100%', padding: '10px', borderRadius: 11, background: 'transparent', color: 'var(--nan-text2)', fontSize: 13, fontWeight: 500, border: '1px solid var(--nan-bdr)', cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  )
+}
+
 
 const SANS = "'Inter', -apple-system, sans-serif"
 const S = 'var(--nan-surface)'
@@ -844,6 +917,14 @@ function InfraCard({ name, status, desc, icon }: InfraItem) {
 }
 
 export function AdminDashboard() {
+  const [unlocked, setUnlocked] = useState(() => sessionStorage.getItem(SESSION_KEY) === '1')
+
+  if (!unlocked) return <AdminPasswordGate onUnlock={() => setUnlocked(true)} />
+
+  return <AdminDashboardInner />
+}
+
+function AdminDashboardInner() {
   const { activity, setActiveView } = useAppStore()
   const [tab, setTab] = useState<'overview' | 'support' | 'faqs' | 'about' | 'activity' | 'circle' | 'users' | 'feedback' | 'suggestions' | 'audit'>('overview')
   const [now] = useState(new Date())
