@@ -137,17 +137,16 @@ export function LoginPage() {
   // ── choose mode — email first, wallet as alternative ─────────────────────
   return wrap(
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-      {/* compact logo header — choose screen only */}
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 20 }}>
-        <div style={{ width: 40, height: 40, borderRadius: 11, background: BLUE,
-          display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 10 }}>
-          <svg viewBox="0 0 324 480" width="16" height="22" fill="none">
+      {/* top-left logo + NAN wordmark */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 36 }}>
+        <div style={{ width: 36, height: 36, borderRadius: 10, background: BLUE, flexShrink: 0,
+          display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <svg viewBox="0 0 324 480" width="14" height="20" fill="none">
             <path d="M255,0 L84,167 L71,163 L0,97 L0,378 L246,132 L255,110 Z" fill="#fff"/>
             <path d="M69,480 L240,313 L253,317 L324,383 L324,102 L78,348 L69,370 Z" fill="#fff"/>
           </svg>
         </div>
-        <span style={{ fontWeight: 800, fontSize: 22, letterSpacing: '-0.04em', color: TEXT }}>nan</span>
-        <p style={{ fontSize: 13, color: TEXT2, marginTop: 3 }}>The intelligent payment layer</p>
+        <span style={{ fontWeight: 800, fontSize: 22, letterSpacing: '-0.04em', color: TEXT }}>NAN</span>
       </div>
 
       {/* Email — primary CTA */}
