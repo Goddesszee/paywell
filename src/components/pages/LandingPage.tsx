@@ -111,7 +111,7 @@ export function LandingPage() {
                   <path d="M69,480 L240,313 L253,317 L324,383 L324,102 L78,348 L69,370 Z" fill="#fff"/>
                 </svg>
               </div>
-              <span style={{ fontWeight: 800, fontSize: 20, letterSpacing: '-0.04em', color: TEXT }}>NAN</span>
+
             </div>
             {/* Dots top-right */}
             <Dots total={SLIDES.length} active={slide} go={go} inactiveBg={DOTS_INACTIVE} />
