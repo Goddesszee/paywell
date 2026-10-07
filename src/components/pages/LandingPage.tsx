@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useAppStore } from '../../store/appStore'
+import { useNanTheme } from '../../hooks/useNanTheme'
 
 const F = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif"
 const BLUE = '#0066FF'   // NAN electric blue
@@ -30,7 +31,7 @@ const SLIDES = [
 ]
 
 /* ── Slide dot bar ─────────────────────────────────────────────────────────── */
-function Dots({ total, active, go }: { total: number; active: number; go: (i: number) => void }) {
+function Dots({ total, active, go, isDark }: { total: number; active: number; go: (i: number) => void; isDark: boolean }) {
   return (
     <div style={{ display: 'flex', gap: 5, marginBottom: 28 }}>
       {Array.from({ length: total }).map((_, i) => (
@@ -40,7 +41,7 @@ function Dots({ total, active, go }: { total: number; active: number; go: (i: nu
           style={{
             height: 4, borderRadius: 2,
             width: i === active ? 28 : 20,
-            background: i === active ? BLUE : '#D0D0E0',
+            background: i === active ? BLUE : isDark ? 'rgba(255,255,255,0.18)' : '#D0D0E0',
             border: 'none', cursor: 'pointer', padding: 0,
             transition: 'all 0.3s',
           }}
@@ -94,6 +95,7 @@ function MockCard({ title, amount, rows }: { title: string | null; amount: strin
 /* ── Main ──────────────────────────────────────────────────────────────────── */
 export function LandingPage() {
   const setActiveView = useAppStore(s => s.setActiveView)
+  const C = useNanTheme()
   const [slide, setSlide] = useState(0)
   const [fading, setFading] = useState(false)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -137,18 +139,18 @@ export function LandingPage() {
     return (
       <div style={{
         position: 'fixed', inset: 0, fontFamily: F,
-        background: '#FFFFFF',
+        background: C.bg,
         display: 'flex', flexDirection: 'column',
         overflow: 'hidden',
         height: '100dvh',
       }}>
         {/* Top: dots + headline — compact */}
         <div style={{ padding: '36px 24px 12px', flexShrink: 0 }}>
-          <Dots total={SLIDES.length} active={slide} go={go} />
+          <Dots total={SLIDES.length} active={slide} go={go} isDark={C.isDark} />
           <h1 style={{
             fontSize: 'clamp(24px,7vw,32px)', fontWeight: 900,
             lineHeight: 1.1, letterSpacing: '-0.03em',
-            color: '#1A1A2E', margin: 0,
+            color: C.text, margin: 0,
           }}>
             <span style={{ color: BLUE }}>{cur.accent}</span>
             {cur.headline}
@@ -171,14 +173,17 @@ export function LandingPage() {
           {/* bottom gradient so buttons stay readable */}
           <div style={{
             position: 'absolute', bottom: 0, left: 0, right: 0, height: '30%',
-            background: 'linear-gradient(0deg, rgba(255,255,255,0.25) 0%, transparent 100%)',
+            background: C.isDark
+              ? 'linear-gradient(0deg, rgba(0,0,0,0.35) 0%, transparent 100%)'
+              : 'linear-gradient(0deg, rgba(255,255,255,0.25) 0%, transparent 100%)',
           }} />
-          <MockCard title={cur.cardTitle} amount={cur.cardAmount} rows={cur.cardRows} />
+          {/* Only show card on slide 2+ (not the baby slide) */}
+          {slide > 0 && <MockCard title={cur.cardTitle} amount={cur.cardAmount} rows={cur.cardRows} />}
         </div>
 
         {/* Bottom: CTAs — always visible */}
         <div style={{
-          background: '#FFFFFF', flexShrink: 0,
+          background: C.bg, flexShrink: 0,
           padding: `16px 24px calc(env(safe-area-inset-bottom,0px) + 16px)`,
           display: 'flex', flexDirection: 'column', gap: 4,
         }}>
@@ -217,7 +222,7 @@ export function LandingPage() {
   return (
     <div style={{
       position: 'fixed', inset: 0, fontFamily: F,
-      background: '#FFFFFF',
+      background: C.bg,
       display: 'flex', alignItems: 'stretch',
     }}>
       {/* Left panel — text + CTAs */}
@@ -235,15 +240,15 @@ export function LandingPage() {
               <path d="M69,480 L240,313 L253,317 L324,383 L324,102 L78,348 L69,370 Z" fill="#fff"/>
             </svg>
           </div>
-          <span style={{ fontWeight: 800, fontSize: 20, letterSpacing: '-0.04em', color: '#1A1A2E' }}>nan</span>
+          <span style={{ fontWeight: 800, fontSize: 20, letterSpacing: '-0.04em', color: C.text }}>nan</span>
         </div>
 
-        <Dots total={SLIDES.length} active={slide} go={go} />
+        <Dots total={SLIDES.length} active={slide} go={go} isDark={C.isDark} />
 
         <h1 style={{
           fontSize: 'clamp(32px,3.2vw,52px)', fontWeight: 900,
           lineHeight: 1.1, letterSpacing: '-0.04em',
-          color: '#1A1A2E', margin: '0 0 18px',
+          color: C.text, margin: '0 0 18px',
           opacity: fading ? 0 : 1, transition: 'opacity 0.25s',
         }}>
           <span style={{ color: BLUE }}>{cur.accent}</span>
@@ -251,7 +256,7 @@ export function LandingPage() {
         </h1>
 
         <p style={{
-          fontSize: 16, color: '#6B7280',
+          fontSize: 16, color: C.t2,
           lineHeight: 1.65, marginBottom: 40, maxWidth: 380,
           opacity: fading ? 0 : 1, transition: 'opacity 0.25s',
         }}>
@@ -301,7 +306,8 @@ export function LandingPage() {
           position: 'absolute', inset: 0,
           background: 'linear-gradient(180deg, transparent 50%, rgba(0,0,0,0.30) 100%)',
         }} />
-        <MockCard title={cur.cardTitle} amount={cur.cardAmount} rows={cur.cardRows} />
+        {/* Only show card on slide 2+ */}
+        {slide > 0 && <MockCard title={cur.cardTitle} amount={cur.cardAmount} rows={cur.cardRows} />}
       </div>
     </div>
   )

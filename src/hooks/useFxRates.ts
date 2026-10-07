@@ -17,7 +17,7 @@ export interface FxRates {
   updatedAt: Date | null
   loading: boolean
   error: string | null
-  refetch: () => void
+  refetch: () => void | Promise<void>
 }
 
 const REFRESH_MS = 5 * 60 * 1000 // 5 min
@@ -47,14 +47,17 @@ export function useFxRates(): FxRates {
     }
   }, [])
 
+  /* oxlint-disable react(set-state-in-effect) */
   useEffect(() => {
-    fetch_()
-    const id = setInterval(fetch_, REFRESH_MS)
+    void fetch_()
+    const id = setInterval(() => { void fetch_() }, REFRESH_MS)
     return () => clearInterval(id)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fetch_])
+  /* oxlint-enable react(set-state-in-effect) */
 
-  const eurPerUsd = rates['EUR'] ?? 0.92      // how many EUR per 1 USD
-  const usdPerEur = eurPerUsd > 0 ? 1 / eurPerUsd : 1.087  // how many USD per 1 EUR
+  const eurPerUsd = rates['EUR'] ?? 0.92
+  const usdPerEur = eurPerUsd > 0 ? 1 / eurPerUsd : 1.087
 
   return { rates, eurPerUsd, usdPerEur, updatedAt, loading, error, refetch: fetch_ }
 }
