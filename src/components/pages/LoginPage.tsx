@@ -69,18 +69,6 @@ export function LoginPage() {
       padding: 'max(env(safe-area-inset-top,0px),32px) 20px max(env(safe-area-inset-bottom,0px),32px)',
     }}>
       <div style={{ width: '100%', maxWidth: 380, flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-        {/* Logo */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 36 }}>
-          <div style={{ width: 44, height: 44, borderRadius: 12, background: BLUE,
-            display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 14 }}>
-            <svg viewBox="0 0 324 480" width="18" height="25" fill="none">
-              <path d="M255,0 L84,167 L71,163 L0,97 L0,378 L246,132 L255,110 Z" fill="#fff"/>
-              <path d="M69,480 L240,313 L253,317 L324,383 L324,102 L78,348 L69,370 Z" fill="#fff"/>
-            </svg>
-          </div>
-          <span style={{ fontWeight: 800, fontSize: 26, letterSpacing: '-0.04em', color: TEXT }}>nan</span>
-          <p style={{ fontSize: 14, color: TEXT2, marginTop: 4 }}>The intelligent payment layer</p>
-        </div>
         {children}
       </div>
       <p style={{ fontSize: 11, color: TEXT3, marginTop: 24, textAlign: 'center' }}>
@@ -149,6 +137,18 @@ export function LoginPage() {
   // ── choose mode — email first, wallet as alternative ─────────────────────
   return wrap(
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      {/* compact logo header — choose screen only */}
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 20 }}>
+        <div style={{ width: 40, height: 40, borderRadius: 11, background: BLUE,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 10 }}>
+          <svg viewBox="0 0 324 480" width="16" height="22" fill="none">
+            <path d="M255,0 L84,167 L71,163 L0,97 L0,378 L246,132 L255,110 Z" fill="#fff"/>
+            <path d="M69,480 L240,313 L253,317 L324,383 L324,102 L78,348 L69,370 Z" fill="#fff"/>
+          </svg>
+        </div>
+        <span style={{ fontWeight: 800, fontSize: 22, letterSpacing: '-0.04em', color: TEXT }}>nan</span>
+        <p style={{ fontSize: 13, color: TEXT2, marginTop: 3 }}>The intelligent payment layer</p>
+      </div>
 
       {/* Email — primary CTA */}
       <button onClick={() => setMode('email')} style={btnS(BLUE, '#fff')}>
