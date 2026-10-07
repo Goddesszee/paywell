@@ -1,0 +1,8 @@
+[build]
+builder = "NIXPACKS"
+buildCommand = "bun install"
+
+[deploy]
+startCommand = "bun run server/index.ts"
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
