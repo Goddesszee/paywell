@@ -65,24 +65,25 @@ export function LoginPage() {
     <div style={{
       minHeight: '100dvh', background: BG, fontFamily: F,
       display: 'flex', flexDirection: 'column', alignItems: 'center',
-      justifyContent: 'center', padding: '24px 20px',
+      overflowY: 'auto',
+      padding: 'max(env(safe-area-inset-top,0px),32px) 20px max(env(safe-area-inset-bottom,0px),32px)',
     }}>
-      <div style={{ width: '100%', maxWidth: 380 }}>
+      <div style={{ width: '100%', maxWidth: 380, flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
         {/* Logo */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 44 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 36 }}>
           <div style={{ width: 44, height: 44, borderRadius: 12, background: BLUE,
-            display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+            display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 14 }}>
             <svg viewBox="0 0 324 480" width="18" height="25" fill="none">
               <path d="M255,0 L84,167 L71,163 L0,97 L0,378 L246,132 L255,110 Z" fill="#fff"/>
               <path d="M69,480 L240,313 L253,317 L324,383 L324,102 L78,348 L69,370 Z" fill="#fff"/>
             </svg>
           </div>
           <span style={{ fontWeight: 800, fontSize: 26, letterSpacing: '-0.04em', color: TEXT }}>nan</span>
-          <p style={{ fontSize: 14, color: TEXT2, marginTop: 6 }}>The intelligent payment layer</p>
+          <p style={{ fontSize: 14, color: TEXT2, marginTop: 4 }}>The intelligent payment layer</p>
         </div>
         {children}
       </div>
-      <p style={{ position: 'fixed', bottom: 20, fontSize: 11, color: TEXT3 }}>
+      <p style={{ fontSize: 11, color: TEXT3, marginTop: 24, textAlign: 'center' }}>
         Arc · Circle USDC · Testnet
       </p>
     </div>
