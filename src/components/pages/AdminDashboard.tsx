@@ -926,10 +926,40 @@ export function AdminDashboard() {
   return <AdminDashboardInner />
 }
 
+interface AdminAnalytics {
+  totalUsers: number
+  totalFeedback: number
+  avgRating: number
+  totalSuggestions: number
+  openSuggestions: number
+  auditEntries: number
+  totalTickets?: number
+  openTickets?: number
+}
+
 function AdminDashboardInner() {
   const { activity, setActiveView } = useAppStore()
   const [tab, setTab] = useState<'overview' | 'support' | 'faqs' | 'about' | 'activity' | 'circle' | 'users' | 'feedback' | 'suggestions' | 'audit'>('overview')
   const [now] = useState(new Date())
+  const [analytics, setAnalytics] = useState<AdminAnalytics | null>(null)
+
+  // Fetch server-side analytics on mount and when switching to overview
+  useEffect(() => {
+    const load = () => {
+      Promise.all([
+        fetch('/api/admin/analytics').then(r => r.json()) as Promise<AdminAnalytics & { success: boolean }>,
+        fetch('/api/admin/support/tickets').then(r => r.json()) as Promise<{ tickets: { status: string }[] }>,
+      ]).then(([analytics, support]) => {
+        const tickets = support.tickets ?? []
+        setAnalytics({
+          ...analytics,
+          totalTickets: tickets.length,
+          openTickets: tickets.filter((t: { status: string }) => t.status === 'open' || t.status === 'in_progress').length,
+        })
+      }).catch(() => {})
+    }
+    load()
+  }, [])
 
   // Computed stats from real activity store
   const totalVol = activity.reduce((s, a) => s + (a.amount || 0), 0)
@@ -1006,6 +1036,17 @@ function AdminDashboardInner() {
         {tab === 'overview' && (
           <div>
             <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: '-0.02em', marginBottom: 16 }}>Platform Overview</div>
+
+            {/* Server-side stats */}
+            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--nan-text3)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>Users & Engagement</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12, marginBottom: 24 }}>
+              <MetricCard label="Email Sessions" value={analytics ? String(analytics.totalUsers) : '—'} sub="Signed-in users (server)" icon={<Users size={16} />} />
+              <MetricCard label="Support Tickets" value={analytics ? String(analytics.totalTickets ?? 0) : '—'} sub={analytics ? `${analytics.openTickets ?? 0} open` : 'loading…'} icon={<Activity size={16} />} trend={analytics && (analytics.openTickets ?? 0) > 0 ? `${analytics.openTickets} open` : undefined} />
+              <MetricCard label="Feedback" value={analytics ? String(analytics.totalFeedback) : '—'} sub={analytics ? `avg ${analytics.avgRating}/5 ★` : 'loading…'} icon={<BarChart3 size={16} />} />
+              <MetricCard label="Suggestions" value={analytics ? String(analytics.totalSuggestions) : '—'} sub={analytics ? `${analytics.openSuggestions} open` : 'loading…'} icon={<Zap size={16} />} />
+            </div>
+
+            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--nan-text3)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>On-chain Activity</div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12, marginBottom: 24 }}>
               <MetricCard label="Total Volume" value={`$${totalVol.toFixed(2)}`} sub="USDC on Arc Testnet" icon={<BarChart3 size={16} />} trend={activity.length > 0 ? '+active' : '—'} />
               <MetricCard label="Transactions" value={String(activity.length)} sub="All time" icon={<Activity size={16} />} />
