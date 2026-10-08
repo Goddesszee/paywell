@@ -9,6 +9,11 @@
       "memory": 1024,
       "maxDuration": 30
     },
+    "api/circle-wallets.ts": {
+      "includeFiles": "node_modules/@circle-fin/**",
+      "memory": 512,
+      "maxDuration": 30
+    },
     "api/agent-wallet.ts": {
       "includeFiles": "node_modules/@circle-fin/**",
       "memory": 1024,
@@ -47,6 +52,8 @@
     { "source": "/api/misc",                                     "destination": "/api/misc" },
     { "source": "/api/onramp-session",                           "destination": "/api/onramp-session" },
     { "source": "/api/wallet",                                   "destination": "/api/wallet" },
+    { "source": "/api/circle-wallets",                           "destination": "/api/circle-wallets" },
+    { "source": "/api/activity-feed",                            "destination": "/api/misc?route=activity-feed" },
     { "source": "/api/agent-execute",                            "destination": "/api/agent-execute" },
     { "source": "/api/agent-registry",                           "destination": "/api/agent-registry" },
     { "source": "/api/agent-wallet",                             "destination": "/api/agent-wallet" },
