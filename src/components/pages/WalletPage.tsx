@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react'
 import {
   Copy, ArrowUpRight, ArrowDownLeft, Check, ExternalLink,
-  AlertCircle, X, ChevronRight, Wallet, Share2, Activity,
+  AlertCircle, X, ChevronRight, Wallet, Share2, Activity, Download,
 } from 'lucide-react'
 import { ConnectKitButton } from 'connectkit'
 import { QRCodeSVG } from 'qrcode.react'
@@ -18,6 +18,7 @@ import { sendFromPasskeyWallet } from '../CirclePasskeyLogin'
 import { TokenLogo } from '../ui/TokenLogo'
 import { getUsdc, requireChain, buildTxExplorerUrl } from '@/onchain-facts'
 import { Amount, usdcDecimalsFor } from '@/onchain-money'
+import { downloadReceipt, shareReceipt } from '../../lib/receipt'
 
 const ARC_TESTNET_ID = 5042002
 const SANS = 'Inter, -apple-system, sans-serif'
@@ -515,6 +516,19 @@ function SendFlow({
 
   // ── success ────────────────────────────────────────────────────────────────
   if (displayStep === 'success') {
+    const finalTxHash = txHash ?? circleTxHash ?? undefined
+    const successReceiptData = {
+      amount: formatUSDC(parseFloat(amount)),
+      sign: '-' as const,
+      token: selectedToken.symbol,
+      description: note ? note : `Sent ${formatUSDC(parseFloat(amount))} ${selectedToken.symbol}`,
+      status: 'confirmed',
+      timestamp: new Date().toISOString(),
+      chain: 'Arc Testnet',
+      counterparty: recipient,   // receiver
+      sender: _address,          // own wallet = sender
+      txHash: finalTxHash,
+    }
     return (
       <div style={{
         minHeight: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -530,12 +544,14 @@ function SendFlow({
             <Check size={32} color="#00C853" />
           </div>
           <h2 style={{ fontSize: 26, fontWeight: 800, color: 'var(--nan-text)', letterSpacing: '-0.03em', marginBottom: 6 }}>Sent!</h2>
-          <p style={{ fontSize: 14, color: 'var(--nan-text2)', marginBottom: 28 }}>
+          <p style={{ fontSize: 14, color: 'var(--nan-text2)', marginBottom: 20 }}>
             {formatUSDC(parseFloat(amount))} {selectedToken.symbol} sent to {formatAddress(recipient)}
           </p>
+
+          {/* Receipt card preview */}
           <div style={{
             background: 'var(--nan-surface)', border: '1px solid var(--nan-bdr)',
-            borderRadius: 16, padding: '16px 20px', marginBottom: 24, textAlign: 'left',
+            borderRadius: 16, padding: '16px 20px', marginBottom: 16, textAlign: 'left',
           }}>
             {[
               { label: 'Amount', value: `${formatUSDC(parseFloat(amount))} ${selectedToken.symbol}` },
@@ -548,18 +564,47 @@ function SendFlow({
                 <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--nan-text)', fontFamily: 'JetBrains Mono, monospace' }}>{value}</span>
               </div>
             ))}
-            {(txHash ?? circleTxHash) && (
+            {finalTxHash && (
               <div style={{ paddingTop: 8 }}>
-                <a href={buildTxExplorerUrl(ARC_TESTNET_ID, (txHash ?? circleTxHash)!)} target="_blank" rel="noopener noreferrer"
+                <a href={buildTxExplorerUrl(ARC_TESTNET_ID, finalTxHash)} target="_blank" rel="noopener noreferrer"
                   style={{ fontSize: 12, color: '#0066FF', display: 'flex', alignItems: 'center', gap: 5, fontWeight: 600 }}>
                   <ExternalLink size={12} /> View on explorer
                 </a>
               </div>
             )}
           </div>
+
+          {/* Receipt actions */}
+          <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
+            <button
+              onClick={() => downloadReceipt(successReceiptData)}
+              style={{
+                flex: 1, height: 46, borderRadius: 12,
+                background: '#0066FF', border: 'none', color: '#fff',
+                fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: SANS,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+                boxShadow: '0 4px 16px rgba(0,102,255,0.3)',
+              }}
+            >
+              <Download size={15} /> Download Receipt
+            </button>
+            <button
+              onClick={() => { void shareReceipt(successReceiptData) }}
+              style={{
+                flex: 1, height: 46, borderRadius: 12,
+                background: 'var(--nan-surface)', border: '1px solid var(--nan-bdr)', color: 'var(--nan-text)',
+                fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: SANS,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+              }}
+            >
+              <Share2 size={15} /> Share
+            </button>
+          </div>
+
           <button onClick={onSuccess} style={{
-            width: '100%', height: 50, borderRadius: 12, background: '#0066FF',
-            color: '#fff', fontWeight: 700, fontSize: 15, border: 'none', cursor: 'pointer', fontFamily: SANS,
+            width: '100%', height: 50, borderRadius: 12,
+            background: 'var(--nan-surface)', border: '1px solid var(--nan-bdr)',
+            color: 'var(--nan-text)', fontWeight: 700, fontSize: 15, cursor: 'pointer', fontFamily: SANS,
           }}>Back to Wallet</button>
         </div>
       </div>

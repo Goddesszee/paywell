@@ -39,6 +39,7 @@ const AMBER = '#FF9500'
 const RED   = '#FF3B3B'
 
 const CIRCLE_APP_ID = import.meta.env.VITE_CIRCLE_APP_ID as string | undefined
+const CIRCLE_API_CONFIGURED = !!import.meta.env.VITE_CIRCLE_APP_ID
 
 // Agent Wallet SDK — a SEPARATE module-level singleton from the main-app
 // CircleEmailLogin SDK. The two must never share an instance: each W3SSdk
@@ -1847,6 +1848,19 @@ export function AgentWalletExperience() {
               <Wallet size={17} color={BLUE} strokeWidth={1.8} />
             </div>
             <span style={{ fontSize: 16, fontWeight: 800, color: C.text }}>Agent Wallet</span>
+          </div>
+        )}
+
+        {/* Warn when Circle credentials are not configured — agent wallet will fail without them */}
+        {!CIRCLE_API_CONFIGURED && screen !== 'dashboard' && (
+          <div style={{ display: 'flex', gap: 10, padding: '12px 14px', background: 'rgba(255,149,0,0.08)', border: '1px solid rgba(255,149,0,0.25)', borderRadius: 12, marginBottom: 16 }}>
+            <AlertTriangle size={16} color={AMBER} style={{ flexShrink: 0, marginTop: 1 }} />
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: AMBER, marginBottom: 2 }}>Circle credentials not configured</div>
+              <div style={{ fontSize: 12, color: C.t2, lineHeight: 1.5 }}>
+                Agent Wallet requires <code style={{ background: C.surf2, padding: '1px 5px', borderRadius: 4, fontSize: 11 }}>VITE_CIRCLE_APP_ID</code> and <code style={{ background: C.surf2, padding: '1px 5px', borderRadius: 4, fontSize: 11 }}>CIRCLE_API_KEY</code> to be set. OTP login will fail until these are added to your environment.
+              </div>
+            </div>
           </div>
         )}
 

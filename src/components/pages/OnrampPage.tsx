@@ -21,7 +21,11 @@ const METHODS = [
 ]
 
 export function OnrampPage() {
-  const { address, isConnected } = useAccount()
+  const { address: wagmiAddress, isConnected } = useAccount()
+  const { auth } = useAppStore()
+  // Circle/passkey users don't connect via wagmi — fall back to their Circle wallet address
+  const address = wagmiAddress ?? (auth?.circleWalletAddress as `0x${string}` | undefined)
+  const isReady = isConnected || !!address
   const _setActiveView = useAppStore(s => s.setActiveView)
   const [amount, setAmount] = useState(100)
   const [custom, setCustom] = useState('100')
@@ -35,7 +39,7 @@ export function OnrampPage() {
   const onCustom = (v: string) => { setCustom(v); const n = parseFloat(v); if (!isNaN(n) && n > 0) setAmount(n) }
 
   const handleBuy = async () => {
-    if (!isConnected || !address) { setError('Connect your wallet first'); return }
+    if (!isReady || !address) { setError('Connect your wallet first'); return }
     setLoading(true); setError(null)
     try {
       const res = await fetch('/api/onramp-session', { method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({ appUserId:address, destinationAddress:address, amount:String(amount), paymentMethod:method, blockchain:'ARC-TESTNET' }) })
@@ -67,7 +71,7 @@ export function OnrampPage() {
       </div>
 
       {/* Destination */}
-      {isConnected && address ? (
+      {isReady && address ? (
         <div style={{ marginBottom:16, padding:14, background:SURF, borderRadius:12, border:`1px solid ${BDR}` }}>
           <div style={{ fontSize:11, fontWeight:600, color:T2, letterSpacing:'0.06em', textTransform:'uppercase', marginBottom:4 }}>Destination Wallet</div>
           <div style={{ fontSize:13, fontWeight:600, color:TEXT, fontFamily:'monospace' }}>{address.slice(0,10)}...{address.slice(-8)}</div>
@@ -129,7 +133,7 @@ export function OnrampPage() {
           <button onClick={() => setLaunched(false)} style={{ padding:'11px 24px', borderRadius:12, background:BLUE, color:'#fff', border:'none', cursor:'pointer', fontSize:14, fontWeight:600, fontFamily:F }}>Buy more USDC</button>
         </div>
       ) : (
-        <button onClick={() => { void handleBuy() }} disabled={loading || !isConnected} style={{ width:'100%', height:54, borderRadius:14, background:loading||!isConnected?SURF:BLUE, color:loading||!isConnected?T2:'#fff', border:'none', cursor:loading||!isConnected?'not-allowed':'pointer', fontSize:15, fontWeight:700, fontFamily:F, display:'flex', alignItems:'center', justifyContent:'center', gap:8, transition:'all 0.15s' }}>
+        <button onClick={() => { void handleBuy() }} disabled={loading || !isReady} style={{ width:'100%', height:54, borderRadius:14, background:loading||!isReady?SURF:BLUE, color:loading||!isReady?T2:'#fff', border:'none', cursor:loading||!isReady?'not-allowed':'pointer', fontSize:15, fontWeight:700, fontFamily:F, display:'flex', alignItems:'center', justifyContent:'center', gap:8, transition:'all 0.15s' }}>
           {loading ? 'Loading…' : `Buy $${amount} USDC →`}
         </button>
       )}

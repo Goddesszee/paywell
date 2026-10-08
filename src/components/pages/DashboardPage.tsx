@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useAccount, useReadContract } from 'wagmi'
 import { erc20Abi } from 'viem'
-import { Eye, EyeOff, ArrowUpRight, ArrowDownLeft, X, Copy, Check, Share2 } from 'lucide-react'
+import { Eye, EyeOff, ArrowUpRight, ArrowDownLeft, X, Copy, Check, Share2, FileText, Clock, CheckCircle2 } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { toast } from 'sonner'
 import { useAppStore } from '../../store/appStore'
@@ -89,7 +89,7 @@ function useNgnRate() {
 export function DashboardPage() {
   const C = useNanTheme()
   const { address: wagmiAddress } = useAccount()
-  const { setActiveView, activity, auth } = useAppStore()
+  const { setActiveView, activity, auth, paymentRequests } = useAppStore()
   // Circle wallet users don't connect a browser wallet — fall back to their Circle wallet address
   const address = wagmiAddress ?? (auth?.circleWalletAddress as `0x${string}` | undefined)
   const [hidden, setHidden] = useState(false)
@@ -336,6 +336,48 @@ export function DashboardPage() {
           })
         )}
       </div>
+
+      {/* ── Payment Requests summary ── */}
+      {paymentRequests.length > 0 && (() => {
+        const pending = paymentRequests.filter(r => r.status === 'pending' || r.status === 'viewed')
+        const paid    = paymentRequests.filter(r => r.status === 'paid')
+        const pendingAmt = pending.reduce((s, r) => s + r.amount, 0)
+        const paidAmt    = paid.reduce((s, r) => s + r.amount, 0)
+        return (
+          <div style={{ ...card, marginTop: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <FileText size={15} color={BLUE} />
+                <span style={{ fontSize: 15, fontWeight: 700, color: C.text }}>Payment Requests</span>
+              </div>
+              <button
+                onClick={() => setActiveView('payment-requests')}
+                style={{ fontSize: 12, color: BLUE, background: 'none', border: 'none', cursor: 'pointer', fontFamily: F, fontWeight: 600 }}
+              >
+                View all →
+              </button>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <div style={{ padding: '12px 14px', background: 'rgba(240,165,0,0.06)', border: '1px solid rgba(240,165,0,0.18)', borderRadius: 10 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                  <Clock size={12} color='#F0A500' />
+                  <span style={{ fontSize: 11, fontWeight: 700, color: '#F0A500', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Pending</span>
+                </div>
+                <div style={{ fontSize: 20, fontWeight: 800, color: C.text, fontFamily: "'JetBrains Mono', monospace", letterSpacing: '-0.02em' }}>{pending.length}</div>
+                <div style={{ fontSize: 11, color: C.t3, marginTop: 2 }}>{pendingAmt.toFixed(2)} USDC outstanding</div>
+              </div>
+              <div style={{ padding: '12px 14px', background: 'rgba(0,200,83,0.06)', border: '1px solid rgba(0,200,83,0.18)', borderRadius: 10 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                  <CheckCircle2 size={12} color='#00C853' />
+                  <span style={{ fontSize: 11, fontWeight: 700, color: '#00C853', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Paid</span>
+                </div>
+                <div style={{ fontSize: 20, fontWeight: 800, color: C.text, fontFamily: "'JetBrains Mono', monospace", letterSpacing: '-0.02em' }}>{paid.length}</div>
+                <div style={{ fontSize: 11, color: C.t3, marginTop: 2 }}>{paidAmt.toFixed(2)} USDC received</div>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
 
       {/* ── Receive / Deposit modal ── */}
       {showReceive && (

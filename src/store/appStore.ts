@@ -95,6 +95,32 @@ export interface OnboardingState {
   agentConfigured: boolean
 }
 
+// ── Payment Request ───────────────────────────────────────────────────────────
+export type PaymentRequestStatus = 'pending' | 'viewed' | 'paid' | 'expired' | 'cancelled'
+
+export interface PaymentRequest {
+  id: string
+  refNumber: string
+  title: string
+  description?: string
+  recipientName?: string
+  recipientContact?: string
+  amount: number
+  currency: string
+  note?: string
+  paymentInstructions?: string
+  reference?: string
+  dueDate?: string
+  createdAt: string
+  status: PaymentRequestStatus
+  paidAt?: string
+  paidTxHash?: string
+  paidAmount?: number
+  activityId?: string
+  creatorAddress?: string
+  creatorName?: string
+}
+
 // ── Favorite type ────────────────────────────────────────────────────────────
 export interface FavoriteItem {
   id: string
@@ -155,12 +181,74 @@ export interface AgentSpendEntry {
   timestamp: string
 }
 
-// Fields that are per-user and must be wiped on logout / account switch.
+// ── Invoice system ────────────────────────────────────────────────────────────
+export type InvoiceStatus = 'draft' | 'sent' | 'viewed' | 'partially_paid' | 'paid' | 'overdue' | 'cancelled'
+
+export interface InvoiceLineItem {
+  id: string
+  name: string
+  description?: string
+  quantity: number
+  unitPrice: number
+  discount?: number   // percentage 0-100
+  tax?: number        // percentage 0-100
+}
+
+export interface InvoicePayment {
+  id: string
+  date: string        // ISO
+  amount: number
+  txHash?: string
+  note?: string
+}
+
+export interface Invoice {
+  id: string
+  number: string      // e.g. "INV-0001"
+  status: InvoiceStatus
+  // Business (sender)
+  businessName: string
+  businessAddress?: string
+  businessEmail?: string
+  businessPhone?: string
+  logoUrl?: string
+  // Customer (recipient)
+  customerName: string
+  customerEmail?: string
+  customerPhone?: string
+  customerAddress?: string
+  // Invoice meta
+  issueDate: string   // ISO date string
+  dueDate: string
+  currency: string    // 'USDC' | 'EURC' | 'USD' etc.
+  notes?: string
+  paymentInstructions?: string
+  // Items
+  items: InvoiceLineItem[]
+  // Totals (computed, stored for display)
+  subtotal: number
+  discountTotal: number
+  taxTotal: number
+  total: number
+  // Payments received
+  payments: InvoicePayment[]
+  amountPaid: number
+  amountDue: number
+  // Wallet address to receive payment on-chain
+  payToAddress?: string
+  // Optional link to a PaymentRequest
+  paymentRequestId?: string
+  createdAt: string
+  updatedAt: string
+}
+
+// ── Per-user defaults ─────────────────────────────────────────────────────────
 const USER_DEFAULTS = {
   activity:         [] as ActivityItem[],
   agentMessages:    [] as AgentMessage[],
   agentExecutionLog: [] as AgentExecutionLog[],
   recurringTasks:   [] as RecurringTask[],
+  paymentRequests:  [] as PaymentRequest[],
   a2aPayments:      [] as A2APaymentRecord[],
   a2aTasks:         [] as A2ATask[],
   agentWallet:      { provisioned: false, balance_usdc: '0' } as AgentWalletState,
@@ -175,6 +263,8 @@ const USER_DEFAULTS = {
   favorites:        [] as FavoriteItem[],
   recentSearches:   [] as string[],
   selectedServiceIds: [] as string[],
+  invoices:           [] as Invoice[],
+  invoiceSeq:         1,
 }
 
 export interface AppState {
@@ -236,6 +326,12 @@ export interface AppState {
   removeRecurringTask: (id: string) => void
   recordRecurringRun: (id: string, txHash: string) => void
 
+  paymentRequests: PaymentRequest[]
+  addPaymentRequest: (req: Omit<PaymentRequest, 'id' | 'createdAt' | 'refNumber'>) => string
+  updatePaymentRequest: (id: string, patch: Partial<PaymentRequest>) => void
+  removePaymentRequest: (id: string) => void
+  markPaymentRequestPaid: (id: string, txHash: string, amount: number, activityId?: string) => void
+
   a2aPayments: A2APaymentRecord[]
   addA2APayment: (record: A2APaymentRecord) => void
   a2aTasks: A2ATask[]
@@ -264,6 +360,14 @@ export interface AppState {
   setBridgePrefill: (p: { amount?: string; toChain?: string } | null) => void
   swapPrefill: { fromToken?: string; toToken?: string; amount?: string } | null
   setSwapPrefill: (p: { fromToken?: string; toToken?: string; amount?: string } | null) => void
+
+  // ── Invoice ──────────────────────────────────────────────────────────────────
+  invoices: Invoice[]
+  invoiceSeq: number
+  addInvoice: (inv: Omit<Invoice, 'id' | 'number' | 'createdAt' | 'updatedAt'>) => Invoice
+  updateInvoice: (id: string, patch: Partial<Invoice>) => void
+  removeInvoice: (id: string) => void
+  recordInvoicePayment: (invoiceId: string, payment: Omit<InvoicePayment, 'id'>) => void
 }
 
 export const useAppStore = create<AppState>()(
@@ -487,6 +591,25 @@ export const useAppStore = create<AppState>()(
           }
         }),
 
+      paymentRequests: [],
+      addPaymentRequest: (req) => {
+        const id  = `pr-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
+        const seq = (get().paymentRequests.length + 1).toString().padStart(4, '0')
+        const refNumber = `NAN-PR-${seq}`
+        const pr: PaymentRequest = { ...req, id, refNumber, createdAt: new Date().toISOString() }
+        set((s) => ({ paymentRequests: [pr, ...s.paymentRequests] }))
+        return id
+      },
+      updatePaymentRequest: (id, patch) =>
+        set((s) => ({ paymentRequests: s.paymentRequests.map(r => r.id === id ? { ...r, ...patch } : r) })),
+      removePaymentRequest: (id) =>
+        set((s) => ({ paymentRequests: s.paymentRequests.filter(r => r.id !== id) })),
+      markPaymentRequestPaid: (id, txHash, amount, activityId) =>
+        set((s) => ({ paymentRequests: s.paymentRequests.map(r => r.id === id
+          ? { ...r, status: 'paid', paidAt: new Date().toISOString(), paidTxHash: txHash, paidAmount: amount, activityId }
+          : r
+        )})),
+
       a2aPayments: [],
       addA2APayment: (record) => set((s) => ({ a2aPayments: [record, ...s.a2aPayments].slice(0, 200) })),
       a2aTasks: [],
@@ -535,6 +658,52 @@ export const useAppStore = create<AppState>()(
       setBridgePrefill: (p) => set({ bridgePrefill: p }),
       swapPrefill: null,
       setSwapPrefill: (p) => set({ swapPrefill: p }),
+
+      // ── Invoice ────────────────────────────────────────────────────────────
+      invoices: [],
+      invoiceSeq: 1,
+      addInvoice: (inv) => {
+        const seq   = get().invoiceSeq
+        const num   = `INV-${String(seq).padStart(4, '0')}`
+        const now   = new Date().toISOString()
+        const full: Invoice = {
+          ...inv,
+          id:        `inv-${Date.now()}-${Math.random().toString(36).slice(2,6)}`,
+          number:    num,
+          createdAt: now,
+          updatedAt: now,
+        }
+        set(s => ({ invoices: [full, ...s.invoices], invoiceSeq: s.invoiceSeq + 1 }))
+        return full
+      },
+      updateInvoice: (id, patch) =>
+        set(s => ({
+          invoices: s.invoices.map(inv =>
+            inv.id === id ? { ...inv, ...patch, updatedAt: new Date().toISOString() } : inv
+          ),
+        })),
+      removeInvoice: (id) =>
+        set(s => ({ invoices: s.invoices.filter(inv => inv.id !== id) })),
+      recordInvoicePayment: (invoiceId, payment) =>
+        set(s => {
+          const entry: InvoicePayment = {
+            ...payment,
+            id: `pmt-${Date.now()}-${Math.random().toString(36).slice(2,6)}`,
+          }
+          return {
+            invoices: s.invoices.map(inv => {
+              if (inv.id !== invoiceId) return inv
+              const payments   = [...inv.payments, entry]
+              const amountPaid = payments.reduce((sum, p) => sum + p.amount, 0)
+              const amountDue  = Math.max(0, inv.total - amountPaid)
+              const status: InvoiceStatus =
+                amountDue <= 0 ? 'paid'
+                  : amountPaid > 0 ? 'partially_paid'
+                    : inv.status
+              return { ...inv, payments, amountPaid, amountDue, status, updatedAt: new Date().toISOString() }
+            }),
+          }
+        }),
     }),
     {
       name: 'paywell-state-v2',
@@ -549,11 +718,14 @@ export const useAppStore = create<AppState>()(
         recentSearches: s.recentSearches,
         profile: s.profile,
         recurringTasks: s.recurringTasks,
+        paymentRequests: s.paymentRequests,
         a2aPayments: s.a2aPayments,
         a2aTasks: s.a2aTasks,
         agentWallet: s.agentWallet,
         agentSpendLog: s.agentSpendLog,
         selectedServiceIds: s.selectedServiceIds,
+        invoices: s.invoices,
+        invoiceSeq: s.invoiceSeq,
       }),
       merge: (persisted, current) => {
         const p = persisted as Partial<AppState>
@@ -575,11 +747,14 @@ export const useAppStore = create<AppState>()(
           recentSearches: p.recentSearches ?? current.recentSearches ?? [],
           profile: p.profile ?? current.profile,
           recurringTasks: p.recurringTasks ?? current.recurringTasks ?? [],
+          paymentRequests: p.paymentRequests ?? current.paymentRequests ?? [],
           a2aPayments: p.a2aPayments ?? current.a2aPayments ?? [],
           a2aTasks: p.a2aTasks ?? current.a2aTasks ?? [],
           agentWallet: p.agentWallet ?? current.agentWallet ?? { provisioned: false, balance_usdc: '0' },
           agentSpendLog: p.agentSpendLog ?? current.agentSpendLog ?? [],
           selectedServiceIds: p.selectedServiceIds ?? current.selectedServiceIds ?? [],
+          invoices:           p.invoices           ?? current.invoices           ?? [],
+          invoiceSeq:         p.invoiceSeq          ?? current.invoiceSeq          ?? 1,
         }
       },
     }

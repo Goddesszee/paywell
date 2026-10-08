@@ -1353,7 +1353,11 @@ app.get('/api/auth/google/callback', async (req, res) => {
   const clientId = process.env.VITE_GOOGLE_CLIENT_ID
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET
   const redirectUri = `${req.protocol}://${req.headers.host}/api/auth/google/callback`
-  const appBase = `http://localhost:5173`
+  // Use the configured public URL (Railway/Vercel) or derive from the Host header
+  const appBase = process.env.APP_URL
+    ?? process.env.URL          // Netlify injects this
+    ?? process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : null
+    ?? `${req.protocol}://${(req.headers.host ?? 'localhost:5173').replace(':3001', ':5173')}`
 
   if (!code || !clientId || !clientSecret) {
     res.redirect(`${appBase}/#google-error=missing_config`)

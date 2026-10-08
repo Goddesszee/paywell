@@ -15,6 +15,18 @@ import { formatAddress, formatUSDC, parseOnchainError } from '../../utils/format
 import { getUsdc, buildTxExplorerUrl } from '@/onchain-facts'
 import { parseAmount, Amount, usdcDecimalsFor } from '@/onchain-money'
 
+// ── Resolve a ?pr=<id> payment request from the store ─────────────────────────
+function usePrRequest(prId: string | null) {
+  const { paymentRequests, updatePaymentRequest } = useAppStore()
+  if (!prId) return null
+  const req = paymentRequests.find(r => r.id === prId) ?? null
+  // Mark as viewed (payer opened the link)
+  if (req && req.status === 'pending') {
+    updatePaymentRequest(req.id, { status: 'viewed' })
+  }
+  return req
+}
+
 const ARC_TESTNET_ID = 5042002
 const FONT = "'Inter', -apple-system, sans-serif"
 const BLACK = 'var(--nan-text)'
@@ -27,6 +39,7 @@ interface PaymentParams {
   to: string
   amount?: string
   note?: string
+  prId?: string   // ?pr=<id> from a NAN payment request link
 }
 
 function parsePaymentParams(): PaymentParams | null {
@@ -38,6 +51,7 @@ function parsePaymentParams(): PaymentParams | null {
     to,
     amount: params.get('amount') ?? undefined,
     note: params.get('note') ?? undefined,
+    prId: params.get('pr') ?? undefined,
   }
 }
 
@@ -59,10 +73,12 @@ type Step = 'review' | 'edit_amount' | 'submitting' | 'success' | 'error'
 
 export function PaymentRequestPage({ params }: { params: PaymentParams }) {
   const { address, chainId } = useAccount()
-  const { addActivity, setActiveView } = useAppStore()
+  const { addActivity, setActiveView, markPaymentRequestPaid } = useAppStore()
   const balance = useUsdcBalance(address ?? '')
   const { switchChain } = useSwitchChain()
   const usdcFact = getUsdc(ARC_TESTNET_ID)
+  // If this is a NAN payment request link, load the stored request
+  const storedReq = usePrRequest(params.prId ?? null)
 
   const [step, setStep] = useState<Step>('review')
   const [amount, setAmount] = useState(params.amount ?? '')
@@ -73,6 +89,9 @@ export function PaymentRequestPage({ params }: { params: PaymentParams }) {
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash: txHash })
   const isWrongChain = !!chainId && chainId !== ARC_TESTNET_ID
   const displayStep: Step = (isPending || isConfirming) ? 'submitting' : step
+
+  // Guard: expired or cancelled request
+  const isBlocked = storedReq && (storedReq.status === 'expired' || storedReq.status === 'cancelled' || storedReq.status === 'paid')
 
   useEffect(() => {
     if (isSuccess && txHash) {
@@ -86,6 +105,10 @@ export function PaymentRequestPage({ params }: { params: PaymentParams }) {
         counterparty: formatAddress(params.to),
         txHash,
       })
+      // Mark the payment request as paid
+      if (params.prId) {
+        markPaymentRequestPaid(params.prId, txHash, parseFloat(amount))
+      }
       toast.success(`Sent ${formatUSDC(parseFloat(amount))} USDC`)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -178,6 +201,27 @@ export function PaymentRequestPage({ params }: { params: PaymentParams }) {
     )
   }
 
+  // ── Blocked state (expired / cancelled / already paid) ─────────────────────
+  if (isBlocked && storedReq) {
+    const msgMap: Record<string, { title: string; body: string }> = {
+      expired:   { title: 'Request Expired',   body: 'This payment request has passed its due date.' },
+      cancelled: { title: 'Request Cancelled', body: 'This payment request has been cancelled.' },
+      paid:      { title: 'Already Paid',      body: 'This payment request has already been settled.' },
+    }
+    const msg = msgMap[storedReq.status] ?? { title: 'Unavailable', body: 'This payment link is no longer active.' }
+    return (
+      <FullPage>
+        <div style={{ textAlign: 'center', padding: '48px 0' }}>
+          <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--nan-text)', marginBottom: 12 }}>{msg.title}</div>
+          <p style={{ fontSize: 14, color: TEXT2, marginBottom: 28 }}>{msg.body}</p>
+          <button onClick={() => setActiveView('home')} style={{ padding: '12px 28px', background: '#0066FF', color: '#fff', borderRadius: 12, border: 'none', fontFamily: FONT, fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
+            Go to NAN
+          </button>
+        </div>
+      </FullPage>
+    )
+  }
+
   return (
     <FullPage>
       {/* NAN wordmark */}
@@ -188,6 +232,15 @@ export function PaymentRequestPage({ params }: { params: PaymentParams }) {
 
       {/* Request card */}
       <div style={{ background: BLACK, borderRadius: 20, padding: '24px 20px', marginBottom: 20, textAlign: 'center' }}>
+        {/* If opened from a NAN payment request, show requester info */}
+        {storedReq && (
+          <div style={{ marginBottom: 14, paddingBottom: 14, borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)', marginBottom: 3 }}>Payment requested by</div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: '#fff' }}>{storedReq.recipientName}</div>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 2 }}>{storedReq.refNumber}</div>
+          </div>
+        )}
+
         {/* QR */}
         <div style={{ width: 140, height: 140, background: '#0066FF', borderRadius: 14, margin: '0 auto 16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <QRCodeSVG value={params.to} size={120} bgColor="#08090B" fgColor="#ffffff" level="M" />
@@ -197,11 +250,13 @@ export function PaymentRequestPage({ params }: { params: PaymentParams }) {
         <div style={{ fontSize: 36, fontWeight: 800, color: '#fff', fontFamily: FONT, letterSpacing: '-1px', marginBottom: 4 }}>
           {amount ? `${formatUSDC(parseFloat(amount))} USDC` : 'Any amount'}
         </div>
-        {params.note && (
-          <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.6)', marginBottom: 12 }}>"{params.note}"</div>
+        {(storedReq?.title || params.note) && (
+          <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.6)', marginBottom: 12 }}>
+            "{storedReq?.title ?? params.note}"
+          </div>
         )}
 
-        {/* Recipient */}
+        {/* To address */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, background: 'rgba(255,255,255,0.08)', borderRadius: 10, padding: '10px 14px' }}>
           <Wallet size={14} color="rgba(255,255,255,0.5)" />
           <span style={{ fontSize: 12, fontFamily: 'monospace', color: 'rgba(255,255,255,0.7)' }}>

@@ -1,5 +1,6 @@
-import { lazy, Suspense, useState } from 'react'
+import { lazy, Suspense, useState, useMemo } from 'react'
 import { useAppStore } from './store/appStore'
+import { PaymentRequestPayPage } from './components/pages/PaymentRequestPayPage'
 import { SplashScreen } from './components/SplashScreen'
 import { AppShell } from './components/layout/AppShell'
 import { AgentWalletExperience } from './components/pages/AgentWalletExperience'
@@ -33,6 +34,8 @@ import { SearchPage } from './components/pages/SearchPage'
 import { FavoritesPage } from './components/pages/FavoritesPage'
 import { NamePage } from './components/pages/NamePage'
 import { DashboardPage } from './components/pages/DashboardPage'
+import { ExportsPage } from './components/pages/ExportsPage'
+import { PaymentRequestsPage } from './components/pages/PaymentRequestsPage'
 
 export default function App() {
   const { activeView } = useAppStore()
@@ -42,6 +45,31 @@ export default function App() {
     sessionStorage.setItem('nan_splash_shown', '1')
     return false
   })
+
+  // Detect payment request links — ?pr=<id> or ?pay=<address>&amount=<n>
+  // These must work for anyone (no NAN account), so intercept before auth/shell.
+  const prParams = useMemo(() => {
+    const p = new URLSearchParams(window.location.search)
+    const pr     = p.get('pr') ?? ''
+    const pay    = p.get('pay') ?? ''
+    const amount = parseFloat(p.get('amount') ?? '0')
+    const note   = p.get('note') ?? ''
+    const currency = (p.get('currency') ?? 'USDC') as 'USDC' | 'EURC'
+    if (pr || (pay && amount > 0)) return { pr, pay, amount, note, currency }
+    return null
+  }, [])
+
+  if (prParams) {
+    return (
+      <PaymentRequestPayPage
+        requestId={prParams.pr}
+        payAddress={prParams.pay}
+        amount={prParams.amount}
+        note={prParams.note}
+        currency={prParams.currency}
+      />
+    )
+  }
 
   if (!splashDone) return <SplashScreen onDone={() => setSplashDone(true)} />
 
@@ -80,6 +108,8 @@ export default function App() {
       {activeView === 'profile' && <ProfilePage />}
       {activeView === 'search' && <SearchPage />}
       {activeView === 'favorites' && <FavoritesPage />}
+      {activeView === 'exports' && <ExportsPage />}
+      {activeView === 'payment-requests' && <PaymentRequestsPage />}
     </AppShell>
   )
 }

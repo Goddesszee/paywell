@@ -11,6 +11,8 @@ import { useAppStore, type RecurringFrequency } from '../../store/appStore'
 import { getUsdc, buildTxExplorerUrl } from '@/onchain-facts'
 import { parseAmount } from '@/onchain-money'
 import { formatAddress } from '../../utils/format'
+import { sendFromPasskeyWallet } from '../CirclePasskeyLogin'
+import { useCircleTransaction } from '../../hooks/useCircleTransaction'
 
 const F     = "'Inter', -apple-system, sans-serif"
 const SURF  = 'var(--nan-surface)'
@@ -89,15 +91,24 @@ function Field({ label, error, children }: { label: string; error?: string; chil
 }
 
 export function RecurringPage() {
-  const { address, chainId } = useAccount()
+  const { address: wagmiAddress, chainId } = useAccount()
   const { switchChain }      = useSwitchChain()
   const {
-    addActivity, recurringTasks,
+    addActivity, recurringTasks, auth,
     addRecurringTask, updateRecurringTask, removeRecurringTask, recordRecurringRun,
   } = useAppStore()
 
+  // Support Circle/passkey users who don't connect via wagmi
+  const circleAddress = auth?.circleWalletAddress as `0x${string}` | undefined
+  const address = wagmiAddress ?? circleAddress
+  const isPasskeyUser = !!auth?.isPasskeyUser
+  const isCircleUser = !wagmiAddress && !!auth?.userToken
+
   const usdcFact     = getUsdc(ARC)
-  const isWrongChain = chainId !== undefined && chainId !== ARC
+  const isWrongChain = !!wagmiAddress && chainId !== undefined && chainId !== ARC
+
+  // Circle UCW transaction hook (email/PIN users)
+  const circleTx = useCircleTransaction()
 
   // ── form state ──────────────────────────────────────────────────────────
   type Step = 'list' | 'form' | 'review' | 'success'
@@ -123,7 +134,9 @@ export function RecurringPage() {
   // ── Auto-scheduler ──────────────────────────────────────────────────────
   useEffect(() => {
     const check = () => {
-      if (!address || !usdcFact || runningId) return
+      // Auto-scheduler only runs for wagmi users — Circle/passkey users must tap "Run now"
+      // because their transaction paths require user interaction (PIN popup / biometric)
+      if (!wagmiAddress || !usdcFact || runningId) return
       const now = new Date()
       for (const task of recurringTasks) {
         if (!task.active || task.frequency === 'manual' || !task.nextRunAt) continue
@@ -143,7 +156,7 @@ export function RecurringPage() {
     check()
     const t = setInterval(check, 60_000)
     return () => clearInterval(t)
-  }, [recurringTasks, address, usdcFact, runningId]) // eslint-disable-line
+  }, [recurringTasks, wagmiAddress, usdcFact, runningId]) // eslint-disable-line
 
   useEffect(() => {
     if (isSuccess && txHash && runningRef.current) {
@@ -193,6 +206,47 @@ export function RecurringPage() {
     if (runningId)    { toast.error('A payment is already in progress'); return }
     runningRef.current = { id: task.id, name: task.name, amount: task.amount, recipient: task.recipient }
     setRunningId(task.id)
+
+    // ── Passkey (ERC-4337) path ───────────────────────────────────────────
+    if (isPasskeyUser) {
+      const clientKey = import.meta.env.VITE_CIRCLE_CLIENT_KEY as string ?? ''
+      sendFromPasskeyWallet({
+        clientKey,
+        to: task.recipient as `0x${string}`,
+        amount: parseAmount(ARC, task.amount).raw,
+      }).then((txHash: string | undefined) => {
+        const hash = txHash ?? 'passkey-tx'
+        recordRecurringRun(task.id, hash)
+        addActivity({ type: 'sent', description: task.name, amount: parseFloat(task.amount), sign: '-', status: 'confirmed', counterparty: formatAddress(task.recipient), txHash: hash })
+        toast.success(`Sent ${task.amount} USDC — ${task.name}`)
+        setRunningId(null); runningRef.current = null
+      }).catch((e: unknown) => {
+        toast.error(e instanceof Error ? e.message : 'Transaction failed')
+        setRunningId(null); runningRef.current = null
+      })
+      return
+    }
+
+    // ── Circle UCW (email/PIN) path ───────────────────────────────────────
+    if (isCircleUser && auth?.walletId) {
+      circleTx.executeContract({
+        contractAddress: usdcFact.address,
+        abiFunctionSignature: 'transfer(address,uint256)',
+        abiParameters: [task.recipient, parseAmount(ARC, task.amount).raw.toString()],
+      }).then((txHash: string | undefined) => {
+        const hash = txHash ?? 'circle-tx'
+        recordRecurringRun(task.id, hash)
+        addActivity({ type: 'sent', description: task.name, amount: parseFloat(task.amount), sign: '-', status: 'confirmed', counterparty: formatAddress(task.recipient), txHash: hash })
+        toast.success(`Sent ${task.amount} USDC — ${task.name}`)
+        setRunningId(null); runningRef.current = null
+      }).catch((e: unknown) => {
+        toast.error(e instanceof Error ? e.message : 'Transaction failed')
+        setRunningId(null); runningRef.current = null
+      })
+      return
+    }
+
+    // ── Wagmi path (MetaMask etc.) ────────────────────────────────────────
     writeContract({ address: usdcFact.address as `0x${string}`, abi: erc20Abi, functionName: 'transfer', args: [task.recipient as `0x${string}`, parseAmount(ARC, task.amount).raw], chainId: ARC })
   }
 
@@ -287,7 +341,7 @@ export function RecurringPage() {
       {!address && step === 'list' && (
         <div style={{ background: SURF, border: `1px solid ${BDR}`, borderRadius: 12, padding: '10px 14px', display: 'flex', gap: 8, marginBottom: 14 }}>
           <AlertCircle size={14} color={T2} style={{ flexShrink: 0, marginTop: 1 }} />
-          <span style={{ fontSize: 12, color: T2 }}>Connect your wallet to run payments.</span>
+          <span style={{ fontSize: 12, color: T2 }}>Sign in or connect your wallet to run payments.</span>
         </div>
       )}
 
