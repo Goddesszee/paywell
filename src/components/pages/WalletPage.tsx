@@ -433,10 +433,10 @@ function SendFlow({
   const handleSend = () => {
     if (isPasskeyUser) {
       // Circle Modular Wallet (passkey/WebAuthn) path — uses sendFromPasskeyWallet
-      const clientKey = import.meta.env.VITE_CLIENT_KEY as string | undefined
+      const clientKey = (import.meta.env.VITE_CLIENT_KEY as string | undefined)?.trim() || undefined
       if (!clientKey) {
         setStep('error')
-        toast.error('VITE_CLIENT_KEY is not set')
+        toast.error('VITE_CLIENT_KEY is not set — add it to .env and restart the dev server')
         return
       }
       const rawAmount = BigInt(Math.round(parseFloat(amount) * 10 ** selectedToken.decimals))

@@ -134,7 +134,7 @@ async function fetchGatewayBalance(address: string): Promise<string> {
 
 /** Fetch current Arc block number via public RPC */
 async function fetchArcBlockNumber(): Promise<bigint> {
-  const rpcUrl = 'https://rpc.arc-testnet.circle.com'
+  const rpcUrl = 'https://rpc.testnet.arc.io'
   const res = await fetch(rpcUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

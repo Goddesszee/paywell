@@ -366,12 +366,30 @@ export function BridgePage() {
 
   const reset = () => { setStatus('idle'); setSteps(INITIAL_STEPS); setAmount('') }
 
+  // Missing config banners
+  const missingClientKey = isPasskeyUser && !(import.meta.env.VITE_CLIENT_KEY as string | undefined)?.trim()
+  const missingAppId     = isCircleUser  && !(import.meta.env.VITE_CIRCLE_APP_ID as string | undefined)?.trim()
+
   if (!isConnected && !isCircleUser && !isPasskeyUser) return (
     <div style={{ padding:32, textAlign:'center', fontFamily:SANS, color:T2 }}>Connect your wallet to bridge USDC</div>
   )
 
   return (
     <div style={{ fontFamily:SANS, maxWidth:480, margin:'0 auto', padding:'0 16px 80px' }}>
+
+      {/* Config missing banners */}
+      {missingClientKey && (
+        <div style={{ margin:'16px 0', padding:'14px 16px', background:'#FEF3C7', border:'1px solid #F59E0B', borderRadius:12, fontSize:13, color:'#92400E', lineHeight:1.6 }}>
+          <strong style={{ display:'block', marginBottom:4 }}>Setup required: VITE_CLIENT_KEY missing</strong>
+          Passkey bridge requires a Circle Client Key. Add <code style={{ background:'rgba(0,0,0,0.08)', borderRadius:4, padding:'2px 5px', fontSize:11 }}>VITE_CLIENT_KEY=your_key</code> to <code style={{ background:'rgba(0,0,0,0.08)', borderRadius:4, padding:'2px 5px', fontSize:11 }}>.env</code> and restart the dev server.
+        </div>
+      )}
+      {missingAppId && (
+        <div style={{ margin:'16px 0', padding:'14px 16px', background:'#FEF3C7', border:'1px solid #F59E0B', borderRadius:12, fontSize:13, color:'#92400E', lineHeight:1.6 }}>
+          <strong style={{ display:'block', marginBottom:4 }}>Setup required: VITE_CIRCLE_APP_ID missing</strong>
+          Circle UCW bridge requires an App ID for the PIN popup. Add <code style={{ background:'rgba(0,0,0,0.08)', borderRadius:4, padding:'2px 5px', fontSize:11 }}>VITE_CIRCLE_APP_ID=your_app_id</code> to <code style={{ background:'rgba(0,0,0,0.08)', borderRadius:4, padding:'2px 5px', fontSize:11 }}>.env</code> and restart the dev server. Get it from <a href="https://console.circle.com" target="_blank" rel="noreferrer" style={{ color:'#92400E', fontWeight:700 }}>console.circle.com</a> → Programmable Wallets → Configure.
+        </div>
+      )}
 
       {/* Header */}
       <div style={{ display:'flex', alignItems:'center', gap:10, padding:'20px 0 24px' }}>

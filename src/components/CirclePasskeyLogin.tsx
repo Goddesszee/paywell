@@ -62,11 +62,14 @@ export function CirclePasskeyLogin({ onBack, onSuccess }: Props) {
   // Initialise directly from storage — avoids a setState inside a useEffect
   const [hasExisting, setHasExisting] = useState(() => !!getStoredCredential())
 
-  const clientKey = import.meta.env.VITE_CLIENT_KEY as string | undefined
+  const clientKey = (import.meta.env.VITE_CLIENT_KEY as string | undefined)?.trim() || undefined
   // VITE_CLIENT_URL must be https://modular-sdk.circle.com/v1/rpc/w3s/buidl
   // Fall back to the canonical URL so the env var being wrong/missing doesn't break passkey.
-  const clientUrl = (import.meta.env.VITE_CLIENT_URL as string | undefined)
+  const clientUrl = ((import.meta.env.VITE_CLIENT_URL as string | undefined)?.trim())
     || 'https://modular-sdk.circle.com/v1/rpc/w3s/buidl'
+
+  // Detect missing client key early so the user sees a clear setup message
+  const clientKeyMissing = !clientKey
 
   async function buildAccount(credential: P256Credential) {
     if (!clientKey) throw new Error('VITE_CLIENT_KEY is not set. Add it in Circle Console → Client Keys.')
@@ -158,6 +161,17 @@ export function CirclePasskeyLogin({ onBack, onSuccess }: Props) {
           cursor: 'pointer', color: TEXT2, fontSize: 14, marginBottom: 28, padding: 0, fontFamily: F }}>
         <ArrowLeft size={14} /> Back
       </button>
+
+      {/* Setup required banner */}
+      {clientKeyMissing && (
+        <div style={{ marginBottom: 20, padding: '14px 16px', background: '#FEF3C7', border: '1px solid #F59E0B', borderRadius: 12, fontSize: 13, color: '#92400E', lineHeight: 1.6 }}>
+          <strong style={{ display: 'block', marginBottom: 4 }}>Setup required: VITE_CLIENT_KEY missing</strong>
+          1. Go to <a href="https://console.circle.com" target="_blank" rel="noreferrer" style={{ color: '#92400E', fontWeight: 700 }}>console.circle.com</a> → Client Keys → Create<br />
+          2. Set <strong>Allowed Domain</strong> and <strong>Passkey Domain</strong> to:<br />
+          <code style={{ background: 'rgba(0,0,0,0.08)', borderRadius: 4, padding: '2px 5px', fontSize: 11 }}>iz8lmru34dh0oeay3otiy.preview.studio.arc.io</code><br />
+          3. Add <code style={{ background: 'rgba(0,0,0,0.08)', borderRadius: 4, padding: '2px 5px', fontSize: 11 }}>VITE_CLIENT_KEY=your_key</code> to <code style={{ background: 'rgba(0,0,0,0.08)', borderRadius: 4, padding: '2px 5px', fontSize: 11 }}>.env</code>
+        </div>
+      )}
 
       <div style={{ textAlign: 'center', marginBottom: 32 }}>
         <div style={{ width: 56, height: 56, borderRadius: 16, background: BLUE,

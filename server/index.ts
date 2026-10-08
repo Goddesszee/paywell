@@ -220,85 +220,56 @@ app.post('/api/otp', async (req, res) => {
   }
 })
 
-// ── Circle wallet — device token for social login ─────────────────────────────
-app.post('/api/wallet/device-token', async (req, res) => {
-  const { deviceId } = req.body as { deviceId: string }
-  if (!deviceId) { res.status(400).json({ error: 'deviceId required' }); return }
-
-  const apiKey = process.env.CIRCLE_USER_CONTROLLED_API_KEY || process.env.CIRCLE_DEVELOPER_CONTROLLED_API_KEY
-  if (!apiKey) {
-    // dev mock — return placeholder tokens so the UI doesn't hard-error
-    res.json({ deviceToken: `mock-dt-${deviceId.slice(0, 8)}`, deviceEncryptionKey: `mock-dk-${deviceId.slice(0, 8)}` })
-    return
-  }
-  try {
-    const { initiateUserControlledWalletsClient } = await import('@circle-fin/user-controlled-wallets')
-    const client   = initiateUserControlledWalletsClient({ apiKey })
-    const response = await client.createDeviceTokenForSocialLogin({ deviceId })
-    const { deviceToken, deviceEncryptionKey } = response.data ?? {}
-    res.json({ deviceToken, deviceEncryptionKey })
-  } catch (e) {
-    res.status(500).json({ error: e instanceof Error ? e.message : 'Circle API error' })
-  }
-})
-
-// ── Circle wallet — request email OTP ─────────────────────────────────────────
-app.post('/api/wallet/request-otp', async (req, res) => {
-  const { deviceId, email } = req.body as { deviceId: string; email: string }
-  if (!deviceId || !email) { res.status(400).json({ error: 'deviceId and email required' }); return }
-
-  const apiKey = process.env.CIRCLE_USER_CONTROLLED_API_KEY || process.env.CIRCLE_DEVELOPER_CONTROLLED_API_KEY
-  if (!apiKey) {
-    res.status(500).json({ error: 'CIRCLE_USER_CONTROLLED_API_KEY not configured' })
-    return
-  }
-  try {
-    const { initiateUserControlledWalletsClient } = await import('@circle-fin/user-controlled-wallets')
-    const client   = initiateUserControlledWalletsClient({ apiKey })
-    const response = await client.createDeviceTokenForEmailLogin({ deviceId, email })
-    const { deviceToken, deviceEncryptionKey, otpToken } = response.data ?? {}
-    res.json({ deviceToken, deviceEncryptionKey, otpToken })
-  } catch (e) {
-    res.status(500).json({ error: e instanceof Error ? e.message : 'Circle API error' })
-  }
-})
-
-// ── Circle wallet — initialize user / create wallet challenge ─────────────────
-app.post('/api/wallet/initialize', async (req, res) => {
-  const { userToken } = req.body as { userToken: string }
-  if (!userToken) { res.status(400).json({ error: 'userToken required' }); return }
-
-  const apiKey = process.env.CIRCLE_USER_CONTROLLED_API_KEY || process.env.CIRCLE_DEVELOPER_CONTROLLED_API_KEY
-  if (!apiKey) {
-    res.status(500).json({ error: 'CIRCLE_USER_CONTROLLED_API_KEY not configured' })
-    return
-  }
-  try {
-    const { initiateUserControlledWalletsClient, Blockchain } = await import('@circle-fin/user-controlled-wallets')
-    const client   = initiateUserControlledWalletsClient({ apiKey })
-    const response = await client.createUserPinWithWallets({
-      userToken,
-      blockchains: [Blockchain.ArcTestnet],
-      accountType: 'SCA',
-    })
-    res.json({ challengeId: response.data?.challengeId })
-  } catch (e) {
-    const code = (e as { response?: { data?: { code?: number } } })?.response?.data?.code
-    if (code === 155106) { res.json({ code: 155106, message: 'User already initialized' }); return }
-    res.status(500).json({ error: e instanceof Error ? e.message : 'Circle API error' })
-  }
-})
-
-// ── Circle wallet — list wallets ───────────────────────────────────────────────
-app.get('/api/wallet/wallets', async (req, res) => {
+// ── Circle wallet — GET /api/wallet (list wallets, used by all login paths) ───
+// Mirrors api/wallet.ts GET handler for Railway/Express.
+app.get('/api/wallet', async (req, res) => {
   const userToken = req.headers['x-user-token'] as string | undefined
   if (!userToken) { res.status(401).json({ error: 'x-user-token header required' }); return }
 
-  const apiKey = process.env.CIRCLE_USER_CONTROLLED_API_KEY || process.env.CIRCLE_DEVELOPER_CONTROLLED_API_KEY
+  const apiKey =
+    process.env.CIRCLE_USER_CONTROLLED_API_KEY ??
+    process.env.CIRCLE_API_KEY ??
+    process.env.CIRCLE_DEVELOPER_CONTROLLED_API_KEY
   if (!apiKey) {
-    res.status(500).json({ error: 'CIRCLE_USER_CONTROLLED_API_KEY not configured' })
-    return
+    res.status(503).json({ error: 'CIRCLE_API_KEY not configured' }); return
   }
+  try {
+    const { initiateUserControlledWalletsClient } = await import('@circle-fin/user-controlled-wallets')
+    const client   = initiateUserControlledWalletsClient({ apiKey })
+    const response = await client.listWallets({ userToken })
+    const wallets  = response.data?.wallets ?? []
+
+    // Persist session to KV/Redis if available
+    try {
+      const { getRedis } = await import('../api/_redis.js')
+      const kv = getRedis()
+      if (kv && wallets.length > 0) {
+        const w = wallets[0]
+        await kv.set(`session:${userToken}`, {
+          email: w.address ?? '',
+          walletAddress: w.address ?? '',
+          walletId: w.id ?? '',
+          createdAt: Date.now(),
+        }, { ex: 60 * 60 * 24 * 7 })
+      }
+    } catch { /* Redis not configured */ }
+
+    res.json({ wallets })
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : 'Circle API error' })
+  }
+})
+
+// ── Circle wallet — sub-path alias for legacy callers ────────────────────────
+app.get('/api/wallet/wallets', async (req, res) => {
+  // Duplicate the GET /api/wallet logic so sub-path callers work on Railway
+  const userToken = req.headers['x-user-token'] as string | undefined
+  if (!userToken) { res.status(401).json({ error: 'x-user-token header required' }); return }
+  const apiKey =
+    process.env.CIRCLE_USER_CONTROLLED_API_KEY ??
+    process.env.CIRCLE_API_KEY ??
+    process.env.CIRCLE_DEVELOPER_CONTROLLED_API_KEY
+  if (!apiKey) { res.status(503).json({ error: 'CIRCLE_API_KEY not configured' }); return }
   try {
     const { initiateUserControlledWalletsClient } = await import('@circle-fin/user-controlled-wallets')
     const client   = initiateUserControlledWalletsClient({ apiKey })
@@ -309,27 +280,75 @@ app.get('/api/wallet/wallets', async (req, res) => {
   }
 })
 
-// ── Circle wallet — action-based handler (used by useCircleTransaction) ──────
-// Mirrors api/wallet.ts for the Express dev server.
-// Routes: create-transfer, create-contract-exec, poll-tx, list-balances
-app.post('/api/wallet', async (req, res) => {
-  const body = (req.body ?? {}) as Record<string, string>
-  const action = body.action
+// ── Circle wallet — action-based handler (all login + tx actions) ─────────────
+// Handles: device-token, request-otp, initialize, create-transfer,
+//          create-contract-exec, poll-tx, list-balances, sign-message
+// Mirrors api/wallet.ts POST handler for Railway/Express.
+// Extracted into a named function so sub-path aliases can call it directly.
+async function handleWalletAction(req: express.Request, res: express.Response): Promise<void> {
+  const body   = (req.body ?? {}) as Record<string, string>
+  const action = body.action ?? (req.query.action as string | undefined)
 
   const ucwApiKey =
     process.env.CIRCLE_USER_CONTROLLED_API_KEY ??
     process.env.CIRCLE_API_KEY ??
     process.env.CIRCLE_DEVELOPER_CONTROLLED_API_KEY
 
+  // ── device-token — does not require API key in dev (returns a mock) ──────
+  if (action === 'device-token') {
+    const { deviceId } = body
+    if (!deviceId) { res.status(400).json({ error: 'deviceId required' }); return }
+    if (!ucwApiKey) {
+      res.json({ deviceToken: `mock-dt-${deviceId.slice(0, 8)}`, deviceEncryptionKey: `mock-dk-${deviceId.slice(0, 8)}` })
+      return
+    }
+    try {
+      const { initiateUserControlledWalletsClient } = await import('@circle-fin/user-controlled-wallets')
+      const client   = initiateUserControlledWalletsClient({ apiKey: ucwApiKey })
+      const response = await client.createDeviceTokenForSocialLogin({ deviceId })
+      const { deviceToken, deviceEncryptionKey } = response.data ?? {}
+      res.json({ deviceToken, deviceEncryptionKey }); return
+    } catch (e) {
+      res.status(500).json({ error: e instanceof Error ? e.message : 'Circle API error' }); return
+    }
+  }
+
+  // ── All remaining actions require a valid API key ─────────────────────────
   if (!ucwApiKey) {
-    // No API key configured — return a clear error so the UI can surface it
-    res.status(503).json({ error: 'CIRCLE_API_KEY not configured — wallet operations unavailable in dev without credentials' })
+    res.status(503).json({ error: 'CIRCLE_API_KEY not configured — add it to Railway/Vercel env vars' })
     return
   }
 
   try {
-    const { initiateUserControlledWalletsClient } = await import('@circle-fin/user-controlled-wallets')
+    const { initiateUserControlledWalletsClient, Blockchain } = await import('@circle-fin/user-controlled-wallets')
     const client = initiateUserControlledWalletsClient({ apiKey: ucwApiKey })
+
+    // request-otp — email login
+    if (action === 'request-otp') {
+      const { deviceId, email } = body
+      if (!deviceId || !email) { res.status(400).json({ error: 'deviceId and email required' }); return }
+      const response = await client.createDeviceTokenForEmailLogin({ deviceId, email })
+      const { deviceToken, deviceEncryptionKey, otpToken } = response.data ?? {}
+      res.json({ deviceToken, deviceEncryptionKey, otpToken }); return
+    }
+
+    // initialize — first-time PIN + wallet creation
+    if (action === 'initialize') {
+      const { userToken } = body
+      if (!userToken) { res.status(400).json({ error: 'userToken required' }); return }
+      try {
+        const response = await client.createUserPinWithWallets({
+          userToken,
+          blockchains: [Blockchain.ArcTestnet],
+          accountType: 'SCA',
+        })
+        res.json({ challengeId: response.data?.challengeId }); return
+      } catch (e) {
+        const code = (e as { response?: { data?: { code?: number } } })?.response?.data?.code
+        if (code === 155106) { res.json({ code: 155106, message: 'User already initialized' }); return }
+        throw e
+      }
+    }
 
     // create-transfer
     if (action === 'create-transfer') {
@@ -388,7 +407,7 @@ app.post('/api/wallet', async (req, res) => {
       res.json({ tokenBalances: response.data?.tokenBalances ?? [] }); return
     }
 
-    // sign-message — creates a sign-message challenge for UCW EIP-712 signing
+    // sign-message
     if (action === 'sign-message') {
       const { userToken, walletId, message } = body
       if (!userToken || !walletId || !message) {
@@ -396,7 +415,6 @@ app.post('/api/wallet', async (req, res) => {
       }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const response = await (client as any).createSignMessageChallenge?.({ userToken, walletId, message })
-        // Fallback: some SDK versions expose it under signMessage
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ?? await (client as any).signMessage?.({ userToken, walletId, message })
       const challengeId = response?.data?.challengeId
@@ -406,11 +424,176 @@ app.post('/api/wallet', async (req, res) => {
       res.json({ challengeId }); return
     }
 
+    // ── ucw-swap-estimate — get a swap quote for UCW user (no signing) ────────
+    // Mirrors api/wallet.ts ucw-swap-estimate for Railway.
+    if (action === 'ucw-swap-estimate') {
+      const { userToken, walletAddress, walletId, tokenIn, tokenOut, amountIn, slippageBps } = body
+      if (!userToken || !walletAddress || !walletId || !tokenIn || !tokenOut || !amountIn) {
+        res.status(400).json({ error: 'userToken, walletAddress, walletId, tokenIn, tokenOut, amountIn required' }); return
+      }
+      try {
+        const { createCircleUserWalletAdapter } = await import('@circle-fin/adapter-circle-wallets/ucw/server')
+        const { AppKit: AppKitClass } = await import('@circle-fin/app-kit')
+        const kit = new AppKitClass()
+        const adapter = await createCircleUserWalletAdapter({
+          apiKey: ucwApiKey,
+          userToken,
+          walletId,
+          walletAddress: walletAddress as `0x${string}`,
+          chain: 'Arc_Testnet',
+          accountType: 'SCA',
+        })
+        const estimate = await kit.estimateSwap({
+          from: { adapter, chain: 'Arc_Testnet' },
+          tokenIn, tokenOut, amountIn,
+          config: { slippageBps: slippageBps ? Number(slippageBps) : 300, allowanceStrategy: 'approve' },
+        })
+        res.json({ estimate }); return
+      } catch (e) {
+        res.status(500).json({ error: e instanceof Error ? e.message : 'Swap estimate failed' }); return
+      }
+    }
+
+    // ── ucw-swap-start — begin UCW swap, return challengeId ───────────────────
+    if (action === 'ucw-swap-start') {
+      const { userToken, walletAddress, walletId, tokenIn, tokenOut, amountIn, slippageBps } = body
+      if (!userToken || !walletAddress || !walletId || !tokenIn || !tokenOut || !amountIn) {
+        res.status(400).json({ error: 'userToken, walletAddress, walletId, tokenIn, tokenOut, amountIn required' }); return
+      }
+      try {
+        const { createCircleUserWalletAdapter } = await import('@circle-fin/adapter-circle-wallets/ucw/server')
+        const { AppKit: AppKitClass } = await import('@circle-fin/app-kit')
+        const kit = new AppKitClass()
+        let resolveChallenge!: (id: string) => void
+        const challengePromise = new Promise<string>(resolve => { resolveChallenge = resolve })
+        const adapter = await createCircleUserWalletAdapter({
+          apiKey: ucwApiKey,
+          userToken, walletId,
+          walletAddress: walletAddress as `0x${string}`,
+          chain: 'Arc_Testnet', accountType: 'SCA',
+          onChallenge: ({ challengeId }: { challengeId: string }) => { resolveChallenge(challengeId) },
+        })
+        void kit.swap({
+          from: { adapter, chain: 'Arc_Testnet' },
+          tokenIn, tokenOut, amountIn,
+          config: { slippageBps: slippageBps ? Number(slippageBps) : 300, allowanceStrategy: 'approve' },
+        }).catch(() => { /* handled by ucw-swap-confirm */ })
+        const challengeId = await Promise.race([
+          challengePromise,
+          new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Timeout waiting for swap challenge')), 30_000)),
+        ])
+        res.json({ challengeId }); return
+      } catch (e) {
+        res.status(500).json({ error: e instanceof Error ? e.message : 'Swap start failed' }); return
+      }
+    }
+
+    // ── ucw-swap-confirm — poll after PIN approval ────────────────────────────
+    if (action === 'ucw-swap-confirm') {
+      const { userToken, transactionId } = body
+      if (!userToken || !transactionId) { res.status(400).json({ error: 'userToken and transactionId required' }); return }
+      try {
+        const TERMINAL = new Set(['COMPLETE', 'FAILED', 'DENIED', 'CANCELLED'])
+        const deadline = Date.now() + 120_000
+        let tx: Record<string, unknown> | null = null
+        while (Date.now() < deadline) {
+          await new Promise(r => setTimeout(r, 2000))
+          const resp = await client.getTransaction({ userToken, id: transactionId })
+          const t = resp.data?.transaction as Record<string, unknown> | undefined
+          if (!t) continue
+          if (TERMINAL.has(t.state as string)) { tx = t; break }
+        }
+        if (!tx) { res.status(408).json({ error: 'Swap timed out — check explorer for status' }); return }
+        if (tx.state === 'COMPLETE') {
+          res.json({ result: { txHash: tx.txHash as string, explorerUrl: `https://explorer.testnet.arc.io/tx/${tx.txHash as string}` } }); return
+        }
+        res.status(400).json({ error: `Swap ${tx.state ?? 'failed'}: ${(tx.errorReason as string) ?? ''}` }); return
+      } catch (e) {
+        res.status(500).json({ error: e instanceof Error ? e.message : 'Swap confirm failed' }); return
+      }
+    }
+
+    // ── ucw-bridge-start — begin UCW CCTP V2 bridge, return challengeId ───────
+    if (action === 'ucw-bridge-start') {
+      const { userToken, walletAddress, walletId, destChain, amount } = body
+      if (!userToken || !walletAddress || !walletId || !destChain || !amount) {
+        res.status(400).json({ error: 'userToken, walletAddress, walletId, destChain, amount required' }); return
+      }
+      try {
+        const { createCircleUserWalletAdapter } = await import('@circle-fin/adapter-circle-wallets/ucw/server')
+        const { AppKit: AppKitClass } = await import('@circle-fin/app-kit')
+        const kit = new AppKitClass()
+        let resolveChallenge!: (id: string) => void
+        const challengePromise = new Promise<string>(resolve => { resolveChallenge = resolve })
+        const adapter = await createCircleUserWalletAdapter({
+          apiKey: ucwApiKey,
+          userToken, walletId,
+          walletAddress: walletAddress as `0x${string}`,
+          chain: 'Arc_Testnet', accountType: 'SCA',
+          onChallenge: ({ challengeId }: { challengeId: string }) => { resolveChallenge(challengeId) },
+        })
+        void kit.bridge({
+          from: { adapter, chain: 'Arc_Testnet' as const },
+          to: { chain: destChain as Parameters<InstanceType<typeof AppKitClass>['bridge']>[0]['to']['chain'], recipientAddress: walletAddress, useForwarder: true },
+          amount,
+        }).catch(() => { /* handled by ucw-bridge-confirm */ })
+        const challengeId = await Promise.race([
+          challengePromise,
+          new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Timeout waiting for bridge challenge')), 30_000)),
+        ])
+        res.json({ challengeId }); return
+      } catch (e) {
+        res.status(500).json({ error: e instanceof Error ? e.message : 'Bridge start failed' }); return
+      }
+    }
+
+    // ── ucw-bridge-confirm — poll bridge after PIN approval ──────────────────
+    if (action === 'ucw-bridge-confirm') {
+      const { userToken, transactionId } = body
+      if (!userToken || !transactionId) { res.status(400).json({ error: 'userToken and transactionId required' }); return }
+      try {
+        const TERMINAL = new Set(['COMPLETE', 'FAILED', 'DENIED', 'CANCELLED'])
+        const deadline = Date.now() + 120_000
+        let tx: Record<string, unknown> | null = null
+        while (Date.now() < deadline) {
+          await new Promise(r => setTimeout(r, 2000))
+          const resp = await client.getTransaction({ userToken, id: transactionId })
+          const t = resp.data?.transaction as Record<string, unknown> | undefined
+          if (!t) continue
+          if (TERMINAL.has(t.state as string)) { tx = t; break }
+        }
+        if (!tx) { res.status(408).json({ error: 'Bridge timed out — check explorer for status' }); return }
+        if (tx.state === 'COMPLETE') {
+          res.json({ success: true, txHash: tx.txHash as string, explorerUrl: `https://explorer.testnet.arc.io/tx/${tx.txHash as string}` }); return
+        }
+        res.status(400).json({ error: `Bridge ${tx.state ?? 'failed'}: ${(tx.errorReason as string) ?? ''}` }); return
+      } catch (e) {
+        res.status(500).json({ error: e instanceof Error ? e.message : 'Bridge confirm failed' }); return
+      }
+    }
+
     res.status(400).json({ error: `Unknown action: ${action ?? '(none)'}` })
   } catch (e) {
     console.error('/api/wallet error:', e)
     res.status(500).json({ error: e instanceof Error ? e.message : 'Circle API error' })
   }
+}
+
+// Register the canonical POST /api/wallet route
+app.post('/api/wallet', handleWalletAction)
+
+// Legacy sub-path POST aliases — kept for backward-compat
+app.post('/api/wallet/device-token', async (req, res) => {
+  req.body = { ...req.body, action: 'device-token' }
+  await handleWalletAction(req, res)
+})
+app.post('/api/wallet/request-otp', async (req, res) => {
+  req.body = { ...req.body, action: 'request-otp' }
+  await handleWalletAction(req, res)
+})
+app.post('/api/wallet/initialize', async (req, res) => {
+  req.body = { ...req.body, action: 'initialize' }
+  await handleWalletAction(req, res)
 })
 
 // ── Circle wallets ─────────────────────────────────────────────────────────────
@@ -1323,9 +1506,9 @@ sessionStore.set = function(key: string, value: { email: string; walletAddress: 
 }
 
 // ── Google OAuth (dev server) ─────────────────────────────────────────────────
-// In production the Netlify function at netlify/functions/auth-google-callback.ts
-// handles /api/auth/google/callback. The routes below mirror that behaviour for
-// the local dev server so the same Google login flow works in both environments.
+// In production the Vercel function at api/auth-google-callback (or the Railway
+// Express server below) handles /api/auth/google/callback. The routes below
+// mirror that behaviour so the same Google login flow works in all environments.
 
 app.get('/api/auth/google', (req, res) => {
   const clientId = process.env.VITE_GOOGLE_CLIENT_ID
@@ -1355,8 +1538,7 @@ app.get('/api/auth/google/callback', async (req, res) => {
   const redirectUri = `${req.protocol}://${req.headers.host}/api/auth/google/callback`
   // Use the configured public URL (Railway/Vercel) or derive from the Host header
   const appBase = process.env.APP_URL
-    ?? process.env.URL          // Netlify injects this
-    ?? process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : null
+    ?? (process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : null)
     ?? `${req.protocol}://${(req.headers.host ?? 'localhost:5173').replace(':3001', ':5173')}`
 
   if (!code || !clientId || !clientSecret) {

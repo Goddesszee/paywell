@@ -209,7 +209,7 @@ export function RecurringPage() {
 
     // ── Passkey (ERC-4337) path ───────────────────────────────────────────
     if (isPasskeyUser) {
-      const clientKey = import.meta.env.VITE_CIRCLE_CLIENT_KEY as string ?? ''
+      const clientKey = import.meta.env.VITE_CLIENT_KEY as string ?? ''
       sendFromPasskeyWallet({
         clientKey,
         to: task.recipient as `0x${string}`,
