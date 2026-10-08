@@ -354,24 +354,27 @@ export function ExportsPage() {
   }
 
   async function shareExport() {
-    const lines = [
-      `NAN Accounting Export`,
-      `Period: ${periodLabel(period)}`,
-      `Source: ${source}`,
-      `Records: ${filtered.length}`,
-      `Total In: +${totalIn.toFixed(2)} USDC`,
-      `Total Out: -${totalOut.toFixed(2)} USDC`,
-      `Net: ${net >= 0 ? '+' : ''}${net.toFixed(2)} USDC`,
-      '',
-      ...filtered.slice(0, 20).map(r => `${new Date(r.date).toLocaleDateString('en')} | ${r.source} | ${r.description} | ${r.sign}${r.amount} USDC`),
-      filtered.length > 20 ? `…and ${filtered.length - 20} more records` : '',
-    ]
-    const text = lines.join('\n')
-    if (navigator.share) {
-      try { await navigator.share({ title: 'NAN Export', text }) } catch { /* cancelled */ }
-    } else {
-      await navigator.clipboard.writeText(text)
+    // Build the branded HTML statement and open it in a new tab so the user
+    // can share, print, or save it — same approach as the receipt Share button.
+    const html = buildStatementHtml()
+    const blob = new Blob([html], { type: 'text/html' })
+    if (
+      navigator.share &&
+      navigator.canShare?.({ files: [new File([blob], 'statement.html', { type: 'text/html' })] })
+    ) {
+      try {
+        const label = period === 'custom' ? `${customFrom}_to_${customTo}` : period
+        await navigator.share({
+          title: 'NAN Statement',
+          files: [new File([blob], `nan-statement-${label}-${source}.html`, { type: 'text/html' })],
+        })
+        return
+      } catch { /* fall through to new-tab */ }
     }
+    // Fallback: open the branded statement in a new tab
+    const url = URL.createObjectURL(blob)
+    window.open(url, '_blank')
+    setTimeout(() => URL.revokeObjectURL(url), 30000)
   }
 
   // ── HTML Statement builder ───────────────────────────────────────────────────
@@ -387,12 +390,12 @@ export function ExportsPage() {
       const short = (v: string) => v.startsWith('0x') && v.length > 18 ? `${v.slice(0,8)}…${v.slice(-6)}` : v
       const typeLabel = r.type.replace(/_/g, ' ')
       return `<tr style="background:${bg};">
-        <td style="padding:10px 14px;font-size:12px;color:#4A5068;white-space:nowrap;">${new Date(r.date).toLocaleDateString('en',{month:'short',day:'numeric',year:'numeric'})}</td>
-        <td style="padding:10px 14px;font-size:12px;color:#0A0C14;font-weight:500;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${r.description}">${r.description || typeLabel}</td>
-        <td style="padding:10px 14px;font-size:11px;color:#8A8FA8;">${r.source}</td>
-        <td style="padding:10px 14px;font-size:11px;color:#4A5068;">${r.counterparty ? short(r.counterparty) : '—'}</td>
-        <td style="padding:10px 14px;font-size:12px;font-weight:700;color:${signColor(r.sign)};text-align:right;font-family:'JetBrains Mono',Menlo,monospace;white-space:nowrap;">${r.sign}${r.amount} USDC</td>
-        <td style="padding:10px 14px;font-size:11px;color:${r.status === 'confirmed' || r.status === 'complete' ? '#00A844' : '#8A8FA8'};text-align:center;">${r.status}</td>
+        <td style="padding:10px 14px;font-size:12px;color:#4A5068;white-space:nowrap;vertical-align:top;">${new Date(r.date).toLocaleDateString('en',{month:'short',day:'numeric',year:'numeric'})}</td>
+        <td style="padding:10px 14px;font-size:12px;color:#0A0C14;font-weight:500;word-break:break-word;vertical-align:top;">${r.description || typeLabel}</td>
+        <td style="padding:10px 14px;font-size:11px;color:#8A8FA8;white-space:nowrap;vertical-align:top;">${r.source}</td>
+        <td style="padding:10px 14px;font-size:11px;color:#4A5068;word-break:break-all;vertical-align:top;">${r.counterparty ? short(r.counterparty) : '—'}</td>
+        <td style="padding:10px 14px;font-size:12px;font-weight:700;color:${signColor(r.sign)};text-align:right;font-family:'JetBrains Mono',Menlo,monospace;white-space:nowrap;vertical-align:top;">${r.sign}${r.amount} USDC</td>
+        <td style="padding:10px 14px;font-size:11px;color:${r.status === 'confirmed' || r.status === 'complete' ? '#00A844' : '#8A8FA8'};text-align:center;white-space:nowrap;vertical-align:top;">${r.status}</td>
       </tr>`
     }).join('')
 
@@ -454,15 +457,15 @@ export function ExportsPage() {
 
     <!-- Transactions table -->
     <div style="overflow-x:auto;">
-      <table style="width:100%;border-collapse:collapse;">
+      <table style="width:100%;border-collapse:collapse;table-layout:auto;">
         <thead>
           <tr style="background:#F8F9FC;border-bottom:2px solid #E8EAF0;">
             <th style="padding:11px 14px;font-size:11px;font-weight:700;color:#8A8FA8;text-align:left;text-transform:uppercase;letter-spacing:0.07em;white-space:nowrap;">Date</th>
-            <th style="padding:11px 14px;font-size:11px;font-weight:700;color:#8A8FA8;text-align:left;text-transform:uppercase;letter-spacing:0.07em;">Description</th>
-            <th style="padding:11px 14px;font-size:11px;font-weight:700;color:#8A8FA8;text-align:left;text-transform:uppercase;letter-spacing:0.07em;">Source</th>
+            <th style="padding:11px 14px;font-size:11px;font-weight:700;color:#8A8FA8;text-align:left;text-transform:uppercase;letter-spacing:0.07em;width:30%;">Description</th>
+            <th style="padding:11px 14px;font-size:11px;font-weight:700;color:#8A8FA8;text-align:left;text-transform:uppercase;letter-spacing:0.07em;white-space:nowrap;">Source</th>
             <th style="padding:11px 14px;font-size:11px;font-weight:700;color:#8A8FA8;text-align:left;text-transform:uppercase;letter-spacing:0.07em;">Counterparty</th>
             <th style="padding:11px 14px;font-size:11px;font-weight:700;color:#8A8FA8;text-align:right;text-transform:uppercase;letter-spacing:0.07em;white-space:nowrap;">Amount</th>
-            <th style="padding:11px 14px;font-size:11px;font-weight:700;color:#8A8FA8;text-align:center;text-transform:uppercase;letter-spacing:0.07em;">Status</th>
+            <th style="padding:11px 14px;font-size:11px;font-weight:700;color:#8A8FA8;text-align:center;text-transform:uppercase;letter-spacing:0.07em;white-space:nowrap;">Status</th>
           </tr>
         </thead>
         <tbody>
