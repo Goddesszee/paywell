@@ -83,10 +83,10 @@ function SummaryCard({ label, value, sub, color }: { label: string; value: strin
   return (
     <div style={{
       background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 14,
-      padding: '16px 18px',
+      padding: '12px 10px', minWidth: 0,
     }}>
       <div style={{ fontSize: 11, fontWeight: 700, color: C.t3, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>{label}</div>
-      <div style={{ fontSize: 22, fontWeight: 800, color: color ?? C.text, fontFamily: MONO, letterSpacing: '-0.03em' }}>{value}</div>
+      <div style={{ fontSize: 18, fontWeight: 800, color: color ?? C.text, fontFamily: MONO, letterSpacing: '-0.03em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{value}</div>
       {sub && <div style={{ fontSize: 11, color: C.t3, marginTop: 3 }}>{sub}</div>}
     </div>
   )
