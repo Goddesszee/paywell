@@ -88,7 +88,7 @@ export function CirclePasskeyLogin({ onBack, onSuccess }: Props) {
     setStatus('loading')
     setErrorMsg('')
     try {
-      const passkeyTransport = toPasskeyTransport(CIRCLE_MODULAR_URL, clientKey)
+      const passkeyTransport = toPasskeyTransport(clientUrl, clientKey)
       const credential = await toWebAuthnCredential({
         transport: passkeyTransport,
         mode: WebAuthnMode.Register,
@@ -122,7 +122,7 @@ export function CirclePasskeyLogin({ onBack, onSuccess }: Props) {
     setStatus('loading')
     setErrorMsg('')
     try {
-      const passkeyTransport = toPasskeyTransport(CIRCLE_MODULAR_URL, clientKey)
+      const passkeyTransport = toPasskeyTransport(clientUrl, clientKey)
       const credential = await toWebAuthnCredential({
         transport: passkeyTransport,
         mode: WebAuthnMode.Login,
