@@ -399,6 +399,28 @@ export function ExportsPage() {
       </tr>`
     }).join('')
 
+    // Mobile card rows — shown instead of the table on screens < 600px
+    const cardRowsHtml = filtered.map((r, i) => {
+      const isIn = r.sign === '+'
+      const amtClr = isIn ? '#00A844' : r.sign === '-' ? '#E53535' : '#4A5068'
+      const stClr  = r.status === 'confirmed' || r.status === 'complete' ? '#00A844' : '#8A8FA8'
+      const short  = (v: string) => v.startsWith('0x') && v.length > 18 ? `${v.slice(0,8)}…${v.slice(-6)}` : v
+      const bg     = i % 2 === 0 ? '#fff' : '#F8F9FC'
+      return `<div class="card-row" style="background:${bg};padding:14px 20px;border-bottom:1px solid #E8EAF0;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px;">
+          <div style="font-size:13px;font-weight:600;color:#0A0C14;flex:1;">${r.description || r.type.replace(/_/g,' ')}</div>
+          <div style="font-size:14px;font-weight:700;color:${amtClr};font-family:'JetBrains Mono',Menlo,monospace;white-space:nowrap;flex-shrink:0;">${r.sign}${r.amount} USDC</div>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+          <div style="font-size:11px;color:#8A8FA8;">${new Date(r.date).toLocaleDateString('en',{month:'short',day:'numeric',year:'numeric'})} · ${r.source}</div>
+          <div style="display:flex;align-items:center;gap:5px;">
+            ${r.counterparty ? `<span style="font-size:10px;color:#8A8FA8;font-family:'JetBrains Mono',Menlo,monospace;">${short(r.counterparty)}</span>` : ''}
+            <span style="font-size:10px;font-weight:700;color:${stClr};text-transform:uppercase;letter-spacing:0.05em;">${r.status}</span>
+          </div>
+        </div>
+      </div>`
+    }).join('')
+
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -408,64 +430,98 @@ export function ExportsPage() {
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap');
     *{box-sizing:border-box;margin:0;padding:0}
-    body{background:#F4F6FA;font-family:'Inter',-apple-system,sans-serif;padding:32px 16px;color:#0A0C14}
-    @media print{body{background:#fff;padding:0}@page{margin:15mm}thead{display:table-header-group}}
+    body{background:#F4F6FA;font-family:'Inter',-apple-system,sans-serif;padding:24px 12px;color:#0A0C14}
+    .summary-grid{display:grid;grid-template-columns:repeat(3,1fr)}
+    .summary-cell{padding:20px 18px}
+    .summary-cell+.summary-cell{border-left:1px solid #E8EAF0}
+    /* Desktop table / mobile cards */
+    .tbl-wrap{display:block}
+    .cards-wrap{display:none}
+    @media(max-width:600px){
+      body{padding:12px 8px}
+      .summary-grid{grid-template-columns:1fr}
+      .summary-cell{padding:16px 20px;border-left:none!important;border-top:1px solid #E8EAF0}
+      .summary-cell:first-child{border-top:none}
+      .tbl-wrap{display:none}
+      .cards-wrap{display:block}
+      .hdr-inner{flex-direction:column!important;gap:10px!important}
+      .hdr-date{text-align:left!important}
+    }
+    @media print{
+      body{background:#fff;padding:0}
+      @page{margin:12mm}
+      .tbl-wrap{display:block!important}
+      .cards-wrap{display:none!important}
+      .summary-grid{grid-template-columns:repeat(3,1fr)!important}
+      .summary-cell{padding:16px 20px!important;border-left:1px solid #E8EAF0!important;border-top:none!important}
+      .summary-cell:first-child{border-left:none!important}
+    }
   </style>
 </head>
 <body>
-  <div style="background:#fff;border-radius:20px;box-shadow:0 4px 40px rgba(0,0,0,0.08);max-width:860px;margin:0 auto;overflow:hidden;border:1px solid #E8EAF0;">
+  <div style="background:#fff;border-radius:16px;box-shadow:0 4px 32px rgba(0,0,0,0.08);max-width:860px;margin:0 auto;overflow:hidden;border:1px solid #E8EAF0;">
 
     <!-- Header -->
-    <div style="background:#0066FF;padding:32px 40px;display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:16px;">
-      <div>
-        <div style="display:inline-flex;align-items:center;gap:10px;margin-bottom:12px;">
-          <div style="width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,0.18);display:flex;align-items:center;justify-content:center;">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 324 480" width="19" height="27">
-              <path d="M255,0 L84,167 L71,163 L0,97 L0,378 L246,132 L255,110 Z" fill="#fff"/>
-              <path d="M69,480 L240,313 L253,317 L324,383 L324,102 L78,348 L69,370 Z" fill="#fff"/>
-            </svg>
+    <div style="background:#0066FF;padding:28px 28px 24px;">
+      <div class="hdr-inner" style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:14px;">
+        <div>
+          <div style="display:inline-flex;align-items:center;gap:10px;margin-bottom:10px;">
+            <div style="width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,0.18);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 324 480" width="17" height="25">
+                <path d="M255,0 L84,167 L71,163 L0,97 L0,378 L246,132 L255,110 Z" fill="#fff"/>
+                <path d="M69,480 L240,313 L253,317 L324,383 L324,102 L78,348 L69,370 Z" fill="#fff"/>
+              </svg>
+            </div>
+            <span style="font-weight:800;font-size:20px;color:#fff;letter-spacing:-0.01em;">NAN</span>
           </div>
-          <span style="font-weight:800;font-size:22px;color:#fff;letter-spacing:-0.01em;">NAN</span>
+          <div style="font-size:20px;font-weight:800;color:#fff;letter-spacing:-0.02em;">Account Statement</div>
+          <div style="font-size:13px;color:rgba(255,255,255,0.75);margin-top:4px;">${periodStr} · ${sourceStr}</div>
         </div>
-        <div style="font-size:22px;font-weight:800;color:#fff;letter-spacing:-0.025em;">Account Statement</div>
-        <div style="font-size:13px;color:rgba(255,255,255,0.75);margin-top:4px;">${periodStr} · ${sourceStr}</div>
-      </div>
-      <div style="text-align:right;">
-        <div style="font-size:11px;color:rgba(255,255,255,0.6);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:4px;">Generated</div>
-        <div style="font-size:13px;color:#fff;font-weight:600;">${generatedAt}</div>
+        <div class="hdr-date" style="text-align:right;">
+          <div style="font-size:10px;color:rgba(255,255,255,0.6);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:3px;">Generated</div>
+          <div style="font-size:13px;color:#fff;font-weight:600;">${generatedAt}</div>
+        </div>
       </div>
     </div>
 
     <!-- Summary cards -->
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0;border-bottom:1px solid #E8EAF0;">
-      <div style="padding:24px 28px;border-right:1px solid #E8EAF0;">
-        <div style="font-size:11px;font-weight:700;color:#8A8FA8;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;">Total In</div>
-        <div style="font-size:26px;font-weight:800;color:#00A844;font-family:'JetBrains Mono',Menlo,monospace;letter-spacing:-0.03em;">+${totalIn.toFixed(2)}</div>
+    <div class="summary-grid" style="border-bottom:1px solid #E8EAF0;">
+      <div class="summary-cell">
+        <div style="font-size:10px;font-weight:700;color:#8A8FA8;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">Total In</div>
+        <div style="font-size:24px;font-weight:800;color:#00A844;font-family:'JetBrains Mono',Menlo,monospace;letter-spacing:-0.03em;">+${totalIn.toFixed(2)}</div>
         <div style="font-size:11px;color:#8A8FA8;margin-top:3px;">USDC received</div>
       </div>
-      <div style="padding:24px 28px;border-right:1px solid #E8EAF0;">
-        <div style="font-size:11px;font-weight:700;color:#8A8FA8;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;">Total Out</div>
-        <div style="font-size:26px;font-weight:800;color:#E53535;font-family:'JetBrains Mono',Menlo,monospace;letter-spacing:-0.03em;">-${totalOut.toFixed(2)}</div>
+      <div class="summary-cell">
+        <div style="font-size:10px;font-weight:700;color:#8A8FA8;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">Total Out</div>
+        <div style="font-size:24px;font-weight:800;color:#E53535;font-family:'JetBrains Mono',Menlo,monospace;letter-spacing:-0.03em;">-${totalOut.toFixed(2)}</div>
         <div style="font-size:11px;color:#8A8FA8;margin-top:3px;">USDC sent</div>
       </div>
-      <div style="padding:24px 28px;">
-        <div style="font-size:11px;font-weight:700;color:#8A8FA8;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;">Net Flow</div>
-        <div style="font-size:26px;font-weight:800;color:${net >= 0 ? '#00A844' : '#E53535'};font-family:'JetBrains Mono',Menlo,monospace;letter-spacing:-0.03em;">${net >= 0 ? '+' : ''}${net.toFixed(2)}</div>
+      <div class="summary-cell">
+        <div style="font-size:10px;font-weight:700;color:#8A8FA8;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">Net Flow</div>
+        <div style="font-size:24px;font-weight:800;color:${net >= 0 ? '#00A844' : '#E53535'};font-family:'JetBrains Mono',Menlo,monospace;letter-spacing:-0.03em;">${net >= 0 ? '+' : ''}${net.toFixed(2)}</div>
         <div style="font-size:11px;color:#8A8FA8;margin-top:3px;">${filtered.length} transaction${filtered.length !== 1 ? 's' : ''}</div>
       </div>
     </div>
 
-    <!-- Transactions table -->
-    <div style="overflow-x:auto;">
-      <table style="width:100%;border-collapse:collapse;table-layout:auto;">
+    <!-- Desktop: full table -->
+    <div class="tbl-wrap">
+      <table style="width:100%;border-collapse:collapse;table-layout:fixed;">
+        <colgroup>
+          <col style="width:13%"/>
+          <col style="width:28%"/>
+          <col style="width:16%"/>
+          <col style="width:22%"/>
+          <col style="width:13%"/>
+          <col style="width:8%"/>
+        </colgroup>
         <thead>
           <tr style="background:#F8F9FC;border-bottom:2px solid #E8EAF0;">
-            <th style="padding:11px 14px;font-size:11px;font-weight:700;color:#8A8FA8;text-align:left;text-transform:uppercase;letter-spacing:0.07em;white-space:nowrap;">Date</th>
-            <th style="padding:11px 14px;font-size:11px;font-weight:700;color:#8A8FA8;text-align:left;text-transform:uppercase;letter-spacing:0.07em;width:30%;">Description</th>
-            <th style="padding:11px 14px;font-size:11px;font-weight:700;color:#8A8FA8;text-align:left;text-transform:uppercase;letter-spacing:0.07em;white-space:nowrap;">Source</th>
-            <th style="padding:11px 14px;font-size:11px;font-weight:700;color:#8A8FA8;text-align:left;text-transform:uppercase;letter-spacing:0.07em;">Counterparty</th>
-            <th style="padding:11px 14px;font-size:11px;font-weight:700;color:#8A8FA8;text-align:right;text-transform:uppercase;letter-spacing:0.07em;white-space:nowrap;">Amount</th>
-            <th style="padding:11px 14px;font-size:11px;font-weight:700;color:#8A8FA8;text-align:center;text-transform:uppercase;letter-spacing:0.07em;white-space:nowrap;">Status</th>
+            <th style="padding:11px 14px;font-size:10px;font-weight:700;color:#8A8FA8;text-align:left;text-transform:uppercase;letter-spacing:0.07em;">Date</th>
+            <th style="padding:11px 14px;font-size:10px;font-weight:700;color:#8A8FA8;text-align:left;text-transform:uppercase;letter-spacing:0.07em;">Description</th>
+            <th style="padding:11px 14px;font-size:10px;font-weight:700;color:#8A8FA8;text-align:left;text-transform:uppercase;letter-spacing:0.07em;">Source</th>
+            <th style="padding:11px 14px;font-size:10px;font-weight:700;color:#8A8FA8;text-align:left;text-transform:uppercase;letter-spacing:0.07em;">Counterparty</th>
+            <th style="padding:11px 14px;font-size:10px;font-weight:700;color:#8A8FA8;text-align:right;text-transform:uppercase;letter-spacing:0.07em;">Amount</th>
+            <th style="padding:11px 14px;font-size:10px;font-weight:700;color:#8A8FA8;text-align:center;text-transform:uppercase;letter-spacing:0.07em;">Status</th>
           </tr>
         </thead>
         <tbody>
@@ -474,18 +530,23 @@ export function ExportsPage() {
       </table>
     </div>
 
+    <!-- Mobile: card list -->
+    <div class="cards-wrap">
+      ${cardRowsHtml || '<div style="padding:32px;text-align:center;color:#8A8FA8;font-size:13px;">No transactions in this period</div>'}
+    </div>
+
     <!-- Footer -->
-    <div style="background:#F4F6FA;border-top:1px solid #E8EAF0;padding:18px 40px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
-      <div style="display:flex;align-items:center;gap:8px;">
-        <div style="width:24px;height:24px;border-radius:50%;background:#0066FF;display:flex;align-items:center;justify-content:center;">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 324 480" width="10" height="14">
+    <div style="background:#F4F6FA;border-top:1px solid #E8EAF0;padding:16px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+      <div style="display:flex;align-items:center;gap:7px;">
+        <div style="width:22px;height:22px;border-radius:50%;background:#0066FF;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 324 480" width="9" height="13">
             <path d="M255,0 L84,167 L71,163 L0,97 L0,378 L246,132 L255,110 Z" fill="#fff"/>
             <path d="M69,480 L240,313 L253,317 L324,383 L324,102 L78,348 L69,370 Z" fill="#fff"/>
           </svg>
         </div>
         <span style="font-size:12px;font-weight:600;color:#4A5068;">Powered by NAN · The Intelligent Payment Layer</span>
       </div>
-      <span style="font-size:11px;color:#8A8FA8;">This statement is for informational purposes only.</span>
+      <span style="font-size:11px;color:#8A8FA8;">For informational purposes only.</span>
     </div>
   </div>
 </body>
