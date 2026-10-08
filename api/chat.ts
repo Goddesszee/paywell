@@ -514,6 +514,9 @@ ${crossChainLines ? `- Cross-chain balances:\n${crossChainLines}\n- Total cross-
   })
 
   // ── OpenAI ────────────────────────────────────────────────────────────────
+  if (!process.env.OPENAI_API_KEY) {
+    console.error('[NAN chat] OPENAI_API_KEY is not set — add it to Vercel environment variables')
+  }
   if (process.env.OPENAI_API_KEY) {
     try {
       const r = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -542,18 +545,37 @@ ${crossChainLines ? `- Cross-chain balances:\n${crossChainLines}\n- Total cross-
     }
   }
 
-  // ── static fallback ───────────────────────────────────────────────────────
+  // ── static fallback — only reached if OPENAI_API_KEY is missing or OpenAI errored ──
   const m = message.toLowerCase()
-  let reply = "I'm NAN Agent — your financial assistant. I can check your balances, send USDC, bridge, swap, set up recurring payments, manage invoices, and discover services. What would you like to do?"
-  if (m.includes('balance'))                        reply = `Your main wallet has ${parseFloat(ctx.mainBalance ?? '0').toFixed(2)} USDC${ctx.agentBalance ? ` and your Agent Wallet has ${parseFloat(ctx.agentBalance).toFixed(2)} USDC` : ''}.`
-  else if (m.includes('send') || m.includes('transfer')) reply = 'Tap Wallet → Send, enter the recipient address and amount, then confirm.'
-  else if (m.includes('bridge'))                    reply = 'Use Bridge (sidebar) to move USDC across chains via Circle CCTP V2. Takes ~10 seconds.'
-  else if (m.includes('swap'))                      reply = 'Use Swap (sidebar) to exchange tokens via Circle App Kit.'
-  else if (m.includes('gateway'))                   reply = 'Use Gateway (sidebar) to deposit USDC into your unified cross-chain balance.'
-  else if (m.includes('fee') || m.includes('gas'))  reply = 'On Arc, USDC is the gas token — fees are tiny fractions of a USDC.'
-  else if (m.includes('agent wallet'))              reply = 'Open Agent Wallet (sidebar ⋮ menu) to create your Circle user-controlled wallet on Arc Testnet.'
-  else if (m.includes('recurring'))                 reply = 'Open Recurring (sidebar) to set up daily/weekly/monthly USDC payments.'
-  else if (m.includes('invoice'))                   reply = 'Open Exports (sidebar) to create and manage USDC invoices.'
+  // Answer simple factual questions from the injected context without needing the LLM
+  let reply = ''
+  if (m.includes('balance') || m.includes('how much')) {
+    reply = `Your main wallet has **${parseFloat(ctx.mainBalance ?? '0').toFixed(2)} USDC**${ctx.agentBalance ? ` and your Agent Wallet has **${parseFloat(ctx.agentBalance).toFixed(2)} USDC**` : ''}.`
+  } else if (/pending.*payment request|payment request.*pending/.test(m)) {
+    const pending = (ctx.openPaymentRequests ?? []).filter(p => p.status === 'pending')
+    reply = pending.length > 0
+      ? `You have ${pending.length} pending payment request${pending.length > 1 ? 's' : ''}: ${pending.map(p => `"${p.title}" for ${p.amount} USDC`).join(', ')}.`
+      : 'You have no pending payment requests.'
+  } else if (/recurring|scheduled payment/.test(m)) {
+    const tasks = ctx.recurringTasks ?? []
+    reply = tasks.length > 0
+      ? `You have ${tasks.length} recurring payment${tasks.length > 1 ? 's' : ''}: ${tasks.slice(0, 3).map(t => `"${t.name}" ${t.amount} USDC ${t.frequency}`).join(', ')}.`
+      : 'No recurring payments set up yet.'
+  } else if (/activity|recent|transaction/.test(m)) {
+    const acts = ctx.recentActivity ?? []
+    reply = acts.length > 0
+      ? `Your last ${acts.length} transactions: ${acts.slice(0, 3).map(a => `${a.sign}${a.amount.toFixed(2)} USDC — ${a.description}`).join('; ')}.`
+      : 'No recent transactions found.'
+  } else if (/service|agent stack|marketplace/.test(m)) {
+    reply = 'The NAN Agent Stack connects you to the Circle Agent Marketplace — services include web search, crypto prices, forex rates, flight search, hotel booking, GitHub code search, Perplexity deep research, and more. Say "find me a research service" to browse.'
+  } else {
+    reply = "I'm NAN — your AI financial assistant. I can check your balance, show recent transactions, list recurring payments, send USDC, bridge across chains, and more. What would you like to do?"
+  }
+
+  // If OPENAI_API_KEY is missing, surface a config hint in Vercel logs (not to the user)
+  if (!process.env.OPENAI_API_KEY) {
+    console.error('[NAN chat] Serving keyword fallback — OPENAI_API_KEY is not set in Vercel environment variables')
+  }
 
   return res.status(200).json({ reply })
 }

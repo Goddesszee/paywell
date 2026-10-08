@@ -325,6 +325,9 @@ const handler: Handler = async (event: HandlerEvent) => {
   const systemPrompt = buildSystemPrompt(ctx, body.usdcBal, body.userAddress)
 
   // ── OpenAI (primary) ──────────────────────────────────────────────────────
+  if (!process.env.OPENAI_API_KEY) {
+    console.error('[NAN chat] OPENAI_API_KEY is not set — add it to Vercel/Netlify environment variables')
+  }
   if (process.env.OPENAI_API_KEY) {
     try {
       const r = await fetch('https://api.openai.com/v1/chat/completions', {
