@@ -382,7 +382,7 @@ export function ExportsPage() {
 
   // ── HTML Statement builder ───────────────────────────────────────────────────
   function buildStatementHtml(): string {
-    const periodStr   = periodLabel(period)
+    const periodStr   = periodLabel(period) ?? period
     const sourceStr   = SOURCE_OPTIONS.find(o => o.value === source)?.label ?? source
     const printedDate = new Date().toLocaleDateString('en', { year: 'numeric', month: '2-digit', day: '2-digit' })
 
@@ -454,7 +454,7 @@ export function ExportsPage() {
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"/>
-  <title>NAN Statement · ${dateRange}</title>
+  <title>NAN Statement · ${periodStr} · ${dateRange}</title>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
     *{box-sizing:border-box;margin:0;padding:0}

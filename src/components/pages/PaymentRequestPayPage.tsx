@@ -163,7 +163,7 @@ function WalletPanel({
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, color: '#666', marginBottom: 14 }}>
         <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#00C853', display: 'inline-block', flexShrink: 0 }} />
-        Connected: {address.slice(0, 10)}…{address.slice(-6)}
+        Connected: {address!.slice(0, 10)}…{address!.slice(-6)}
       </div>
 
       {writeError && (
@@ -354,11 +354,12 @@ export function PaymentRequestPayPage({
     (payAddress && amountProp > 0)
       ? {
           id: requestId || 'external',
+          refNumber: requestId || 'external',
           title: noteProp || 'Payment Request',
           amount: amountProp,
           currency: currencyProp,
           status: 'pending',
-          createdAt: Date.now(),
+          createdAt: new Date().toISOString(),
           creatorAddress: payAddress,
         }
       : null

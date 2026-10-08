@@ -92,110 +92,6 @@ function ReceiptModal({ item, onClose, ownAddress }: { item: ActivityItem; onClo
     ? `${EXPLORER[(item.chain ?? 'arc testnet').toLowerCase()] ?? EXPLORER['arc testnet']}/tx/${item.txHash}`
     : null
 
-  function buildReceiptHtml(): string {
-    const isIn      = item.sign === '+'
-    const statusOk  = ['confirmed', 'completed'].includes(item.status)
-    const statusPnd = ['pending', 'payment_protected'].includes(item.status)
-    const statusLabel = statusOk ? 'Completed' : statusPnd ? 'Pending' : item.status.charAt(0).toUpperCase() + item.status.slice(1)
-    const statusBg    = statusOk ? '#e8f8ef' : statusPnd ? '#fff8e1' : '#fee8e8'
-    const statusClr   = statusOk ? '#1a7a42' : statusPnd ? '#b45309' : '#c0392b'
-    const dateStr   = new Date(item.timestamp).toLocaleString('en', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-    const network   = item.chain ?? 'Arc Testnet'
-    const shortTx   = item.txHash ? `${item.txHash.slice(0,8)}…${item.txHash.slice(-4)}` : null
-    const refCode   = `NAN-${item.id.slice(-4).toUpperCase()}-${new Date(item.timestamp).getTime().toString(36).toUpperCase().slice(-4)}`
-    const narrative = item.description || (isIn ? `Received ${item.amount} USDC` : `Sent ${item.amount} USDC`)
-    const txExplUrl = txUrl ?? ''
-
-    // QR code via Google Charts API (no JS needed in HTML)
-    const qrUrl = txUrl
-      ? `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(txUrl)}`
-      : null
-
-    const detailRows: [string, string, boolean?][] = [
-      ['Date', dateStr],
-      ['Network', network],
-      ['NAN reference', refCode],
-      ...(item.counterparty ? [['To / From', item.counterparty, true] as [string, string, boolean]] : []),
-      ...(shortTx ? [['Transaction', shortTx, true] as [string, string, boolean]] : []),
-    ]
-
-    const rowsHtml = detailRows.map(([label, value, mono], i, arr) => `
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;padding:13px 0;border-bottom:${i < arr.length - 1 ? '1px solid #ebebeb' : 'none'};gap:16px;">
-        <span style="font-size:13px;color:#888;white-space:nowrap;">${label}</span>
-        <span style="font-size:13px;font-weight:600;color:#111;text-align:right;word-break:break-all;${mono ? 'font-family:Menlo,Courier New,monospace;font-size:12px;' : ''}">${value}</span>
-      </div>`).join('')
-
-    return `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"/>
-  <title>NAN Receipt · ${dateStr}</title>
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
-    *{box-sizing:border-box;margin:0;padding:0}
-    html{-webkit-text-size-adjust:100%}
-    body{background:#eef0f3;font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px 16px;}
-    @media print{body{background:#fff;padding:0}@page{margin:15mm}}
-  </style>
-</head>
-<body>
-  <!-- Outer card -->
-  <div style="background:#fff;border-radius:20px;box-shadow:0 2px 24px rgba(0,0,0,0.09);width:100%;max-width:460px;padding:28px 28px 20px;border:1px solid #e4e4e4;">
-
-    <!-- ① Top bar: logo + name left, status badge right -->
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;">
-      <div style="display:flex;align-items:center;gap:10px;">
-        <div style="width:36px;height:36px;border-radius:9px;background:#0066FF;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 324 480" width="15" height="21">
-            <path d="M255,0 L84,167 L71,163 L0,97 L0,378 L246,132 L255,110 Z" fill="#fff"/>
-            <path d="M69,480 L240,313 L253,317 L324,383 L324,102 L78,348 L69,370 Z" fill="#fff"/>
-          </svg>
-        </div>
-        <span style="font-size:17px;font-weight:700;color:#111;letter-spacing:-0.01em;">NAN</span>
-      </div>
-      <span style="font-size:12px;font-weight:600;color:${statusClr};background:${statusBg};border-radius:20px;padding:5px 13px;">${statusLabel}</span>
-    </div>
-
-    <!-- ② Receipt label + amount -->
-    <div style="margin-bottom:6px;">
-      <div style="font-size:13px;color:#888;margin-bottom:8px;">NAN receipt</div>
-      <div style="font-size:52px;font-weight:800;color:#111;letter-spacing:-0.04em;line-height:1;display:flex;align-items:baseline;gap:10px;">
-        <span>${item.amount}</span>
-        <span style="font-size:22px;font-weight:600;color:#888;">${item.type === 'bridge' ? (item.counterparty ?? 'USDC') : 'USDC'}</span>
-      </div>
-    </div>
-
-    <!-- ③ Narrative sentence -->
-    <div style="font-size:14px;color:#333;font-weight:500;margin-bottom:22px;line-height:1.4;">${narrative}</div>
-
-    <!-- ④ Divider -->
-    <div style="height:1px;background:#ebebeb;margin-bottom:4px;"></div>
-
-    <!-- ⑤ Detail rows -->
-    <div>${rowsHtml}</div>
-
-    <!-- ⑥ QR + scan label + footnote -->
-    ${qrUrl ? `
-    <div style="display:flex;align-items:center;gap:16px;margin-top:20px;">
-      <img src="${qrUrl}" width="90" height="90" alt="QR" style="border-radius:8px;border:1px solid #e4e4e4;"/>
-      <div>
-        <div style="font-size:13px;font-weight:700;color:#111;margin-bottom:3px;">Scan to verify on Arc</div>
-        <div style="font-size:12px;color:#888;">testnet.arcscan.app</div>
-        ${txExplUrl ? `<a href="${txExplUrl}" style="font-size:11px;color:#0066FF;text-decoration:none;display:inline-flex;align-items:center;gap:3px;margin-top:5px;font-weight:600;">View transaction ↗</a>` : ''}
-      </div>
-    </div>` : ''}
-
-    <!-- ⑦ Testnet footnote -->
-    <div style="text-align:center;font-size:11px;color:#aaa;margin-top:20px;padding-top:14px;border-top:1px solid #f0f0f0;">
-      Arc testnet, no real value
-    </div>
-
-  </div>
-</body>
-</html>`
-  }
-
   const receiptData = {
     amount: item.amount, sign: item.sign as '+' | '-' | '',
     description: item.description, status: item.status,
@@ -208,6 +104,7 @@ function ReceiptModal({ item, onClose, ownAddress }: { item: ActivityItem; onClo
   }
   function handleDownload() { downloadReceipt(receiptData) }
   async function handleShare() { await shareReceipt(receiptData) }
+
 
   const rows: { label: string; value: string; mono?: boolean }[] = [
     { label: 'Date',        value: new Date(item.timestamp).toLocaleString('en') },

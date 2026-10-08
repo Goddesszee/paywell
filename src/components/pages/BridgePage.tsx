@@ -5,6 +5,7 @@ import { AppKit } from '@circle-fin/app-kit'
 import { createViemAdapterFromProvider } from '@circle-fin/adapter-viem-v2'
 import type { EIP1193Provider } from 'viem'
 import { ArrowLeftRight, ArrowDownUp, CheckCircle, ExternalLink, Loader, Info } from 'lucide-react'
+import { ConnectKitButton } from 'connectkit'
 import { useAppStore } from '../../store/appStore'
 import { getPasskeyAdapter } from '../CirclePasskeyLogin'
 import { bridgeFee, BRIDGE_FEE_BPS, bpsToPercent, BRIDGE_FEE_MIN_USDC } from '../../lib/fees'
@@ -307,7 +308,15 @@ export function BridgePage() {
     if (!connector || !isConnected) return
     try {
       // Switch wallet to source chain before creating the adapter
-      if (chainId !== fromChain.chainId) await switchChainAsync({ chainId: fromChain.chainId })
+      if (chainId !== fromChain.chainId) {
+        try {
+          await switchChainAsync({ chainId: fromChain.chainId })
+        } catch {
+          setErrMsg(`Please switch your wallet to ${fromChain.label} and try again.`)
+          setStatus('error')
+          return
+        }
+      }
       const provider = (await connector.getProvider()) as EIP1193Provider
       const adapter  = await createViemAdapterFromProvider({ provider })
 
@@ -315,9 +324,8 @@ export function BridgePage() {
 
       const result = await appKit.bridge({
         from: { adapter, chain: fromChain.kitName as AppKitChain },
-        // Use Circle's Orbit forwarder for the destination — the relayer handles
-        // the mint transaction on the destination chain so we never need to
-        // switchChain a second time or re-acquire the provider on a different network.
+        // Use Circle's Orbit forwarder: the relayer mints on the destination
+        // chain so the user never needs to switch chains or sign a second tx.
         to: {
           chain: toChain.kitName as AppKitChain,
           recipientAddress: wagmiAddress as string,
@@ -367,7 +375,16 @@ export function BridgePage() {
   const reset = () => { setStatus('idle'); setSteps(INITIAL_STEPS); setAmount('') }
 
   if (!isConnected && !isCircleUser && !isPasskeyUser) return (
-    <div style={{ padding:32, textAlign:'center', fontFamily:SANS, color:T2 }}>Connect your wallet to bridge USDC</div>
+    <div style={{ maxWidth:480, margin:'0 auto', padding:'48px 24px', textAlign:'center', fontFamily:SANS }}>
+      <div style={{ width:52, height:52, borderRadius:16, background:S, border:`1px solid ${B}`, display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 16px' }}>
+        <ArrowLeftRight size={22} color={T2} />
+      </div>
+      <div style={{ fontSize:17, fontWeight:700, color:T, marginBottom:8 }}>Connect your wallet to bridge</div>
+      <div style={{ fontSize:13, color:T2, marginBottom:24, lineHeight:1.5 }}>
+        Connect a browser wallet or log in with your NAN account to bridge USDC across chains via CCTP V2.
+      </div>
+      <ConnectKitButton />
+    </div>
   )
 
   return (
