@@ -45,7 +45,8 @@ const POLL_INTERVAL_MS = 2000
 const POLL_TIMEOUT_MS  = 120_000
 
 export function useCircleTransaction() {
-  const auth = useAppStore(s => s.auth)
+  const auth    = useAppStore(s => s.auth)
+  const setAuth = useAppStore(s => s.setAuth)
   const [status, setStatus]   = useState<CircleTxStatus>('idle')
   const [txHash, setTxHash]   = useState<string | undefined>()
   const [error,  setError]    = useState<string | undefined>()
@@ -54,11 +55,14 @@ export function useCircleTransaction() {
   const _execute = useCallback(
     async (action: string, extraBody: Record<string, string>): Promise<string | undefined> => {
       const userToken     = auth?.userToken
-      const encryptionKey = auth?.encryptionKey
+      const encryptionKey = auth?.encryptionKey  // may be undefined after a page reload (wiped for security)
       const walletId      = auth?.circleWalletId
       const appId         = import.meta.env.VITE_CIRCLE_APP_ID as string | undefined
 
-      if (!userToken || !encryptionKey || !walletId) {
+      // Only userToken + walletId are required to create the challenge.
+      // encryptionKey is required by the Circle SDK to execute the challenge — if it is
+      // missing (wiped on reload), the SDK will prompt the user to re-authenticate.
+      if (!userToken || !walletId) {
         setError('Circle session expired — please log in again')
         setStatus('error')
         return undefined
@@ -86,10 +90,13 @@ export function useCircleTransaction() {
 
       const { challengeId } = data
 
-      // 2. Execute challenge in Circle SDK popup (user approves with PIN / email)
+      // 2. Execute challenge in Circle SDK popup (user approves with PIN / email).
+      // Pass encryptionKey only when available; the SDK will handle re-auth if missing.
       setStatus('approving')
       const sdk = new W3SSdk({ appSettings: { appId } })
-      sdk.setAuthentication({ userToken, encryptionKey })
+      // encryptionKey is required by the SDK type but may be absent after a reload.
+      // Passing an empty string causes the SDK to prompt re-authentication via its own flow.
+      sdk.setAuthentication({ userToken, encryptionKey: encryptionKey ?? '' })
 
       const executeResult = await new Promise<string | undefined>(resolve => {
         sdk.execute(challengeId, (err, result) => {
@@ -98,8 +105,12 @@ export function useCircleTransaction() {
             setStatus('error')
             resolve(undefined)
           } else {
-            // ChallengeResult, SignMessageResult, SignTransactionResult — all may carry data
+            // ChallengeResult may carry a refreshed encryptionKey after re-auth — persist it
             const anyResult = result as Record<string, unknown> | undefined
+            const refreshedKey = anyResult?.['encryptionKey'] as string | undefined
+            if (refreshedKey && auth && !auth.encryptionKey) {
+              setAuth({ ...(auth), encryptionKey: refreshedKey })
+            }
             resolve(anyResult?.['transactionId'] as string ?? anyResult?.['result'] as string ?? undefined)
           }
         })
@@ -107,7 +118,7 @@ export function useCircleTransaction() {
 
       return executeResult
     },
-    [auth],
+    [auth, setAuth],
   )
 
   /** Poll transaction until terminal state, return txHash */
