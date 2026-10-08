@@ -3,8 +3,9 @@ import {
   ArrowUpRight, ArrowDownLeft, Bot,
   Filter, Search, CheckCircle2, Clock, XCircle,
   ExternalLink, ArrowLeftRight, ShoppingBag, RefreshCw,
+  Download, Share2, X as XIcon, FileText,
 } from 'lucide-react'
-import { useAppStore } from '../../store/appStore'
+import { useAppStore, ActivityItem } from '../../store/appStore'
 import { useNanTheme } from '../../hooks/useNanTheme'
 import { forceActivityRefresh } from '../../hooks/usePaymentWatcher'
 import { useAccount } from 'wagmi'
@@ -15,21 +16,6 @@ const BLUE  = '#0066FF'
 const GREEN = '#00C853'
 const RED   = '#FF3B3B'
 const GOLD  = '#F0A500'
-
-// Explorer base URLs per chain
-const EXPLORER: Record<string, string> = {
-  'arc':          'https://explorer.testnet.arc.io',
-  'arc testnet':  'https://explorer.testnet.arc.io',
-  'arc mainnet':  'https://explorer.arc.io',
-  'eth':          'https://sepolia.etherscan.io',
-  'base':         'https://sepolia.basescan.org',
-  'base sepolia': 'https://sepolia.basescan.org',
-  'arbitrum':     'https://sepolia.arbiscan.io',
-  'polygon':      'https://amoy.polygonscan.com',
-  'avalanche':    'https://testnet.snowtrace.io',
-  'op':           'https://sepolia-optimistic.etherscan.io',
-  'unichain':     'https://sepolia.uniscan.xyz',
-}
 
 function explorerUrl(txHash: string, chain?: string): string {
   const key  = (chain ?? 'arc').toLowerCase()
@@ -83,6 +69,167 @@ function timeStr(date: Date): string {
   return date.toLocaleTimeString('en', { hour: '2-digit', minute: '2-digit' })
 }
 
+// ── Receipt modal ──────────────────────────────────────────────────────────────
+const EXPLORER: Record<string, string> = {
+  'arc':          'https://explorer.testnet.arc.io',
+  'arc testnet':  'https://explorer.testnet.arc.io',
+  'arc mainnet':  'https://explorer.arc.io',
+  'eth':          'https://sepolia.etherscan.io',
+  'base':         'https://sepolia.basescan.org',
+  'base sepolia': 'https://sepolia.basescan.org',
+  'arbitrum':     'https://sepolia.arbiscan.io',
+  'polygon':      'https://amoy.polygonscan.com',
+  'avalanche':    'https://testnet.snowtrace.io',
+  'op':           'https://sepolia-optimistic.etherscan.io',
+  'unichain':     'https://sepolia.uniscan.xyz',
+}
+
+function ReceiptModal({ item, onClose }: { item: ActivityItem; onClose: () => void }) {
+  const C   = useNanTheme()
+  const isIn = item.sign === '+'
+  const txUrl = item.txHash
+    ? `${EXPLORER[(item.chain ?? 'arc testnet').toLowerCase()] ?? EXPLORER['arc testnet']}/tx/${item.txHash}`
+    : null
+
+  function buildReceiptText(): string {
+    const lines = [
+      '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+      '       NAN PAYMENT RECEIPT      ',
+      '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+      `Date:        ${new Date(item.timestamp).toLocaleString('en')}`,
+      `Type:        ${item.type}`,
+      `Description: ${item.description}`,
+      `Amount:      ${item.sign}${item.amount} USDC`,
+      `Status:      ${item.status}`,
+    ]
+    if (item.counterparty) lines.push(`Counterparty: ${item.counterparty}`)
+    if (item.chain)        lines.push(`Network:     ${item.chain}`)
+    if (item.txHash)       lines.push(`Tx Hash:     ${item.txHash}`)
+    if (txUrl)             lines.push(`Explorer:    ${txUrl}`)
+    lines.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+    lines.push('Powered by NAN · nanarc.xyz')
+    return lines.join('\n')
+  }
+
+  function handleDownload() {
+    const txt = buildReceiptText()
+    const blob = new Blob([txt], { type: 'text/plain' })
+    const url  = URL.createObjectURL(blob)
+    const a    = document.createElement('a')
+    const ts   = new Date(item.timestamp).toISOString().slice(0, 10)
+    a.href = url; a.download = `nan-receipt-${ts}-${item.id.slice(-6)}.txt`; a.click()
+    setTimeout(() => URL.revokeObjectURL(url), 10000)
+  }
+
+  async function handleShare() {
+    const text = buildReceiptText()
+    if (navigator.share) {
+      try { await navigator.share({ title: 'NAN Receipt', text }) } catch { /* cancelled */ }
+    } else {
+      await navigator.clipboard.writeText(text)
+      alert('Receipt copied to clipboard')
+    }
+  }
+
+  const rows: { label: string; value: string; mono?: boolean }[] = [
+    { label: 'Date',        value: new Date(item.timestamp).toLocaleString('en') },
+    { label: 'Type',        value: item.type },
+    { label: 'Description', value: item.description },
+    { label: 'Amount',      value: `${item.sign}${item.amount} USDC`, mono: true },
+    { label: 'Status',      value: item.status },
+    ...(item.counterparty ? [{ label: 'Counterparty', value: item.counterparty, mono: true }] : []),
+    ...(item.chain ? [{ label: 'Network', value: item.chain }] : []),
+    ...(item.txHash ? [{ label: 'Tx Hash', value: item.txHash, mono: true }] : []),
+  ]
+
+  return (
+    <>
+      {/* Backdrop */}
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)' }} />
+      {/* Sheet */}
+      <div style={{
+        position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 210,
+        background: C.isDark ? '#0D1017' : '#FFFFFF',
+        borderRadius: '20px 20px 0 0',
+        border: `1px solid ${C.bdr}`,
+        boxShadow: '0 -16px 64px rgba(0,0,0,0.4)',
+        maxHeight: '90dvh', overflow: 'hidden', display: 'flex', flexDirection: 'column',
+        fontFamily: "'Inter', -apple-system, sans-serif",
+      }}>
+        {/* Handle */}
+        <div style={{ width: 36, height: 4, borderRadius: 2, background: C.bdr, margin: '12px auto 0', flexShrink: 0 }} />
+
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px 12px', flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ width: 36, height: 36, borderRadius: 10, background: isIn ? 'rgba(0,200,83,0.12)' : 'rgba(255,59,59,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <FileText size={16} color={isIn ? '#00C853' : '#FF3B3B'} />
+            </div>
+            <div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: C.text }}>Payment Receipt</div>
+              <div style={{ fontSize: 11, color: C.t3 }}>NAN · {new Date(item.timestamp).toLocaleDateString('en', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
+            </div>
+          </div>
+          <button onClick={onClose} style={{ width: 30, height: 30, borderRadius: 8, background: C.surf2, border: `1px solid ${C.bdr}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+            <XIcon size={14} color={C.t2} />
+          </button>
+        </div>
+
+        {/* Amount hero */}
+        <div style={{ textAlign: 'center', padding: '8px 20px 16px', borderBottom: `1px solid ${C.bdr}`, flexShrink: 0 }}>
+          <div style={{ fontSize: 36, fontWeight: 800, color: isIn ? '#00C853' : '#FF3B3B', fontFamily: "'JetBrains Mono', Menlo, monospace", letterSpacing: '-0.03em' }}>
+            {item.sign}{item.amount} USDC
+          </div>
+          <div style={{ fontSize: 13, color: C.t3, marginTop: 4 }}>{item.description}</div>
+        </div>
+
+        {/* Details */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', scrollbarWidth: 'none' }}>
+          {rows.map(({ label, value, mono }, i) => (
+            <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '8px 0', borderBottom: i < rows.length - 1 ? `1px solid ${C.bdr}` : 'none', gap: 12 }}>
+              <span style={{ fontSize: 12, color: C.t3, flexShrink: 0, paddingTop: 1 }}>{label}</span>
+              <span style={{ fontSize: 12, fontWeight: 600, color: C.text, textAlign: 'right', wordBreak: 'break-all', fontFamily: mono ? "'JetBrains Mono', Menlo, monospace" : 'inherit' }}>{value}</span>
+            </div>
+          ))}
+
+          {/* Explorer link */}
+          {txUrl && (
+            <a href={txUrl} target="_blank" rel="noreferrer" style={{
+              display: 'flex', alignItems: 'center', gap: 6, marginTop: 12,
+              padding: '10px 14px', borderRadius: 10,
+              background: 'rgba(0,102,255,0.07)', border: '1px solid rgba(0,102,255,0.18)',
+              color: '#0066FF', fontSize: 12, fontWeight: 600, textDecoration: 'none',
+            }}>
+              <ExternalLink size={13} /> View on Explorer
+            </a>
+          )}
+        </div>
+
+        {/* Actions */}
+        <div style={{ padding: '12px 20px 20px', display: 'flex', gap: 10, flexShrink: 0, borderTop: `1px solid ${C.bdr}` }}>
+          <button onClick={handleDownload} style={{
+            flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+            padding: '13px', borderRadius: 12,
+            background: '#0066FF', border: 'none', color: '#fff',
+            fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: "'Inter', sans-serif",
+            boxShadow: '0 4px 16px rgba(0,102,255,0.3)',
+          }}>
+            <Download size={15} /> Download
+          </button>
+          <button onClick={() => { void handleShare() }} style={{
+            flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+            padding: '13px', borderRadius: 12,
+            background: C.surf2, border: `1px solid ${C.bdr}`, color: C.text,
+            fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: "'Inter', sans-serif",
+          }}>
+            <Share2 size={15} /> Share
+          </button>
+        </div>
+      </div>
+    </>
+  )
+}
+
 export function ActivityPage() {
   const C = useNanTheme()
   const { activity, auth } = useAppStore()
@@ -91,6 +238,7 @@ export function ActivityPage() {
   const [activeFilter, setActiveFilter] = useState<FilterId>('all')
   const [search, setSearch] = useState('')
   const [refreshing, setRefreshing] = useState(false)
+  const [receiptItem, setReceiptItem] = useState<ActivityItem | null>(null)
 
   // Trigger an immediate re-poll from the global watcher (no local async state)
   function handleRefresh() {
@@ -144,6 +292,9 @@ export function ActivityPage() {
 
   return (
     <div style={{ width: '100%', minHeight: '100%', fontFamily: F, paddingBottom: 80 }}>
+
+      {/* Receipt modal */}
+      {receiptItem && <ReceiptModal item={receiptItem} onClose={() => setReceiptItem(null)} />}
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
         <h1 style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.025em', color: C.text, margin: 0 }}>Activity</h1>
@@ -288,7 +439,7 @@ export function ActivityPage() {
                         </div>
                       </div>
 
-                      {/* Amount + explorer link */}
+                      {/* Amount + receipt + explorer */}
                       <div style={{
                         textAlign: 'right', flexShrink: 0,
                         display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 5,
@@ -297,24 +448,42 @@ export function ActivityPage() {
                           {item.sign}{item.amount} USDC
                         </div>
 
-                        {/* Explorer link — shown whenever there is a txHash */}
-                        {txUrl ? (
-                          <a
-                            href={txUrl}
-                            target="_blank"
-                            rel="noreferrer"
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                          {/* Receipt button */}
+                          <button
+                            onClick={() => setReceiptItem(item)}
+                            title="View receipt"
                             style={{
-                              fontSize: 11, color: BLUE, fontFamily: MONO,
                               display: 'flex', alignItems: 'center', gap: 3,
-                              textDecoration: 'none', fontWeight: 600,
-                              background: 'rgba(0,102,255,0.08)',
                               padding: '3px 7px', borderRadius: 6,
+                              background: 'rgba(255,255,255,0.06)',
+                              border: '1px solid rgba(255,255,255,0.1)',
+                              color: C.t3, fontSize: 11, fontWeight: 600,
+                              cursor: 'pointer', fontFamily: F,
                             }}
                           >
-                            {item.txHash!.slice(0, 8)}…{item.txHash!.slice(-6)}
-                            <ExternalLink size={10} color={BLUE} />
-                          </a>
-                        ) : null}
+                            <FileText size={10} color={C.t3} /> Receipt
+                          </button>
+
+                          {/* Explorer link */}
+                          {txUrl && (
+                            <a
+                              href={txUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              style={{
+                                fontSize: 11, color: BLUE, fontFamily: MONO,
+                                display: 'flex', alignItems: 'center', gap: 3,
+                                textDecoration: 'none', fontWeight: 600,
+                                background: 'rgba(0,102,255,0.08)',
+                                padding: '3px 7px', borderRadius: 6,
+                              }}
+                            >
+                              {item.txHash!.slice(0, 6)}…
+                              <ExternalLink size={10} color={BLUE} />
+                            </a>
+                          )}
+                        </div>
                       </div>
                     </div>
                   )
