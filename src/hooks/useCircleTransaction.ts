@@ -101,25 +101,47 @@ export function useCircleTransaction() {
       // even mid-session. When present, pass it so the SDK can sign immediately.
       sdk.setAuthentication({ userToken, encryptionKey: encryptionKey ?? '' })
 
-      const executeResult = await new Promise<string | undefined>(resolve => {
+      // sdk.execute() fires the callback once the user approves or denies.
+      // For CREATE_TRANSACTION challenges the result has NO transactionId —
+      // it only carries { type, status }. We must fetch the transactionId
+      // via get-challenge after the SDK reports success.
+      const sdkOk = await new Promise<boolean>(resolve => {
         sdk.execute(challengeId, (err, result) => {
           if (err) {
             setError(err.message ?? 'Challenge failed')
             setStatus('error')
-            resolve(undefined)
+            resolve(false)
           } else {
-            // ChallengeResult may carry a refreshed encryptionKey after re-auth — persist it
+            // Persist a refreshed encryptionKey if the SDK returned one after re-auth
             const anyResult = result as Record<string, unknown> | undefined
             const refreshedKey = anyResult?.['encryptionKey'] as string | undefined
             if (refreshedKey && auth && !auth.encryptionKey) {
               setAuth({ ...(auth), encryptionKey: refreshedKey })
             }
-            resolve(anyResult?.['transactionId'] as string ?? anyResult?.['result'] as string ?? undefined)
+            resolve(true)
           }
         })
       })
+      if (!sdkOk) return undefined
 
-      return executeResult
+      // Fetch transactionId from the completed challenge
+      const challengeResp = await fetch('/api/wallet', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'get-challenge', userToken, challengeId }),
+      })
+      const challengeData = await challengeResp.json() as {
+        challenge?: { transactionId?: string; txHash?: string }
+      }
+      const transactionId = challengeData.challenge?.transactionId
+      if (!transactionId) {
+        // No transactionId means the challenge type didn't create a tx (e.g. sign)
+        // or it failed silently — surface a clear error
+        setError('Transaction was approved but Circle returned no transactionId')
+        setStatus('error')
+        return undefined
+      }
+      return transactionId
     },
     [auth, setAuth],
   )

@@ -408,6 +408,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   }
 
+  // ── get-challenge — fetch transactionId from a completed challenge ───────────
+  // After sdk.execute() succeeds for CREATE_TRANSACTION, the SDK result has no
+  // transactionId. Call this to retrieve it via getUserChallenge so we can poll.
+  if (action === 'get-challenge') {
+    const { userToken, challengeId } = body
+    if (!userToken || !challengeId) return err(res, 400, 'userToken and challengeId required')
+    try {
+      const client = ucwClient()
+      const response = await client.getUserChallenge({ userToken, challengeId })
+      const challenge = response.data?.challenge
+      return res.json({ challenge })
+    } catch (e) {
+      return err(res, 500, e instanceof Error ? e.message : 'Get challenge failed')
+    }
+  }
+
   // ── sign-message — EIP-191 / EIP-712 signing challenge ──────────────────────
   // Creates a Circle sign-message challenge on behalf of the user.
   // The client executes the returned challengeId via sdk.execute().

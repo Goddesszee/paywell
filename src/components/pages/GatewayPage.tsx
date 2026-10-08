@@ -650,7 +650,24 @@ function PasskeyDepositTab({ address, walletBalance, usdcFact, onSuccess }: {
   )
 }
 
-// W3S SDK (user-controlled wallet) deposit — PIN/email challenge-response flow
+// Multicall3 on Arc Testnet — batches approve + deposit into a single tx / one Circle popup
+const MULTICALL3 = '0xcA11bde05977b3631167028862bE2a173976CA11' as const
+const MULTICALL3_ABI = [{
+  type: 'function',
+  name: 'aggregate3',
+  inputs: [{
+    name: 'calls', type: 'tuple[]',
+    components: [
+      { name: 'target',       type: 'address' },
+      { name: 'allowFailure', type: 'bool'    },
+      { name: 'callData',     type: 'bytes'   },
+    ],
+  }],
+  outputs: [{ name: 'returnData', type: 'tuple[]', components: [{ name: 'success', type: 'bool' }, { name: 'returnData', type: 'bytes' }] }],
+  stateMutability: 'payable',
+}] as const
+
+// W3S SDK (user-controlled wallet) deposit — one Circle popup via Multicall3 batch
 function W3SDepositTab({ address, walletBalance, usdcFact, onSuccess }: {
   address?: string; walletBalance: string|null
   usdcFact: { address: string } | undefined; onSuccess: () => void
@@ -665,18 +682,24 @@ function W3SDepositTab({ address, walletBalance, usdcFact, onSuccess }: {
     if (!address || !amount || parseFloat(amount) <= 0 || !usdcFact) return
     const parsed = parseUnits(amount, decimals)
     const { encodeFunctionData, erc20Abi: abi } = await import('viem')
-    // Step 1: approve USDC to GatewayWallet
+
+    // Batch approve + deposit via Multicall3 → single Circle challenge = one popup
     const approveCallData = encodeFunctionData({ abi, functionName: 'approve', args: [GATEWAY_WALLET, parsed] })
-    const approveTx = await circleTx.executeContract({ contractAddress: usdcFact.address, callData: approveCallData })
-    if (!approveTx) return
-    // Step 2: deposit(token, amount) — correct Gateway ABI
     const depositCallData = encodeFunctionData({
       abi: GATEWAY_WALLET_ABI,
       functionName: 'deposit',
       args: [usdcFact.address as `0x${string}`, parsed],
     })
-    const depositTx = await circleTx.executeContract({ contractAddress: GATEWAY_WALLET, callData: depositCallData })
-    if (depositTx) { toast.success(`Deposited ${amount} USDC to Gateway`); onSuccess() }
+    const batchCallData = encodeFunctionData({
+      abi: MULTICALL3_ABI,
+      functionName: 'aggregate3',
+      args: [[
+        { target: usdcFact.address as `0x${string}`, allowFailure: false, callData: approveCallData },
+        { target: GATEWAY_WALLET,                    allowFailure: false, callData: depositCallData },
+      ]],
+    })
+    const result = await circleTx.executeContract({ contractAddress: MULTICALL3, callData: batchCallData })
+    if (result) { toast.success(`Deposited ${amount} USDC to Gateway`); onSuccess() }
   }
 
   return (
