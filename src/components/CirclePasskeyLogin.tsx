@@ -152,7 +152,7 @@ export function CirclePasskeyLogin({ onBack, onSuccess }: Props) {
   }
 
   return (
-    <div>
+    <div style={{ display: 'flex', flexDirection: 'column' }}>
       <button onClick={onBack}
         style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none',
           cursor: 'pointer', color: TEXT2, fontSize: 14, marginBottom: 28, padding: 0, fontFamily: F }}>
@@ -200,6 +200,13 @@ export function CirclePasskeyLogin({ onBack, onSuccess }: Props) {
         <div style={{ marginTop: 16, padding: '12px 14px', background: '#FEE2E2',
           borderRadius: 10, fontSize: 13, color: '#B91C1C', lineHeight: 1.5 }}>
           {errorMsg}
+          <button
+            onClick={() => { setStatus('idle'); setErrorMsg('') }}
+            style={{ display: 'block', marginTop: 8, fontSize: 12, fontWeight: 600,
+              color: '#B91C1C', background: 'none', border: 'none', cursor: 'pointer',
+              padding: 0, textDecoration: 'underline', fontFamily: F }}>
+            Dismiss
+          </button>
         </div>
       )}
 
