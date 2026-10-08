@@ -451,7 +451,153 @@ function DepositTab({ address, walletBalance, usdcFact, onSuccess }: {
 }
 
 // ── Circle wallet deposit tab ─────────────────────────────────────────────────
+// Passkey users (isPasskeyUser=true) are Circle Modular Wallet / ERC-4337 smart
+// accounts. They sign via the bundler (sendUserOperation), NOT the W3S SDK
+// PIN/email flow. useCircleTransaction requires userToken + encryptionKey which
+// passkey users never have — routing them there produces "Circle session expired".
+// This component detects the user type and picks the right signing path.
 function CircleDepositTab({ address, walletBalance, usdcFact, onSuccess }: {
+  address?: string; walletBalance: string|null
+  usdcFact: { address: string } | undefined; onSuccess: () => void
+}) {
+  const { auth } = useAppStore()
+  const isPasskey = !!auth?.isPasskeyUser
+
+  if (isPasskey) {
+    return (
+      <PasskeyDepositTab
+        address={address}
+        walletBalance={walletBalance}
+        usdcFact={usdcFact}
+        onSuccess={onSuccess}
+      />
+    )
+  }
+  return (
+    <W3SDepositTab
+      address={address}
+      walletBalance={walletBalance}
+      usdcFact={usdcFact}
+      onSuccess={onSuccess}
+    />
+  )
+}
+
+// Passkey (Modular Wallet / ERC-4337) deposit — uses bundler sendUserOperation
+// Batches approve + deposit into a single user op so the user only signs once.
+function PasskeyDepositTab({ address, walletBalance, usdcFact, onSuccess }: {
+  address?: string; walletBalance: string|null
+  usdcFact: { address: string } | undefined; onSuccess: () => void
+}) {
+  const [amount, setAmount] = useState('')
+  const [phase, setPhase] = useState<'idle'|'busy'|'done'|'error'>('idle')
+  const [errMsg, setErrMsg] = useState('')
+
+  const handleDeposit = async () => {
+    if (!address || !amount || parseFloat(amount) <= 0 || !usdcFact) return
+    setErrMsg('')
+    setPhase('busy')
+    try {
+      const clientKey = import.meta.env.VITE_CLIENT_KEY as string | undefined
+      if (!clientKey) throw new Error('VITE_CLIENT_KEY not set — passkey transactions require a Circle Client Key.')
+
+      const { encodeFunctionData, erc20Abi: abi, parseUnits: pu } = await import('viem')
+      const parsed = pu(amount, 6)
+
+      // Build calldata for approve + deposit
+      const approveData = encodeFunctionData({ abi, functionName: 'approve', args: [GATEWAY_WALLET, parsed] })
+      const depositData = encodeFunctionData({
+        abi: GATEWAY_WALLET_ABI,
+        functionName: 'deposit',
+        args: [usdcFact.address as `0x${string}`, parsed],
+      })
+
+      // Build bundler client from stored passkey credential
+      const { toWebAuthnAccount, createBundlerClient } = await import('viem/account-abstraction')
+      const { toCircleSmartAccount, toModularTransport, toWebAuthnCredential, WebAuthnMode } = await import('@circle-fin/modular-wallets-core')
+      const { createPublicClient } = await import('viem')
+      const { arcTestnet } = await import('viem/chains')
+
+      const MODULAR_URL = 'https://modular-sdk.circle.com/v1/rpc/w3s/buidl'
+      const modularTransport = toModularTransport(`${MODULAR_URL}/arcTestnet`, clientKey)
+      const publicClient = createPublicClient({ chain: arcTestnet, transport: modularTransport })
+
+      // Re-authenticate passkey to get a fresh credential for signing
+      const passkeyTransport = (await import('@circle-fin/modular-wallets-core')).toPasskeyTransport(MODULAR_URL, clientKey)
+      const credential = await toWebAuthnCredential({ transport: passkeyTransport, mode: WebAuthnMode.Login })
+
+      const account = await toCircleSmartAccount({
+        client: publicClient,
+        owner: toWebAuthnAccount({ credential }),
+      })
+
+      const bundlerClient = createBundlerClient({
+        account,
+        chain: arcTestnet,
+        transport: modularTransport,
+      })
+
+      // Batch approve + deposit as a single user operation (one passkey prompt)
+      const userOpHash = await bundlerClient.sendUserOperation({
+        account,
+        calls: [
+          { to: usdcFact.address as `0x${string}`, data: approveData, value: 0n },
+          { to: GATEWAY_WALLET, data: depositData, value: 0n },
+        ],
+        paymaster: true,
+      })
+
+      await bundlerClient.waitForUserOperationReceipt({ hash: userOpHash })
+      setPhase('done')
+      toast.success(`Deposited ${amount} USDC to Gateway`)
+      setTimeout(onSuccess, 1500)
+    } catch (e: unknown) {
+      setPhase('error')
+      const msg = e instanceof Error ? e.message : String(e)
+      setErrMsg(msg.includes('NotAllowedError') || msg.includes('cancelled')
+        ? 'Passkey prompt cancelled. Try again.'
+        : msg)
+    }
+  }
+
+  const reset = () => { setPhase('idle'); setAmount(''); setErrMsg('') }
+  const busy = phase === 'busy'
+
+  return (
+    <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+      <div style={{ fontSize:13, color:T2, lineHeight:1.6 }}>Deposit USDC into your unified Gateway balance using your passkey wallet.</div>
+      <div style={{ background:`rgba(0,102,255,0.06)`, border:`1px solid rgba(0,102,255,0.15)`, borderRadius:10, padding:'10px 14px', display:'flex', gap:8, alignItems:'flex-start' }}>
+        <Info size={13} color={BLUE} style={{ flexShrink:0, marginTop:1 }} />
+        <div style={{ fontSize:11, color:T2, lineHeight:1.5 }}>
+          Approve + deposit are batched into <strong>one user operation</strong> — a single passkey biometric prompt covers both steps.
+        </div>
+      </div>
+      <div>
+        <div style={{ fontSize:11, fontWeight:600, color:T2, marginBottom:6, textTransform:'uppercase', letterSpacing:'0.05em' }}>Amount (USDC)</div>
+        <div style={{ position:'relative' }}>
+          <input type="number" min="0" step="0.01" placeholder="0.00" value={amount}
+            onChange={e => setAmount(e.target.value)} disabled={busy}
+            style={{ width:'100%', padding:'12px 56px 12px 14px', border:`1px solid ${BDR}`, borderRadius:10, background:SURF2, color:TEXT, fontSize:16, fontWeight:600, fontFamily:F, boxSizing:'border-box', outline:'none' }} />
+          <span style={{ position:'absolute', right:14, top:'50%', transform:'translateY(-50%)', fontSize:13, fontWeight:600, color:T2 }}>USDC</span>
+        </div>
+        <div style={{ fontSize:11, color:T2, marginTop:6 }}>Available: <strong style={{ color:TEXT }}>{walletBalance ? parseFloat(walletBalance).toFixed(2) : '—'} USDC</strong></div>
+      </div>
+      {errMsg && <div style={{ background:'rgba(255,68,68,0.08)', border:`1px solid rgba(255,68,68,0.20)`, borderRadius:10, padding:'10px 14px', fontSize:12, color:'#FF4444' }}>{errMsg}</div>}
+      {busy && <div style={{ fontSize:13, color:T2, display:'flex', alignItems:'center', gap:8 }}><div style={{ width:12, height:12, borderRadius:'50%', border:`2px solid ${BLUE}`, borderTopColor:'transparent', animation:'nan-spin 0.8s linear infinite', flexShrink:0 }} />Confirm with your passkey…</div>}
+      {phase === 'done' ? (
+        <button onClick={reset} style={{ width:'100%', padding:'14px 0', background:SURF, border:`1px solid ${BDR}`, borderRadius:14, fontSize:14, fontWeight:600, color:TEXT, cursor:'pointer', fontFamily:F }}>Deposit again</button>
+      ) : (
+        <button onClick={() => void handleDeposit()} disabled={!amount || parseFloat(amount)<=0 || busy}
+          style={{ width:'100%', padding:'14px 0', borderRadius:14, fontSize:14, fontWeight:600, border:'none', fontFamily:F, cursor:(!amount||busy)?'not-allowed':'pointer', background:(!amount||busy)?SURF:BLUE, color:(!amount||busy)?T2:'#fff', transition:'all 0.15s' }}>
+          {busy ? 'Processing…' : `Deposit ${amount||'0.00'} USDC`}
+        </button>
+      )}
+    </div>
+  )
+}
+
+// W3S SDK (user-controlled wallet) deposit — PIN/email challenge-response flow
+function W3SDepositTab({ address, walletBalance, usdcFact, onSuccess }: {
   address?: string; walletBalance: string|null
   usdcFact: { address: string } | undefined; onSuccess: () => void
 }) {
@@ -469,7 +615,7 @@ function CircleDepositTab({ address, walletBalance, usdcFact, onSuccess }: {
     const approveCallData = encodeFunctionData({ abi, functionName: 'approve', args: [GATEWAY_WALLET, parsed] })
     const approveTx = await circleTx.executeContract({ contractAddress: usdcFact.address, callData: approveCallData })
     if (!approveTx) return
-    // Step 2: deposit(token, amount) — correct signature
+    // Step 2: deposit(token, amount) — correct Gateway ABI
     const depositCallData = encodeFunctionData({
       abi: GATEWAY_WALLET_ABI,
       functionName: 'deposit',
