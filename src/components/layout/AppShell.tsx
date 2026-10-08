@@ -240,7 +240,7 @@ const SIDEBAR_SECTIONS = [
     { id: 'recurring',    label: 'Recurring',     Icon: Repeat, desc: 'Scheduled payments' },
   ]},
   { title: 'Account', items: [
-    { id: 'exports',   label: 'Exports',   Icon: FileDown, desc: 'Download accounting records' },
+    { id: 'exports',   label: 'Generate Statement', Icon: FileDown, desc: 'Download your account statement' },
     { id: 'settings',  label: 'Settings',  Icon: Settings, desc: 'Wallet & app settings' },
     { id: 'favorites', label: 'Saved',     Icon: Bookmark, desc: 'Your bookmarked items' },
   ]},
@@ -256,7 +256,6 @@ const SIDEBAR_SECTIONS = [
 // Mobile drawer:
 //  - No "Home" (bottom nav covers it) or "Dashboard" (Home IS the mobile overview)
 //  - No "Transactions" from Payments (duplicate of Activity in Main)
-//  - No "Exports" (statement generator — not a primary mobile action)
 //  - No "Swap" (complex enough to be desktop-first)
 const MOBILE_DRAWER_SECTIONS = SIDEBAR_SECTIONS.map(s => ({
   ...s,
@@ -264,7 +263,6 @@ const MOBILE_DRAWER_SECTIONS = SIDEBAR_SECTIONS.map(s => ({
     i.id !== 'home' &&
     i.id !== 'dashboard' &&
     i.id !== 'swap' &&
-    i.id !== 'exports' &&
     !(s.title === 'Payments' && i.label === 'Transactions')
   ),
 })).filter(s => s.items.length > 0)
