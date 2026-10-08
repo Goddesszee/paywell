@@ -12,7 +12,7 @@
  *   const { sendTransfer, executeContract, status, txHash, error, reset } = useCircleTransaction()
  */
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import { W3SSdk } from '@circle-fin/w3s-pw-web-sdk'
 import { useAppStore } from '../store/appStore'
 
@@ -45,30 +45,45 @@ const POLL_INTERVAL_MS = 2000
 const POLL_TIMEOUT_MS  = 120_000
 
 export function useCircleTransaction() {
-  const auth    = useAppStore(s => s.auth)
-  const setAuth = useAppStore(s => s.setAuth)
+  const auth               = useAppStore(s => s.auth)
+  const setAuth            = useAppStore(s => s.setAuth)
+  const refreshCircleToken = useAppStore(s => s.refreshCircleToken)
   const [status, setStatus]   = useState<CircleTxStatus>('idle')
   const [txHash, setTxHash]   = useState<string | undefined>()
   const [error,  setError]    = useState<string | undefined>()
+  // Prevent concurrent refresh attempts
+  const refreshingRef = useRef(false)
 
-  /** Calls the backend to create a challenge, then executes it via the SDK */
+  /**
+   * Calls the backend to create a challenge, then executes it via the SDK.
+   * If the userToken is expired, automatically refreshes it once and retries
+   * before giving up. If the refresh also fails, surfaces a re-login prompt.
+   */
   const _execute = useCallback(
-    async (action: string, extraBody: Record<string, string>): Promise<string | undefined> => {
+    async (action: string, extraBody: Record<string, string>, _retryAfterRefresh = false): Promise<string | undefined> => {
       const userToken     = auth?.userToken
       const encryptionKey = auth?.encryptionKey  // may be undefined after a page reload (wiped for security)
       const walletId      = auth?.circleWalletId
       const appId         = import.meta.env.VITE_CIRCLE_APP_ID as string | undefined
 
-      // Only userToken + walletId are required to create the challenge.
-      // encryptionKey is required by the Circle SDK to execute the challenge — if it is
-      // missing (wiped on reload), the SDK will prompt the user to re-authenticate.
       if (!userToken || !walletId) {
-        setError('Circle session expired — please log in again')
+        // Try a silent token refresh once before asking the user to log in again
+        if (!_retryAfterRefresh && !refreshingRef.current) {
+          refreshingRef.current = true
+          setStatus('creating')
+          const newToken = await refreshCircleToken()
+          refreshingRef.current = false
+          if (newToken) {
+            // Refresh succeeded — the store now has the new token; re-read via auth
+            return _execute(action, extraBody, true)
+          }
+        }
+        setError('Circle session expired — please log out and log in again')
         setStatus('error')
         return undefined
       }
       if (!appId) {
-        setError('VITE_CIRCLE_APP_ID is not set — add it to .env and restart the dev server')
+        setError('VITE_CIRCLE_APP_ID is not configured')
         setStatus('error')
         return undefined
       }
@@ -81,6 +96,20 @@ export function useCircleTransaction() {
         body: JSON.stringify({ action, userToken, walletId, ...extraBody }),
       })
       const data = await resp.json() as { challengeId?: string; error?: string }
+
+      // 401 from the backend means the token is expired — refresh and retry once
+      if ((resp.status === 401 || resp.status === 403) && !_retryAfterRefresh && !refreshingRef.current) {
+        refreshingRef.current = true
+        const newToken = await refreshCircleToken()
+        refreshingRef.current = false
+        if (newToken) {
+          return _execute(action, extraBody, true)
+        }
+        setError('Circle session expired — please log out and log in again')
+        setStatus('error')
+        return undefined
+      }
+
       if (!resp.ok || !data.challengeId) {
         const msg = data.error ?? `Failed to create Circle challenge (HTTP ${resp.status})`
         setError(msg)
@@ -94,8 +123,6 @@ export function useCircleTransaction() {
       // Pass encryptionKey only when available; the SDK will handle re-auth if missing.
       setStatus('approving')
       const sdk = new W3SSdk({ appSettings: { appId } })
-      // encryptionKey is required by the SDK type but may be absent after a reload.
-      // Passing an empty string causes the SDK to prompt re-authentication via its own flow.
       sdk.setAuthentication({ userToken, encryptionKey: encryptionKey ?? '' })
 
       const executeResult = await new Promise<string | undefined>(resolve => {
@@ -118,13 +145,15 @@ export function useCircleTransaction() {
 
       return executeResult
     },
-    [auth, setAuth],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [auth, setAuth, refreshCircleToken],
   )
 
   /** Poll transaction until terminal state, return txHash */
   const _poll = useCallback(
     async (transactionId: string): Promise<string | undefined> => {
-      const userToken = auth?.userToken
+      // Re-read from store rather than closure so we get the refreshed token
+      let userToken = useAppStore.getState().auth?.userToken
       if (!userToken) return undefined
 
       setStatus('polling')
@@ -132,6 +161,8 @@ export function useCircleTransaction() {
 
       while (Date.now() < deadline) {
         await new Promise(r => setTimeout(r, POLL_INTERVAL_MS))
+        // Always read the latest token from the store (may have been refreshed)
+        userToken = useAppStore.getState().auth?.userToken ?? userToken
         const resp = await fetch('/api/wallet', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -159,7 +190,8 @@ export function useCircleTransaction() {
       setStatus('error')
       return undefined
     },
-    [auth],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
   )
 
   /** Send a token transfer */

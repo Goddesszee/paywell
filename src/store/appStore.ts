@@ -352,6 +352,13 @@ export interface AppState {
   mainWalletAddress: string
   setMainWalletBalance: (balance: string, address: string) => void
 
+  /**
+   * Silently refresh a Circle UCW userToken using the backend refresh-session
+   * endpoint. Updates auth.userToken in the store and returns the new token,
+   * or returns undefined if the refresh failed (caller should force re-login).
+   */
+  refreshCircleToken: () => Promise<string | undefined>
+
   /** USDC balance on each chain keyed by chain name, e.g. { "Arc Testnet": "12.50", "Base Sepolia": "0.00" } */
   crossChainBalances: Record<string, string>
   setCrossChainBalances: (balances: Record<string, string>) => void
@@ -650,6 +657,30 @@ export const useAppStore = create<AppState>()(
       mainWalletBalance: '0',
       mainWalletAddress: '',
       setMainWalletBalance: (balance, address) => set({ mainWalletBalance: balance, mainWalletAddress: address }),
+
+      refreshCircleToken: async () => {
+        const auth = get().auth
+        const oldToken = auth?.userToken
+        if (!oldToken) return undefined
+        try {
+          const resp = await fetch('/api/wallet', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'refresh-session', userToken: oldToken }),
+          })
+          const data = await resp.json() as { userToken?: string; encryptionKey?: string; error?: string }
+          if (!resp.ok || !data.userToken) return undefined
+          // Update the store with the fresh token (keep encryptionKey if the server returns one)
+          set((s) => ({
+            auth: s.auth
+              ? { ...s.auth, userToken: data.userToken!, sessionToken: data.userToken!, ...(data.encryptionKey ? { encryptionKey: data.encryptionKey } : {}) }
+              : s.auth,
+          }))
+          return data.userToken
+        } catch {
+          return undefined
+        }
+      },
 
       crossChainBalances: {},
       setCrossChainBalances: (balances) => set({ crossChainBalances: balances }),

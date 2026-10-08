@@ -178,6 +178,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       })
       return res.json({ challengeId: response.data?.challengeId })
     } catch (e) {
+      const code = (e as { response?: { data?: { code?: number } } })?.response?.data?.code
+      if (code === 155104) return res.status(401).json({ error: 'Circle session expired — please log in again', code: 155104 })
       return err(res, 500, e instanceof Error ? e.message : 'Circle API error')
     }
   }
@@ -206,6 +208,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const response = await (client.createContractExecutionTransaction as any)(params)
       return res.json({ challengeId: response.data?.challengeId })
     } catch (e) {
+      const code = (e as { response?: { data?: { code?: number } } })?.response?.data?.code
+      if (code === 155104) return res.status(401).json({ error: 'Circle session expired — please log in again', code: 155104 })
       return err(res, 500, e instanceof Error ? e.message : 'Circle API error')
     }
   }
@@ -400,6 +404,53 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return err(res, 400, `Bridge ${tx.state ?? 'failed'}: ${tx.errorReason ?? ''}`)
     } catch (e) {
       return err(res, 500, e instanceof Error ? e.message : 'Bridge confirm failed')
+    }
+  }
+
+  // ── sign-message — EIP-191 / EIP-712 signing challenge ──────────────────────
+  // Creates a Circle sign-message challenge on behalf of the user.
+  // The client executes the returned challengeId via sdk.execute().
+  if (action === 'sign-message') {
+    const { userToken, walletId, message } = body
+    if (!userToken || !walletId || !message) return err(res, 400, 'userToken, walletId, message required')
+    try {
+      const client = ucwClient()
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const response = await (client as any).createUserSignMessage?.({
+        userToken,
+        walletId,
+        message,
+      }) as { data?: { challengeId?: string } } | undefined
+      const challengeId = response?.data?.challengeId
+      if (!challengeId) return err(res, 500, 'Circle did not return a challengeId for sign-message')
+      return res.json({ challengeId })
+    } catch (e) {
+      const code = (e as { response?: { data?: { code?: number } } })?.response?.data?.code
+      if (code === 155104) return res.status(401).json({ error: 'Circle session expired — please log in again', code: 155104 })
+      return err(res, 500, e instanceof Error ? e.message : 'Sign message failed')
+    }
+  }
+
+  // ── refresh-session — silently refresh an expired userToken ─────────────────
+  // Circle UCW userTokens expire (~12h). The client can call this with the old
+  // userToken to get a fresh one without requiring the user to log in again.
+  // Uses client.refreshUserToken() which takes the current (possibly expired)
+  // userToken and returns a new one valid for another session window.
+  if (action === 'refresh-session') {
+    const { userToken } = body
+    if (!userToken) return err(res, 400, 'userToken required')
+    try {
+      const client = ucwClient()
+      const response = await client.refreshUserToken({ userToken })
+      const { userToken: newToken, encryptionKey } = response.data ?? {}
+      if (!newToken) return err(res, 500, 'Circle returned no userToken on refresh')
+      return res.json({ userToken: newToken, encryptionKey })
+    } catch (e) {
+      // If refresh fails (token too old / revoked), return 401 so the client
+      // can force a full re-login instead of retrying indefinitely.
+      const status = (e as { response?: { status?: number } })?.response?.status ?? 500
+      const msg = e instanceof Error ? e.message : 'Token refresh failed'
+      return res.status(status === 401 || status === 403 ? 401 : 500).json({ error: msg })
     }
   }
 
