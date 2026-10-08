@@ -19,7 +19,9 @@
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import Groq from 'groq-sdk'
+// groq-sdk is imported dynamically inside the handler to avoid cold-start
+// bundling failures on Vercel (the SDK is not in includeFiles, so a top-level
+// import causes a module-not-found crash before the handler runs).
 import type { MarketplaceServiceCard } from './agent-wallet'
 
 // ── action block parser ───────────────────────────────────────────────────────
@@ -540,28 +542,6 @@ ${crossChainLines ? `- Cross-chain balances:\n${crossChainLines}\n- Total cross-
       return res.status(200).json({ reply: text, action, service_used: liveServiceId, marketplace_services: marketplaceServices.length > 0 ? marketplaceServices : undefined })
     } catch (e) {
       console.error('OpenAI error:', e)
-    }
-  }
-
-  // ── Groq ──────────────────────────────────────────────────────────────────
-  if (process.env.GROQ_API_KEY) {
-    try {
-      const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
-      const completion = await groq.chat.completions.create({
-        model: 'llama-3.3-70b-versatile',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          ...history as { role: 'user' | 'assistant'; content: string }[],
-          { role: 'user', content: message },
-        ],
-        max_tokens: 800,
-        temperature: 0.4,
-      })
-      const raw = completion.choices[0]?.message?.content ?? 'Sorry, try again.'
-      const { text, action } = extractAction(raw)
-      return res.status(200).json({ reply: text, action, service_used: liveServiceId, marketplace_services: marketplaceServices.length > 0 ? marketplaceServices : undefined })
-    } catch (e) {
-      console.error('Groq error:', e)
     }
   }
 

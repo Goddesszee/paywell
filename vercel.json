@@ -4,6 +4,10 @@
   "installCommand": "bun install",
   "framework": "vite",
   "functions": {
+    "api/chat.ts": {
+      "memory": 512,
+      "maxDuration": 30
+    },
     "api/wallet.ts": {
       "includeFiles": "node_modules/@circle-fin/**",
       "memory": 1024,
