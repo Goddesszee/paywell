@@ -980,7 +980,7 @@ function AdminTxPanel() {
   }, [])
 
   // eslint-disable-next-line react/set-state-in-effect
-  useEffect(() => { void (async () => { load() })() }, [load])
+  useEffect(() => { load() }, [load])
 
   const txTypes = report ? ['all', ...Object.keys(report.byType)] : ['all']
   const visible = (report?.recent ?? [])
