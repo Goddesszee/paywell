@@ -9,6 +9,7 @@ import { useAppStore, ActivityItem } from '../../store/appStore'
 import { useNanTheme } from '../../hooks/useNanTheme'
 import { forceActivityRefresh } from '../../hooks/usePaymentWatcher'
 import { useAccount } from 'wagmi'
+import { downloadReceipt, shareReceipt } from '../../lib/receipt'
 
 const F    = "'Inter', -apple-system, sans-serif"
 const MONO = "'JetBrains Mono', Menlo, monospace"
@@ -92,133 +93,117 @@ function ReceiptModal({ item, onClose }: { item: ActivityItem; onClose: () => vo
     : null
 
   function buildReceiptHtml(): string {
-    const isIn   = item.sign === '+'
-    const amtColor = isIn ? '#00C853' : '#FF3B3B'
-    const statusColor = ['confirmed', 'completed'].includes(item.status) ? '#00C853' : ['pending'].includes(item.status) ? '#F0A500' : '#FF3B3B'
-    const dateStr = new Date(item.timestamp).toLocaleString('en', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-    const rows: [string, string, boolean?][] = [
-      ['Date',        dateStr],
-      ['Type',        item.type.replace(/_/g, ' ')],
-      ['Description', item.description],
-      ['Status',      item.status],
-      ...(item.counterparty ? [['Counterparty', item.counterparty, true] as [string, string, boolean]] : []),
-      ...(item.chain ? [['Network', item.chain] as [string, string]] : []),
-      ...(item.txHash ? [['Transaction Hash', item.txHash, true] as [string, string, boolean]] : []),
-    ]
-    const rowsHtml = rows.map(([label, value, mono]) => `
-      <tr>
-        <td style="padding:10px 0;border-bottom:1px solid #e8eaf0;color:#8A8FA8;font-size:13px;font-weight:500;width:38%;vertical-align:top;">${label}</td>
-        <td style="padding:10px 0;border-bottom:1px solid #e8eaf0;color:#0A0C14;font-size:13px;font-weight:600;text-align:right;word-break:break-all;${mono ? 'font-family:JetBrains Mono,Menlo,monospace;font-size:11px;' : ''}">${value}</td>
-      </tr>`).join('')
+    const isIn      = item.sign === '+'
+    const statusOk  = ['confirmed', 'completed'].includes(item.status)
+    const statusPnd = ['pending', 'payment_protected'].includes(item.status)
+    const statusLabel = statusOk ? 'Completed' : statusPnd ? 'Pending' : item.status.charAt(0).toUpperCase() + item.status.slice(1)
+    const statusBg    = statusOk ? '#e8f8ef' : statusPnd ? '#fff8e1' : '#fee8e8'
+    const statusClr   = statusOk ? '#1a7a42' : statusPnd ? '#b45309' : '#c0392b'
+    const dateStr   = new Date(item.timestamp).toLocaleString('en', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+    const network   = item.chain ?? 'Arc Testnet'
+    const shortTx   = item.txHash ? `${item.txHash.slice(0,8)}…${item.txHash.slice(-4)}` : null
+    const refCode   = `NAN-${item.id.slice(-4).toUpperCase()}-${new Date(item.timestamp).getTime().toString(36).toUpperCase().slice(-4)}`
+    const narrative = item.description || (isIn ? `Received ${item.amount} USDC` : `Sent ${item.amount} USDC`)
+    const txExplUrl = txUrl ?? ''
 
-    const explorerRow = txUrl ? `
-      <tr>
-        <td colspan="2" style="padding:12px 0 0;">
-          <a href="${txUrl}" style="display:inline-flex;align-items:center;gap:6px;background:#EEF3FF;border:1px solid #C7D6FF;border-radius:8px;padding:9px 14px;color:#0066FF;font-size:12px;font-weight:600;text-decoration:none;">
-            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#0066FF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-            View on Explorer
-          </a>
-        </td>
-      </tr>` : ''
+    // QR code via Google Charts API (no JS needed in HTML)
+    const qrUrl = txUrl
+      ? `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(txUrl)}`
+      : null
+
+    const detailRows: [string, string, boolean?][] = [
+      ['Date', dateStr],
+      ['Network', network],
+      ['NAN reference', refCode],
+      ...(item.counterparty ? [['To / From', item.counterparty, true] as [string, string, boolean]] : []),
+      ...(shortTx ? [['Transaction', shortTx, true] as [string, string, boolean]] : []),
+    ]
+
+    const rowsHtml = detailRows.map(([label, value, mono], i, arr) => `
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;padding:13px 0;border-bottom:${i < arr.length - 1 ? '1px solid #ebebeb' : 'none'};gap:16px;">
+        <span style="font-size:13px;color:#888;white-space:nowrap;">${label}</span>
+        <span style="font-size:13px;font-weight:600;color:#111;text-align:right;word-break:break-all;${mono ? 'font-family:Menlo,Courier New,monospace;font-size:12px;' : ''}">${value}</span>
+      </div>`).join('')
 
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>NAN Receipt · ${new Date(item.timestamp).toISOString().slice(0,10)}</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"/>
+  <title>NAN Receipt · ${dateStr}</title>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
     *{box-sizing:border-box;margin:0;padding:0}
-    body{background:#F4F6FA;font-family:'Inter',-apple-system,sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
-    @media print{body{background:#fff;padding:0}@page{margin:20mm}}
+    html{-webkit-text-size-adjust:100%}
+    body{background:#eef0f3;font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px 16px;}
+    @media print{body{background:#fff;padding:0}@page{margin:15mm}}
   </style>
 </head>
 <body>
-  <div style="background:#fff;border-radius:20px;box-shadow:0 4px 40px rgba(0,0,0,0.10);width:100%;max-width:480px;overflow:hidden;border:1px solid #E8EAF0;">
+  <!-- Outer card -->
+  <div style="background:#fff;border-radius:20px;box-shadow:0 2px 24px rgba(0,0,0,0.09);width:100%;max-width:460px;padding:28px 28px 20px;border:1px solid #e4e4e4;">
 
-    <!-- Header band -->
-    <div style="background:#0066FF;padding:28px 32px 24px;text-align:center;">
-      <!-- NAN Logo -->
-      <div style="display:inline-flex;align-items:center;gap:10px;margin-bottom:16px;">
-        <div style="width:42px;height:42px;border-radius:50%;background:rgba(255,255,255,0.18);display:flex;align-items:center;justify-content:center;">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 324 480" width="18" height="26">
+    <!-- ① Top bar: logo + name left, status badge right -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div style="width:36px;height:36px;border-radius:9px;background:#0066FF;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 324 480" width="15" height="21">
             <path d="M255,0 L84,167 L71,163 L0,97 L0,378 L246,132 L255,110 Z" fill="#fff"/>
             <path d="M69,480 L240,313 L253,317 L324,383 L324,102 L78,348 L69,370 Z" fill="#fff"/>
           </svg>
         </div>
-        <span style="font-weight:800;font-size:20px;color:#fff;letter-spacing:-0.01em;">NAN</span>
+        <span style="font-size:17px;font-weight:700;color:#111;letter-spacing:-0.01em;">NAN</span>
       </div>
-      <div style="font-size:13px;color:rgba(255,255,255,0.7);font-weight:500;letter-spacing:0.06em;text-transform:uppercase;">Payment Receipt</div>
+      <span style="font-size:12px;font-weight:600;color:${statusClr};background:${statusBg};border-radius:20px;padding:5px 13px;">${statusLabel}</span>
     </div>
 
-    <!-- Amount hero -->
-    <div style="background:#fff;padding:28px 32px 20px;text-align:center;border-bottom:1px solid #E8EAF0;">
-      <div style="font-size:42px;font-weight:800;color:${amtColor};font-family:'JetBrains Mono',Menlo,monospace;letter-spacing:-0.03em;line-height:1;">
-        ${item.sign}${item.amount} <span style="font-size:24px;">USDC</span>
-      </div>
-      <div style="font-size:14px;color:#4A5068;margin-top:8px;font-weight:500;">${item.description || item.type}</div>
-      <div style="display:inline-flex;align-items:center;gap:5px;margin-top:10px;padding:5px 12px;border-radius:20px;background:${statusColor}18;border:1px solid ${statusColor}33;">
-        <div style="width:6px;height:6px;border-radius:50%;background:${statusColor};"></div>
-        <span style="font-size:11px;font-weight:700;color:${statusColor};text-transform:uppercase;letter-spacing:0.06em;">${item.status}</span>
+    <!-- ② Receipt label + amount -->
+    <div style="margin-bottom:6px;">
+      <div style="font-size:13px;color:#888;margin-bottom:8px;">NAN receipt</div>
+      <div style="font-size:52px;font-weight:800;color:#111;letter-spacing:-0.04em;line-height:1;display:flex;align-items:baseline;gap:10px;">
+        <span>${item.amount}</span>
+        <span style="font-size:22px;font-weight:600;color:#888;">${item.type === 'bridge' ? (item.counterparty ?? 'USDC') : 'USDC'}</span>
       </div>
     </div>
 
-    <!-- Details table -->
-    <div style="padding:20px 32px 24px;">
-      <table style="width:100%;border-collapse:collapse;">
-        <tbody>
-          ${rowsHtml}
-          ${explorerRow}
-        </tbody>
-      </table>
+    <!-- ③ Narrative sentence -->
+    <div style="font-size:14px;color:#333;font-weight:500;margin-bottom:22px;line-height:1.4;">${narrative}</div>
+
+    <!-- ④ Divider -->
+    <div style="height:1px;background:#ebebeb;margin-bottom:4px;"></div>
+
+    <!-- ⑤ Detail rows -->
+    <div>${rowsHtml}</div>
+
+    <!-- ⑥ QR + scan label + footnote -->
+    ${qrUrl ? `
+    <div style="display:flex;align-items:center;gap:16px;margin-top:20px;">
+      <img src="${qrUrl}" width="90" height="90" alt="QR" style="border-radius:8px;border:1px solid #e4e4e4;"/>
+      <div>
+        <div style="font-size:13px;font-weight:700;color:#111;margin-bottom:3px;">Scan to verify on Arc</div>
+        <div style="font-size:12px;color:#888;">testnet.arcscan.app</div>
+        ${txExplUrl ? `<a href="${txExplUrl}" style="font-size:11px;color:#0066FF;text-decoration:none;display:inline-flex;align-items:center;gap:3px;margin-top:5px;font-weight:600;">View transaction ↗</a>` : ''}
+      </div>
+    </div>` : ''}
+
+    <!-- ⑦ Testnet footnote -->
+    <div style="text-align:center;font-size:11px;color:#aaa;margin-top:20px;padding-top:14px;border-top:1px solid #f0f0f0;">
+      Arc testnet, no real value
     </div>
 
-    <!-- Footer -->
-    <div style="background:#F4F6FA;border-top:1px solid #E8EAF0;padding:16px 32px;display:flex;align-items:center;justify-content:space-between;">
-      <div style="display:flex;align-items:center;gap:7px;">
-        <div style="width:22px;height:22px;border-radius:50%;background:#0066FF;display:flex;align-items:center;justify-content:center;">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 324 480" width="9" height="13">
-            <path d="M255,0 L84,167 L71,163 L0,97 L0,378 L246,132 L255,110 Z" fill="#fff"/>
-            <path d="M69,480 L240,313 L253,317 L324,383 L324,102 L78,348 L69,370 Z" fill="#fff"/>
-          </svg>
-        </div>
-        <span style="font-size:12px;font-weight:600;color:#4A5068;">Powered by NAN</span>
-      </div>
-      <span style="font-size:11px;color:#8A8FA8;">Generated ${new Date().toLocaleDateString('en', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
-    </div>
   </div>
 </body>
 </html>`
   }
 
-  function handleDownload() {
-    const html = buildReceiptHtml()
-    const blob  = new Blob([html], { type: 'text/html' })
-    const url   = URL.createObjectURL(blob)
-    const a     = document.createElement('a')
-    const ts    = new Date(item.timestamp).toISOString().slice(0, 10)
-    a.href = url; a.download = `nan-receipt-${ts}-${item.id.slice(-6)}.html`; a.click()
-    setTimeout(() => URL.revokeObjectURL(url), 10000)
+  const receiptData = {
+    amount: item.amount, sign: item.sign as '+' | '-' | '',
+    description: item.description, status: item.status,
+    timestamp: item.timestamp, chain: item.chain,
+    counterparty: item.counterparty, txHash: item.txHash, id: item.id,
   }
-
-  async function handleShare() {
-    const html = buildReceiptHtml()
-    const blob = new Blob([html], { type: 'text/html' })
-    if (navigator.share && navigator.canShare?.({ files: [new File([blob], 'receipt.html', { type: 'text/html' })] })) {
-      try {
-        await navigator.share({
-          title: 'NAN Receipt',
-          files: [new File([blob], `nan-receipt-${new Date(item.timestamp).toISOString().slice(0,10)}.html`, { type: 'text/html' })],
-        })
-        return
-      } catch { /* fall through */ }
-    }
-    // Fallback: open receipt in new tab (user can print/save from there)
-    const url = URL.createObjectURL(blob)
-    window.open(url, '_blank')
-    setTimeout(() => URL.revokeObjectURL(url), 30000)
-  }
+  function handleDownload() { downloadReceipt(receiptData) }
+  async function handleShare() { await shareReceipt(receiptData) }
 
   const rows: { label: string; value: string; mono?: boolean }[] = [
     { label: 'Date',        value: new Date(item.timestamp).toLocaleString('en') },
