@@ -58,8 +58,13 @@ export function useCircleTransaction() {
       const walletId      = auth?.circleWalletId
       const appId         = import.meta.env.VITE_CIRCLE_APP_ID as string | undefined
 
-      if (!userToken || !encryptionKey || !walletId || !appId) {
+      if (!userToken || !encryptionKey || !walletId) {
         setError('Circle session expired — please log in again')
+        setStatus('error')
+        return undefined
+      }
+      if (!appId) {
+        setError('VITE_CIRCLE_APP_ID is not set — add it to .env and restart the dev server')
         setStatus('error')
         return undefined
       }
@@ -73,7 +78,8 @@ export function useCircleTransaction() {
       })
       const data = await resp.json() as { challengeId?: string; error?: string }
       if (!resp.ok || !data.challengeId) {
-        setError(data.error ?? 'Failed to create Circle challenge')
+        const msg = data.error ?? `Failed to create Circle challenge (HTTP ${resp.status})`
+        setError(msg)
         setStatus('error')
         return undefined
       }

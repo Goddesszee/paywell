@@ -309,6 +309,92 @@ app.get('/api/wallet/wallets', async (req, res) => {
   }
 })
 
+// ── Circle wallet — action-based handler (used by useCircleTransaction) ──────
+// Mirrors api/wallet.ts for the Express dev server.
+// Routes: create-transfer, create-contract-exec, poll-tx, list-balances
+app.post('/api/wallet', async (req, res) => {
+  const body = (req.body ?? {}) as Record<string, string>
+  const action = body.action
+
+  const ucwApiKey =
+    process.env.CIRCLE_USER_CONTROLLED_API_KEY ??
+    process.env.CIRCLE_API_KEY ??
+    process.env.CIRCLE_DEVELOPER_CONTROLLED_API_KEY
+
+  if (!ucwApiKey) {
+    // No API key configured — return a clear error so the UI can surface it
+    res.status(503).json({ error: 'CIRCLE_API_KEY not configured — wallet operations unavailable in dev without credentials' })
+    return
+  }
+
+  try {
+    const { initiateUserControlledWalletsClient } = await import('@circle-fin/user-controlled-wallets')
+    const client = initiateUserControlledWalletsClient({ apiKey: ucwApiKey })
+
+    // create-transfer
+    if (action === 'create-transfer') {
+      const { userToken, walletId, destinationAddress, amount, tokenAddress, blockchain } = body
+      if (!userToken || !walletId || !destinationAddress || !amount) {
+        res.status(400).json({ error: 'userToken, walletId, destinationAddress, amount required' }); return
+      }
+      const response = await client.createTransaction({
+        userToken, walletId, destinationAddress, amounts: [amount],
+        blockchain: (blockchain ?? 'ARC-TESTNET') as Parameters<typeof client.createTransaction>[0]['blockchain'],
+        tokenAddress: tokenAddress ?? '',
+        fee: { type: 'level', config: { feeLevel: 'MEDIUM' } },
+      })
+      res.json({ challengeId: response.data?.challengeId }); return
+    }
+
+    // create-contract-exec
+    if (action === 'create-contract-exec') {
+      const { userToken, walletId, contractAddress, abiFunctionSignature, abiParameters, callData, amount } = body
+      if (!userToken || !walletId || !contractAddress) {
+        res.status(400).json({ error: 'userToken, walletId, contractAddress required' }); return
+      }
+      const params: Record<string, unknown> = {
+        userToken, walletId, contractAddress,
+        fee: { type: 'level', config: { feeLevel: 'MEDIUM' } },
+      }
+      if (callData) {
+        params.callData = callData
+      } else {
+        params.abiFunctionSignature = abiFunctionSignature
+        params.abiParameters = abiParameters ? JSON.parse(abiParameters) : []
+      }
+      if (amount) params.amount = amount
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const response = await (client.createContractExecutionTransaction as any)(params)
+      res.json({ challengeId: response.data?.challengeId }); return
+    }
+
+    // poll-tx
+    if (action === 'poll-tx') {
+      const { userToken, transactionId } = body
+      if (!userToken || !transactionId) {
+        res.status(400).json({ error: 'userToken and transactionId required' }); return
+      }
+      const response = await client.getTransaction({ userToken, id: transactionId })
+      res.json({ transaction: response.data?.transaction }); return
+    }
+
+    // list-balances
+    if (action === 'list-balances') {
+      const { userToken, walletId } = body
+      if (!userToken || !walletId) {
+        res.status(400).json({ error: 'userToken and walletId required' }); return
+      }
+      const response = await client.getWalletTokenBalance({ walletId, userToken })
+      res.json({ tokenBalances: response.data?.tokenBalances ?? [] }); return
+    }
+
+    res.status(400).json({ error: `Unknown action: ${action ?? '(none)'}` })
+  } catch (e) {
+    console.error('/api/wallet error:', e)
+    res.status(500).json({ error: e instanceof Error ? e.message : 'Circle API error' })
+  }
+})
+
 // ── Circle wallets ─────────────────────────────────────────────────────────────
 app.post('/api/circle-wallets', async (req, res) => {
   try {
