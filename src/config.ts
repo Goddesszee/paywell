@@ -67,7 +67,7 @@ export const config = createConfig({
   ],
   connectors: [injected()],
   transports: {
-    [arcTestnet.id]:        http(),
+    [arcTestnet.id]:        http('https://rpc.testnet.arc.io'),
     [mainnet.id]:           http(),
     [sepolia.id]:           http(),
     [baseSepolia.id]:       http(),
