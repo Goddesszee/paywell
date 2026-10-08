@@ -4,7 +4,7 @@ import {
   ArrowLeftRight, ArrowUpDown, Settings, ChevronRight,
   Droplet, Layers, Repeat, Bot, Wallet,
   MessageSquare, HelpCircle, Info, User, Search, Bookmark,
-  Star, Lightbulb, ArrowRight, Clock, ShoppingBag, FileDown,
+  Star, Lightbulb, ArrowRight, Clock, ShoppingBag,
 } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
 import { useAccount } from 'wagmi'
@@ -35,7 +35,6 @@ const ALL_RESULTS: SearchResult[] = [
   { id:'agent',        title:'AI Agents',            subtitle:'Autonomous service & payment agent', category:'Agents',      Icon:Bot,            iconColor:BLUE,      action:'agent' },
   { id:'agent-wallet', title:'Agent Wallet',         subtitle:'Swap, bridge & recurring via agent', category:'Agents',      Icon:Wallet,         iconColor:BLUE,      action:'agent-wallet' },
   { id:'activity',    title:'Activity',             subtitle:'Transaction history',                category:'Account',     Icon:Clock,          iconColor:BLUE,      action:'activity' },
-  { id:'exports',     title:'Exports & Accounting', subtitle:'Download CSV/JSON transaction records', category:'Account',     Icon:FileDown,       iconColor:BLUE,      action:'exports' },
   { id:'dashboard',   title:'Dashboard',            subtitle:'Portfolio & performance',            category:'Account',     Icon:LayoutDashboard,iconColor:BLUE,      action:'dashboard' },
   { id:'profile',     title:'Profile',              subtitle:'Name, avatar & preferences',         category:'Account',     Icon:User,           iconColor:BLUE,      action:'profile' },
   { id:'settings',    title:'Settings',             subtitle:'Wallet & app settings',              category:'Account',     Icon:Settings,       iconColor:BLUE,      action:'settings' },
@@ -232,7 +231,6 @@ const SIDEBAR_SECTIONS = [
     { id: 'recurring',    label: 'Recurring',     Icon: Repeat, desc: 'Scheduled payments' },
   ]},
   { title: 'Account', items: [
-    { id: 'exports',   label: 'Exports',   Icon: FileDown, desc: 'Download accounting records' },
     { id: 'settings',  label: 'Settings',  Icon: Settings, desc: 'Wallet & app settings' },
     { id: 'favorites', label: 'Saved',     Icon: Bookmark, desc: 'Your bookmarked items' },
   ]},

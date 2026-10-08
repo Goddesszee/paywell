@@ -20,7 +20,7 @@
   },
   "dependencies": {
     "@circle-fin/adapter-circle-wallets": "1.8.1",
-    "@circle-fin/adapter-viem-v2": "1.19.0",
+    "@circle-fin/adapter-viem-v2": "1.18.0",
     "@circle-fin/app-kit": "1.15.1",
     "@circle-fin/developer-controlled-wallets": "10.8.1",
     "@circle-fin/modular-wallets-core": "1.0.16",
@@ -28,6 +28,7 @@
     "@circle-fin/user-controlled-wallets": "10.8.0",
     "@circle-fin/w3s-pw-web-sdk": "1.1.11",
     "@circle-fin/x402-batching": "^3.5.0",
+    "@netlify/functions": "^6.0.0",
     "@openzeppelin/contracts": "5.1.0",
     "@tanstack/react-query": "^5.62.7",
     "@types/cors": "^2.8.19",

@@ -14,30 +14,20 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
-      // Force ALL packages (including @circle-fin/w3s-pw-web-sdk / Circle kits / wagmi
-      // which each bundle their own React copy) to resolve to exactly one React instance.
-      // Without these aliases, Vite's dep optimiser can create two separate pre-bundled
-      // chunks for React that don't share the same dispatcher, causing:
-      //   "Cannot read properties of null (reading 'useCallback')"
+      // Force ALL packages (including @circle-fin/w3s-pw-web-sdk which bundles its own React)
+      // to use the exact same React instance — prevents "Invalid hook call" / duplicate React crash
       'react': path.resolve(__dirname, 'node_modules/react'),
       'react-dom': path.resolve(__dirname, 'node_modules/react-dom'),
-      'react/jsx-runtime': path.resolve(__dirname, 'node_modules/react/jsx-runtime'),
-      'react/jsx-dev-runtime': path.resolve(__dirname, 'node_modules/react/jsx-dev-runtime'),
     },
-    dedupe: ['react', 'react-dom', 'react/jsx-runtime', 'react/jsx-dev-runtime', 'zustand'],
+    dedupe: ['react', 'react-dom', 'react/jsx-runtime', 'zustand'],
   },
   optimizeDeps: {
-    // web-push: server-only, never bundle for browser
-    // @circle-fin/w3s-pw-web-sdk: bundles firebase + JWT + Node crypto; let Vite
-    //   serve it raw (manualChunks puts it in vendor-w3s at build time) rather than
-    //   trying to pre-bundle it, which causes spurious "util/crypto externalized" warnings.
-    exclude: ['web-push', '@circle-fin/w3s-pw-web-sdk'],
+    exclude: ['web-push'],
     include: [
       'react',
       'react-dom',
       'react-dom/client',
       'react/jsx-runtime',
-      'react/jsx-dev-runtime',
       '@tanstack/react-query',
       'wagmi',
       'wagmi/chains',

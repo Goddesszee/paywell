@@ -1,322 +1,365 @@
 /**
- * PaymentRequestPage — generate and pay USDC payment request links.
- *
- * Two modes:
- *   1. Create — enter amount + memo → generates shareable ?to=&amount=&memo= URL
- *   2. Pay    — when ?to=&amount=&memo= params are present, shows prefilled pay UI
- *
- * Paying uses the same send logic as WalletPage — all four login paths supported.
+ * PaymentRequestPage
+ * Full-page send flow shown when someone opens a payment link:
+ *   https://nan-puce.vercel.app/?pay=0x...&amount=25&note=Rent
+ * Works for both connected wallet users and new visitors.
  */
-
-import { useState, useEffect, useRef } from 'react'
-import { useReadContract, useWriteContract, useWaitForTransactionReceipt, useSwitchChain } from 'wagmi'
-import { erc20Abi, parseUnits, formatUnits } from 'viem'
-import { Link, Copy, CheckCircle, XCircle, Loader2, ExternalLink, QrCode } from 'lucide-react'
+import React, { useState, useEffect } from 'react'
+import { QRCodeSVG } from 'qrcode.react'
+import { ArrowUpRight, Check, Copy, ExternalLink, AlertCircle, X, ChevronRight, Wallet } from 'lucide-react'
+import { useWriteContract, useWaitForTransactionReceipt, useSwitchChain, useAccount, useReadContract } from 'wagmi'
+import { erc20Abi, isAddress } from 'viem'
 import { toast } from 'sonner'
 import { useAppStore } from '../../store/appStore'
-import { useNanWallet } from '../../hooks/useNanWallet'
-import { sendFromPasskeyWallet } from '../CirclePasskeyLogin'
+import { formatAddress, formatUSDC, parseOnchainError } from '../../utils/format'
+import { getUsdc, buildTxExplorerUrl } from '@/onchain-facts'
+import { parseAmount, Amount, usdcDecimalsFor } from '@/onchain-money'
 
-const USDC_ADDRESS = '0x3600000000000000000000000000000000000000' as const
 const ARC_TESTNET_ID = 5042002
+const FONT = "'Inter', -apple-system, sans-serif"
+const BLACK = 'var(--nan-text)'
+const SURFACE = 'var(--nan-surface)'
+const BORDER = 'var(--nan-bdr)'
+const TEXT2 = 'var(--nan-text2)'
+const TEXT3 = 'var(--nan-text3)'
 
-type PageMode = 'create' | 'pay'
-type TxStatus = 'idle' | 'signing' | 'confirming' | 'success' | 'error'
-
-function parsePayParams() {
-  const p = new URLSearchParams(window.location.search)
-  const to = p.get('to')
-  const amount = p.get('amount')
-  const memo = p.get('memo')
-  if (to && amount) return { to, amount, memo: memo ?? '' }
-  return null
+interface PaymentParams {
+  to: string
+  amount?: string
+  note?: string
 }
 
-export function PaymentRequestPage() {
-  const nan = useNanWallet()
-  const auth = useAppStore((s) => s.auth)
-  const addActivity = useAppStore((s) => s.addActivity)
-  const { switchChainAsync } = useSwitchChain()
+function parsePaymentParams(): PaymentParams | null {
+  if (typeof window === 'undefined') return null
+  const params = new URLSearchParams(window.location.search)
+  const to = params.get('pay')
+  if (!to || !isAddress(to)) return null
+  return {
+    to,
+    amount: params.get('amount') ?? undefined,
+    note: params.get('note') ?? undefined,
+  }
+}
 
-  const clientKey = (import.meta.env.VITE_CLIENT_KEY as string | undefined)?.trim()
-
-  // Detect URL params on mount
-  const prefilled = parsePayParams()
-  const [mode, setMode] = useState<PageMode>(prefilled ? 'pay' : 'create')
-
-  // Create mode fields
-  const [reqAmount, setReqAmount] = useState('')
-  const [reqMemo, setReqMemo] = useState('')
-  const [generatedLink, setGeneratedLink] = useState('')
-  const [copied, setCopied] = useState(false)
-
-  // Pay mode fields
-  const [payTo, setPayTo] = useState(prefilled?.to ?? '')
-  const [payAmount, setPayAmount] = useState(prefilled?.amount ?? '')
-  const [payMemo] = useState(prefilled?.memo ?? '')
-  const [txStatus, setTxStatus] = useState<TxStatus>('idle')
-  const [txError, setTxError] = useState('')
-  const [txHash, setTxHash] = useState('')
-
-  // USDC balance
-  const { data: balanceRaw } = useReadContract({
-    address: USDC_ADDRESS,
+function useUsdcBalance(address: string) {
+  const usdcFact = getUsdc(ARC_TESTNET_ID)
+  const { data: rawBalance } = useReadContract({
+    address: usdcFact?.address as `0x${string}`,
     abi: erc20Abi,
     functionName: 'balanceOf',
-    args: [nan.address as `0x${string}`],
+    args: address ? [address as `0x${string}`] : undefined,
     chainId: ARC_TESTNET_ID,
-    query: { enabled: !!nan.address },
+    query: { enabled: !!address && !!usdcFact },
   })
-  const balanceFmt = balanceRaw !== undefined ? parseFloat(formatUnits(balanceRaw, 6)).toFixed(2) : '—'
+  if (rawBalance === undefined) return 0
+  return parseFloat(Amount.fromRaw(rawBalance, usdcDecimalsFor(ARC_TESTNET_ID)).toFixed(6))
+}
 
-  // wagmi write
-  const { writeContractAsync } = useWriteContract()
-  const [pendingHash, setPendingHash] = useState<`0x${string}` | undefined>()
-  const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({ hash: pendingHash })
+type Step = 'review' | 'edit_amount' | 'submitting' | 'success' | 'error'
 
-  // Derive pay status from wagmi receipt — no setState mirrors inside effects
-  const effectiveTxStatus: TxStatus = pendingHash
-    ? (isConfirmed ? 'success' : isConfirming ? 'confirming' : txStatus)
-    : txStatus
-  const effectiveTxHash = pendingHash && isConfirmed ? pendingHash : txHash
+export function PaymentRequestPage({ params }: { params: PaymentParams }) {
+  const { address, chainId } = useAccount()
+  const { addActivity, setActiveView } = useAppStore()
+  const balance = useUsdcBalance(address ?? '')
+  const { switchChain } = useSwitchChain()
+  const usdcFact = getUsdc(ARC_TESTNET_ID)
 
-  // Fire external side-effects (activity log, toast) exactly once per confirmed hash
-  const prFiredRef = useRef<string | undefined>(undefined)
+  const [step, setStep] = useState<Step>('review')
+  const [amount, setAmount] = useState(params.amount ?? '')
+  const [amountError, setAmountError] = useState('')
+  const [copied, setCopied] = useState(false)
+
+  const { writeContract, data: txHash, isPending, error: writeError, reset } = useWriteContract()
+  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash: txHash })
+  const isWrongChain = !!chainId && chainId !== ARC_TESTNET_ID
+  const displayStep: Step = (isPending || isConfirming) ? 'submitting' : step
+
   useEffect(() => {
-    if (isConfirmed && pendingHash && prFiredRef.current !== pendingHash) {
-      prFiredRef.current = pendingHash
-      addActivity({ type: 'sent', description: `Payment${payMemo ? ` "${payMemo}"` : ''} to ${payTo.slice(0,6)}…${payTo.slice(-4)}`, amount: parseFloat(payAmount), sign: '-', status: 'confirmed', txHash: pendingHash, chain: 'Arc Testnet' })
-      toast.success('Payment sent!')
+    if (isSuccess && txHash) {
+      setStep('success')
+      addActivity({
+        type: 'sent',
+        description: params.note || `Payment to ${formatAddress(params.to)}`,
+        amount: parseFloat(amount),
+        sign: '-',
+        status: 'confirmed',
+        counterparty: formatAddress(params.to),
+        txHash,
+      })
+      toast.success(`Sent ${formatUSDC(parseFloat(amount))} USDC`)
     }
-  }, [isConfirmed, pendingHash, payMemo, payTo, payAmount, addActivity])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSuccess, txHash])
 
-  // ── Generate link ──────────────────────────────────────────────────────────
-  function generateLink() {
-    if (!nan.address) { toast.error('Connect your wallet to create a payment request'); return }
-    if (!reqAmount || parseFloat(reqAmount) <= 0) { toast.error('Enter a request amount'); return }
-    const params = new URLSearchParams({ to: nan.address, amount: reqAmount })
-    if (reqMemo) params.set('memo', reqMemo)
-    setGeneratedLink(`${window.location.origin}${window.location.pathname}?${params.toString()}`)
+  useEffect(() => {
+    if (writeError) {
+      const msg = parseOnchainError(writeError)
+      if (!msg.includes('cancelled')) { setStep('error'); toast.error(msg) }
+      else { setStep('review'); reset() }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [writeError])
+
+  const handleSend = () => {
+    if (!usdcFact || !isAddress(params.to)) return
+    const n = parseFloat(amount)
+    if (!amount || isNaN(n) || n <= 0) { setAmountError('Enter a valid amount'); return }
+    if (n > balance) { setAmountError(`Insufficient balance (${formatUSDC(balance)} USDC)`); return }
+    if (isWrongChain) { switchChain({ chainId: ARC_TESTNET_ID }); return }
+    const parsed = parseAmount(ARC_TESTNET_ID, amount)
+    writeContract({
+      address: usdcFact.address as `0x${string}`,
+      abi: erc20Abi,
+      functionName: 'transfer',
+      args: [params.to, parsed.raw],
+      chainId: ARC_TESTNET_ID,
+    })
   }
 
-  function copyLink() {
-    void navigator.clipboard.writeText(generatedLink)
+  const copyAddress = () => {
+    void navigator.clipboard.writeText(params.to)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
-    toast.success('Link copied!')
+    toast.success('Address copied')
   }
 
-  // ── Pay ────────────────────────────────────────────────────────────────────
-  async function handlePay() {
-    if (!payTo || !/^0x[0-9a-fA-F]{40}$/.test(payTo)) { toast.error('Invalid recipient address'); return }
-    if (!payAmount || parseFloat(payAmount) <= 0) { toast.error('Enter a valid amount'); return }
-    if (!nan.isConnected) { toast.error('Connect your wallet first'); return }
-
-    setTxStatus('signing')
-    setTxError('')
-    setTxHash('')
-
-    try {
-      if (nan.type === 'wagmi') {
-        if (nan.chainId !== ARC_TESTNET_ID) await switchChainAsync({ chainId: ARC_TESTNET_ID })
-        const hash = await writeContractAsync({
-          address: USDC_ADDRESS,
-          abi: erc20Abi,
-          functionName: 'transfer',
-          args: [payTo as `0x${string}`, parseUnits(payAmount, 6)],
-          chainId: ARC_TESTNET_ID,
-        })
-        setPendingHash(hash)
-        setTxStatus('confirming')
-
-      } else if (nan.type === 'passkey') {
-        if (!clientKey) throw new Error('VITE_CLIENT_KEY not configured')
-        const hash = await sendFromPasskeyWallet({ clientKey, to: payTo as `0x${string}`, amount: parseUnits(payAmount, 6) })
-        setTxHash(hash)
-        setTxStatus('success')
-        addActivity({ type: 'sent', description: `Payment${payMemo ? ` "${payMemo}"` : ''} to ${payTo.slice(0,6)}…${payTo.slice(-4)}`, amount: parseFloat(payAmount), sign: '-', status: 'confirmed', txHash: hash, chain: 'Arc Testnet' })
-        toast.success('Payment sent!')
-
-      } else if (nan.type === 'ucw') {
-        const res = await fetch('/api/wallet', {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ action: 'create-transfer', userToken: nan.userToken, walletId: nan.walletId, destinationAddress: payTo, amount: payAmount, tokenAddress: USDC_ADDRESS, blockchain: 'ARC-TESTNET' }),
-        })
-        const data = await res.json() as { challengeId?: string; error?: string }
-        if (!res.ok || data.error) throw new Error(data.error ?? 'Transfer failed')
-        const { W3SSdk } = await import('@circle-fin/w3s-pw-web-sdk')
-        const sdk = new W3SSdk()
-        sdk.setAppSettings({ appId: import.meta.env.VITE_CIRCLE_APP_ID as string })
-        if (auth?.encryptionKey) sdk.setAuthentication({ userToken: nan.userToken!, encryptionKey: auth.encryptionKey })
-        setTxStatus('confirming')
-        await new Promise<void>((resolve, reject) => sdk.execute(data.challengeId!, (err, res) => err || !res ? reject(new Error(err?.message ?? 'failed')) : resolve()))
-        setTxStatus('success')
-        addActivity({ type: 'sent', description: `Payment to ${payTo.slice(0,6)}…${payTo.slice(-4)}`, amount: parseFloat(payAmount), sign: '-', status: 'confirmed', chain: 'Arc Testnet' })
-        toast.success('Payment submitted!')
-      }
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e)
-      if (msg.includes('rejected') || msg.includes('cancelled') || msg.includes('denied')) { toast.info('Cancelled'); setTxStatus('idle') }
-      else { setTxError(msg); setTxStatus('error') }
-    }
+  // ── Success ──
+  if (displayStep === 'success') {
+    return (
+      <FullPage>
+        <div style={{ textAlign: 'center', padding: '40px 0' }}>
+          <div style={{ width: 64, height: 64, borderRadius: '50%', background: SURFACE, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+            <Check size={28} color={BLACK} />
+          </div>
+          <h1 style={{ fontSize: 22, fontWeight: 800, color: BLACK, fontFamily: FONT, marginBottom: 8 }}>Payment sent</h1>
+          <p style={{ fontSize: 14, color: TEXT2, marginBottom: 24 }}>
+            {formatUSDC(parseFloat(amount))} USDC sent to {formatAddress(params.to)}
+          </p>
+          {params.note && (
+            <p style={{ fontSize: 13, color: TEXT3, marginBottom: 20 }}>"{params.note}"</p>
+          )}
+          {txHash && (
+            <a
+              href={buildTxExplorerUrl(ARC_TESTNET_ID, txHash)}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: BLACK, textDecoration: 'none', marginBottom: 28 }}
+            >
+              <ExternalLink size={13} /> View on explorer
+            </a>
+          )}
+          <button
+            onClick={() => setActiveView('home')}
+            style={{ display: 'block', width: '100%', padding: '14px', background: '#0066FF', color: '#fff', borderRadius: 12, border: 'none', fontFamily: FONT, fontSize: 15, fontWeight: 700, cursor: 'pointer' }}
+          >
+            Back to NAN
+          </button>
+        </div>
+      </FullPage>
+    )
   }
 
-  const busy = effectiveTxStatus === 'signing' || effectiveTxStatus === 'confirming'
+  // ── Submitting ──
+  if (displayStep === 'submitting') {
+    return (
+      <FullPage>
+        <div style={{ textAlign: 'center', padding: '60px 0' }}>
+          <div style={{ width: 56, height: 56, borderRadius: '50%', background: SURFACE, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+            <div style={{ width: 26, height: 26, border: `2px solid ${BLACK}`, borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+          </div>
+          <h2 style={{ fontSize: 18, fontWeight: 700, color: BLACK, fontFamily: FONT }}>
+            {isPending ? 'Confirm in wallet…' : 'Confirming…'}
+          </h2>
+          <p style={{ fontSize: 13, color: TEXT2, marginTop: 8 }}>
+            {isPending ? 'Approve the transaction in your wallet.' : 'Waiting for blockchain confirmation…'}
+          </p>
+        </div>
+      </FullPage>
+    )
+  }
 
   return (
-    <div className="min-h-dvh bg-[var(--nan-bg)] flex flex-col items-center justify-start pt-6 pb-24 px-4">
-      <div className="w-full max-w-md space-y-4">
-        <div>
-          <h1 className="text-2xl font-bold text-[var(--nan-text)] tracking-tight">Payment Request</h1>
-          <p className="text-sm text-[var(--nan-text2)] mt-1">Create or pay a USDC payment request</p>
+    <FullPage>
+      {/* NAN wordmark */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 28 }}>
+        <span style={{ fontSize: 18, fontWeight: 800, color: 'var(--nan-text)' }}>NAN</span>
+        <span style={{ fontSize: 11, color: TEXT3, background: SURFACE, padding: '3px 10px', borderRadius: 20, fontWeight: 600 }}>Arc Testnet</span>
+      </div>
+
+      {/* Request card */}
+      <div style={{ background: BLACK, borderRadius: 20, padding: '24px 20px', marginBottom: 20, textAlign: 'center' }}>
+        {/* QR */}
+        <div style={{ width: 140, height: 140, background: '#0066FF', borderRadius: 14, margin: '0 auto 16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <QRCodeSVG value={params.to} size={120} bgColor="#08090B" fgColor="#ffffff" level="M" />
         </div>
 
-        {/* Mode tabs */}
-        <div className="flex rounded-xl bg-[var(--nan-surface)] border border-[var(--nan-bdr)] p-1 gap-1">
-          {(['create','pay'] as PageMode[]).map(m => (
-            <button
-              key={m}
-              onClick={() => { setMode(m); setTxStatus('idle'); setTxError('') }}
-              className={`flex-1 py-2 rounded-lg text-sm font-semibold capitalize transition-colors ${mode === m ? 'bg-[var(--nan-blue)] text-white' : 'text-[var(--nan-text2)]'}`}
-            >
-              {m === 'create' ? 'Create Request' : 'Pay Request'}
-            </button>
-          ))}
+        {/* Amount */}
+        <div style={{ fontSize: 36, fontWeight: 800, color: '#fff', fontFamily: FONT, letterSpacing: '-1px', marginBottom: 4 }}>
+          {amount ? `${formatUSDC(parseFloat(amount))} USDC` : 'Any amount'}
         </div>
+        {params.note && (
+          <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.6)', marginBottom: 12 }}>"{params.note}"</div>
+        )}
 
-        {/* Create mode */}
-        {mode === 'create' && (
-          <div className="rounded-2xl bg-[var(--nan-surface)] border border-[var(--nan-bdr)] p-5 space-y-4">
-            <p className="text-xs text-[var(--nan-text3)]">
-              Your address: <span className="font-mono text-[var(--nan-text2)]">{nan.address ? `${nan.address.slice(0,8)}…${nan.address.slice(-6)}` : 'Not connected'}</span>
-            </p>
+        {/* Recipient */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, background: 'rgba(255,255,255,0.08)', borderRadius: 10, padding: '10px 14px' }}>
+          <Wallet size={14} color="rgba(255,255,255,0.5)" />
+          <span style={{ fontSize: 12, fontFamily: 'monospace', color: 'rgba(255,255,255,0.7)' }}>
+            {params.to.slice(0, 10)}…{params.to.slice(-8)}
+          </span>
+          <button
+            onClick={copyAddress}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center' }}
+          >
+            {copied ? <Check size={13} color="rgba(255,255,255,0.7)" /> : <Copy size={13} color="rgba(255,255,255,0.5)" />}
+          </button>
+        </div>
+      </div>
 
-            <div className="space-y-1">
-              <label className="text-xs text-[var(--nan-text3)] font-medium">Request amount (USDC)</label>
-              <input
-                type="number" min="0" step="0.01"
-                value={reqAmount} onChange={(e) => setReqAmount(e.target.value)}
-                placeholder="0.00"
-                className="w-full rounded-xl bg-[var(--nan-bg)] border border-[var(--nan-bdr)] text-[var(--nan-text)] px-3 py-2 text-sm tabular-nums focus:outline-none focus:border-[var(--nan-blue)]"
-              />
-            </div>
+      {/* Not connected */}
+      {!address && (
+        <div style={{ background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 14, padding: '16px', marginBottom: 16, textAlign: 'center' }}>
+          <p style={{ fontSize: 14, color: BLACK, fontWeight: 600, fontFamily: FONT, marginBottom: 4 }}>Connect a wallet to pay</p>
+          <p style={{ fontSize: 12, color: TEXT2, marginBottom: 14 }}>You need a connected wallet to send USDC on Arc Testnet.</p>
+          <button
+            onClick={() => setActiveView('wallet')}
+            style={{ padding: '10px 24px', background: '#0066FF', color: '#fff', borderRadius: 10, border: 'none', fontFamily: FONT, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
+          >
+            Connect wallet
+          </button>
+        </div>
+      )}
 
-            <div className="space-y-1">
-              <label className="text-xs text-[var(--nan-text3)] font-medium">Memo (optional)</label>
-              <input
-                value={reqMemo} onChange={(e) => setReqMemo(e.target.value)}
-                placeholder="Invoice #123, Coffee, etc."
-                className="w-full rounded-xl bg-[var(--nan-bg)] border border-[var(--nan-bdr)] text-[var(--nan-text)] px-3 py-2 text-sm focus:outline-none focus:border-[var(--nan-blue)]"
-              />
-            </div>
+      {/* Wrong chain */}
+      {address && isWrongChain && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 12, padding: '10px 14px', marginBottom: 14 }}>
+          <AlertCircle size={14} color={BLACK} />
+          <p style={{ fontSize: 13, color: BLACK, flex: 1, fontFamily: FONT }}>Switch to Arc Testnet to send USDC.</p>
+          <button
+            onClick={() => switchChain({ chainId: ARC_TESTNET_ID })}
+            style={{ padding: '6px 14px', background: '#0066FF', color: '#fff', borderRadius: 8, border: 'none', fontFamily: FONT, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
+          >
+            Switch
+          </button>
+        </div>
+      )}
 
-            <button
-              onClick={generateLink}
-              disabled={!reqAmount || !nan.isConnected}
-              className="w-full py-3 rounded-xl bg-[var(--nan-blue)] text-white font-semibold text-sm disabled:opacity-50 flex items-center justify-center gap-2"
-            >
-              <Link size={15} /> Generate Link
-            </button>
-
-            {generatedLink && (
-              <div className="rounded-xl bg-[var(--nan-bg)] border border-[var(--nan-bdr)] p-3 space-y-2">
-                <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--nan-text3)]">Payment link</p>
-                <p className="text-xs font-mono text-[var(--nan-text2)] break-all">{generatedLink}</p>
+      {/* Amount editor */}
+      {address && (
+        <div style={{ background: 'var(--nan-surface)', border: '1px solid var(--nan-bdr)', borderRadius: 14, padding: 16, marginBottom: 14 }}>
+          {step === 'edit_amount' ? (
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 600, color: TEXT3, textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 8 }}>
+                Amount (USDC)
+              </label>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={amount}
+                  onChange={e => { setAmount(e.target.value); setAmountError('') }}
+                  autoFocus
+                  style={{ flex: 1, padding: '10px 12px', border: '1px solid var(--nan-bdr)', borderRadius: 10, fontFamily: FONT, fontSize: 16, fontWeight: 600, background: 'var(--nan-surface2)', color: 'var(--nan-text)', outline: 'none' }}
+                  placeholder="0.00"
+                />
                 <button
-                  onClick={copyLink}
-                  className="inline-flex items-center gap-1.5 text-xs text-[var(--nan-blue)] hover:underline"
+                  onClick={() => setStep('review')}
+                  style={{ padding: '10px 16px', background: '#0066FF', color: '#fff', borderRadius: 10, border: 'none', fontFamily: FONT, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
                 >
-                  {copied ? <><CheckCircle size={12} /> Copied!</> : <><Copy size={12} /> Copy link</>}
+                  Set
                 </button>
               </div>
-            )}
-          </div>
-        )}
-
-        {/* Pay mode */}
-        {mode === 'pay' && (
-          effectiveTxStatus === 'success' ? (
-            <div className="rounded-2xl bg-[var(--nan-surface)] border border-[var(--nan-bdr)] p-6 text-center space-y-4">
-              <CheckCircle size={40} className="mx-auto text-green-400" />
-              <p className="font-semibold text-[var(--nan-text)]">Payment sent!</p>
-              {effectiveTxHash && (
-                <a href={`https://explorer.testnet.arc.io/tx/${effectiveTxHash}`} target="_blank" rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-xs text-[var(--nan-blue)] hover:underline">
-                  View on explorer <ExternalLink size={11} />
-                </a>
-              )}
-              <button onClick={() => { setTxStatus('idle'); setPayTo(''); setPayAmount(''); setTxHash(''); setPendingHash(undefined) }}
-                className="text-xs text-[var(--nan-text2)] hover:text-[var(--nan-text)]">Send another</button>
+              {amountError && <p style={{ fontSize: 12, color: BLACK, marginTop: 6 }}>{amountError}</p>}
+              <p style={{ fontSize: 12, color: TEXT3, marginTop: 8 }}>
+                Your balance: <span style={{ fontWeight: 700, color: BLACK }}>{formatUSDC(balance)} USDC</span>
+              </p>
             </div>
           ) : (
-            <div className="rounded-2xl bg-[var(--nan-surface)] border border-[var(--nan-bdr)] p-5 space-y-4">
-              {!nan.isConnected && (
-                <p className="text-sm text-[var(--nan-text2)] text-center">Connect your wallet to pay.</p>
-              )}
-
-              {nan.isConnected && (
-                <>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold uppercase tracking-widest text-[var(--nan-text3)]">Signing via</span>
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-[var(--nan-bdr)] text-[var(--nan-text2)]">
-                      {nan.type === 'wagmi' ? 'Browser Wallet' : nan.type === 'passkey' ? 'Passkey' : 'Circle UCW'}
-                    </span>
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-xs text-[var(--nan-text3)] font-medium">Recipient</label>
-                    <input
-                      value={payTo} onChange={(e) => setPayTo(e.target.value)}
-                      placeholder="0x… wallet address" disabled={busy}
-                      className="w-full rounded-xl bg-[var(--nan-bg)] border border-[var(--nan-bdr)] text-[var(--nan-text)] px-3 py-2 text-sm font-mono focus:outline-none"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-xs text-[var(--nan-text3)] font-medium">Amount (USDC)</label>
-                    <input
-                      type="number" min="0" step="0.01"
-                      value={payAmount} onChange={(e) => setPayAmount(e.target.value)}
-                      placeholder="0.00" disabled={busy}
-                      className="w-full rounded-xl bg-[var(--nan-bg)] border border-[var(--nan-bdr)] text-[var(--nan-text)] px-3 py-2 text-sm tabular-nums focus:outline-none"
-                    />
-                    <p className="text-[10px] text-[var(--nan-text3)]">Balance: {balanceFmt} USDC</p>
-                  </div>
-
-                  {payMemo && (
-                    <div className="rounded-xl bg-[var(--nan-bg)] border border-[var(--nan-bdr)] px-3 py-2">
-                      <p className="text-xs text-[var(--nan-text3)]">Memo: <span className="text-[var(--nan-text2)]">{payMemo}</span></p>
-                    </div>
-                  )}
-
-                  {effectiveTxStatus === 'error' && txError && (
-                    <div className="flex items-start gap-2 rounded-xl bg-red-500/10 border border-red-500/20 p-3 text-xs text-red-400">
-                      <XCircle size={14} className="mt-0.5 shrink-0" /><span>{txError}</span>
-                    </div>
-                  )}
-
-                  {busy && (
-                    <div className="flex items-center gap-2 text-xs text-[var(--nan-text2)]">
-                      <Loader2 size={13} className="animate-spin" />
-                      <span>{effectiveTxStatus === 'signing' ? 'Waiting for wallet…' : 'Confirming…'}</span>
-                    </div>
-                  )}
-
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                <span style={{ fontSize: 13, color: TEXT2, fontFamily: FONT }}>You pay</span>
+                {!params.amount && (
                   <button
-                    onClick={() => void handlePay()}
-                    disabled={busy || !payTo || !payAmount}
-                    className="w-full py-3 rounded-xl bg-[var(--nan-blue)] text-white font-semibold text-sm disabled:opacity-50 flex items-center justify-center gap-2"
+                    onClick={() => setStep('edit_amount')}
+                    style={{ fontSize: 12, color: BLACK, fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer', fontFamily: FONT, textDecoration: 'underline' }}
                   >
-                    {busy ? <Loader2 size={15} className="animate-spin" /> : <QrCode size={15} />}
-                    {busy ? (effectiveTxStatus === 'signing' ? 'Confirm in wallet…' : 'Processing…') : `Pay ${payAmount ? `${payAmount} USDC` : 'USDC'}`}
+                    Change
                   </button>
-                </>
-              )}
+                )}
+              </div>
+              <div style={{ fontSize: 28, fontWeight: 800, color: BLACK, fontFamily: FONT, letterSpacing: '-0.5px' }}>
+                {amount ? `${formatUSDC(parseFloat(amount))} USDC` : '—'}
+              </div>
+              <div style={{ fontSize: 12, color: TEXT3, marginTop: 4 }}>
+                Balance: {formatUSDC(balance)} USDC
+              </div>
             </div>
-          )
-        )}
+          )}
+        </div>
+      )}
+
+      {/* Error state */}
+      {step === 'error' && (
+        <div style={{ background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 12, padding: '12px 14px', marginBottom: 14, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+          <AlertCircle size={15} color={BLACK} style={{ flexShrink: 0, marginTop: 1 }} />
+          <div>
+            <p style={{ fontSize: 13, fontWeight: 600, color: BLACK, fontFamily: FONT }}>Payment failed</p>
+            <p style={{ fontSize: 12, color: TEXT2, marginTop: 2 }}>{parseOnchainError(writeError)}</p>
+          </div>
+          <button onClick={() => { reset(); setStep('review') }} style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', flexShrink: 0 }}>
+            <X size={14} color={TEXT3} />
+          </button>
+        </div>
+      )}
+
+      {/* CTA */}
+      {address && (
+        <button
+          onClick={handleSend}
+          disabled={!amount || isWrongChain || parseFloat(amount) <= 0}
+          style={{
+            width: '100%', padding: '16px', background: (!amount || parseFloat(amount) <= 0) ? 'var(--nan-surface)' : '#0066FF',
+            color: (!amount || parseFloat(amount) <= 0) ? TEXT3 : '#fff',
+            border: 'none', borderRadius: 14, fontFamily: FONT, fontSize: 16, fontWeight: 800,
+            cursor: (!amount || parseFloat(amount) <= 0) ? 'default' : 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            transition: 'all 0.15s', letterSpacing: '-0.01em',
+          }}
+        >
+          <ArrowUpRight size={18} />
+          {isWrongChain ? 'Switch Network' : `Pay ${amount ? formatUSDC(parseFloat(amount)) + ' USDC' : 'now'}`}
+          {!isWrongChain && amount && <ChevronRight size={16} />}
+        </button>
+      )}
+
+      {/* Footer */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 20 }}>
+        <div style={{ width: 6, height: 6, borderRadius: '50%', background: TEXT3 }} />
+        <span style={{ fontSize: 11, color: TEXT3, fontFamily: FONT }}>Secured by NAN · Built on Arc · Powered by Circle</span>
+      </div>
+    </FullPage>
+  )
+}
+
+function FullPage({ children }: { children: React.ReactNode }) {
+  return (
+    <div style={{
+      minHeight: '100vh', background: 'var(--nan-bg)', fontFamily: FONT,
+      display: 'flex', flexDirection: 'column', alignItems: 'center',
+      padding: '24px 20px 40px',
+    }}>
+      <div style={{ width: '100%', maxWidth: 420 }}>
+        {children}
       </div>
     </div>
   )
+}
+
+// Auto-detect payment link params and export a hook
+export function usePaymentRequestParams(): PaymentParams | null {
+  const [params, setParams] = useState<PaymentParams | null>(null)
+  // eslint-disable-next-line react/set-state-in-effect
+  useEffect(() => { setParams(parsePaymentParams()) }, [])
+  return params
 }

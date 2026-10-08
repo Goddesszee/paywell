@@ -33,7 +33,6 @@ import { SearchPage } from './components/pages/SearchPage'
 import { FavoritesPage } from './components/pages/FavoritesPage'
 import { NamePage } from './components/pages/NamePage'
 import { DashboardPage } from './components/pages/DashboardPage'
-import { ExportsPage } from './components/pages/ExportsPage'
 
 export default function App() {
   const { activeView } = useAppStore()
@@ -81,7 +80,6 @@ export default function App() {
       {activeView === 'profile' && <ProfilePage />}
       {activeView === 'search' && <SearchPage />}
       {activeView === 'favorites' && <FavoritesPage />}
-      {activeView === 'exports' && <ExportsPage />}
     </AppShell>
   )
 }
