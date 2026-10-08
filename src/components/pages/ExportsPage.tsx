@@ -645,10 +645,10 @@ export function ExportsPage() {
       <div style={{
         background: C.surf, border: `1px solid ${C.bdr}`,
         borderRadius: 16, padding: '14px 16px',
-        marginBottom: 16, display: 'flex', gap: 10, flexWrap: 'wrap',
-        alignItems: 'center',
+        marginBottom: 16,
       }}>
-        <div style={{ flex: 1, minWidth: 180 }}>
+        {/* Record count label */}
+        <div style={{ marginBottom: 12 }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>
             {filtered.length} record{filtered.length !== 1 ? 's' : ''}
           </div>
@@ -656,13 +656,14 @@ export function ExportsPage() {
             {periodLabel(period)} · {SOURCE_OPTIONS.find(o => o.value === source)?.label}
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 8, flexShrink: 0, flexWrap: 'wrap' }}>
+        {/* Buttons — 2-per-row grid so they never overflow on mobile */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
           <button
             onClick={downloadCsv}
             disabled={filtered.length === 0}
             style={{
-              display: 'flex', alignItems: 'center', gap: 6,
-              padding: '10px 16px', borderRadius: 10,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+              padding: '11px 12px', borderRadius: 10,
               background: downloaded === 'csv' ? '#00C853' : '#0066FF',
               border: 'none', color: '#fff',
               fontSize: 13, fontWeight: 700, cursor: filtered.length === 0 ? 'not-allowed' : 'pointer',
@@ -677,8 +678,8 @@ export function ExportsPage() {
             onClick={downloadJson}
             disabled={filtered.length === 0}
             style={{
-              display: 'flex', alignItems: 'center', gap: 6,
-              padding: '10px 16px', borderRadius: 10,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+              padding: '11px 12px', borderRadius: 10,
               background: downloaded === 'json' ? '#00C853' : C.surf2,
               border: `1px solid ${downloaded === 'json' ? '#00C853' : C.bdr}`,
               color: downloaded === 'json' ? '#fff' : C.text,
@@ -694,8 +695,8 @@ export function ExportsPage() {
             onClick={downloadStatement}
             disabled={filtered.length === 0}
             style={{
-              display: 'flex', alignItems: 'center', gap: 6,
-              padding: '10px 16px', borderRadius: 10,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+              padding: '11px 12px', borderRadius: 10,
               background: downloaded === 'statement' ? '#00C853' : C.surf2,
               border: `1px solid ${downloaded === 'statement' ? '#00C853' : C.bdr}`,
               color: downloaded === 'statement' ? '#fff' : C.text,
@@ -710,8 +711,8 @@ export function ExportsPage() {
           <button
             onClick={() => { void shareExport() }}
             style={{
-              display: 'flex', alignItems: 'center', gap: 6,
-              padding: '10px 14px', borderRadius: 10,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+              padding: '11px 12px', borderRadius: 10,
               background: C.surf2, border: `1px solid ${C.bdr}`,
               color: C.t2, fontSize: 13, fontWeight: 700,
               cursor: 'pointer', fontFamily: F,
