@@ -132,17 +132,71 @@ async function fetchGatewayBalance(address: string): Promise<string> {
   return total.toFixed(6)
 }
 
-async function submitBurnIntent(burnIntent: unknown, signature: string): Promise<{ attestation: `0x${string}`; signature: `0x${string}` }> {
+/** Fetch current Arc block number via public RPC */
+async function fetchArcBlockNumber(): Promise<bigint> {
+  const rpcUrl = 'https://rpc.arc-testnet.circle.com'
+  const res = await fetch(rpcUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'eth_blockNumber', params: [] }),
+  })
+  const data = await res.json() as { result?: string }
+  if (!data.result) throw new Error('Could not fetch Arc block number')
+  return BigInt(data.result)
+}
+
+/**
+ * Submit a burn intent to the Gateway API and return attestation + signature.
+ * - For SCAs (passkey / smart contract accounts), pass contractSigner=true.
+ * - The API may return a transferId (forwarded) instead of inline attestation;
+ *   in that case we poll GET /v1/transfer/{id} until the attestation is ready.
+ */
+async function submitBurnIntent(
+  burnIntent: unknown,
+  signature: string,
+  contractSigner = false,
+): Promise<{ attestation: `0x${string}`; signature: `0x${string}` }> {
+  const item: Record<string, unknown> = { burnIntent, signature }
+  if (contractSigner) item.contractSigner = true
+
   const res = await fetch(`${GATEWAY_API}/transfer`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(
-      [{ burnIntent, signature }],
+      [item],
       (_k, v: unknown) => typeof v === 'bigint' ? (v).toString() : v,
     ),
   })
   if (!res.ok) throw new Error(`Gateway transfer API: ${res.status} ${await res.text()}`)
-  return res.json() as Promise<{ attestation: `0x${string}`; signature: `0x${string}` }>
+  const json = await res.json() as {
+    attestation?: `0x${string}`
+    signature?: `0x${string}`
+    transferId?: string
+  }
+
+  // Inline response (non-forwarded)
+  if (json.attestation && json.signature) {
+    return { attestation: json.attestation, signature: json.signature }
+  }
+
+  // Forwarded response — poll GET /v1/transfer/{id}
+  const transferId = json.transferId
+  if (!transferId) throw new Error('Gateway API returned no attestation and no transferId')
+
+  const deadline = Date.now() + 60_000
+  while (Date.now() < deadline) {
+    await new Promise(r => setTimeout(r, 2000))
+    const poll = await fetch(`${GATEWAY_API}/transfer/${transferId}`)
+    if (!poll.ok) continue
+    const record = await poll.json() as {
+      attestation?: { payload?: `0x${string}`; signature?: `0x${string}` }
+    }
+    const att = record.attestation
+    if (att?.payload && att?.signature) {
+      return { attestation: att.payload, signature: att.signature }
+    }
+  }
+  throw new Error('Timed out waiting for Gateway attestation')
 }
 
 type Tab = 'balance' | 'deposit' | 'transfer'
@@ -749,7 +803,6 @@ function TransferTab({ address, gatewayBalance, onSuccess }: {
     setErrMsg('')
     const decimals = 6
     const parsed = parseUnits(amount, decimals)
-    const maxFee = 2_010000n // 2.01 USDC max fee — adjust as needed
     const srcDomain  = DOMAIN_MAP[ARC] ?? 26
     const destDomain = DOMAIN_MAP[destChainId]
     if (destDomain === undefined) { setErrMsg('Destination chain domain unknown'); return }
@@ -759,9 +812,15 @@ function TransferTab({ address, gatewayBalance, onSuccess }: {
       if (chainId !== ARC) await switchChainAsync({ chainId: ARC })
       setPhase('signing')
 
+      // maxBlockHeight: current Arc block + 100 (must be "sufficiently far in the future")
+      const currentBlock = await fetchArcBlockNumber()
+      const maxBlockHeight = currentBlock + 100n
+      // maxFee: Gateway uses 18-decimal precision (1e18 = 1 USDC worth of fee)
+      const maxFee18 = 2n * 10n ** 18n  // 2 USDC max fee
+
       const burnIntent = {
-        maxBlockHeight: (2n ** 256n - 1n).toString(),
-        maxFee: maxFee,
+        maxBlockHeight,
+        maxFee: maxFee18,
         spec: {
           version: 1,
           sourceDomain:         srcDomain,
@@ -799,7 +858,8 @@ function TransferTab({ address, gatewayBalance, onSuccess }: {
       }) as `0x${string}`
 
       setPhase('submitting')
-      const { attestation, signature: mintSignature } = await submitBurnIntent(burnIntent, signature)
+      // EOA wallet — contractSigner: false
+      const { attestation, signature: mintSignature } = await submitBurnIntent(burnIntent, signature, false)
 
       // Switch to destination chain and call gatewayMint
       await switchChainAsync({ chainId: destChainId })
@@ -963,13 +1023,18 @@ function CircleTransferTab({ address, gatewayBalance, onSuccess }: {
     setErrMsg('')
     const decimals   = 6
     const parsed     = parseUnits(amount, decimals)
-    const maxFee     = 2_010000n
     const srcDomain  = DOMAIN_MAP[ARC] ?? 26
     const destDomain = DOMAIN_MAP[destChainId]
     if (destDomain === undefined) { setErrMsg('Destination chain domain unknown'); return }
 
     try {
       setPhase('signing')
+
+      // maxBlockHeight: current Arc block + 100 (must be sufficiently far in future)
+      const currentBlock = await fetchArcBlockNumber()
+      const maxBlockHeight = currentBlock + 100n
+      // maxFee: Gateway uses 18-decimal precision (2 * 1e18 = 2 USDC max fee)
+      const maxFee18 = 2n * 10n ** 18n
 
       const burnIntentSpec = {
         version:              1,
@@ -988,15 +1053,16 @@ function CircleTransferTab({ address, gatewayBalance, onSuccess }: {
         hookData:             '0x' as `0x${string}`,
       }
       const burnIntent = {
-        maxBlockHeight: (2n ** 256n - 1n).toString(),
-        maxFee:         maxFee,
-        spec:           burnIntentSpec,
+        maxBlockHeight,
+        maxFee: maxFee18,
+        spec:   burnIntentSpec,
       }
 
       let signature: `0x${string}`
 
       if (isPasskey) {
-        // ── Passkey path: use bundler account signTypedData ──────────────────
+        // ── Passkey path (SCA / ERC-1271) ────────────────────────────────────
+        // SCAs use ERC-1271 — must pass contractSigner:true to Gateway API
         const clientKey = import.meta.env.VITE_CLIENT_KEY as string | undefined
         if (!clientKey) throw new Error('VITE_CLIENT_KEY not set — passkey transactions require a Circle Client Key.')
         const { toWebAuthnAccount } = await import('viem/account-abstraction')
@@ -1009,7 +1075,6 @@ function CircleTransferTab({ address, gatewayBalance, onSuccess }: {
         const passkeyTransport = toPasskeyTransport(MODULAR_URL, clientKey)
         const credential       = await toWebAuthnCredential({ transport: passkeyTransport, mode: WebAuthnMode.Login })
         const account          = await toCircleSmartAccount({ client: publicClient, owner: toWebAuthnAccount({ credential }) })
-        // account.signTypedData signs EIP-712 on a Circle smart account (bundler not needed for signing)
         // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
         signature = await (account as any).signTypedData({
           domain:      BURN_INTENT_TYPED_DATA.domain,
@@ -1018,10 +1083,9 @@ function CircleTransferTab({ address, gatewayBalance, onSuccess }: {
           message:     burnIntent,
         })
       } else {
-        // ── W3S SDK path: personal_sign over the typed data JSON ─────────────
-        // Circle UCW doesn't expose eth_signTypedData; we sign the canonical
-        // JSON representation and pass it as a personal-sign message. The
-        // Gateway API accepts this when the signature field matches.
+        // ── W3S SDK path (EOA via Circle UCW) ────────────────────────────────
+        // Circle UCW signs EIP-712 typed data via the sign-message challenge.
+        // We pass the full typed data JSON; the SDK signs it as personal_sign.
         const typedDataStr = JSON.stringify(
           { ...BURN_INTENT_TYPED_DATA, message: burnIntent },
           (_k, v: unknown) => typeof v === 'bigint' ? (v).toString() : v,
@@ -1032,7 +1096,8 @@ function CircleTransferTab({ address, gatewayBalance, onSuccess }: {
       }
 
       setPhase('submitting')
-      const { attestation, signature: mintSignature } = await submitBurnIntent(burnIntent, signature)
+      // Pass contractSigner:true for passkey (SCA/ERC-1271); false for Circle UCW (EOA)
+      const { attestation, signature: mintSignature } = await submitBurnIntent(burnIntent, signature, isPasskey)
 
       // ── Mint on destination via Circle wallet contract execution ─────────
       setPhase('minting')
