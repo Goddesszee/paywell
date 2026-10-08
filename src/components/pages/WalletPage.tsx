@@ -525,7 +525,8 @@ function SendFlow({
       status: 'confirmed',
       timestamp: new Date().toISOString(),
       chain: 'Arc Testnet',
-      counterparty: recipient,
+      counterparty: recipient,   // receiver
+      sender: _address,          // own wallet = sender
       txHash: finalTxHash,
     }
     return (

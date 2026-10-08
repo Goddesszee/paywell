@@ -85,7 +85,7 @@ const EXPLORER: Record<string, string> = {
   'unichain':     'https://sepolia.uniscan.xyz',
 }
 
-function ReceiptModal({ item, onClose }: { item: ActivityItem; onClose: () => void }) {
+function ReceiptModal({ item, onClose, ownAddress }: { item: ActivityItem; onClose: () => void; ownAddress?: string }) {
   const C   = useNanTheme()
   const isIn = item.sign === '+'
   const txUrl = item.txHash
@@ -200,7 +200,11 @@ function ReceiptModal({ item, onClose }: { item: ActivityItem; onClose: () => vo
     amount: item.amount, sign: item.sign as '+' | '-' | '',
     description: item.description, status: item.status,
     timestamp: item.timestamp, chain: item.chain,
-    counterparty: item.counterparty, txHash: item.txHash, id: item.id,
+    counterparty: item.counterparty,
+    // If we sent: ownAddress is the sender, counterparty is the receiver.
+    // If we received: counterparty is the sender, ownAddress is the receiver.
+    sender: item.sign === '-' ? ownAddress : item.counterparty,
+    txHash: item.txHash, id: item.id,
   }
   function handleDownload() { downloadReceipt(receiptData) }
   async function handleShare() { await shareReceipt(receiptData) }
@@ -368,7 +372,7 @@ export function ActivityPage() {
     <div style={{ width: '100%', minHeight: '100%', fontFamily: F, paddingBottom: 80 }}>
 
       {/* Receipt modal */}
-      {receiptItem && <ReceiptModal item={receiptItem} onClose={() => setReceiptItem(null)} />}
+      {receiptItem && <ReceiptModal item={receiptItem} onClose={() => setReceiptItem(null)} ownAddress={address} />}
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
         <h1 style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.025em', color: C.text, margin: 0 }}>Activity</h1>

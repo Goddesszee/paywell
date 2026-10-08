@@ -25,7 +25,8 @@ export interface ReceiptData {
   status: string
   timestamp: string | number | Date
   chain?: string
-  counterparty?: string
+  counterparty?: string   // the other party's address
+  sender?: string         // explicit sender address (own wallet on send)
   txHash?: string
   id?: string
 }
@@ -51,23 +52,31 @@ export function buildReceiptHtml(r: ReceiptData): string {
     ? `${EXPLORER[(network).toLowerCase()] ?? EXPLORER['arc testnet']}/tx/${r.txHash}`
     : null
 
-  const qrUrl = txUrl
-    ? `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(txUrl)}`
-    : null
+  // Determine sender / receiver based on direction
+  const senderAddr   = isIn  ? (r.counterparty ?? null) : (r.sender ?? null)
+  const receiverAddr = !isIn ? (r.counterparty ?? null) : (r.sender ?? null)
 
   const detailRows: [string, string, boolean?][] = [
     ['Date', dateStr],
     ['Network', network],
     ['NAN reference', refCode],
-    ...(r.counterparty ? [['To / From', r.counterparty, true] as [string, string, boolean]] : []),
+    ...(senderAddr   ? [['Sender',   senderAddr,   true] as [string, string, boolean]] : []),
+    ...(receiverAddr ? [['Receiver', receiverAddr, true] as [string, string, boolean]] : []),
     ...(shortTx ? [['Transaction', shortTx, true] as [string, string, boolean]] : []),
+    ...(txUrl ? [['Explorer', txUrl, false] as [string, string, boolean]] : []),
   ]
 
-  const rowsHtml = detailRows.map(([label, value, mono], i, arr) => `
+  const rowsHtml = detailRows.map(([label, value, mono], i, arr) => {
+    const isLink = label === 'Explorer'
+    const cellContent = isLink
+      ? `<a href="${value}" style="font-size:12px;font-weight:600;color:#0066FF;text-decoration:none;word-break:break-all;">View transaction ↗</a>`
+      : `<span style="font-size:13px;font-weight:600;color:#111;text-align:right;word-break:break-all;${mono ? 'font-family:Menlo,Courier New,monospace;font-size:12px;' : ''}">${value}</span>`
+    return `
     <div style="display:flex;justify-content:space-between;align-items:flex-start;padding:13px 0;border-bottom:${i < arr.length - 1 ? '1px solid #ebebeb' : 'none'};gap:16px;">
       <span style="font-size:13px;color:#888;white-space:nowrap;">${label}</span>
-      <span style="font-size:13px;font-weight:600;color:#111;text-align:right;word-break:break-all;${mono ? 'font-family:Menlo,Courier New,monospace;font-size:12px;' : ''}">${value}</span>
-    </div>`).join('')
+      ${cellContent}
+    </div>`
+  }).join('')
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -118,20 +127,9 @@ export function buildReceiptHtml(r: ReceiptData): string {
     <!-- ⑤ Detail rows -->
     <div>${rowsHtml}</div>
 
-    <!-- ⑥ QR + scan label -->
-    ${qrUrl ? `
-    <div style="display:flex;align-items:center;gap:16px;margin-top:20px;">
-      <img src="${qrUrl}" width="90" height="90" alt="QR" style="border-radius:8px;border:1px solid #e4e4e4;"/>
-      <div>
-        <div style="font-size:13px;font-weight:700;color:#111;margin-bottom:3px;">Scan to verify on Arc</div>
-        <div style="font-size:12px;color:#888;">testnet.arcscan.app</div>
-        ${txUrl ? `<a href="${txUrl}" style="font-size:11px;color:#0066FF;text-decoration:none;display:inline-flex;align-items:center;gap:3px;margin-top:5px;font-weight:600;">View transaction ↗</a>` : ''}
-      </div>
-    </div>` : ''}
-
-    <!-- ⑦ Footnote -->
-    <div style="text-align:center;font-size:11px;color:#aaa;margin-top:20px;padding-top:14px;border-top:1px solid #f0f0f0;">
-      Arc testnet, no real value
+    <!-- ⑥ Footer -->
+    <div style="text-align:center;font-size:11px;color:#ccc;margin-top:20px;padding-top:14px;border-top:1px solid #f0f0f0;">
+      Powered by NAN &nbsp;·&nbsp; nanarc.xyz
     </div>
 
   </div>

@@ -789,7 +789,7 @@ export function ExportsPage() {
             }}
           >
             {downloaded === 'statement' ? <CheckCircle2 size={14} /> : <LayoutTemplate size={14} />}
-            {downloaded === 'statement' ? 'Downloaded!' : 'Statement'}
+            {downloaded === 'statement' ? 'Downloaded!' : 'Account Statement'}
           </button>
           <button
             onClick={() => { void shareExport() }}
