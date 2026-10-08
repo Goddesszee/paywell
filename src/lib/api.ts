@@ -5,7 +5,9 @@
  * Defaults to relative paths (same origin) when not set.
  */
 
-const BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? ''
+// Always route API calls to Vercel, regardless of which domain serves the frontend.
+// VITE_API_URL overrides this (set on Vercel to '' for same-origin, or the Vercel URL).
+const BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? 'https://paywell-puce.vercel.app'
 
 // ── Marketplace types (mirrors api/agent-marketplace.ts) ─────────────────────
 export interface MarketplaceServiceCard {
