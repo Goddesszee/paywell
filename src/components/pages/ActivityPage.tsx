@@ -91,44 +91,133 @@ function ReceiptModal({ item, onClose }: { item: ActivityItem; onClose: () => vo
     ? `${EXPLORER[(item.chain ?? 'arc testnet').toLowerCase()] ?? EXPLORER['arc testnet']}/tx/${item.txHash}`
     : null
 
-  function buildReceiptText(): string {
-    const lines = [
-      '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
-      '       NAN PAYMENT RECEIPT      ',
-      '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
-      `Date:        ${new Date(item.timestamp).toLocaleString('en')}`,
-      `Type:        ${item.type}`,
-      `Description: ${item.description}`,
-      `Amount:      ${item.sign}${item.amount} USDC`,
-      `Status:      ${item.status}`,
+  function buildReceiptHtml(): string {
+    const isIn   = item.sign === '+'
+    const amtColor = isIn ? '#00C853' : '#FF3B3B'
+    const statusColor = ['confirmed', 'completed'].includes(item.status) ? '#00C853' : ['pending'].includes(item.status) ? '#F0A500' : '#FF3B3B'
+    const dateStr = new Date(item.timestamp).toLocaleString('en', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+    const rows: [string, string, boolean?][] = [
+      ['Date',        dateStr],
+      ['Type',        item.type.replace(/_/g, ' ')],
+      ['Description', item.description],
+      ['Status',      item.status],
+      ...(item.counterparty ? [['Counterparty', item.counterparty, true] as [string, string, boolean]] : []),
+      ...(item.chain ? [['Network', item.chain] as [string, string]] : []),
+      ...(item.txHash ? [['Transaction Hash', item.txHash, true] as [string, string, boolean]] : []),
     ]
-    if (item.counterparty) lines.push(`Counterparty: ${item.counterparty}`)
-    if (item.chain)        lines.push(`Network:     ${item.chain}`)
-    if (item.txHash)       lines.push(`Tx Hash:     ${item.txHash}`)
-    if (txUrl)             lines.push(`Explorer:    ${txUrl}`)
-    lines.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-    lines.push('Powered by NAN · nanarc.xyz')
-    return lines.join('\n')
+    const rowsHtml = rows.map(([label, value, mono]) => `
+      <tr>
+        <td style="padding:10px 0;border-bottom:1px solid #e8eaf0;color:#8A8FA8;font-size:13px;font-weight:500;width:38%;vertical-align:top;">${label}</td>
+        <td style="padding:10px 0;border-bottom:1px solid #e8eaf0;color:#0A0C14;font-size:13px;font-weight:600;text-align:right;word-break:break-all;${mono ? 'font-family:JetBrains Mono,Menlo,monospace;font-size:11px;' : ''}">${value}</td>
+      </tr>`).join('')
+
+    const explorerRow = txUrl ? `
+      <tr>
+        <td colspan="2" style="padding:12px 0 0;">
+          <a href="${txUrl}" style="display:inline-flex;align-items:center;gap:6px;background:#EEF3FF;border:1px solid #C7D6FF;border-radius:8px;padding:9px 14px;color:#0066FF;font-size:12px;font-weight:600;text-decoration:none;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#0066FF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+            View on Explorer
+          </a>
+        </td>
+      </tr>` : ''
+
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>NAN Receipt · ${new Date(item.timestamp).toISOString().slice(0,10)}</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap');
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{background:#F4F6FA;font-family:'Inter',-apple-system,sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+    @media print{body{background:#fff;padding:0}@page{margin:20mm}}
+  </style>
+</head>
+<body>
+  <div style="background:#fff;border-radius:20px;box-shadow:0 4px 40px rgba(0,0,0,0.10);width:100%;max-width:480px;overflow:hidden;border:1px solid #E8EAF0;">
+
+    <!-- Header band -->
+    <div style="background:#0066FF;padding:28px 32px 24px;text-align:center;">
+      <!-- NAN Logo -->
+      <div style="display:inline-flex;align-items:center;gap:10px;margin-bottom:16px;">
+        <div style="width:42px;height:42px;border-radius:50%;background:rgba(255,255,255,0.18);display:flex;align-items:center;justify-content:center;">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 324 480" width="18" height="26">
+            <path d="M255,0 L84,167 L71,163 L0,97 L0,378 L246,132 L255,110 Z" fill="#fff"/>
+            <path d="M69,480 L240,313 L253,317 L324,383 L324,102 L78,348 L69,370 Z" fill="#fff"/>
+          </svg>
+        </div>
+        <span style="font-weight:800;font-size:20px;color:#fff;letter-spacing:-0.01em;">NAN</span>
+      </div>
+      <div style="font-size:13px;color:rgba(255,255,255,0.7);font-weight:500;letter-spacing:0.06em;text-transform:uppercase;">Payment Receipt</div>
+    </div>
+
+    <!-- Amount hero -->
+    <div style="background:#fff;padding:28px 32px 20px;text-align:center;border-bottom:1px solid #E8EAF0;">
+      <div style="font-size:42px;font-weight:800;color:${amtColor};font-family:'JetBrains Mono',Menlo,monospace;letter-spacing:-0.03em;line-height:1;">
+        ${item.sign}${item.amount} <span style="font-size:24px;">USDC</span>
+      </div>
+      <div style="font-size:14px;color:#4A5068;margin-top:8px;font-weight:500;">${item.description || item.type}</div>
+      <div style="display:inline-flex;align-items:center;gap:5px;margin-top:10px;padding:5px 12px;border-radius:20px;background:${statusColor}18;border:1px solid ${statusColor}33;">
+        <div style="width:6px;height:6px;border-radius:50%;background:${statusColor};"></div>
+        <span style="font-size:11px;font-weight:700;color:${statusColor};text-transform:uppercase;letter-spacing:0.06em;">${item.status}</span>
+      </div>
+    </div>
+
+    <!-- Details table -->
+    <div style="padding:20px 32px 24px;">
+      <table style="width:100%;border-collapse:collapse;">
+        <tbody>
+          ${rowsHtml}
+          ${explorerRow}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Footer -->
+    <div style="background:#F4F6FA;border-top:1px solid #E8EAF0;padding:16px 32px;display:flex;align-items:center;justify-content:space-between;">
+      <div style="display:flex;align-items:center;gap:7px;">
+        <div style="width:22px;height:22px;border-radius:50%;background:#0066FF;display:flex;align-items:center;justify-content:center;">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 324 480" width="9" height="13">
+            <path d="M255,0 L84,167 L71,163 L0,97 L0,378 L246,132 L255,110 Z" fill="#fff"/>
+            <path d="M69,480 L240,313 L253,317 L324,383 L324,102 L78,348 L69,370 Z" fill="#fff"/>
+          </svg>
+        </div>
+        <span style="font-size:12px;font-weight:600;color:#4A5068;">Powered by NAN</span>
+      </div>
+      <span style="font-size:11px;color:#8A8FA8;">Generated ${new Date().toLocaleDateString('en', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+    </div>
+  </div>
+</body>
+</html>`
   }
 
   function handleDownload() {
-    const txt = buildReceiptText()
-    const blob = new Blob([txt], { type: 'text/plain' })
-    const url  = URL.createObjectURL(blob)
-    const a    = document.createElement('a')
-    const ts   = new Date(item.timestamp).toISOString().slice(0, 10)
-    a.href = url; a.download = `nan-receipt-${ts}-${item.id.slice(-6)}.txt`; a.click()
+    const html = buildReceiptHtml()
+    const blob  = new Blob([html], { type: 'text/html' })
+    const url   = URL.createObjectURL(blob)
+    const a     = document.createElement('a')
+    const ts    = new Date(item.timestamp).toISOString().slice(0, 10)
+    a.href = url; a.download = `nan-receipt-${ts}-${item.id.slice(-6)}.html`; a.click()
     setTimeout(() => URL.revokeObjectURL(url), 10000)
   }
 
   async function handleShare() {
-    const text = buildReceiptText()
-    if (navigator.share) {
-      try { await navigator.share({ title: 'NAN Receipt', text }) } catch { /* cancelled */ }
-    } else {
-      await navigator.clipboard.writeText(text)
-      alert('Receipt copied to clipboard')
+    const html = buildReceiptHtml()
+    const blob = new Blob([html], { type: 'text/html' })
+    if (navigator.share && navigator.canShare?.({ files: [new File([blob], 'receipt.html', { type: 'text/html' })] })) {
+      try {
+        await navigator.share({
+          title: 'NAN Receipt',
+          files: [new File([blob], `nan-receipt-${new Date(item.timestamp).toISOString().slice(0,10)}.html`, { type: 'text/html' })],
+        })
+        return
+      } catch { /* fall through */ }
     }
+    // Fallback: open receipt in new tab (user can print/save from there)
+    const url = URL.createObjectURL(blob)
+    window.open(url, '_blank')
+    setTimeout(() => URL.revokeObjectURL(url), 30000)
   }
 
   const rows: { label: string; value: string; mono?: boolean }[] = [

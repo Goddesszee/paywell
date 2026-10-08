@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react'
 import {
   Download, FileText, FileJson, Calendar, ChevronDown,
   ArrowUpRight, ArrowDownLeft, Bot, ArrowLeftRight,
-  ShoppingBag, Repeat, Wallet, CheckCircle2, X,
+  ShoppingBag, Repeat, Wallet, CheckCircle2, X, LayoutTemplate,
 } from 'lucide-react'
 import { useNanTheme } from '../../hooks/useNanTheme'
 import { useAppStore } from '../../store/appStore'
@@ -214,7 +214,7 @@ export function ExportsPage() {
   const [source,    setSource]    = useState<Source>('all')
   const [customFrom, setCustomFrom] = useState('')
   const [customTo,   setCustomTo]   = useState('')
-  const [downloaded, setDownloaded] = useState<'csv' | 'json' | null>(null)
+  const [downloaded, setDownloaded] = useState<'csv' | 'json' | 'statement' | null>(null)
 
   const from = useMemo(() => startOf(period, customFrom), [period, customFrom])
   const to   = useMemo(() => endOf(period, customTo),     [period, customTo])
@@ -374,6 +374,135 @@ export function ExportsPage() {
     }
   }
 
+  // ── HTML Statement builder ───────────────────────────────────────────────────
+  function buildStatementHtml(): string {
+    const periodStr = periodLabel(period)
+    const sourceStr = SOURCE_OPTIONS.find(o => o.value === source)?.label ?? source
+    const generatedAt = new Date().toLocaleString('en', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+
+    const signColor = (sign: string) => sign === '+' ? '#00A844' : sign === '-' ? '#E53535' : '#4A5068'
+
+    const rowsHtml = filtered.map((r, i) => {
+      const bg = i % 2 === 0 ? '#fff' : '#F8F9FC'
+      const short = (v: string) => v.startsWith('0x') && v.length > 18 ? `${v.slice(0,8)}…${v.slice(-6)}` : v
+      const typeLabel = r.type.replace(/_/g, ' ')
+      return `<tr style="background:${bg};">
+        <td style="padding:10px 14px;font-size:12px;color:#4A5068;white-space:nowrap;">${new Date(r.date).toLocaleDateString('en',{month:'short',day:'numeric',year:'numeric'})}</td>
+        <td style="padding:10px 14px;font-size:12px;color:#0A0C14;font-weight:500;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${r.description}">${r.description || typeLabel}</td>
+        <td style="padding:10px 14px;font-size:11px;color:#8A8FA8;">${r.source}</td>
+        <td style="padding:10px 14px;font-size:11px;color:#4A5068;">${r.counterparty ? short(r.counterparty) : '—'}</td>
+        <td style="padding:10px 14px;font-size:12px;font-weight:700;color:${signColor(r.sign)};text-align:right;font-family:'JetBrains Mono',Menlo,monospace;white-space:nowrap;">${r.sign}${r.amount} USDC</td>
+        <td style="padding:10px 14px;font-size:11px;color:${r.status === 'confirmed' || r.status === 'complete' ? '#00A844' : '#8A8FA8'};text-align:center;">${r.status}</td>
+      </tr>`
+    }).join('')
+
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>NAN Statement · ${periodStr}</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap');
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{background:#F4F6FA;font-family:'Inter',-apple-system,sans-serif;padding:32px 16px;color:#0A0C14}
+    @media print{body{background:#fff;padding:0}@page{margin:15mm}thead{display:table-header-group}}
+  </style>
+</head>
+<body>
+  <div style="background:#fff;border-radius:20px;box-shadow:0 4px 40px rgba(0,0,0,0.08);max-width:860px;margin:0 auto;overflow:hidden;border:1px solid #E8EAF0;">
+
+    <!-- Header -->
+    <div style="background:#0066FF;padding:32px 40px;display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:16px;">
+      <div>
+        <div style="display:inline-flex;align-items:center;gap:10px;margin-bottom:12px;">
+          <div style="width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,0.18);display:flex;align-items:center;justify-content:center;">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 324 480" width="19" height="27">
+              <path d="M255,0 L84,167 L71,163 L0,97 L0,378 L246,132 L255,110 Z" fill="#fff"/>
+              <path d="M69,480 L240,313 L253,317 L324,383 L324,102 L78,348 L69,370 Z" fill="#fff"/>
+            </svg>
+          </div>
+          <span style="font-weight:800;font-size:22px;color:#fff;letter-spacing:-0.01em;">NAN</span>
+        </div>
+        <div style="font-size:22px;font-weight:800;color:#fff;letter-spacing:-0.025em;">Account Statement</div>
+        <div style="font-size:13px;color:rgba(255,255,255,0.75);margin-top:4px;">${periodStr} · ${sourceStr}</div>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-size:11px;color:rgba(255,255,255,0.6);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:4px;">Generated</div>
+        <div style="font-size:13px;color:#fff;font-weight:600;">${generatedAt}</div>
+      </div>
+    </div>
+
+    <!-- Summary cards -->
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0;border-bottom:1px solid #E8EAF0;">
+      <div style="padding:24px 28px;border-right:1px solid #E8EAF0;">
+        <div style="font-size:11px;font-weight:700;color:#8A8FA8;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;">Total In</div>
+        <div style="font-size:26px;font-weight:800;color:#00A844;font-family:'JetBrains Mono',Menlo,monospace;letter-spacing:-0.03em;">+${totalIn.toFixed(2)}</div>
+        <div style="font-size:11px;color:#8A8FA8;margin-top:3px;">USDC received</div>
+      </div>
+      <div style="padding:24px 28px;border-right:1px solid #E8EAF0;">
+        <div style="font-size:11px;font-weight:700;color:#8A8FA8;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;">Total Out</div>
+        <div style="font-size:26px;font-weight:800;color:#E53535;font-family:'JetBrains Mono',Menlo,monospace;letter-spacing:-0.03em;">-${totalOut.toFixed(2)}</div>
+        <div style="font-size:11px;color:#8A8FA8;margin-top:3px;">USDC sent</div>
+      </div>
+      <div style="padding:24px 28px;">
+        <div style="font-size:11px;font-weight:700;color:#8A8FA8;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;">Net Flow</div>
+        <div style="font-size:26px;font-weight:800;color:${net >= 0 ? '#00A844' : '#E53535'};font-family:'JetBrains Mono',Menlo,monospace;letter-spacing:-0.03em;">${net >= 0 ? '+' : ''}${net.toFixed(2)}</div>
+        <div style="font-size:11px;color:#8A8FA8;margin-top:3px;">${filtered.length} transaction${filtered.length !== 1 ? 's' : ''}</div>
+      </div>
+    </div>
+
+    <!-- Transactions table -->
+    <div style="overflow-x:auto;">
+      <table style="width:100%;border-collapse:collapse;">
+        <thead>
+          <tr style="background:#F8F9FC;border-bottom:2px solid #E8EAF0;">
+            <th style="padding:11px 14px;font-size:11px;font-weight:700;color:#8A8FA8;text-align:left;text-transform:uppercase;letter-spacing:0.07em;white-space:nowrap;">Date</th>
+            <th style="padding:11px 14px;font-size:11px;font-weight:700;color:#8A8FA8;text-align:left;text-transform:uppercase;letter-spacing:0.07em;">Description</th>
+            <th style="padding:11px 14px;font-size:11px;font-weight:700;color:#8A8FA8;text-align:left;text-transform:uppercase;letter-spacing:0.07em;">Source</th>
+            <th style="padding:11px 14px;font-size:11px;font-weight:700;color:#8A8FA8;text-align:left;text-transform:uppercase;letter-spacing:0.07em;">Counterparty</th>
+            <th style="padding:11px 14px;font-size:11px;font-weight:700;color:#8A8FA8;text-align:right;text-transform:uppercase;letter-spacing:0.07em;white-space:nowrap;">Amount</th>
+            <th style="padding:11px 14px;font-size:11px;font-weight:700;color:#8A8FA8;text-align:center;text-transform:uppercase;letter-spacing:0.07em;">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rowsHtml || '<tr><td colspan="6" style="padding:32px;text-align:center;color:#8A8FA8;font-size:13px;">No transactions in this period</td></tr>'}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Footer -->
+    <div style="background:#F4F6FA;border-top:1px solid #E8EAF0;padding:18px 40px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <div style="width:24px;height:24px;border-radius:50%;background:#0066FF;display:flex;align-items:center;justify-content:center;">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 324 480" width="10" height="14">
+            <path d="M255,0 L84,167 L71,163 L0,97 L0,378 L246,132 L255,110 Z" fill="#fff"/>
+            <path d="M69,480 L240,313 L253,317 L324,383 L324,102 L78,348 L69,370 Z" fill="#fff"/>
+          </svg>
+        </div>
+        <span style="font-size:12px;font-weight:600;color:#4A5068;">Powered by NAN · The Intelligent Payment Layer</span>
+      </div>
+      <span style="font-size:11px;color:#8A8FA8;">This statement is for informational purposes only.</span>
+    </div>
+  </div>
+</body>
+</html>`
+  }
+
+  function downloadStatement() {
+    const html = buildStatementHtml()
+    const blob = new Blob([html], { type: 'text/html' })
+    const url  = URL.createObjectURL(blob)
+    const a    = document.createElement('a')
+    const label = period === 'custom'
+      ? `${customFrom}_to_${customTo}`
+      : period
+    a.href = url; a.download = `nan-statement-${label}-${source}.html`; a.click()
+    setTimeout(() => URL.revokeObjectURL(url), 10000)
+    setDownloaded('statement')
+    setTimeout(() => setDownloaded(null), 2500)
+  }
+
   const PERIOD_OPTIONS: { value: Period; label: string }[] = [
     { value: 'today',    label: 'Today' },
     { value: 'week',     label: 'This week' },
@@ -496,6 +625,23 @@ export function ExportsPage() {
           >
             {downloaded === 'json' ? <CheckCircle2 size={14} /> : <FileJson size={14} />}
             {downloaded === 'json' ? 'Downloaded!' : 'JSON'}
+          </button>
+          <button
+            onClick={downloadStatement}
+            disabled={filtered.length === 0}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              padding: '10px 16px', borderRadius: 10,
+              background: downloaded === 'statement' ? '#00C853' : C.surf2,
+              border: `1px solid ${downloaded === 'statement' ? '#00C853' : C.bdr}`,
+              color: downloaded === 'statement' ? '#fff' : C.text,
+              fontSize: 13, fontWeight: 700, cursor: filtered.length === 0 ? 'not-allowed' : 'pointer',
+              opacity: filtered.length === 0 ? 0.5 : 1,
+              fontFamily: F, transition: 'all 0.2s',
+            }}
+          >
+            {downloaded === 'statement' ? <CheckCircle2 size={14} /> : <LayoutTemplate size={14} />}
+            {downloaded === 'statement' ? 'Downloaded!' : 'Statement'}
           </button>
           <button
             onClick={() => { void shareExport() }}
