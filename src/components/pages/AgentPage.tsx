@@ -1268,18 +1268,48 @@ function AgentChat({ onNavigate }: { onNavigate?: (page: string, query?: string)
         }
         return
       }
-    } catch { /* fall through to orchestration */ }
-
-    // Orchestration fallback for complex multi-step agent tasks (only when LLM unavailable)
-    const needsService = /flight|hotel|search|research|find|book|supplier|price|compare|weather|news|data|job|career|invoice|translate|image|video|check|lookup/i.test(text)
-    if (needsService && agentPermissions.enabled) {
+    } catch (chatErr) {
+      // LLM call failed — try orchestration for service-like queries, then
+      // show an inline keyword-based reply so the user never sees an error card
+      const needsService = /flight|hotel|search|research|find|book|supplier|price|compare|weather|news|data|job|career|invoice|translate|image|video|check|lookup/i.test(text)
+      if (needsService && agentPermissions.enabled) {
+        setTyping(false)
+        const handled = await runOrchestration(text)
+        if (handled) return
+      }
       setTyping(false)
-      const handled = await runOrchestration(text)
-      if (handled) return
+
+      // Inline keyword fallback — answers balance, activity, recurring directly from store
+      const lower = text.toLowerCase()
+      const storeSnap2 = useAppStore.getState()
+      const mainBal = parseFloat(storeSnap2.mainWalletBalance || '0').toFixed(2)
+      const agentBal2 = parseFloat(agentWallet.balance_usdc || '0').toFixed(2)
+
+      if (/balance|how much|my usdc/.test(lower)) {
+        addAgentMessage({ role: 'agent', content: `Your main wallet has **${mainBal} USDC** on Arc Testnet. Your Agent Wallet has **${agentBal2} USDC**.`, action: 'info' })
+      } else if (/recent|activity|transaction|history/.test(lower)) {
+        const acts = storeSnap2.activity.slice(0, 5)
+        if (acts.length > 0) {
+          const lines = acts.map((a, i) => `${i + 1}. ${a.sign}${a.amount.toFixed ? a.amount.toFixed(2) : a.amount} USDC — ${a.description} (${a.status})`).join('\n')
+          addAgentMessage({ role: 'agent', content: `Here are your last ${acts.length} transactions:\n\n${lines}`, action: 'info' })
+        } else {
+          addAgentMessage({ role: 'agent', content: "You don't have any transactions yet.", action: 'info' })
+        }
+      } else if (/recurring|scheduled/.test(lower)) {
+        const tasks = storeSnap2.recurringTasks
+        if (tasks.length > 0) {
+          const lines = tasks.map((t, i) => `${i + 1}. "${t.name}" — ${t.amount} USDC ${t.frequency} (${t.active ? 'active' : 'paused'})`).join('\n')
+          addAgentMessage({ role: 'agent', content: `You have ${tasks.length} recurring payment${tasks.length > 1 ? 's' : ''}:\n\n${lines}`, action: 'info' })
+        } else {
+          addAgentMessage({ role: 'agent', content: "No recurring payments set up yet. Say \"add a weekly payment of 5 USDC to 0x...\" to create one.", action: 'info' })
+        }
+      } else {
+        const errMsg = chatErr instanceof Error ? chatErr.message : 'Unknown error'
+        console.warn('NAN chat fallback triggered:', errMsg)
+        addAgentMessage({ role: 'agent', content: "I'm having trouble reaching the AI backend right now. I can still help: ask me about your balance, recent transactions, or recurring payments and I'll answer from your live account data.", action: 'info' })
+      }
+      return
     }
-    await new Promise(r => setTimeout(r, 800 + Math.random()*500))
-    setTyping(false)
-    addAgentMessage({ role: 'agent', content: "I couldn't reach the backend right now. Please check your connection or API configuration." })
   }
 
   const QUICK = [
