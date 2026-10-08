@@ -199,9 +199,64 @@ export function useCircleTransaction() {
     [_execute, _poll],
   )
 
+  /**
+   * Sign an arbitrary message via Circle SDK challenge (sign-message action).
+   * Returns the hex signature string, or undefined on failure.
+   * Used for EIP-712 typed data signing on the Circle UCW path.
+   */
+  const signMessage = useCallback(
+    async (message: string): Promise<string | undefined> => {
+      setError(undefined); setStatus('idle')
+      const userToken     = auth?.userToken
+      const encryptionKey = auth?.encryptionKey
+      const walletId      = auth?.circleWalletId
+      const appId         = import.meta.env.VITE_CIRCLE_APP_ID as string | undefined
+      if (!userToken || !walletId) {
+        setError('Circle session expired — please log in again')
+        setStatus('error')
+        return undefined
+      }
+      if (!appId) {
+        setError('VITE_CIRCLE_APP_ID is not set')
+        setStatus('error')
+        return undefined
+      }
+      setStatus('creating')
+      const resp = await fetch('/api/wallet', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'sign-message', userToken, walletId, message }),
+      })
+      const data = await resp.json() as { challengeId?: string; error?: string }
+      if (!resp.ok || !data.challengeId) {
+        setError(data.error ?? `Failed to create sign challenge (HTTP ${resp.status})`)
+        setStatus('error')
+        return undefined
+      }
+      setStatus('approving')
+      const sdk = new W3SSdk({ appSettings: { appId } })
+      sdk.setAuthentication({ userToken, encryptionKey: encryptionKey ?? '' })
+      return new Promise<string | undefined>(resolve => {
+        sdk.execute(data.challengeId!, (err, result) => {
+          if (err) {
+            setError(err.message ?? 'Sign challenge failed')
+            setStatus('error')
+            resolve(undefined)
+          } else {
+            const anyResult = result as Record<string, unknown> | undefined
+            const sig = anyResult?.['signature'] as string ?? anyResult?.['result'] as string ?? undefined
+            setStatus('complete')
+            resolve(sig)
+          }
+        })
+      })
+    },
+    [auth],
+  )
+
   const reset = useCallback(() => {
     setStatus('idle'); setTxHash(undefined); setError(undefined)
   }, [])
 
-  return { sendTransfer, executeContract, status, txHash, error, reset }
+  return { sendTransfer, executeContract, signMessage, status, txHash, error, reset }
 }

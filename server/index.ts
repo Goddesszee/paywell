@@ -388,6 +388,24 @@ app.post('/api/wallet', async (req, res) => {
       res.json({ tokenBalances: response.data?.tokenBalances ?? [] }); return
     }
 
+    // sign-message — creates a sign-message challenge for UCW EIP-712 signing
+    if (action === 'sign-message') {
+      const { userToken, walletId, message } = body
+      if (!userToken || !walletId || !message) {
+        res.status(400).json({ error: 'userToken, walletId, message required' }); return
+      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const response = await (client as any).createSignMessageChallenge?.({ userToken, walletId, message })
+        // Fallback: some SDK versions expose it under signMessage
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ?? await (client as any).signMessage?.({ userToken, walletId, message })
+      const challengeId = response?.data?.challengeId
+      if (!challengeId) {
+        res.status(500).json({ error: 'Circle SDK did not return a challengeId for sign-message' }); return
+      }
+      res.json({ challengeId }); return
+    }
+
     res.status(400).json({ error: `Unknown action: ${action ?? '(none)'}` })
   } catch (e) {
     console.error('/api/wallet error:', e)

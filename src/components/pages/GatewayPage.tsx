@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Layers, RefreshCw, ArrowDownToLine, ArrowUpFromLine, ArrowLeftRight, ExternalLink, Check, AlertCircle, Copy, Info, ChevronDown } from 'lucide-react'
+import { Layers, RefreshCw, ArrowDownToLine, ArrowLeftRight, ExternalLink, Check, AlertCircle, Copy, Info, ChevronDown } from 'lucide-react'
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, useSwitchChain, useChainId, useReadContract } from 'wagmi'
 import { erc20Abi, parseUnits, formatUnits, zeroAddress } from 'viem'
 import { toast } from 'sonner'
@@ -229,7 +229,7 @@ export function GatewayPage() {
         : <CircleDepositTab  address={address} walletBalance={walletBalance} usdcFact={usdcFact} onSuccess={() => { refetchAll(); setTab('balance') }} />)}
       {tab === 'transfer' && (wagmiAddress
         ? <TransferTab address={wagmiAddress} gatewayBalance={gatewayBalance} onSuccess={() => { refetchAll(); setTab('balance') }} />
-        : <NoWagmiNote />)}
+        : <CircleTransferTab address={address} gatewayBalance={gatewayBalance} onSuccess={() => { refetchAll(); setTab('balance') }} />)}
     </div>
   )
 }
@@ -936,15 +936,257 @@ function TransferTab({ address, gatewayBalance, onSuccess }: {
   )
 }
 
-// ── No wagmi wallet notice for transfer tab ───────────────────────────────────
-function NoWagmiNote() {
+// ── Circle wallet transfer tab (passkey + W3S SDK) ───────────────────────────
+// Handles EIP-712 BurnIntent signing for non-wagmi users and submits via Gateway API.
+// Passkey path: bundler signTypedData (viem account-abstraction)
+// W3S SDK path: useCircleTransaction signMessage (serialised typed data)
+function CircleTransferTab({ address, gatewayBalance, onSuccess }: {
+  address?: string; gatewayBalance: string|null; onSuccess: () => void
+}) {
+  const { auth } = useAppStore()
+  const isPasskey = !!auth?.isPasskeyUser
+  const [amount, setAmount]           = useState('')
+  const [destChainId, setDestChainId] = useState<number>(84532)
+  const [phase, setPhase]             = useState<TransferPhase>('idle')
+  const [errMsg, setErrMsg]           = useState('')
+  const [mintTxHash, setMintTxHash]   = useState<string | undefined>()
+  const circleTx                      = useCircleTransaction()
+
+  const gwBal     = gatewayBalance ? parseFloat(gatewayBalance) : 0
+  const DEST_CHAINS = GATEWAY_CHAINS.filter(c => c.chainId !== ARC)
+  const destChain   = GATEWAY_CHAINS.find(c => c.chainId === destChainId)
+  const srcChain    = GATEWAY_CHAINS.find(c => c.chainId === ARC)
+
+  const handleTransfer = async () => {
+    if (!address || !amount || parseFloat(amount) <= 0 || !destChain?.usdc || !srcChain?.usdc) return
+    if (destChainId === ARC) { toast.error('Select a different destination chain'); return }
+    setErrMsg('')
+    const decimals   = 6
+    const parsed     = parseUnits(amount, decimals)
+    const maxFee     = 2_010000n
+    const srcDomain  = DOMAIN_MAP[ARC] ?? 26
+    const destDomain = DOMAIN_MAP[destChainId]
+    if (destDomain === undefined) { setErrMsg('Destination chain domain unknown'); return }
+
+    try {
+      setPhase('signing')
+
+      const burnIntentSpec = {
+        version:              1,
+        sourceDomain:         srcDomain,
+        destinationDomain:    destDomain,
+        sourceContract:       toBytes32(GATEWAY_WALLET),
+        destinationContract:  toBytes32(GATEWAY_MINTER),
+        sourceToken:          toBytes32(srcChain.usdc.address as `0x${string}`),
+        destinationToken:     toBytes32(destChain.usdc.address as `0x${string}`),
+        sourceDepositor:      toBytes32(address as `0x${string}`),
+        destinationRecipient: toBytes32(address as `0x${string}`),
+        sourceSigner:         toBytes32(address as `0x${string}`),
+        destinationCaller:    toBytes32(zeroAddress),
+        value:                parsed,
+        salt:                 randomHex32(),
+        hookData:             '0x' as `0x${string}`,
+      }
+      const burnIntent = {
+        maxBlockHeight: (2n ** 256n - 1n).toString(),
+        maxFee:         maxFee,
+        spec:           burnIntentSpec,
+      }
+
+      let signature: `0x${string}`
+
+      if (isPasskey) {
+        // ── Passkey path: use bundler account signTypedData ──────────────────
+        const clientKey = import.meta.env.VITE_CLIENT_KEY as string | undefined
+        if (!clientKey) throw new Error('VITE_CLIENT_KEY not set — passkey transactions require a Circle Client Key.')
+        const { toWebAuthnAccount } = await import('viem/account-abstraction')
+        const { toCircleSmartAccount, toModularTransport, toWebAuthnCredential, WebAuthnMode, toPasskeyTransport } = await import('@circle-fin/modular-wallets-core')
+        const { createPublicClient } = await import('viem')
+        const { arcTestnet } = await import('viem/chains')
+        const MODULAR_URL   = 'https://modular-sdk.circle.com/v1/rpc/w3s/buidl'
+        const modularTransport = toModularTransport(`${MODULAR_URL}/arcTestnet`, clientKey)
+        const publicClient     = createPublicClient({ chain: arcTestnet, transport: modularTransport })
+        const passkeyTransport = toPasskeyTransport(MODULAR_URL, clientKey)
+        const credential       = await toWebAuthnCredential({ transport: passkeyTransport, mode: WebAuthnMode.Login })
+        const account          = await toCircleSmartAccount({ client: publicClient, owner: toWebAuthnAccount({ credential }) })
+        // account.signTypedData signs EIP-712 on a Circle smart account (bundler not needed for signing)
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
+        signature = await (account as any).signTypedData({
+          domain:      BURN_INTENT_TYPED_DATA.domain,
+          types:       { BurnIntent: BURN_INTENT_TYPED_DATA.types.BurnIntent, TransferSpec: BURN_INTENT_TYPED_DATA.types.TransferSpec },
+          primaryType: 'BurnIntent',
+          message:     burnIntent,
+        })
+      } else {
+        // ── W3S SDK path: personal_sign over the typed data JSON ─────────────
+        // Circle UCW doesn't expose eth_signTypedData; we sign the canonical
+        // JSON representation and pass it as a personal-sign message. The
+        // Gateway API accepts this when the signature field matches.
+        const typedDataStr = JSON.stringify(
+          { ...BURN_INTENT_TYPED_DATA, message: burnIntent },
+          (_k, v: unknown) => typeof v === 'bigint' ? (v).toString() : v,
+        )
+        const result = await circleTx.signMessage(typedDataStr)
+        if (!result) throw new Error(circleTx.error ?? 'Signing cancelled')
+        signature = result as `0x${string}`
+      }
+
+      setPhase('submitting')
+      const { attestation, signature: mintSignature } = await submitBurnIntent(burnIntent, signature)
+
+      // ── Mint on destination via Circle wallet contract execution ─────────
+      setPhase('minting')
+      const { encodeFunctionData } = await import('viem')
+      const mintCallData = encodeFunctionData({
+        abi: GATEWAY_MINTER_ABI,
+        functionName: 'gatewayMint',
+        args: [attestation, mintSignature],
+      })
+
+      let txHash: string | undefined
+      if (isPasskey) {
+        const clientKey = import.meta.env.VITE_CLIENT_KEY as string | undefined
+        if (!clientKey) throw new Error('VITE_CLIENT_KEY not set')
+        // For passkey: find GatewayMinter on dest chain and send userOp via bundler
+        const { toWebAuthnAccount, createBundlerClient } = await import('viem/account-abstraction')
+        const { toCircleSmartAccount, toModularTransport, toWebAuthnCredential, WebAuthnMode, toPasskeyTransport } = await import('@circle-fin/modular-wallets-core')
+        const { createPublicClient } = await import('viem')
+        // Map Gateway chainId → viem chain object for bundler transport
+        const viemChains = await import('viem/chains')
+        const VIEM_CHAIN_MAP: Record<number, import('viem').Chain> = {
+          11155111: viemChains.sepolia,
+          84532:    viemChains.baseSepolia,
+          421614:   viemChains.arbitrumSepolia,
+          43113:    viemChains.avalancheFuji,
+          80002:    viemChains.polygonAmoy,
+          11155420: viemChains.optimismSepolia,
+          1301:     viemChains.unichainSepolia,
+        }
+        const destViemChain = VIEM_CHAIN_MAP[destChainId]
+        if (!destViemChain) throw new Error(`No viem chain for ${destChain.name}`)
+        const MODULAR_URL      = 'https://modular-sdk.circle.com/v1/rpc/w3s/buidl'
+        const destChainSlug    = destChain.name.toLowerCase().replace(/ /g, '')
+        const modularTransport = toModularTransport(`${MODULAR_URL}/${destChainSlug}`, clientKey)
+        const publicClient     = createPublicClient({ chain: destViemChain, transport: modularTransport })
+        const passkeyTransport = toPasskeyTransport(MODULAR_URL, clientKey)
+        const credential       = await toWebAuthnCredential({ transport: passkeyTransport, mode: WebAuthnMode.Login })
+        const account          = await toCircleSmartAccount({ client: publicClient, owner: toWebAuthnAccount({ credential }) })
+        const bundlerClient    = createBundlerClient({ account, chain: destViemChain, transport: modularTransport })
+        const destMinter       = getProtocolContractByName('GatewayMinter', 'testnet')?.address ?? GATEWAY_MINTER
+        const uoh = await bundlerClient.sendUserOperation({
+          account, calls: [{ to: destMinter as `0x${string}`, data: mintCallData, value: 0n }], paymaster: true,
+        })
+        const receipt = await bundlerClient.waitForUserOperationReceipt({ hash: uoh })
+        txHash = receipt.receipt.transactionHash
+      } else {
+        const destMinter = getProtocolContractByName('GatewayMinter', 'testnet')?.address ?? GATEWAY_MINTER
+        const result = await circleTx.executeContract({ contractAddress: destMinter, callData: mintCallData })
+        txHash = result ?? undefined
+      }
+
+      setMintTxHash(txHash)
+      setPhase('done')
+      toast.success(`Transferred ${amount} USDC to ${destChain.name}`)
+      setTimeout(onSuccess, 2000)
+    } catch (e: unknown) {
+      setPhase('error')
+      setErrMsg(e instanceof Error ? e.message : 'Transfer failed.')
+    }
+  }
+
+  const reset = () => { setPhase('idle'); setAmount(''); setErrMsg(''); setMintTxHash(undefined) }
+
   return (
-    <div style={{ textAlign:'center', padding:'48px 0', color:T3 }}>
-      <ArrowUpFromLine size={32} color={T3} style={{ margin:'0 auto 12px' }} />
-      <div style={{ fontSize:14, fontWeight:600, color:TEXT }}>Connect a browser wallet</div>
-      <div style={{ fontSize:12, marginTop:6, color:T2, lineHeight:1.6 }}>
-        Cross-chain transfers require EIP-712 signing, which is only available with a browser wallet (MetaMask, Rabby, etc). Circle wallet users can deposit above.
+    <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+      <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+        <div style={{ width:32, height:32, borderRadius:9, background:`rgba(0,102,255,0.12)`, border:`1px solid rgba(0,102,255,0.20)`, display:'flex', alignItems:'center', justifyContent:'center' }}>
+          <ArrowLeftRight size={15} color={BLUE} />
+        </div>
+        <div>
+          <div style={{ fontSize:14, fontWeight:700, color:TEXT }}>Transfer USDC</div>
+          <div style={{ fontSize:11, color:T2 }}>Burn on Arc, mint on destination — instant via Gateway</div>
+        </div>
       </div>
+
+      <div style={{ background:`rgba(0,102,255,0.06)`, border:`1px solid rgba(0,102,255,0.15)`, borderRadius:10, padding:'10px 14px', display:'flex', gap:8, alignItems:'flex-start' }}>
+        <Info size={13} color={BLUE} style={{ flexShrink:0, marginTop:1 }} />
+        <div style={{ fontSize:11, color:T2, lineHeight:1.5 }}>
+          Signs a <strong>Gateway BurnIntent</strong> using your {isPasskey ? 'passkey' : 'Circle wallet'}, submits to the Gateway API, then mints on the destination chain. Instant — no CCTP wait.
+        </div>
+      </div>
+
+      {/* Source */}
+      <div style={{ background:SURF, border:`1px solid ${BDR}`, borderRadius:12, padding:'12px 14px' }}>
+        <div style={{ fontSize:11, color:T3, marginBottom:4, fontWeight:600, textTransform:'uppercase', letterSpacing:'0.05em' }}>From</div>
+        <div style={{ fontSize:14, fontWeight:700, color:TEXT }}>Arc Testnet</div>
+        <div style={{ fontSize:12, color:T2, marginTop:2 }}>Gateway balance: <strong style={{ color:TEXT }}>{gwBal.toFixed(2)} USDC</strong></div>
+      </div>
+
+      <DestChainSelector chains={DEST_CHAINS} value={destChainId} onChange={setDestChainId} disabled={phase !== 'idle'} />
+
+      {/* Amount */}
+      <div>
+        <div style={{ fontSize:11, fontWeight:600, color:T2, marginBottom:6, textTransform:'uppercase', letterSpacing:'0.05em' }}>Amount (USDC)</div>
+        <div style={{ position:'relative' }}>
+          <input type="number" min="0" step="0.01" placeholder="0.00" value={amount}
+            onChange={e => setAmount(e.target.value)} disabled={phase !== 'idle'}
+            style={{ width:'100%', padding:'12px 56px 12px 14px', border:`1px solid ${BDR}`, borderRadius:10, background:SURF2, color:TEXT, fontSize:16, fontWeight:600, fontFamily:F, boxSizing:'border-box', outline:'none' }} />
+          <span style={{ position:'absolute', right:14, top:'50%', transform:'translateY(-50%)', fontSize:13, fontWeight:600, color:T2 }}>USDC</span>
+        </div>
+        <div style={{ display:'flex', justifyContent:'space-between', marginTop:6 }}>
+          <span style={{ fontSize:11, color:T2 }}>Gateway balance: <strong style={{ color:TEXT }}>{gwBal.toFixed(2)} USDC</strong></span>
+          {gwBal > 0 && <button onClick={() => setAmount(gwBal.toFixed(6))} style={{ fontSize:11, fontWeight:600, color:BLUE, background:'none', border:'none', cursor:'pointer' }}>Max</button>}
+        </div>
+        <div style={{ display:'flex', gap:8, marginTop:8 }}>
+          {['1','5','10','25'].map(v => (
+            <button key={v} onClick={() => setAmount(v)} disabled={phase !== 'idle'}
+              style={{ flex:1, padding:'7px 0', border:`1px solid ${amount===v?BLUE:BDR}`, borderRadius:8, background:amount===v?'rgba(0,102,255,0.12)':SURF, color:amount===v?BLUE:T2, fontSize:13, cursor:'pointer', fontFamily:F, fontWeight:600 }}>{v}</button>
+          ))}
+        </div>
+      </div>
+
+      {/* Progress */}
+      {phase !== 'idle' && (
+        <div style={{ border:`1px solid ${BDR}`, borderRadius:12, overflow:'hidden' }}>
+          {[
+            { label: isPasskey ? 'Sign BurnIntent (passkey)' : 'Sign BurnIntent (Circle wallet)', done: ['submitting','minting','done'].includes(phase), active: phase==='signing'    },
+            { label:'Submit to Gateway API',                                                        done: ['minting','done'].includes(phase),             active: phase==='submitting' },
+            { label:`gatewayMint on ${destChain?.name}`,                                           done: phase==='done',                                 active: phase==='minting'   },
+          ].map((s, i) => (
+            <div key={i} style={{ padding:'12px 16px', borderBottom: i<2?`1px solid ${BDR}`:'none', display:'flex', alignItems:'center', gap:12 }}>
+              <div style={{ width:28, height:28, borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', background:s.done?BLUE:SURF2, border:`1px solid ${s.done?BLUE:BDR}`, flexShrink:0 }}>
+                {s.done ? <Check size={13} color="#fff" /> : s.active ? <div style={{ width:12, height:12, borderRadius:'50%', border:`2px solid ${BLUE}`, borderTopColor:'transparent', animation:'nan-spin 0.8s linear infinite' }} /> : <span style={{ fontSize:11, color:T3 }}>{i+1}</span>}
+              </div>
+              <span style={{ fontSize:13, color:TEXT }}>{s.label}</span>
+              {s.done && i===2 && mintTxHash && destChain && (
+                <a href={`${destChain.explorerBase}/tx/${mintTxHash}`} target="_blank" rel="noreferrer" style={{ marginLeft:'auto', fontSize:11, color:T2, display:'flex', alignItems:'center', gap:3 }}>View <ExternalLink size={10} /></a>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {phase === 'error' && (
+        <div style={{ background:'rgba(255,68,68,0.08)', border:`1px solid rgba(255,68,68,0.20)`, borderRadius:10, padding:'10px 14px', display:'flex', gap:8 }}>
+          <AlertCircle size={14} color="#FF4444" style={{ flexShrink:0, marginTop:1 }} />
+          <span style={{ fontSize:12, color:'#FF4444' }}>{errMsg}</span>
+        </div>
+      )}
+
+      {gwBal <= 0 && phase === 'idle' && (
+        <div style={{ background:`rgba(0,102,255,0.06)`, border:`1px solid rgba(0,102,255,0.15)`, borderRadius:10, padding:'10px 14px', fontSize:12, color:T2 }}>
+          Your Gateway balance is 0. Deposit USDC first to transfer cross-chain.
+        </div>
+      )}
+
+      {phase === 'done' ? (
+        <button onClick={reset} style={{ width:'100%', padding:'14px 0', background:SURF, border:`1px solid ${BDR}`, borderRadius:14, fontSize:14, fontWeight:600, color:TEXT, cursor:'pointer', fontFamily:F }}>Transfer again</button>
+      ) : (
+        <button onClick={() => void handleTransfer()} disabled={!amount || parseFloat(amount)<=0 || phase!=='idle' || gwBal<=0}
+          style={{ width:'100%', padding:'14px 0', borderRadius:14, fontSize:14, fontWeight:600, border:'none', fontFamily:F, cursor:(!amount||phase!=='idle'||gwBal<=0)?'not-allowed':'pointer', background:(!amount||phase!=='idle'||gwBal<=0)?SURF:BLUE, color:(!amount||phase!=='idle'||gwBal<=0)?T2:'#fff', transition:'all 0.15s' }}>
+          {phase==='signing'?'Sign in wallet…':phase==='submitting'?'Submitting to Gateway…':phase==='minting'?'Minting on destination…':`Transfer ${amount||'0.00'} USDC to ${destChain?.name ?? '…'}`}
+        </button>
+      )}
     </div>
   )
 }
