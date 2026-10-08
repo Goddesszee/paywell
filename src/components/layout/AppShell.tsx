@@ -263,7 +263,9 @@ const MOBILE_DRAWER_SECTIONS = SIDEBAR_SECTIONS.map(s => ({
     i.id !== 'home' &&
     i.id !== 'dashboard' &&
     i.id !== 'swap' &&
-    !(s.title === 'Payments' && i.label === 'Transactions')
+    !(s.title === 'Payments' && i.label === 'Transactions') &&
+    !(s.title === 'Payments' && i.id === 'send') &&
+    !(s.title === 'Payments' && i.id === 'receive')
   ),
 })).filter(s => s.items.length > 0)
 
