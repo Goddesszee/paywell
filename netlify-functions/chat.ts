@@ -8,7 +8,6 @@
  * LLM priority: OPENAI_API_KEY → GROQ_API_KEY → static keyword fallback
  */
 import type { Handler, HandlerEvent } from '@netlify/functions'
-import Groq from 'groq-sdk'
 
 function cors(body: string, statusCode: number) {
   return {
@@ -355,30 +354,6 @@ const handler: Handler = async (event: HandlerEvent) => {
       }
     } catch (e) {
       console.error('OpenAI error:', e)
-    }
-  }
-
-  // ── Groq (secondary) ──────────────────────────────────────────────────────
-  if (process.env.GROQ_API_KEY) {
-    try {
-      const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
-      const completion = await groq.chat.completions.create({
-        model: 'llama-3.3-70b-versatile',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          ...history.slice(-8).map(m => ({ role: m.role as 'user' | 'assistant', content: m.content })),
-          { role: 'user', content: message },
-        ],
-        max_tokens: 700,
-        temperature: 0.4,
-      })
-      const raw = completion.choices[0]?.message?.content ?? ''
-      if (raw) {
-        const { text, action } = extractAction(raw)
-        return cors(JSON.stringify({ reply: text, action }), 200)
-      }
-    } catch (e) {
-      console.error('Groq error:', e)
     }
   }
 

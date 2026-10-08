@@ -4,7 +4,7 @@
  * POST /api/chat
  * Body: { message, history?, messages?, context?, usdcBal?, userAddress? }
  *
- * LLM priority: OPENAI_API_KEY → GROQ_API_KEY → static fallback
+ * LLM: OpenAI GPT-4o (OPENAI_API_KEY) → static keyword fallback
  *
  * What's new in v2:
  *   - Full NAN platform awareness in system prompt
@@ -19,9 +19,6 @@
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-// groq-sdk is imported dynamically inside the handler to avoid cold-start
-// bundling failures on Vercel (the SDK is not in includeFiles, so a top-level
-// import causes a module-not-found crash before the handler runs).
 import type { MarketplaceServiceCard } from './agent-wallet'
 
 // ── action block parser ───────────────────────────────────────────────────────
