@@ -120,9 +120,13 @@ export function useCircleTransaction() {
       const { challengeId } = data
 
       // 2. Execute challenge in Circle SDK popup (user approves with PIN / email).
-      // Pass encryptionKey only when available; the SDK will handle re-auth if missing.
+      // Per Circle docs: MUST call sdk.getDeviceId() before sdk.execute() to establish
+      // the device session — without it execute() silently fails.
       setStatus('approving')
       const sdk = new W3SSdk({ appSettings: { appId } })
+      try { await sdk.getDeviceId() } catch { /* non-fatal — SDK may already have a session */ }
+      // encryptionKey is required by the SDK type but may be absent after a reload.
+      // Passing an empty string causes the SDK to prompt re-authentication via its own flow.
       sdk.setAuthentication({ userToken, encryptionKey: encryptionKey ?? '' })
 
       const executeResult = await new Promise<string | undefined>(resolve => {

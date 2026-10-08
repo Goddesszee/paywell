@@ -273,7 +273,6 @@ export interface AppState {
   setWallet: (walletAddress: string, walletId: string) => void
   /** Full logout: clears auth and all per-user data. */
   logout: () => void
-
   onboarding: OnboardingState
   setOnboarding: (update: Partial<OnboardingState>) => void
 
@@ -392,7 +391,6 @@ export const useAppStore = create<AppState>()(
       logout: () => set({ auth: null, ...USER_DEFAULTS }),
       setWallet: (walletAddress, walletId) =>
         set((s) => ({ auth: s.auth ? { ...s.auth, walletAddress, walletId } : null })),
-
       onboarding: { completed: false, step: 0, useCases: [], agentConfigured: false },
       setOnboarding: (update) => set((s) => ({ onboarding: { ...s.onboarding, ...update } })),
 
