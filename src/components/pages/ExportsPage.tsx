@@ -676,7 +676,7 @@ export function ExportsPage() {
       {/* Header */}
       <div style={{ marginBottom: 20 }}>
         <h1 style={{ fontSize: 22, fontWeight: 800, color: C.text, letterSpacing: '-0.025em', margin: '0 0 4px' }}>
-          Accounting & Exports
+          Generate Statement
         </h1>
         <p style={{ fontSize: 13, color: C.t3, margin: 0 }}>
           Download your full transaction history across all NAN features as CSV or JSON.

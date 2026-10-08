@@ -1106,8 +1106,9 @@ function AgentChat({ onNavigate }: { onNavigate?: (page: string, query?: string)
     setOrchSteps([])
 
     // LLM first — handles all general questions including flights, rates, research
+    // Allow for both Circle email users (auth) and wagmi/passkey users (address)
     try {
-      if (backendConfigured() && auth) {
+      if (backendConfigured() && (auth || address)) {
         const msgs: Array<{role:'user'|'assistant';content:string}> = [
           ...agentMessages.filter(m=>m.role==='user'||m.role==='agent').slice(-10).map<{role:'user'|'assistant';content:string}>(m=>({role:(m.role==='agent'?'assistant':'user'),content:m.content})),
           {role:'user',content:text},
@@ -1166,11 +1167,11 @@ function AgentChat({ onNavigate }: { onNavigate?: (page: string, query?: string)
         const res = await nanChat({
           messages: msgs,
           usdcBal: storeSnap.mainWalletBalance,
-          userAddress: address ?? auth.walletAddress ?? '',
-          sessionToken: auth.sessionToken,
+          userAddress: address ?? auth?.walletAddress ?? '',
+          sessionToken: auth?.sessionToken,
           context: {
             mainBalance: storeSnap.mainWalletBalance,
-            mainAddress: address ?? auth.walletAddress ?? '',
+            mainAddress: address ?? auth?.walletAddress ?? '',
             agentBalance: agentWallet.balance_usdc ?? '0',
             agentAddress: agentWallet.address,
             agentWalletProvisioned: agentWallet.provisioned,
