@@ -380,6 +380,9 @@ function SendFlow({
   const circleStatus  = circleTx.status
   const circleTxHash  = circleTx.txHash
   const circleError   = circleTx.error
+  // Keep a ref so the .then()/.catch() closures always read the latest error
+  const circleErrorRef = React.useRef<string | undefined>(undefined)
+  React.useEffect(() => { circleErrorRef.current = circleError }, [circleError])
 
   React.useEffect(() => {
     if (isSuccess && txHash) {
@@ -413,6 +416,13 @@ function SendFlow({
   }, [writeError])
 
   const isCirclePending = (isCircleUser || isPasskeyUser) && (circleStatus === 'creating' || circleStatus === 'approving' || circleStatus === 'polling')
+  // If Circle hook hits error/failed while we think we're submitting, surface it
+  React.useEffect(() => {
+    if (step === 'submitting' && (isCircleUser || isPasskeyUser) && (circleStatus === 'error' || circleStatus === 'failed')) {
+      setStep('error')
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [circleStatus])
   const displayStep: SendStep = (isPending || isConfirming || isCirclePending) ? 'submitting' : step
 
   const validateRecipient = () => {
@@ -486,9 +496,15 @@ function SendFlow({
           })
           toast.success(`Sent ${amountRef.current} ${selectedToken.symbol} successfully`)
         } else {
+          // Read latest error from ref (the hook state may not be in closure)
+          const err = circleErrorRef.current ?? 'Transaction failed'
           setStep('error')
-          toast.error(circleError ?? 'Transaction failed')
+          toast.error(err)
         }
+      }).catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : 'Transaction failed'
+        setStep('error')
+        toast.error(msg)
       })
       return
     }
@@ -819,8 +835,12 @@ function SendFlow({
             {displayStep === 'error' && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(255,59,59,0.08)', border: '1px solid rgba(255,59,59,0.2)', borderRadius: 12, padding: '12px 16px' }}>
                 <AlertCircle size={15} color="#FF3B3B" />
-                <span style={{ fontSize: 13, color: '#FF3B3B' }}>{parseOnchainError(writeError)}</span>
-                <button onClick={() => { reset(); setStep('review') }} style={{ fontSize: 12, fontWeight: 700, color: '#FF3B3B', background: 'none', border: 'none', cursor: 'pointer', marginLeft: 'auto' }}>Retry</button>
+                <span style={{ fontSize: 13, color: '#FF3B3B', flex: 1 }}>
+                  {(isCircleUser || isPasskeyUser)
+                    ? (circleError ?? 'Something went wrong. Please try again.')
+                    : parseOnchainError(writeError)}
+                </span>
+                <button onClick={() => { reset(); circleTx.reset(); setStep('review') }} style={{ fontSize: 12, fontWeight: 700, color: '#FF3B3B', background: 'none', border: 'none', cursor: 'pointer', flexShrink: 0 }}>Retry</button>
               </div>
             )}
           </div>
@@ -1028,10 +1048,19 @@ function SendFlow({
             <AlertCircle size={16} color="#FF3B3B" style={{ flexShrink: 0, marginTop: 1 }} />
             <div>
               <div style={{ fontSize: 14, fontWeight: 700, color: '#FF3B3B', marginBottom: 4 }}>Transaction failed</div>
-              <div style={{ fontSize: 12, color: '#FF3B3B' }}>{parseOnchainError(writeError)}</div>
+              <div style={{ fontSize: 12, color: '#FF3B3B' }}>
+                {(isCircleUser || isPasskeyUser)
+                  ? (circleError ?? 'Something went wrong. Please try again.')
+                  : parseOnchainError(writeError)}
+              </div>
+              {(isCircleUser || isPasskeyUser) && circleError?.toLowerCase().includes('session expired') && (
+                <div style={{ fontSize: 12, color: '#FF3B3B', marginTop: 6 }}>
+                  Your Circle session has expired. Please log out and log in again.
+                </div>
+              )}
             </div>
           </div>
-          <button onClick={() => { reset(); setStep('review') }} style={{
+          <button onClick={() => { reset(); circleTx.reset(); setStep('review') }} style={{
             width: '100%', height: 44, borderRadius: 10, marginTop: 12,
             background: 'var(--nan-surface)', border: '1px solid var(--nan-bdr)', color: 'var(--nan-text)',
             fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: SANS,
