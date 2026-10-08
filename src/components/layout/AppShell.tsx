@@ -253,12 +253,19 @@ const SIDEBAR_SECTIONS = [
   ]},
 ]
 
-// Mobile drawer — excludes Dashboard and Swap only (same as before)
+// Mobile drawer:
+//  - No "Home" (bottom nav covers it) or "Dashboard" (Home IS the mobile overview)
+//  - No "Transactions" from Payments (duplicate of Activity in Main)
+//  - No "Exports" (statement generator — not a primary mobile action)
+//  - No "Swap" (complex enough to be desktop-first)
 const MOBILE_DRAWER_SECTIONS = SIDEBAR_SECTIONS.map(s => ({
   ...s,
   items: s.items.filter(i =>
+    i.id !== 'home' &&
     i.id !== 'dashboard' &&
-    i.id !== 'swap'
+    i.id !== 'swap' &&
+    i.id !== 'exports' &&
+    !(s.title === 'Payments' && i.label === 'Transactions')
   ),
 })).filter(s => s.items.length > 0)
 
