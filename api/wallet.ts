@@ -204,8 +204,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         params.abiParameters = abiParameters ? JSON.parse(abiParameters) : []
       }
       if (amount) params.amount = amount
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const response = await (client.createContractExecutionTransaction as any)(params)
+      const response = await client.createUserTransactionContractExecutionChallenge(
+        params as Parameters<typeof client.createUserTransactionContractExecutionChallenge>[0]
+      )
       return res.json({ challengeId: response.data?.challengeId })
     } catch (e) {
       const code = (e as { response?: { data?: { code?: number } } })?.response?.data?.code
@@ -415,13 +416,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!userToken || !walletId || !message) return err(res, 400, 'userToken, walletId, message required')
     try {
       const client = ucwClient()
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const response = await (client as any).createUserSignMessage?.({
-        userToken,
-        walletId,
-        message,
-      }) as { data?: { challengeId?: string } } | undefined
-      const challengeId = response?.data?.challengeId
+      const response = await client.signMessage({ userToken, walletId, message })
+      const challengeId = response.data?.challengeId
       if (!challengeId) return err(res, 500, 'Circle did not return a challengeId for sign-message')
       return res.json({ challengeId })
     } catch (e) {

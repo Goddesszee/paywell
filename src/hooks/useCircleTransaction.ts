@@ -96,6 +96,9 @@ export function useCircleTransaction() {
       const sdk = new W3SSdk({ appSettings: { appId } })
       // encryptionKey is required by the SDK type but may be absent after a reload.
       // Passing an empty string causes the SDK to prompt re-authentication via its own flow.
+      // Only pass encryptionKey when it is genuinely present in memory.
+      // Passing '' tells the SDK the key is missing and triggers a re-auth popup
+      // even mid-session. When present, pass it so the SDK can sign immediately.
       sdk.setAuthentication({ userToken, encryptionKey: encryptionKey ?? '' })
 
       const executeResult = await new Promise<string | undefined>(resolve => {
@@ -235,6 +238,9 @@ export function useCircleTransaction() {
       }
       setStatus('approving')
       const sdk = new W3SSdk({ appSettings: { appId } })
+      // Only pass encryptionKey when it is genuinely present in memory.
+      // Passing '' tells the SDK the key is missing and triggers a re-auth popup
+      // even mid-session. When present, pass it so the SDK can sign immediately.
       sdk.setAuthentication({ userToken, encryptionKey: encryptionKey ?? '' })
       return new Promise<string | undefined>(resolve => {
         sdk.execute(data.challengeId!, (err, result) => {

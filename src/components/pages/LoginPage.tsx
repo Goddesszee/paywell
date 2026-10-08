@@ -37,11 +37,26 @@ export function LoginPage() {
   }, [isConnected, address, profile.displayName, setAuth, setActiveView])
 
   // ── Circle email auth success ─────────────────────────────────────────────
-  // encryptionKey is passed by CircleEmailLogin's onSuccess(addr, userToken, email, encryptionKey)
+  // CircleEmailLogin.handleFinishAuth already called setAuth with the real
+  // circleWalletId (UUID) and circleWalletAddress. This callback must MERGE
+  // on top of that — not replace it — so circleWalletId is never wiped.
+  const { auth: currentAuth } = useAppStore.getState()
   const onCircleSuccess = (walletAddress: string, userToken: string, email: string, encryptionKey?: string) => {
-    setAuth({ email, sessionToken: userToken, userToken, encryptionKey, walletAddress, walletId: walletAddress, circleWalletAddress: walletAddress })
+    const existing = useAppStore.getState().auth
+    setAuth({
+      email,
+      sessionToken: userToken,
+      userToken,
+      encryptionKey,
+      walletAddress,
+      walletId: existing?.walletId ?? walletAddress,
+      circleWalletAddress: walletAddress,
+      // Preserve the real Circle wallet UUID set by handleFinishAuth — do NOT overwrite with address
+      circleWalletId: existing?.circleWalletId ?? walletAddress,
+    })
     setActiveView(profile.displayName ? 'home' : 'name')
   }
+  void currentAuth // suppress unused warning
 
   // ── Passkey / modular wallet success ──────────────────────────────────────
   const onPasskeySuccess = (walletAddress: string) => {
