@@ -382,262 +382,256 @@ export function ExportsPage() {
 
   // ── HTML Statement builder ───────────────────────────────────────────────────
   function buildStatementHtml(): string {
-    const periodStr  = periodLabel(period)
-    const sourceStr  = SOURCE_OPTIONS.find(o => o.value === source)?.label ?? source
-    const generatedAt = new Date().toLocaleString('en', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+    const periodStr   = periodLabel(period)
+    const sourceStr   = SOURCE_OPTIONS.find(o => o.value === source)?.label ?? source
+    const printedDate = new Date().toLocaleDateString('en', { year: 'numeric', month: '2-digit', day: '2-digit' })
 
-    // ── Account holder details ─────────────────────────────────────────────────
+    // ── Account holder ─────────────────────────────────────────────────────────
     const displayName  = profile?.displayName?.trim() || null
     const email        = auth?.email || null
     const walletAddr   = mainWalletAddress || auth?.walletAddress || auth?.circleWalletAddress || null
-    const shortAddr    = walletAddr ? `${walletAddr.slice(0,10)}…${walletAddr.slice(-8)}` : null
-    const accountLabel = displayName ?? shortAddr ?? 'NAN Account Holder'
+    const shortAddr    = walletAddr ? `${walletAddr.slice(0,8)}…${walletAddr.slice(-6)}` : null
+    const accountLabel = (displayName ?? shortAddr ?? 'NAN ACCOUNT HOLDER').toUpperCase()
+    const acctLine2    = displayName && email ? email.toUpperCase() : displayName ? (shortAddr ?? '') : ''
+    const acctLine3    = walletAddr ?? ''
 
-    // ── Balance summary ────────────────────────────────────────────────────────
-    const mainBal       = parseFloat(mainWalletBalance || '0')
-    const agentBal      = parseFloat(agentWallet.balance_usdc || '0')
-    // Opening balance = current main balance minus net flow during the period
-    const openingBal    = Math.max(0, mainBal - net)
-    const closingBal    = mainBal
+    // ── Balances ───────────────────────────────────────────────────────────────
+    const mainBal    = parseFloat(mainWalletBalance || '0')
+    const agentBal   = parseFloat(agentWallet.balance_usdc || '0')
+    const openingBal = Math.max(0, mainBal - net)
+    const closingBal = mainBal
+    const gatewayBal = parseFloat(crossChainBalances['Gateway'] ?? crossChainBalances['gateway'] ?? '0')
+    const otherChains = Object.entries(crossChainBalances)
+      .filter(([name]) => !name.toLowerCase().includes('arc') && !name.toLowerCase().includes('gateway'))
+      .filter(([, v]) => parseFloat(v) > 0)
+    const statementId = `NAN-${new Date().getTime().toString(36).toUpperCase()}`
 
-    // Cross-chain USDC balances (excluding Arc which is mainWalletBalance)
-    const otherChains   = Object.entries(crossChainBalances)
-      .filter(([name]) => !name.toLowerCase().includes('arc'))
-      .filter(([, v])  => parseFloat(v) > 0)
+    // ── Date range string ──────────────────────────────────────────────────────
+    const fmt = (d: Date) => d.toISOString().slice(0, 10)
+    const dateRange = `${fmt(from)} to ${fmt(to)}`
 
-    // Gateway balance — look for an 'arc' or 'gateway' key in crossChainBalances
-    // (the Gateway page stores it separately — we surface it if non-zero)
-    const gatewayBal    = parseFloat(crossChainBalances['Gateway'] ?? crossChainBalances['gateway'] ?? '0')
-    const statementId   = `NAN-${new Date().getTime().toString(36).toUpperCase()}`
-
-    const signColor = (sign: string) => sign === '+' ? '#00A844' : sign === '-' ? '#E53535' : '#4A5068'
-
+    // ── Transaction rows with running balance ──────────────────────────────────
     const short = (v: string) => v.startsWith('0x') && v.length > 18 ? `${v.slice(0,8)}…${v.slice(-6)}` : v
+    const fmtD  = (d: string) => new Date(d).toLocaleDateString('en', { year: 'numeric', month: '2-digit', day: '2-digit' })
 
-    // ── Desktop table rows ─────────────────────────────────────────────────────
-    const rowsHtml = filtered.map((r, i) => {
-      const bg = i % 2 === 0 ? '#fff' : '#F8F9FC'
+    // Sort oldest-first so running balance accumulates correctly
+    const chronological = [...filtered].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+    let runBal = openingBal
+    const txRows = chronological.map((r, i) => {
+      const deposit    = r.sign === '+' ? parseFloat(r.amount) : 0
+      const withdrawal = r.sign === '-' ? parseFloat(r.amount) : 0
+      runBal += deposit - withdrawal
+      const bg = i % 2 === 0 ? '#ffffff' : '#fafbfc'
       const typeLabel = r.type.replace(/_/g, ' ')
+      const narration = r.description || typeLabel
+      const ref = r.counterparty ? short(r.counterparty) : (r.txHash ? short(r.txHash) : '—')
       return `<tr style="background:${bg};">
-        <td style="padding:10px 14px;font-size:12px;color:#4A5068;white-space:nowrap;vertical-align:top;">${new Date(r.date).toLocaleDateString('en',{month:'short',day:'numeric',year:'numeric'})}</td>
-        <td style="padding:10px 14px;font-size:12px;color:#0A0C14;font-weight:500;word-break:break-word;vertical-align:top;">${r.description || typeLabel}</td>
-        <td style="padding:10px 14px;font-size:11px;color:#8A8FA8;white-space:nowrap;vertical-align:top;">${r.source}</td>
-        <td style="padding:10px 14px;font-size:11px;color:#4A5068;word-break:break-all;vertical-align:top;">${r.counterparty ? short(r.counterparty) : '—'}</td>
-        <td style="padding:10px 14px;font-size:12px;font-weight:700;color:${signColor(r.sign)};text-align:right;font-family:'JetBrains Mono',Menlo,monospace;white-space:nowrap;vertical-align:top;">${r.sign}${r.amount} USDC</td>
-        <td style="padding:10px 14px;font-size:11px;color:${r.status === 'confirmed' || r.status === 'complete' ? '#00A844' : '#8A8FA8'};text-align:center;white-space:nowrap;vertical-align:top;">${r.status}</td>
+        <td class="tc">${fmtD(r.date)}</td>
+        <td class="tc">${fmtD(r.date)}</td>
+        <td class="tl tnarr">${narration}</td>
+        <td class="tl tref">${ref}</td>
+        <td class="tr tmono">${deposit > 0 ? deposit.toFixed(2) : ''}</td>
+        <td class="tr tmono">${withdrawal > 0 ? withdrawal.toFixed(2) : ''}</td>
+        <td class="tr tmono tbold">${runBal.toFixed(2)}</td>
       </tr>`
     }).join('')
 
-    // ── Mobile card rows ───────────────────────────────────────────────────────
-    const cardRowsHtml = filtered.map((r, i) => {
-      const amtClr = r.sign === '+' ? '#00A844' : r.sign === '-' ? '#E53535' : '#4A5068'
-      const stClr  = r.status === 'confirmed' || r.status === 'complete' ? '#00A844' : '#8A8FA8'
-      const bg     = i % 2 === 0 ? '#fff' : '#F8F9FC'
-      return `<div style="background:${bg};padding:14px 20px;border-bottom:1px solid #E8EAF0;">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:5px;">
-          <div style="font-size:13px;font-weight:600;color:#0A0C14;flex:1;word-break:break-word;">${r.description || r.type.replace(/_/g,' ')}</div>
-          <div style="font-size:14px;font-weight:700;color:${amtClr};font-family:'JetBrains Mono',Menlo,monospace;white-space:nowrap;flex-shrink:0;">${r.sign}${r.amount} USDC</div>
-        </div>
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
-          <div style="font-size:11px;color:#8A8FA8;">${new Date(r.date).toLocaleDateString('en',{month:'short',day:'numeric',year:'numeric'})} · ${r.source}</div>
-          <span style="font-size:10px;font-weight:700;color:${stClr};text-transform:uppercase;letter-spacing:0.05em;">${r.status}</span>
-        </div>
-        ${r.counterparty ? `<div style="font-size:10px;color:#8A8FA8;font-family:'JetBrains Mono',Menlo,monospace;margin-top:3px;">${short(r.counterparty)}</div>` : ''}
-      </div>`
-    }).join('')
-
-    // ── Cross-chain balance rows ───────────────────────────────────────────────
-    const chainRowsHtml = otherChains.map(([name, bal]) => `
-      <tr>
-        <td style="padding:9px 16px;font-size:12px;color:#4A5068;">${name}</td>
-        <td style="padding:9px 16px;font-size:12px;color:#0A0C14;font-weight:600;text-align:right;font-family:'JetBrains Mono',Menlo,monospace;">${parseFloat(bal).toFixed(2)} USDC</td>
+    // ── Balance account rows ────────────────────────────────────────────────────
+    const balRows = [
+      ['Main Wallet', mainBal.toFixed(2) + ' USDC', walletAddr ? shortAddr + ' · Arc Testnet' : 'Arc Testnet'],
+      ['Agent Wallet', agentBal.toFixed(2) + ' USDC', agentWallet.provisioned ? (agentWallet.address ? short(agentWallet.address) : 'LIVE') : 'Not provisioned'],
+      ['Gateway (Unified)', gatewayBal.toFixed(2) + ' USDC', 'Circle Gateway'],
+      ...otherChains.map(([name, bal]) => [name, parseFloat(bal).toFixed(2) + ' USDC', 'Cross-chain USDC']),
+    ].map(([label, bal, sub], i) => `
+      <tr style="background:${i % 2 === 0 ? '#ffffff' : '#fafbfc'};">
+        <td class="tl" style="padding:9px 12px;font-size:11.5px;color:#333;">${label}</td>
+        <td class="tl" style="padding:9px 12px;font-size:11px;color:#666;">${sub}</td>
+        <td class="tr tmono tbold" style="padding:9px 12px;font-size:12px;">${bal}</td>
       </tr>`).join('')
 
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>NAN Statement · ${periodStr}</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"/>
+  <title>NAN Statement · ${dateRange}</title>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
     *{box-sizing:border-box;margin:0;padding:0}
-    body{background:#F4F6FA;font-family:'Inter',-apple-system,sans-serif;padding:24px 12px;color:#0A0C14}
-    .bal-grid{display:grid;grid-template-columns:1fr 1fr;gap:0}
-    .bal-cell{padding:18px 20px;border-bottom:1px solid #E8EAF0}
-    .bal-cell:nth-child(odd){border-right:1px solid #E8EAF0}
-    .tbl-wrap{display:block}.cards-wrap{display:none}
-    @media(max-width:600px){
-      body{padding:8px 4px}
-      .bal-grid{grid-template-columns:1fr}
-      .bal-cell:nth-child(odd){border-right:none}
-      .tbl-wrap{display:none}.cards-wrap{display:block}
-      .hdr-flex{flex-direction:column!important;gap:8px!important}
-      .hdr-right{text-align:left!important}
+    html{-webkit-text-size-adjust:100%}
+    body{
+      background:#fff;
+      font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;
+      color:#111;
+      font-size:13px;
+      padding:28px 20px 40px;
+      max-width:900px;
+      margin:0 auto;
     }
+    /* ── Top header ── */
+    .page-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:24px;gap:12px;flex-wrap:wrap;}
+    .logo-block{display:flex;align-items:center;gap:10px;}
+    .logo-icon{width:44px;height:44px;border-radius:10px;background:#0066FF;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+    .logo-text{font-size:22px;font-weight:700;color:#0066FF;letter-spacing:-0.02em;}
+    .page-title{font-size:11px;color:#888;font-weight:500;letter-spacing:0.06em;text-transform:uppercase;margin-top:2px;}
+    .stmt-range{font-size:11px;color:#555;font-weight:600;text-align:right;padding-top:6px;}
+    /* ── Account + printed block ── */
+    .acct-block{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;margin-bottom:20px;}
+    .acct-name{font-size:13px;font-weight:700;color:#111;line-height:1.5;}
+    .acct-sub{font-size:11px;color:#555;line-height:1.6;}
+    .printed-line{font-size:11.5px;font-weight:600;color:#111;text-align:right;}
+    /* ── Divider ── */
+    hr{border:none;border-top:1px solid #ddd;margin:0 0 16px;}
+    /* ── Section title ── */
+    .sec-title{font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.09em;margin:20px 0 8px;}
+    /* ── Table shared ── */
+    table{width:100%;border-collapse:collapse;border:1px solid #ddd;font-size:11.5px;}
+    thead tr{background:#f0f2f5;}
+    th{padding:8px 10px;font-size:10px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:0.06em;border:1px solid #ddd;}
+    td{padding:8px 10px;border:1px solid #e4e4e4;vertical-align:top;color:#222;}
+    .tc{text-align:center;white-space:nowrap;}
+    .tl{text-align:left;}
+    .tr{text-align:right;white-space:nowrap;}
+    .tmono{font-family:'Courier New',Courier,monospace;font-size:11.5px;}
+    .tbold{font-weight:700;}
+    .tnarr{max-width:180px;word-break:break-word;}
+    .tref{max-width:130px;word-break:break-all;font-size:10.5px;color:#555;}
+    /* ── Special rows ── */
+    .row-open td,.row-close td{background:#f5f7ff!important;font-weight:700;}
+    /* ── Balance table ── */
+    .bal-table td:last-child{text-align:right;}
+    /* ── Footer ── */
+    .footer{margin-top:32px;display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:10px;border-top:1px solid #ddd;padding-top:14px;}
+    .footer-brand{display:flex;align-items:center;gap:8px;}
+    .footer-icon{width:26px;height:26px;border-radius:6px;background:#0066FF;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+    .footer-name{font-size:12px;font-weight:700;color:#111;}
+    .footer-sub{font-size:10px;color:#888;}
+    .footer-right{text-align:right;font-size:10px;color:#888;line-height:1.7;}
+    /* ── Print ── */
     @media print{
-      body{background:#fff;padding:0}@page{margin:12mm}
-      .tbl-wrap{display:block!important}.cards-wrap{display:none!important}
-      .bal-grid{grid-template-columns:1fr 1fr!important}
-      .bal-cell:nth-child(odd){border-right:1px solid #E8EAF0!important}
+      body{padding:0;font-size:11px;}
+      .no-print{display:none!important;}
+      @page{margin:12mm;size:A4}
     }
   </style>
 </head>
 <body>
-<div style="background:#fff;border-radius:16px;box-shadow:0 4px 32px rgba(0,0,0,0.08);max-width:860px;margin:0 auto;overflow:hidden;border:1px solid #E8EAF0;">
 
-  <!-- ① Blue header -->
-  <div style="background:#0066FF;padding:28px 24px 22px;">
-    <div class="hdr-flex" style="display:flex;align-items:flex-start;justify-content:space-between;gap:14px;">
-      <div>
-        <div style="display:inline-flex;align-items:center;gap:9px;margin-bottom:12px;">
-          <div style="width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,0.18);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 324 480" width="16" height="24">
-              <path d="M255,0 L84,167 L71,163 L0,97 L0,378 L246,132 L255,110 Z" fill="#fff"/>
-              <path d="M69,480 L240,313 L253,317 L324,383 L324,102 L78,348 L69,370 Z" fill="#fff"/>
-            </svg>
-          </div>
-          <span style="font-weight:800;font-size:19px;color:#fff;letter-spacing:-0.01em;">NAN</span>
-        </div>
-        <div style="font-size:11px;color:rgba(255,255,255,0.6);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:3px;">Account Statement</div>
-        <div style="font-size:22px;font-weight:800;color:#fff;letter-spacing:-0.025em;">${accountLabel}</div>
-        ${email ? `<div style="font-size:12px;color:rgba(255,255,255,0.65);margin-top:3px;">${email}</div>` : ''}
-        ${walletAddr ? `<div style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:2px;font-family:'JetBrains Mono',Menlo,monospace;">${shortAddr}</div>` : ''}
-      </div>
-      <div class="hdr-right" style="text-align:right;flex-shrink:0;">
-        <div style="font-size:10px;color:rgba(255,255,255,0.55);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:3px;">Statement Period</div>
-        <div style="font-size:13px;color:#fff;font-weight:700;">${periodStr}</div>
-        <div style="font-size:11px;color:rgba(255,255,255,0.6);margin-top:2px;">${sourceStr}</div>
-        <div style="font-size:10px;color:rgba(255,255,255,0.45);margin-top:8px;">Generated ${generatedAt}</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ② Account summary band -->
-  <div style="background:#F8F9FC;border-bottom:2px solid #E8EAF0;padding:0;">
-    <div style="display:flex;align-items:stretch;flex-wrap:wrap;">
-      <div style="flex:1;min-width:140px;padding:18px 20px;border-right:1px solid #E8EAF0;">
-        <div style="font-size:10px;font-weight:700;color:#8A8FA8;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">Opening Balance</div>
-        <div style="font-size:22px;font-weight:800;color:#0A0C14;font-family:'JetBrains Mono',Menlo,monospace;letter-spacing:-0.03em;">${openingBal.toFixed(2)}</div>
-        <div style="font-size:10px;color:#8A8FA8;margin-top:2px;">USDC · start of period</div>
-      </div>
-      <div style="flex:1;min-width:120px;padding:18px 20px;border-right:1px solid #E8EAF0;">
-        <div style="font-size:10px;font-weight:700;color:#8A8FA8;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">Money In</div>
-        <div style="font-size:22px;font-weight:800;color:#00A844;font-family:'JetBrains Mono',Menlo,monospace;letter-spacing:-0.03em;">+${totalIn.toFixed(2)}</div>
-        <div style="font-size:10px;color:#8A8FA8;margin-top:2px;">USDC received</div>
-      </div>
-      <div style="flex:1;min-width:120px;padding:18px 20px;border-right:1px solid #E8EAF0;">
-        <div style="font-size:10px;font-weight:700;color:#8A8FA8;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">Money Out</div>
-        <div style="font-size:22px;font-weight:800;color:#E53535;font-family:'JetBrains Mono',Menlo,monospace;letter-spacing:-0.03em;">-${totalOut.toFixed(2)}</div>
-        <div style="font-size:10px;color:#8A8FA8;margin-top:2px;">USDC sent</div>
-      </div>
-      <div style="flex:1;min-width:140px;padding:18px 20px;">
-        <div style="font-size:10px;font-weight:700;color:#8A8FA8;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">Closing Balance</div>
-        <div style="font-size:22px;font-weight:800;color:#0066FF;font-family:'JetBrains Mono',Menlo,monospace;letter-spacing:-0.03em;">${closingBal.toFixed(2)}</div>
-        <div style="font-size:10px;color:#8A8FA8;margin-top:2px;">USDC · main wallet now</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ③ Current Balances section -->
-  <div style="padding:20px 24px 0;border-bottom:1px solid #E8EAF0;">
-    <div style="font-size:11px;font-weight:700;color:#8A8FA8;text-transform:uppercase;letter-spacing:0.09em;margin-bottom:14px;">Current Balances</div>
-    <div class="bal-grid">
-      <!-- Main Wallet -->
-      <div class="bal-cell">
-        <div style="display:flex;align-items:center;gap:7px;margin-bottom:5px;">
-          <div style="width:7px;height:7px;border-radius:50%;background:#0066FF;flex-shrink:0;"></div>
-          <span style="font-size:11px;font-weight:700;color:#4A5068;text-transform:uppercase;letter-spacing:0.07em;">Main Wallet</span>
-        </div>
-        <div style="font-size:24px;font-weight:800;color:#0A0C14;font-family:'JetBrains Mono',Menlo,monospace;letter-spacing:-0.03em;">${mainBal.toFixed(2)} <span style="font-size:14px;font-weight:600;color:#8A8FA8;">USDC</span></div>
-        ${walletAddr ? `<div style="font-size:10px;color:#8A8FA8;margin-top:4px;font-family:'JetBrains Mono',Menlo,monospace;">${shortAddr} · Arc Testnet</div>` : ''}
-      </div>
-      <!-- Agent Wallet -->
-      <div class="bal-cell">
-        <div style="display:flex;align-items:center;gap:7px;margin-bottom:5px;">
-          <div style="width:7px;height:7px;border-radius:50%;background:#7C3AED;flex-shrink:0;"></div>
-          <span style="font-size:11px;font-weight:700;color:#4A5068;text-transform:uppercase;letter-spacing:0.07em;">Agent Wallet</span>
-          ${agentWallet.provisioned ? '<span style="font-size:9px;background:#7C3AED18;color:#7C3AED;border:1px solid #7C3AED33;border-radius:4px;padding:1px 6px;font-weight:700;margin-left:4px;">LIVE</span>' : '<span style="font-size:9px;background:#8A8FA818;color:#8A8FA8;border:1px solid #8A8FA833;border-radius:4px;padding:1px 6px;font-weight:700;margin-left:4px;">NOT SET UP</span>'}
-        </div>
-        <div style="font-size:24px;font-weight:800;color:${agentBal > 0 ? '#0A0C14' : '#8A8FA8'};font-family:'JetBrains Mono',Menlo,monospace;letter-spacing:-0.03em;">${agentBal.toFixed(2)} <span style="font-size:14px;font-weight:600;color:#8A8FA8;">USDC</span></div>
-        ${agentWallet.address ? `<div style="font-size:10px;color:#8A8FA8;margin-top:4px;font-family:'JetBrains Mono',Menlo,monospace;">${agentWallet.address.slice(0,10)}…${agentWallet.address.slice(-8)}</div>` : ''}
-      </div>
-      <!-- Gateway Balance -->
-      <div class="bal-cell">
-        <div style="display:flex;align-items:center;gap:7px;margin-bottom:5px;">
-          <div style="width:7px;height:7px;border-radius:50%;background:#00C853;flex-shrink:0;"></div>
-          <span style="font-size:11px;font-weight:700;color:#4A5068;text-transform:uppercase;letter-spacing:0.07em;">Gateway Balance</span>
-        </div>
-        <div style="font-size:24px;font-weight:800;color:${gatewayBal > 0 ? '#0A0C14' : '#8A8FA8'};font-family:'JetBrains Mono',Menlo,monospace;letter-spacing:-0.03em;">${gatewayBal.toFixed(2)} <span style="font-size:14px;font-weight:600;color:#8A8FA8;">USDC</span></div>
-        <div style="font-size:10px;color:#8A8FA8;margin-top:4px;">Circle Gateway · Unified</div>
-      </div>
-      <!-- Other chains -->
-      <div class="bal-cell">
-        <div style="display:flex;align-items:center;gap:7px;margin-bottom:8px;">
-          <div style="width:7px;height:7px;border-radius:50%;background:#F0A500;flex-shrink:0;"></div>
-          <span style="font-size:11px;font-weight:700;color:#4A5068;text-transform:uppercase;letter-spacing:0.07em;">Other Chains</span>
-        </div>
-        ${otherChains.length > 0 ? `<table style="width:100%;border-collapse:collapse;">${chainRowsHtml}</table>` : '<div style="font-size:12px;color:#8A8FA8;">No balances on other chains</div>'}
-      </div>
-    </div>
-  </div>
-
-  <!-- ④ Section label: Transactions -->
-  <div style="padding:16px 24px 0;">
-    <div style="font-size:11px;font-weight:700;color:#8A8FA8;text-transform:uppercase;letter-spacing:0.09em;margin-bottom:12px;">
-      Transaction History &nbsp;·&nbsp; ${filtered.length} record${filtered.length !== 1 ? 's' : ''} &nbsp;·&nbsp; ${periodStr}
-    </div>
-  </div>
-
-  <!-- ⑤ Desktop table -->
-  <div class="tbl-wrap">
-    <table style="width:100%;border-collapse:collapse;table-layout:fixed;">
-      <colgroup>
-        <col style="width:13%"/><col style="width:28%"/><col style="width:15%"/>
-        <col style="width:21%"/><col style="width:14%"/><col style="width:9%"/>
-      </colgroup>
-      <thead>
-        <tr style="background:#F8F9FC;border-bottom:2px solid #E8EAF0;border-top:1px solid #E8EAF0;">
-          <th style="padding:10px 14px;font-size:10px;font-weight:700;color:#8A8FA8;text-align:left;text-transform:uppercase;letter-spacing:0.07em;">Date</th>
-          <th style="padding:10px 14px;font-size:10px;font-weight:700;color:#8A8FA8;text-align:left;text-transform:uppercase;letter-spacing:0.07em;">Description</th>
-          <th style="padding:10px 14px;font-size:10px;font-weight:700;color:#8A8FA8;text-align:left;text-transform:uppercase;letter-spacing:0.07em;">Source</th>
-          <th style="padding:10px 14px;font-size:10px;font-weight:700;color:#8A8FA8;text-align:left;text-transform:uppercase;letter-spacing:0.07em;">Counterparty</th>
-          <th style="padding:10px 14px;font-size:10px;font-weight:700;color:#8A8FA8;text-align:right;text-transform:uppercase;letter-spacing:0.07em;">Amount</th>
-          <th style="padding:10px 14px;font-size:10px;font-weight:700;color:#8A8FA8;text-align:center;text-transform:uppercase;letter-spacing:0.07em;">Status</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${rowsHtml || '<tr><td colspan="6" style="padding:32px;text-align:center;color:#8A8FA8;font-size:13px;">No transactions in this period</td></tr>'}
-      </tbody>
-    </table>
-  </div>
-
-  <!-- ⑥ Mobile cards -->
-  <div class="cards-wrap" style="border-top:1px solid #E8EAF0;">
-    ${cardRowsHtml || '<div style="padding:32px;text-align:center;color:#8A8FA8;font-size:13px;">No transactions in this period</div>'}
-  </div>
-
-  <!-- ⑦ Footer -->
-  <div style="background:#F8F9FC;border-top:2px solid #E8EAF0;padding:16px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
-    <div style="display:flex;align-items:center;gap:8px;">
-      <div style="width:22px;height:22px;border-radius:50%;background:#0066FF;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 324 480" width="9" height="13">
+  <!-- TOP HEADER: logo left, statement range right -->
+  <div class="page-header">
+    <div class="logo-block">
+      <div class="logo-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 324 480" width="20" height="28">
           <path d="M255,0 L84,167 L71,163 L0,97 L0,378 L246,132 L255,110 Z" fill="#fff"/>
           <path d="M69,480 L240,313 L253,317 L324,383 L324,102 L78,348 L69,370 Z" fill="#fff"/>
         </svg>
       </div>
       <div>
-        <div style="font-size:12px;font-weight:700;color:#0A0C14;">NAN · The Intelligent Payment Layer</div>
-        <div style="font-size:10px;color:#8A8FA8;">nanarc.xyz · Powered by Circle &amp; Arc Testnet</div>
+        <div class="logo-text">NAN</div>
+        <div class="page-title">The Intelligent Payment Layer</div>
       </div>
     </div>
-    <div style="text-align:right;">
-      <div style="font-size:10px;color:#8A8FA8;">This statement is for informational purposes only.</div>
-      <div style="font-size:10px;color:#8A8FA8;">Statement ID: ${statementId}</div>
+    <div class="stmt-range">
+      ACCOUNT STATEMENT<br>
+      ${dateRange}<br>
+      <span style="color:#aaa;font-weight:400;">${sourceStr}</span>
     </div>
   </div>
 
-</div>
+  <hr>
+
+  <!-- ACCOUNT HOLDER + PRINTED DATE -->
+  <div class="acct-block">
+    <div>
+      <div class="acct-name">${accountLabel}</div>
+      ${acctLine2 ? `<div class="acct-sub">${acctLine2}</div>` : ''}
+      ${acctLine3 ? `<div class="acct-sub" style="font-family:'Courier New',monospace;font-size:10.5px;">${acctLine3}</div>` : ''}
+    </div>
+    <div class="printed-line">
+      Printed: ${printedDate}<br>
+      <span style="font-size:10px;color:#888;font-weight:400;">Statement ID: ${statementId}</span>
+    </div>
+  </div>
+
+  <!-- OPENING BALANCE ROW (single-row table matching Abbey style) -->
+  <table style="margin-bottom:20px;">
+    <thead>
+      <tr>
+        <th class="tl" style="width:20%;">Label</th>
+        <th class="tc" style="width:18%;">Date</th>
+        <th></th><th></th><th class="tr" style="width:12%;">Deposit</th>
+        <th class="tr" style="width:12%;">Withdrawal</th>
+        <th class="tr" style="width:14%;">Balance (USDC)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr class="row-open">
+        <td class="tl">Opening Balance</td>
+        <td class="tc">${fmt(from)}</td>
+        <td></td><td></td><td></td><td></td>
+        <td class="tr tmono tbold">${openingBal.toFixed(2)}</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- TRANSACTION TABLE -->
+  <table>
+    <thead>
+      <tr>
+        <th class="tc" style="width:10%;">Trans. Date</th>
+        <th class="tc" style="width:10%;">Value Date</th>
+        <th class="tl" style="width:26%;">Narration</th>
+        <th class="tl" style="width:20%;">Reference</th>
+        <th class="tr" style="width:10%;">Deposit</th>
+        <th class="tr" style="width:10%;">Withdrawal</th>
+        <th class="tr" style="width:14%;">Balance (USDC)</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${txRows || `<tr><td colspan="7" style="padding:24px;text-align:center;color:#888;">No transactions in this period</td></tr>`}
+      <!-- Closing balance row -->
+      <tr class="row-close">
+        <td class="tl" colspan="6">Closing Balance</td>
+        <td class="tr tmono tbold">${closingBal.toFixed(2)}</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- ACCOUNT BALANCES SUMMARY -->
+  <div class="sec-title">Account Balances</div>
+  <table class="bal-table">
+    <thead>
+      <tr>
+        <th class="tl">Account</th>
+        <th class="tl">Details</th>
+        <th class="tr">Balance</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${balRows}
+    </tbody>
+  </table>
+
+  <!-- FOOTER -->
+  <div class="footer">
+    <div class="footer-brand">
+      <div class="footer-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 324 480" width="11" height="15">
+          <path d="M255,0 L84,167 L71,163 L0,97 L0,378 L246,132 L255,110 Z" fill="#fff"/>
+          <path d="M69,480 L240,313 L253,317 L324,383 L324,102 L78,348 L69,370 Z" fill="#fff"/>
+        </svg>
+      </div>
+      <div>
+        <div class="footer-name">NAN · Powered by Circle &amp; Arc</div>
+        <div class="footer-sub">nanarc.xyz</div>
+      </div>
+    </div>
+    <div class="footer-right">
+      This statement is for informational purposes only.<br>
+      All amounts in USDC. Generated ${printedDate}.
+    </div>
+  </div>
+
 </body>
 </html>`
   }
