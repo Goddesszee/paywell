@@ -648,6 +648,61 @@ function W3SDepositTab({ address, walletBalance, usdcFact, onSuccess }: {
   )
 }
 
+// ── Destination chain selector — custom dropdown, mobile-safe ─────────────────
+function DestChainSelector({ chains, value, onChange, disabled }: {
+  chains: typeof GATEWAY_CHAINS; value: number; onChange: (id: number) => void; disabled: boolean
+}) {
+  const [open, setOpen] = useState(false)
+  const selected = chains.find(c => c.chainId === value)
+
+  return (
+    <div>
+      <div style={{ fontSize:11, fontWeight:600, color:T2, marginBottom:6, textTransform:'uppercase', letterSpacing:'0.05em' }}>To</div>
+      <div style={{ position:'relative' }}>
+        <button
+          type="button"
+          onClick={() => { if (!disabled) setOpen(o => !o) }}
+          disabled={disabled}
+          style={{
+            width:'100%', padding:'12px 40px 12px 14px',
+            border:`1px solid ${open ? BLUE : BDR}`, borderRadius:10,
+            background:SURF2, color:TEXT, fontSize:14, fontWeight:600,
+            fontFamily:F, textAlign:'left', cursor: disabled ? 'not-allowed' : 'pointer',
+            outline:'none', display:'flex', alignItems:'center', justifyContent:'space-between',
+            boxSizing:'border-box',
+          }}
+        >
+          <span>{selected?.name ?? 'Select chain'}</span>
+          <ChevronDown size={14} color={T2} style={{ flexShrink:0, transform: open ? 'rotate(180deg)' : 'none', transition:'transform 0.15s' }} />
+        </button>
+        {open && (
+          <div style={{
+            position:'absolute', top:'calc(100% + 4px)', left:0, right:0, zIndex:50,
+            background:SURF2, border:`1px solid ${BDR}`, borderRadius:10,
+            overflow:'hidden', boxShadow:'0 8px 24px rgba(0,0,0,0.4)',
+          }}>
+            {chains.map(c => (
+              <button
+                key={c.chainId}
+                type="button"
+                onClick={() => { onChange(c.chainId); setOpen(false) }}
+                style={{
+                  width:'100%', padding:'12px 14px', border:'none', background: c.chainId === value ? `rgba(0,102,255,0.12)` : 'transparent',
+                  color: c.chainId === value ? BLUE : TEXT, fontSize:14, fontWeight: c.chainId === value ? 700 : 500,
+                  fontFamily:F, textAlign:'left', cursor:'pointer', display:'block',
+                  borderBottom: chains[chains.length-1]?.chainId === c.chainId ? 'none' : `1px solid ${BDR}`,
+                }}
+              >
+                {c.name}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ── Transfer tab (EVM-to-EVM via Gateway burn intent + gatewayMint) ────────────
 type TransferPhase = 'idle' | 'signing' | 'submitting' | 'minting' | 'done' | 'error'
 
@@ -795,18 +850,7 @@ function TransferTab({ address, gatewayBalance, onSuccess }: {
       </div>
 
       {/* Destination chain selector */}
-      <div>
-        <div style={{ fontSize:11, fontWeight:600, color:T2, marginBottom:6, textTransform:'uppercase', letterSpacing:'0.05em' }}>To</div>
-        <div style={{ position:'relative' }}>
-          <select value={destChainId} onChange={e => setDestChainId(Number(e.target.value))} disabled={phase !== 'idle'}
-            style={{ width:'100%', padding:'12px 36px 12px 14px', border:`1px solid ${BDR}`, borderRadius:10, background:SURF2, color:TEXT, fontSize:14, fontWeight:600, fontFamily:F, appearance:'none', outline:'none', cursor:'pointer' }}>
-            {DEST_CHAINS.map(c => (
-              <option key={c.chainId} value={c.chainId}>{c.name}</option>
-            ))}
-          </select>
-          <ChevronDown size={14} color={T2} style={{ position:'absolute', right:12, top:'50%', transform:'translateY(-50%)', pointerEvents:'none' }} />
-        </div>
-      </div>
+      <DestChainSelector chains={DEST_CHAINS} value={destChainId} onChange={setDestChainId} disabled={phase !== 'idle'} />
 
       {/* Amount */}
       <div>
