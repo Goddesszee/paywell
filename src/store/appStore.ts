@@ -436,7 +436,7 @@ export const useAppStore = create<AppState>()(
       agentMessages: [{
         id: 'msg-welcome',
         role: 'agent',
-        content: "Hi! I'm NAN — your financial assistant. I can check your balances, send USDC, bridge, swap, set up recurring payments, and manage your spending policy. What would you like to do?",
+        content: "Hi! I'm NAN — your AI financial assistant on Arc Testnet.\n\nI have full access to your platform state: balances, transactions, recurring payments, invoices, payment requests, agent wallet, and spending policy.\n\nI can send USDC, bridge across chains, swap tokens, set up recurring payments, create invoices and payment requests, manage your agent policy, and connect you to the Circle Agent Marketplace.\n\nWhat would you like to do?",
         timestamp: new Date(Date.now() - 1000 * 60 * 5),
       }],
       addAgentMessage: (msg) =>
@@ -451,7 +451,7 @@ export const useAppStore = create<AppState>()(
           agentMessages: [{
             id: 'msg-welcome-reset',
             role: 'agent',
-            content: "Sure, starting fresh. What would you like to do?",
+            content: "Sure, starting fresh. I still have full access to your balances, transactions, and platform state. What would you like to do?",
             timestamp: new Date(),
           }],
         }),

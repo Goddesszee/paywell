@@ -142,27 +142,66 @@ export async function sendChat(
 }
 
 
+/** Full context sent to the NAN AI Agent — extends as platform grows */
+export interface NanChatContext {
+  // Balances & wallet
+  mainBalance?: string
+  mainAddress?: string
+  agentBalance?: string
+  agentAddress?: string
+  agentWalletProvisioned?: boolean
+  agentWalletId?: string
+  agentWalletBlockchain?: string
+  agentWalletAccountType?: string
+  // Policy
+  dailyLimit?: number
+  perTxLimit?: number
+  perServiceLimit?: number
+  remainingToday?: number
+  agentEnabled?: boolean
+  requireApproval?: boolean
+  requireApprovalAbove?: number
+  autoApproveUnder?: number
+  agentDailyUsed?: number
+  // Cross-chain
+  crossChainBalances?: Record<string, string>
+  crossChainSummary?: string
+  totalCrossChainBalance?: string
+  // Activity (last 10 tx for context)
+  recentActivity?: Array<{
+    type: string; amount: number; sign: string; description: string
+    counterparty?: string; timestamp: string; status: string; txHash?: string
+  }>
+  // Recurring tasks
+  recurringTasks?: Array<{
+    name: string; recipient: string; amount: string; frequency: string
+    active: boolean; nextRunAt?: string; runCount: number
+  }>
+  // Open payment requests
+  openPaymentRequests?: Array<{
+    refNumber: string; title: string; amount: number; status: string; dueDate?: string
+  }>
+  // Recent invoices
+  recentInvoices?: Array<{
+    number: string; customerName: string; total: number; status: string; dueDate: string; amountDue: number
+  }>
+  // Profile
+  displayName?: string
+  // Agent execution history (last 5)
+  recentAgentActions?: Array<{
+    userRequest: string; serviceName?: string; status: string; cost: number; timestamp: string
+  }>
+  // Notifications
+  unreadNotifications?: number
+}
+
 /** Backward-compat alias used by AgentPage */
 export async function nanChat(opts: {
   messages: Array<{ role: 'user' | 'assistant'; content: string }>
   usdcBal?: string
   userAddress?: string
   sessionToken?: string
-  context?: {
-    mainBalance?: string
-    mainAddress?: string
-    agentBalance?: string
-    agentAddress?: string
-    dailyLimit?: number
-    perTxLimit?: number
-    remainingToday?: number
-    /** Per-chain USDC balances, e.g. { "Arc Testnet": "12.50", "Base Sepolia": "0.00" } */
-    crossChainBalances?: Record<string, string>
-    /** Human-readable summary: "Arc Testnet: 12.50 USDC, Base Sepolia: 3.00 USDC" */
-    crossChainSummary?: string
-    /** Sum of all cross-chain USDC balances */
-    totalCrossChainBalance?: string
-  }
+  context?: NanChatContext
 }): Promise<{ reply: string; service_used?: string | null; action?: Record<string, unknown> | null; marketplace_services?: MarketplaceServiceCard[] }> {
   const last = opts.messages[opts.messages.length - 1]?.content ?? ''
   return apiPost<{ reply: string; service_used?: string | null; action?: Record<string, unknown> | null; marketplace_services?: MarketplaceServiceCard[] }>('/api/chat', {

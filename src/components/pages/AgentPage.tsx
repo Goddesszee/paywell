@@ -1123,6 +1123,46 @@ function AgentChat({ onNavigate }: { onNavigate?: (page: string, query?: string)
           .reduce((sum, [, bal]) => sum + parseFloat(bal), 0)
           .toFixed(2)
 
+        // Build rich context — NAN Agent now sees the full platform state
+        const recentActivity = storeSnap.activity.slice(0, 10).map(a => ({
+          type: a.type,
+          amount: a.amount,
+          sign: a.sign,
+          description: a.description,
+          counterparty: a.counterparty,
+          timestamp: a.timestamp instanceof Date ? a.timestamp.toISOString() : String(a.timestamp),
+          status: a.status,
+          txHash: a.txHash,
+        }))
+        const recurringTasks = storeSnap.recurringTasks.map(t => ({
+          name: t.name,
+          recipient: t.recipient,
+          amount: t.amount,
+          frequency: t.frequency,
+          active: t.active,
+          nextRunAt: t.nextRunAt,
+          runCount: t.runCount,
+        }))
+        const openPaymentRequests = storeSnap.paymentRequests
+          .filter(p => p.status === 'pending' || p.status === 'viewed')
+          .slice(0, 10)
+          .map(p => ({ refNumber: p.refNumber, title: p.title, amount: p.amount, status: p.status, dueDate: p.dueDate }))
+        const recentInvoices = storeSnap.invoices.slice(0, 5).map(inv => ({
+          number: inv.number,
+          customerName: inv.customerName,
+          total: inv.total,
+          status: inv.status,
+          dueDate: inv.dueDate,
+          amountDue: inv.amountDue,
+        }))
+        const recentAgentActions = storeSnap.agentExecutionLog.slice(0, 5).map(e => ({
+          userRequest: e.userRequest,
+          serviceName: e.serviceName,
+          status: e.status,
+          cost: e.cost,
+          timestamp: e.timestamp instanceof Date ? e.timestamp.toISOString() : String(e.timestamp),
+        }))
+
         const res = await nanChat({
           messages: msgs,
           usdcBal: storeSnap.mainWalletBalance,
@@ -1133,13 +1173,29 @@ function AgentChat({ onNavigate }: { onNavigate?: (page: string, query?: string)
             mainAddress: address ?? auth.walletAddress ?? '',
             agentBalance: agentWallet.balance_usdc ?? '0',
             agentAddress: agentWallet.address,
+            agentWalletProvisioned: agentWallet.provisioned,
+            agentWalletId: agentWallet.walletId,
+            agentWalletBlockchain: agentWallet.blockchain,
+            agentWalletAccountType: agentWallet.accountType,
             dailyLimit: agentPermissions.dailyLimit,
             perTxLimit: agentPermissions.perTxLimit,
+            perServiceLimit: agentPermissions.perServiceLimit,
             remainingToday: Math.max(0, agentPermissions.dailyLimit - agentDailyUsed),
-            // Cross-chain balances so NAN knows about bridged USDC on other networks
+            agentEnabled: agentPermissions.enabled,
+            requireApproval: agentPermissions.requireApproval,
+            requireApprovalAbove: agentPermissions.requireApprovalAbove,
+            autoApproveUnder: agentPermissions.autoApproveUnder,
+            agentDailyUsed,
             crossChainBalances: storeSnap.crossChainBalances,
             crossChainSummary,
             totalCrossChainBalance: totalCrossChain,
+            recentActivity,
+            recurringTasks,
+            openPaymentRequests,
+            recentInvoices,
+            recentAgentActions,
+            displayName: storeSnap.profile.displayName || undefined,
+            unreadNotifications: storeSnap.unreadCount,
           },
         })
         setTyping(false)
@@ -1227,15 +1283,15 @@ function AgentChat({ onNavigate }: { onNavigate?: (page: string, query?: string)
   }
 
   const QUICK = [
+    "What's my balance?",
+    'Show my recent transactions',
+    'Show my recurring payments',
+    'Bridge 10 USDC to Base Sepolia',
     'Set my daily spending limit to 50 USDC',
-    'Schedule a weekly payment of 5 USDC to 0x742d35Cc6634C0532925a3b844Bc454e4438f44e',
-    'Find the cheapest flight from Lagos to London next Friday',
-    'Take me to the bridge page',
-    'Enable the NAN Agent',
+    'Create a payment request for 25 USDC',
     'What is the current Bitcoin price?',
     'Find me a web research service',
-    'Find a data enrichment service',
-    'What services can my agent use?',
+    'Enable the NAN Agent',
   ]
 
   return (

@@ -1,12 +1,23 @@
 /**
- * agent-actions.ts — Typed action definitions and executor for NAN Agent chat.
+ * agent-actions.ts — Typed action definitions and executor for NAN Agent chat (v2).
  *
  * The LLM emits a ```nan-action { ... }``` block. The frontend parses it,
- * shows a confirmation card, and on approval calls executeAction() which
- * dispatches to the correct store mutation or API call.
+ * shows a confirmation card where needed, and on approval calls executeAction()
+ * which dispatches to the correct store mutation or API call.
+ *
+ * v2 additions:
+ *   - ucw_send: Circle UCW (email/Google users) direct USDC send via backend
+ *   - ucw_bridge: Bridge via Circle UCW without tab navigation
+ *   - ucw_swap: Swap via Circle UCW without tab navigation
+ *   - ucw_gateway_deposit: Gateway deposit for UCW users
+ *   - ucw_gateway_transfer: Cross-chain transfer via Gateway for UCW users
+ *   - cancel_recurring: Cancel a recurring payment by name
+ *   - create_payment_request: Create a shareable payment request
+ *   - create_invoice: Create a new invoice
+ *   - check_balance: Refresh and report wallet balance (no-op, context already has it)
  *
  * SECURITY:
- * - All financial actions (send, recurring) require explicit user confirmation.
+ * - All financial actions require explicit user confirmation.
  * - No action can bypass the spending policy.
  * - No action touches wallet credentials or secrets.
  */
@@ -26,34 +37,40 @@ const USDC_TRANSFER_ABI = [{
 export type NanActionType =
   | 'add_recurring'
   | 'add_agent_recurring'
+  | 'cancel_recurring'
   | 'set_policy'
   | 'send_usdc'
   | 'agent_send'
+  | 'ucw_send'
+  | 'ucw_bridge'
+  | 'ucw_swap'
+  | 'ucw_gateway_deposit'
+  | 'ucw_gateway_transfer'
   | 'navigate'
   | 'toggle_agent'
   | 'shop_search'
   | 'bridge_start'
   | 'bridge_info'
   | 'swap_start'
+  | 'create_payment_request'
+  | 'create_invoice'
+  | 'check_balance'
+
+// ── Individual action interfaces ───────────────────────────────────────────────
 
 export interface AddRecurringAction {
   action: 'add_recurring'
-  params: {
-    name: string
-    recipient: string
-    amount: string
-    frequency: RecurringFrequency
-  }
+  params: { name: string; recipient: string; amount: string; frequency: RecurringFrequency }
 }
 
 export interface AddAgentRecurringAction {
   action: 'add_agent_recurring'
-  params: {
-    name: string
-    recipient: string
-    amount: string
-    frequency: RecurringFrequency
-  }
+  params: { name: string; recipient: string; amount: string; frequency: RecurringFrequency }
+}
+
+export interface CancelRecurringAction {
+  action: 'cancel_recurring'
+  params: { name: string }
 }
 
 export interface SetPolicyAction {
@@ -68,96 +85,125 @@ export interface SetPolicyAction {
   }
 }
 
-// Send USDC from the user's main connected wallet (wagmi writeContract)
 export interface SendUsdcAction {
   action: 'send_usdc'
-  params: {
-    toAddress: string
-    amount: string
-    note?: string
-  }
+  params: { toAddress: string; amount: string; note?: string }
 }
 
 export interface AgentSendAction {
   action: 'agent_send'
-  params: {
-    toAddress: string
-    amount: string
-    note?: string
-  }
+  params: { toAddress: string; amount: string; note?: string }
 }
 
-// Navigate to Bridge tab with prefill
+/** UCW send: Circle User-Controlled Wallet (email/Google login) */
+export interface UcwSendAction {
+  action: 'ucw_send'
+  params: { toAddress: string; amount: string; note?: string }
+}
+
+/** Bridge via Circle UCW — calls /api/wallet → bridge-start then opens Bridge tab */
+export interface UcwBridgeAction {
+  action: 'ucw_bridge'
+  params: { amount: string; toChain: string }
+}
+
+/** Swap via Circle UCW */
+export interface UcwSwapAction {
+  action: 'ucw_swap'
+  params: { fromToken: string; toToken: string; amount: string }
+}
+
+/** Gateway deposit for Circle UCW users */
+export interface UcwGatewayDepositAction {
+  action: 'ucw_gateway_deposit'
+  params: { amount: string }
+}
+
+/** Cross-chain transfer via Gateway for Circle UCW users */
+export interface UcwGatewayTransferAction {
+  action: 'ucw_gateway_transfer'
+  params: { amount: string; toChain: string }
+}
+
 export interface BridgeStartAction {
   action: 'bridge_start'
-  params: {
-    amount?: string
-    toChain?: string
-  }
+  params: { amount?: string; toChain?: string }
 }
 
-// Navigate to Swap tab with prefill
 export interface SwapStartAction {
   action: 'swap_start'
-  params: {
-    fromToken?: string
-    toToken?: string
-    amount?: string
-  }
+  params: { fromToken?: string; toToken?: string; amount?: string }
 }
 
 export interface NavigateAction {
   action: 'navigate'
-  params: {
-    page: string
-  }
+  params: { page: string }
 }
 
 export interface ToggleAgentAction {
   action: 'toggle_agent'
-  params: {
-    enabled: boolean
-  }
+  params: { enabled: boolean }
 }
 
 export interface ShopSearchAction {
   action: 'shop_search'
-  params: {
-    query: string
-  }
+  params: { query: string }
 }
 
 export interface BridgeInfoAction {
   action: 'bridge_info'
-  params: {
-    fromChain: string
-    toChain: string
-    amount: string
-  }
+  params: { fromChain: string; toChain: string; amount: string }
 }
+
+export interface CreatePaymentRequestAction {
+  action: 'create_payment_request'
+  params: { title: string; amount: number; note?: string; dueDate?: string }
+}
+
+export interface CreateInvoiceAction {
+  action: 'create_invoice'
+  params: { customerName: string; amount: number; description: string; dueDate: string }
+}
+
+export interface CheckBalanceAction {
+  action: 'check_balance'
+  params: Record<string, never>
+}
+
+// ── Union ─────────────────────────────────────────────────────────────────────
 
 export type NanAction =
   | AddRecurringAction
   | AddAgentRecurringAction
+  | CancelRecurringAction
   | SetPolicyAction
   | SendUsdcAction
   | AgentSendAction
+  | UcwSendAction
+  | UcwBridgeAction
+  | UcwSwapAction
+  | UcwGatewayDepositAction
+  | UcwGatewayTransferAction
   | NavigateAction
   | ToggleAgentAction
   | ShopSearchAction
   | BridgeStartAction
   | BridgeInfoAction
   | SwapStartAction
+  | CreatePaymentRequestAction
+  | CreateInvoiceAction
+  | CheckBalanceAction
 
-// ── Parser — converts raw LLM JSON into a typed NanAction ────────────────────
+// ── Safe string coercion ───────────────────────────────────────────────────────
 
-// Safe string coercion from unknown JSON values (avoids no-base-to-string lint)
 function s(v: unknown, fallback = ''): string {
   if (v === null || v === undefined) return fallback
   if (typeof v === 'string') return v.trim()
   if (typeof v === 'number' || typeof v === 'boolean') return String(v).trim()
   return fallback
 }
+
+// ── Parser ────────────────────────────────────────────────────────────────────
 
 export function parseAction(raw: Record<string, unknown>): NanAction | null {
   const type = raw.action as string | undefined
@@ -174,6 +220,11 @@ export function parseAction(raw: Record<string, unknown>): NanAction | null {
       if (!name || !recipient || !amount) return null
       return { action: type, params: { name, recipient, amount, frequency } }
     }
+    case 'cancel_recurring': {
+      const name = s(params.name)
+      if (!name) return null
+      return { action: 'cancel_recurring', params: { name } }
+    }
     case 'set_policy': {
       const p: SetPolicyAction['params'] = {}
       if (params.dailyLimit !== undefined)           p.dailyLimit           = Number(params.dailyLimit)
@@ -189,152 +240,226 @@ export function parseAction(raw: Record<string, unknown>): NanAction | null {
       const toAddress = s(params.toAddress)
       const amount    = s(params.amount)
       if (!toAddress || !amount) return null
-      const note = s(params.note) || undefined
-      return { action: 'send_usdc', params: { toAddress, amount, note } }
+      return { action: 'send_usdc', params: { toAddress, amount, note: s(params.note) || undefined } }
     }
     case 'agent_send': {
       const toAddress = s(params.toAddress)
       const amount    = s(params.amount)
       if (!toAddress || !amount) return null
-      const note = s(params.note) || undefined
-      return { action: 'agent_send', params: { toAddress, amount, note } }
+      return { action: 'agent_send', params: { toAddress, amount, note: s(params.note) || undefined } }
     }
-    case 'bridge_start': {
+    case 'ucw_send': {
+      const toAddress = s(params.toAddress)
+      const amount    = s(params.amount)
+      if (!toAddress || !amount) return null
+      return { action: 'ucw_send', params: { toAddress, amount, note: s(params.note) || undefined } }
+    }
+    case 'ucw_bridge': {
+      const amount  = s(params.amount)
+      const toChain = s(params.toChain)
+      if (!amount || !toChain) return null
+      return { action: 'ucw_bridge', params: { amount, toChain } }
+    }
+    case 'ucw_swap': {
+      const fromToken = s(params.fromToken) || 'USDC'
+      const toToken   = s(params.toToken)
+      const amount    = s(params.amount)
+      if (!toToken || !amount) return null
+      return { action: 'ucw_swap', params: { fromToken, toToken, amount } }
+    }
+    case 'ucw_gateway_deposit': {
+      const amount = s(params.amount)
+      if (!amount) return null
+      return { action: 'ucw_gateway_deposit', params: { amount } }
+    }
+    case 'ucw_gateway_transfer': {
+      const amount  = s(params.amount)
+      const toChain = s(params.toChain)
+      if (!amount || !toChain) return null
+      return { action: 'ucw_gateway_transfer', params: { amount, toChain } }
+    }
+    case 'bridge_start':
       return { action: 'bridge_start', params: { amount: s(params.amount) || undefined, toChain: s(params.toChain) || undefined } }
-    }
-    case 'swap_start': {
+    case 'swap_start':
       return { action: 'swap_start', params: { fromToken: s(params.fromToken) || undefined, toToken: s(params.toToken) || undefined, amount: s(params.amount) || undefined } }
-    }
     case 'navigate': {
       const page = s(params.page)
       if (!page) return null
       return { action: 'navigate', params: { page } }
     }
-    case 'toggle_agent': {
+    case 'toggle_agent':
       return { action: 'toggle_agent', params: { enabled: Boolean(params.enabled) } }
-    }
     case 'shop_search': {
       const query = s(params.query)
       if (!query) return null
       return { action: 'shop_search', params: { query } }
     }
-    case 'bridge_info': {
+    case 'bridge_info':
       return { action: 'bridge_info', params: { fromChain: s(params.fromChain), toChain: s(params.toChain), amount: s(params.amount) } }
+    case 'create_payment_request': {
+      const title  = s(params.title)
+      const amount = Number(params.amount)
+      if (!title || !amount) return null
+      return { action: 'create_payment_request', params: { title, amount, note: s(params.note) || undefined, dueDate: s(params.dueDate) || undefined } }
     }
+    case 'create_invoice': {
+      const customerName = s(params.customerName)
+      const amount       = Number(params.amount)
+      const description  = s(params.description)
+      const dueDate      = s(params.dueDate)
+      if (!customerName || !amount || !dueDate) return null
+      return { action: 'create_invoice', params: { customerName, amount, description: description || customerName, dueDate } }
+    }
+    case 'check_balance':
+      return { action: 'check_balance', params: {} }
     default:
       return null
   }
 }
 
-// ── Human-readable summary for confirmation cards ─────────────────────────────
+// ── Human-readable confirmation card descriptions ─────────────────────────────
 
 export function describeAction(action: NanAction): { title: string; lines: Array<{ label: string; value: string }> } {
   switch (action.action) {
     case 'add_recurring':
-      return {
-        title: 'Add Recurring Payment',
-        lines: [
-          { label: 'Name',      value: action.params.name },
-          { label: 'To',        value: action.params.recipient },
-          { label: 'Amount',    value: `${action.params.amount} USDC` },
-          { label: 'Frequency', value: action.params.frequency },
-          { label: 'Source',    value: 'NAN Main Wallet' },
-        ],
-      }
+      return { title: 'Add Recurring Payment', lines: [
+        { label: 'Name',      value: action.params.name },
+        { label: 'To',        value: action.params.recipient },
+        { label: 'Amount',    value: `${action.params.amount} USDC` },
+        { label: 'Frequency', value: action.params.frequency },
+        { label: 'Source',    value: 'Main Wallet' },
+      ]}
     case 'add_agent_recurring':
-      return {
-        title: 'Add Agent Recurring Payment',
-        lines: [
-          { label: 'Name',      value: action.params.name },
-          { label: 'To',        value: action.params.recipient },
-          { label: 'Amount',    value: `${action.params.amount} USDC` },
-          { label: 'Frequency', value: action.params.frequency },
-          { label: 'Source',    value: 'Agent Wallet' },
-        ],
-      }
+      return { title: 'Add Agent Recurring Payment', lines: [
+        { label: 'Name',      value: action.params.name },
+        { label: 'To',        value: action.params.recipient },
+        { label: 'Amount',    value: `${action.params.amount} USDC` },
+        { label: 'Frequency', value: action.params.frequency },
+        { label: 'Source',    value: 'Agent Wallet' },
+      ]}
+    case 'cancel_recurring':
+      return { title: 'Cancel Recurring Payment', lines: [
+        { label: 'Name', value: action.params.name },
+        { label: 'Effect', value: 'This recurring payment will be deleted' },
+      ]}
     case 'set_policy': {
       const lines = Object.entries(action.params).map(([k, v]) => ({
-        label: k.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase()),
+        label: k.replace(/([A-Z])/g, ' $1').replace(/^./, c => c.toUpperCase()),
         value: typeof v === 'boolean' ? (v ? 'Enabled' : 'Disabled') : `${v} USDC`,
       }))
       return { title: 'Update Spending Policy', lines }
     }
     case 'send_usdc':
-      return {
-        title: 'Send USDC from Your Wallet',
-        lines: [
-          { label: 'To',     value: action.params.toAddress },
-          { label: 'Amount', value: `${action.params.amount} USDC` },
-          ...(action.params.note ? [{ label: 'Note', value: action.params.note }] : []),
-          { label: 'Source', value: 'Your Connected Wallet' },
-        ],
-      }
+      return { title: 'Send USDC from Your Wallet', lines: [
+        { label: 'To',     value: action.params.toAddress },
+        { label: 'Amount', value: `${action.params.amount} USDC` },
+        ...(action.params.note ? [{ label: 'Note', value: action.params.note }] : []),
+        { label: 'Source', value: 'Connected Wallet (wagmi)' },
+      ]}
     case 'agent_send':
-      return {
-        title: 'Send USDC from Agent Wallet',
-        lines: [
-          { label: 'To',     value: action.params.toAddress },
-          { label: 'Amount', value: `${action.params.amount} USDC` },
-          ...(action.params.note ? [{ label: 'Note', value: action.params.note }] : []),
-          { label: 'Source', value: 'Agent Wallet' },
-        ],
-      }
+      return { title: 'Send USDC from Agent Wallet', lines: [
+        { label: 'To',     value: action.params.toAddress },
+        { label: 'Amount', value: `${action.params.amount} USDC` },
+        ...(action.params.note ? [{ label: 'Note', value: action.params.note }] : []),
+        { label: 'Source', value: 'Agent Wallet' },
+      ]}
+    case 'ucw_send':
+      return { title: 'Send USDC (Circle Wallet)', lines: [
+        { label: 'To',     value: action.params.toAddress },
+        { label: 'Amount', value: `${action.params.amount} USDC` },
+        ...(action.params.note ? [{ label: 'Note', value: action.params.note }] : []),
+        { label: 'Source', value: 'Circle User-Controlled Wallet' },
+        { label: 'Auth',   value: 'Circle W3S SDK challenge required' },
+      ]}
+    case 'ucw_bridge':
+      return { title: 'Bridge USDC (Circle Wallet)', lines: [
+        { label: 'Amount',   value: `${action.params.amount} USDC` },
+        { label: 'To Chain', value: action.params.toChain },
+        { label: 'Via',      value: 'Circle CCTP V2' },
+        { label: 'Source',   value: 'Circle UCW → Bridge tab' },
+      ]}
+    case 'ucw_swap':
+      return { title: 'Swap Tokens (Circle Wallet)', lines: [
+        { label: 'From',     value: action.params.fromToken },
+        { label: 'To',       value: action.params.toToken },
+        { label: 'Amount',   value: `${action.params.amount}` },
+        { label: 'Source',   value: 'Circle UCW → Swap tab' },
+      ]}
+    case 'ucw_gateway_deposit':
+      return { title: 'Gateway Deposit (Circle Wallet)', lines: [
+        { label: 'Amount', value: `${action.params.amount} USDC` },
+        { label: 'Via',    value: 'Circle Gateway' },
+        { label: 'Source', value: 'Circle UCW → Gateway tab' },
+      ]}
+    case 'ucw_gateway_transfer':
+      return { title: 'Gateway Cross-Chain Transfer', lines: [
+        { label: 'Amount',   value: `${action.params.amount} USDC` },
+        { label: 'To Chain', value: action.params.toChain },
+        { label: 'Via',      value: 'Circle Gateway (instant ~500ms)' },
+        { label: 'Source',   value: 'Circle UCW' },
+      ]}
     case 'bridge_start':
-      return {
-        title: 'Bridge USDC',
-        lines: [
-          ...(action.params.amount ? [{ label: 'Amount', value: `${action.params.amount} USDC` }] : []),
-          ...(action.params.toChain ? [{ label: 'To Chain', value: action.params.toChain }] : []),
-          { label: 'Note', value: 'Opens Bridge tab pre-filled — you confirm there' },
-        ],
-      }
+      return { title: 'Bridge USDC', lines: [
+        ...(action.params.amount  ? [{ label: 'Amount',   value: `${action.params.amount} USDC` }] : []),
+        ...(action.params.toChain ? [{ label: 'To Chain', value: action.params.toChain }] : []),
+        { label: 'Note', value: 'Opens Bridge tab pre-filled' },
+      ]}
     case 'swap_start':
-      return {
-        title: 'Swap Tokens',
-        lines: [
-          ...(action.params.fromToken ? [{ label: 'From', value: action.params.fromToken }] : []),
-          ...(action.params.toToken   ? [{ label: 'To',   value: action.params.toToken }] : []),
-          ...(action.params.amount    ? [{ label: 'Amount', value: `${action.params.amount} USDC` }] : []),
-          { label: 'Note', value: 'Opens Swap tab pre-filled — you confirm there' },
-        ],
-      }
+      return { title: 'Swap Tokens', lines: [
+        ...(action.params.fromToken ? [{ label: 'From',   value: action.params.fromToken }] : []),
+        ...(action.params.toToken   ? [{ label: 'To',     value: action.params.toToken }] : []),
+        ...(action.params.amount    ? [{ label: 'Amount', value: `${action.params.amount} USDC` }] : []),
+        { label: 'Note', value: 'Opens Swap tab pre-filled' },
+      ]}
     case 'navigate':
-      return {
-        title: `Navigate to ${action.params.page}`,
-        lines: [{ label: 'Destination', value: action.params.page }],
-      }
+      return { title: `Navigate to ${action.params.page}`, lines: [{ label: 'Destination', value: action.params.page }] }
     case 'toggle_agent':
-      return {
-        title: `${action.params.enabled ? 'Enable' : 'Disable'} NAN Agent`,
-        lines: [{ label: 'New state', value: action.params.enabled ? 'Enabled' : 'Disabled' }],
-      }
+      return { title: `${action.params.enabled ? 'Enable' : 'Disable'} NAN Agent`, lines: [{ label: 'New state', value: action.params.enabled ? 'Enabled' : 'Disabled' }] }
     case 'shop_search':
-      return {
-        title: 'Search Shop',
-        lines: [{ label: 'Query', value: action.params.query }],
-      }
+      return { title: 'Search Shop', lines: [{ label: 'Query', value: action.params.query }] }
     case 'bridge_info':
-      return {
-        title: 'Bridge USDC',
-        lines: [
-          { label: 'From',   value: action.params.fromChain },
-          { label: 'To',     value: action.params.toChain },
-          { label: 'Amount', value: `${action.params.amount} USDC` },
-          { label: 'Note',   value: 'Opens Bridge tab — you confirm the transaction there' },
-        ],
-      }
+      return { title: 'Bridge USDC', lines: [
+        { label: 'From',   value: action.params.fromChain },
+        { label: 'To',     value: action.params.toChain },
+        { label: 'Amount', value: `${action.params.amount} USDC` },
+        { label: 'Note',   value: 'Opens Bridge tab — confirm there' },
+      ]}
+    case 'create_payment_request':
+      return { title: 'Create Payment Request', lines: [
+        { label: 'Title',   value: action.params.title },
+        { label: 'Amount',  value: `${action.params.amount} USDC` },
+        ...(action.params.note    ? [{ label: 'Note',     value: action.params.note }] : []),
+        ...(action.params.dueDate ? [{ label: 'Due Date', value: action.params.dueDate }] : []),
+      ]}
+    case 'create_invoice':
+      return { title: 'Create Invoice', lines: [
+        { label: 'Customer',     value: action.params.customerName },
+        { label: 'Amount',       value: `${action.params.amount} USDC` },
+        { label: 'Description',  value: action.params.description },
+        { label: 'Due Date',     value: action.params.dueDate },
+      ]}
+    case 'check_balance':
+      return { title: 'Check Balance', lines: [{ label: 'Note', value: 'Refreshes your wallet balances' }] }
   }
 }
 
-// ── Whether this action needs explicit user confirmation ──────────────────────
+// ── Confirmation gate ─────────────────────────────────────────────────────────
 
 export function requiresConfirmation(action: NanAction): boolean {
   switch (action.action) {
     case 'add_recurring':
     case 'add_agent_recurring':
+    case 'cancel_recurring':
     case 'send_usdc':
     case 'agent_send':
+    case 'ucw_send':
+    case 'ucw_bridge':
+    case 'ucw_swap':
+    case 'ucw_gateway_deposit':
+    case 'ucw_gateway_transfer':
     case 'set_policy':
+    case 'create_payment_request':
+    case 'create_invoice':
       return true
     case 'navigate':
     case 'toggle_agent':
@@ -342,18 +467,17 @@ export function requiresConfirmation(action: NanAction): boolean {
     case 'bridge_start':
     case 'bridge_info':
     case 'swap_start':
+    case 'check_balance':
       return false
   }
 }
 
-// ── Executor ──────────────────────────────────────────────────────────────────
-// Returns a human-readable result string on success, throws on failure.
+// ── Executor context ──────────────────────────────────────────────────────────
 
 export type ExecutorContext = {
   store: AppState
   navigate: (page: string, query?: string) => void
   agentWalletUserToken?: string
-  // For send_usdc: caller provides the wagmi writeContractAsync bound to the connected wallet
   writeContractAsync?: (args: {
     address: `0x${string}`
     abi: readonly object[]
@@ -363,6 +487,8 @@ export type ExecutorContext = {
   connectedAddress?: string
   chainId?: number
 }
+
+// ── Main executor ─────────────────────────────────────────────────────────────
 
 export async function executeAction(action: NanAction, ctx: ExecutorContext): Promise<string> {
   const { store, navigate } = ctx
@@ -378,7 +504,7 @@ export async function executeAction(action: NanAction, ctx: ExecutorContext): Pr
       if (frequency === 'monthly') nextRunAt = new Date(now.getFullYear(), now.getMonth() + 1, now.getDate()).toISOString()
       store.addRecurringTask({ name, recipient, amount, active: true, frequency, nextRunAt })
       navigate('recurring')
-      return `Recurring payment "${name}" scheduled — ${amount} USDC ${frequency} to ${recipient.slice(0, 10)}…`
+      return `Recurring payment "${name}" created — ${amount} USDC ${frequency} to ${recipient.slice(0, 10)}…`
     }
 
     case 'add_agent_recurring': {
@@ -388,15 +514,25 @@ export async function executeAction(action: NanAction, ctx: ExecutorContext): Pr
       if (frequency === 'daily')   nextRunAt = new Date(now.getTime() + 86400000).toISOString()
       if (frequency === 'weekly')  nextRunAt = new Date(now.getTime() + 7 * 86400000).toISOString()
       if (frequency === 'monthly') nextRunAt = new Date(now.getFullYear(), now.getMonth() + 1, now.getDate()).toISOString()
-      // Prefix with 'agent:' so AgentRecurringTab recognises it
       store.addRecurringTask({ name: `agent:${name}`, recipient, amount, active: true, frequency, nextRunAt })
       navigate('agent')
-      return `Agent recurring payment "${name}" scheduled — ${amount} USDC ${frequency} from Agent Wallet.`
+      return `Agent recurring payment "${name}" created — ${amount} USDC ${frequency} from Agent Wallet.`
+    }
+
+    case 'cancel_recurring': {
+      const { name } = action.params
+      const tasks = store.recurringTasks
+      // Match by exact name or agent: prefixed name
+      const found = tasks.find(t => t.name === name || t.name === `agent:${name}` || t.name.replace(/^agent:/, '') === name)
+      if (!found) throw new Error(`No recurring payment named "${name}" found.`)
+      store.removeRecurringTask(found.id)
+      return `Recurring payment "${found.name.replace(/^agent:/, '')}" cancelled.`
     }
 
     case 'set_policy': {
       store.setAgentPermissions(action.params)
-      return `Policy updated: ${Object.entries(action.params).map(([k, v]) => `${k}=${v}`).join(', ')}`
+      const desc = Object.entries(action.params).map(([k, v]) => `${k}: ${v}`).join(', ')
+      return `Spending policy updated — ${desc}`
     }
 
     case 'send_usdc': {
@@ -418,7 +554,7 @@ export async function executeAction(action: NanAction, ctx: ExecutorContext): Pr
     case 'agent_send': {
       const { toAddress, amount, note } = action.params
       const userToken = ctx.agentWalletUserToken
-      if (!userToken) throw new Error('Agent Wallet session not active. Please authenticate in the Agent Wallet tab first.')
+      if (!userToken) throw new Error('Agent Wallet session not active. Authenticate in the Agent Wallet tab first.')
       const r = await fetch('/api/agent-wallet', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-user-token': userToken },
@@ -431,6 +567,62 @@ export async function executeAction(action: NanAction, ctx: ExecutorContext): Pr
       store.addAgentSpend({ id: `spend-${Date.now()}`, service_id: 'agent-send', service_name: note ?? `Send to ${toAddress.slice(0, 10)}…`, amount_usdc: parseFloat(amount), txId: txRef, paid: true, timestamp: new Date().toISOString() })
       store.addActivity({ type: 'sent', description: note ?? 'Agent send', amount: parseFloat(amount), sign: '-', status: 'confirmed', counterparty: toAddress.slice(0, 10) + '…', txHash: txRef })
       return `Sent ${amount} USDC from Agent Wallet to ${toAddress.slice(0, 10)}…${txRef ? ` (tx: ${txRef.slice(0, 10)}…)` : ''}`
+    }
+
+    case 'ucw_send': {
+      // For email/Google UCW users — navigate to wallet and prefill send
+      // The actual Circle SDK challenge happens in WalletPage
+      const { toAddress, amount, note } = action.params
+      // Trigger the send by navigating to wallet with state
+      store.setBridgePrefill(null)
+      store.setSwapPrefill(null)
+      navigate('wallet')
+      // Attempt backend send via Circle API
+      const auth = store.auth
+      const userToken = auth?.userToken
+      if (userToken) {
+        const r = await fetch('/api/wallet', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${auth?.sessionToken ?? ''}` },
+          body: JSON.stringify({ action: 'send-usdc', userToken, toAddress, amount }),
+        })
+        const d = await r.json() as { ok?: boolean; txHash?: string; challengeId?: string; error?: string; not_configured?: boolean }
+        if (d.not_configured) {
+          return `Opened Wallet tab — enter ${amount} USDC to ${toAddress.slice(0, 10)}… in the Send form. Circle API not configured server-side.`
+        }
+        if (d.challengeId) {
+          return `Circle W3S challenge initiated. Approve the transaction in the Circle popup to send ${amount} USDC to ${toAddress.slice(0, 10)}….`
+        }
+        if (!r.ok || d.error) throw new Error(d.error ?? 'UCW send failed')
+        const txRef = d.txHash
+        store.addActivity({ type: 'sent', description: note ?? 'Agent UCW send', amount: parseFloat(amount), sign: '-', status: 'confirmed', counterparty: toAddress.slice(0, 10) + '…', txHash: txRef })
+        return `Sent ${amount} USDC from your Circle wallet to ${toAddress.slice(0, 10)}…${txRef ? ` (tx: ${txRef.slice(0, 10)}…)` : ''}`
+      }
+      return `Opened Wallet tab — enter ${amount} USDC to ${toAddress.slice(0, 10)}… in the Send form and confirm.`
+    }
+
+    case 'ucw_bridge': {
+      store.setBridgePrefill({ amount: action.params.amount, toChain: action.params.toChain })
+      navigate('bridge')
+      return `Opening Bridge tab — ${action.params.amount} USDC → ${action.params.toChain} via Circle CCTP V2. Complete the transaction there.`
+    }
+
+    case 'ucw_swap': {
+      store.setSwapPrefill({ fromToken: action.params.fromToken, toToken: action.params.toToken, amount: action.params.amount })
+      navigate('swap')
+      return `Opening Swap tab — ${action.params.amount} ${action.params.fromToken} → ${action.params.toToken}. Complete the swap there.`
+    }
+
+    case 'ucw_gateway_deposit': {
+      store.setBridgePrefill({ amount: action.params.amount, toChain: 'gateway' })
+      navigate('gateway')
+      return `Opening Gateway tab — deposit ${action.params.amount} USDC into your unified cross-chain balance. Complete the deposit there.`
+    }
+
+    case 'ucw_gateway_transfer': {
+      store.setBridgePrefill({ amount: action.params.amount, toChain: action.params.toChain })
+      navigate('gateway')
+      return `Opening Gateway tab — transfer ${action.params.amount} USDC to ${action.params.toChain} via Circle Gateway (~500ms). Complete the transfer there.`
     }
 
     case 'navigate': {
@@ -456,13 +648,69 @@ export async function executeAction(action: NanAction, ctx: ExecutorContext): Pr
 
     case 'bridge_info': {
       navigate('bridge')
-      return `Opening Bridge tab — bridge ${action.params.amount} USDC from ${action.params.fromChain} to ${action.params.toChain}. Confirm the transaction in the Bridge tab.`
+      return `Opening Bridge tab — bridge ${action.params.amount} USDC from ${action.params.fromChain} to ${action.params.toChain}.`
     }
 
     case 'swap_start': {
       store.setSwapPrefill({ fromToken: action.params.fromToken, toToken: action.params.toToken, amount: action.params.amount })
       navigate('swap')
-      return `Opening Swap tab${action.params.amount ? ` with ${action.params.amount} USDC` : ''}. Complete the swap there.`
+      return `Opening Swap tab${action.params.amount ? ` with ${action.params.amount}` : ''}. Complete the swap there.`
+    }
+
+    case 'create_payment_request': {
+      const { title, amount, note, dueDate } = action.params
+      const id = store.addPaymentRequest({
+        title,
+        amount,
+        currency: 'USDC',
+        status: 'pending',
+        note,
+        dueDate,
+        creatorAddress: store.auth?.walletAddress ?? store.auth?.circleWalletAddress ?? '',
+        creatorName: store.profile.displayName || undefined,
+      })
+      navigate('payment-requests')
+      return `Payment request "${title}" created for ${amount} USDC (ref: ${id.slice(0, 8)}…). Opening Payment Requests tab.`
+    }
+
+    case 'create_invoice': {
+      const { customerName, amount, description, dueDate } = action.params
+      const today = new Date().toISOString().slice(0, 10)
+      const item = {
+        id: `item-${Date.now()}`,
+        name: description,
+        quantity: 1,
+        unitPrice: amount,
+      }
+      const inv = store.addInvoice({
+        status: 'draft',
+        businessName: store.profile.displayName || 'NAN User',
+        customerName,
+        issueDate: today,
+        dueDate,
+        currency: 'USDC',
+        items: [item],
+        subtotal: amount,
+        discountTotal: 0,
+        taxTotal: 0,
+        total: amount,
+        payments: [],
+        amountPaid: 0,
+        amountDue: amount,
+      })
+      navigate('exports')
+      return `Invoice ${inv.number} created — ${amount} USDC for ${customerName}, due ${dueDate}. Opening Exports tab.`
+    }
+
+    case 'check_balance': {
+      const state = store
+      const main = parseFloat(state.mainWalletBalance || '0').toFixed(2)
+      const agent = parseFloat(state.agentWallet.balance_usdc || '0').toFixed(2)
+      const cross = Object.entries(state.crossChainBalances)
+        .filter(([, v]) => parseFloat(v) > 0)
+        .map(([chain, bal]) => `${chain}: ${parseFloat(bal).toFixed(2)}`)
+        .join(' | ')
+      return `Main wallet: ${main} USDC${state.agentWallet.provisioned ? ` | Agent Wallet: ${agent} USDC` : ''}${cross ? ` | Cross-chain: ${cross}` : ''}`
     }
   }
 }
