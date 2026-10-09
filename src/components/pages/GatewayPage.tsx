@@ -1182,16 +1182,18 @@ function CircleTransferTab({ address, gatewayBalance, onSuccess }: {
         const destClient    = mkPublic({ chain: destViemChain, transport: destTransport })
         const destAccount   = await toCircleSmartAccount({ client: destClient, owner: toWebAuthnAccount({ credential }) })
         const bundler       = createBundlerClient({ account: destAccount, chain: destViemChain, transport: destTransport })
-        const mintData       = encFn({ abi: GATEWAY_MINTER_ABI, functionName: 'gatewayMint', args: [attestation, mintSignature] })
-        const factoryArgs   = await destAccount.getFactoryArgs()
-        const deployFields  = factoryArgs.factory ? { factory: factoryArgs.factory, factoryData: factoryArgs.factoryData } : {}
+        const mintData = encFn({ abi: GATEWAY_MINTER_ABI, functionName: 'gatewayMint', args: [attestation, mintSignature] })
+        // Do NOT manually spread factory/factoryData — toCircleSmartAccount embeds the
+        // factory into the account object; the bundler reads it automatically when the
+        // account is not yet deployed on the destination chain. Passing factory at the
+        // top level of sendUserOperation causes "Missing or invalid factory" errors.
         const isPaymasterErr = (e: unknown) => /paymaster|internal error/i.test((e as { message?: string })?.message ?? '')
         let uoh: `0x${string}`
         try {
-          uoh = await bundler.sendUserOperation({ account: destAccount, calls: [{ to: GATEWAY_MINTER, data: mintData, value: 0n }], paymaster: true, ...deployFields })
+          uoh = await bundler.sendUserOperation({ account: destAccount, calls: [{ to: GATEWAY_MINTER, data: mintData, value: 0n }], paymaster: true })
         } catch (pmErr) {
           if (!isPaymasterErr(pmErr)) throw pmErr
-          uoh = await bundler.sendUserOperation({ account: destAccount, calls: [{ to: GATEWAY_MINTER, data: mintData, value: 0n }], ...deployFields })
+          uoh = await bundler.sendUserOperation({ account: destAccount, calls: [{ to: GATEWAY_MINTER, data: mintData, value: 0n }] })
         }
         const receipt = await bundler.waitForUserOperationReceipt({ hash: uoh })
         setMintTxHash(receipt.receipt.transactionHash)
