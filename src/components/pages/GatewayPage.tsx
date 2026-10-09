@@ -853,13 +853,15 @@ type TransferPhase = 'idle' | 'signing' | 'submitting' | 'minting' | 'done' | 'e
 function TransferTab({ address, gatewayBalance, onSuccess }: {
   address: `0x${string}`; gatewayBalance: string|null; onSuccess: () => void
 }) {
-  const { chainId } = useAccount() // use account chainId — defined only when wagmi wallet connected
+  const { chainId } = useAccount()
   const { switchChainAsync } = useSwitchChain()
   const [amount, setAmount] = useState('')
-  const [destChainId, setDestChainId] = useState<number>(84532) // Base Sepolia default
+  const [destChainId, setDestChainId] = useState<number>(84532)
   const [phase, setPhase] = useState<TransferPhase>('idle')
   const [errMsg, setErrMsg] = useState('')
   const [mintTxHash, setMintTxHash] = useState<`0x${string}` | undefined>()
+  // Store attestation after Gateway API responds — doMint fires once chainId settles
+  const [pendingMint, setPendingMint] = useState<{ attestation: `0x${string}`; sig: `0x${string}` } | null>(null)
   const gwBal = gatewayBalance ? parseFloat(gatewayBalance) : 0
 
   const destChain = GATEWAY_CHAINS.find(c => c.chainId === destChainId)
@@ -877,6 +879,7 @@ function TransferTab({ address, gatewayBalance, onSuccess }: {
   useEffect(() => {
     if (mintSuccess) {
       setPhase('done') // eslint-disable-line react/set-state-in-effect
+      setPendingMint(null) // eslint-disable-line react/set-state-in-effect
       toast.success(`Transferred ${amount} USDC to ${destChain?.name ?? 'destination'}`)
       setTimeout(onSuccess, 2000)
     }
@@ -885,7 +888,7 @@ function TransferTab({ address, gatewayBalance, onSuccess }: {
   useEffect(() => {
     if (mintError) {
       setPhase('error') // eslint-disable-line react/set-state-in-effect
-      // mintWriteError fires when the user rejects the prompt; mintReceiptError fires when the tx reverts
+      setPendingMint(null) // eslint-disable-line react/set-state-in-effect
       const msg = mintWriteError?.message?.includes('User rejected')
         ? 'Wallet prompt rejected — click Transfer again to retry.'
         : 'Mint transaction failed. The attestation may have already been used.'
@@ -893,25 +896,39 @@ function TransferTab({ address, gatewayBalance, onSuccess }: {
     }
   }, [mintError, mintWriteError]) // eslint-disable-line
 
+  // Fire doMint only once wagmi's chainId has settled to destChainId.
+  // Calling writeContract immediately after switchChainAsync returns causes viem
+  // to see the stale pre-switch chainId (still undefined/NaN on mobile wallets)
+  // and throw "Provided chainId NaN must match active chainId". Waiting for the
+  // reactive chainId update guarantees the wallet state is consistent.
+  useEffect(() => {
+    if (!pendingMint || phase !== 'minting') return
+    if (chainId !== destChainId) return // wait for chain switch to propagate
+    doMint({
+      address:      GATEWAY_MINTER,
+      abi:          GATEWAY_MINTER_ABI,
+      functionName: 'gatewayMint',
+      args:         [pendingMint.attestation, pendingMint.sig],
+    })
+  }, [chainId, pendingMint, phase]) // eslint-disable-line
+
   const handleTransfer = async () => {
     if (!address || !amount || parseFloat(amount) <= 0 || !destChain?.usdc || !srcChain?.usdc) return
     if (!destChainId || isNaN(destChainId) || destChainId === ARC) { toast.error('Select a different destination chain'); return }
     setErrMsg('')
+    setPendingMint(null)
     const parsed = parseUnits(amount, 6)
     const srcDomain  = DOMAIN_MAP[ARC] ?? 26
     const destDomain = DOMAIN_MAP[destChainId]
     if (destDomain === undefined) { setErrMsg('Destination chain domain unknown'); return }
 
     try {
-      // Step 1: ensure on Arc Testnet for signing
-      // Only switch if chainId is defined (connected wagmi wallet) and not already on Arc
-      if (chainId !== undefined && chainId !== ARC) await switchChainAsync({ chainId: ARC })
+      // Step 1: switch to Arc Testnet for signing (idempotent if already there)
+      await switchChainAsync({ chainId: ARC })
       setPhase('signing')
 
       const burnIntent = {
         maxBlockHeight: 2n ** 256n - 1n,
-        // 7.06 USDC covers: ~0.01 gas + 0.05 forwarder service + ~0.01 forwarder gas
-        // + transfer_fee (amount * 0.00005). Headroom for up to 25 USDC transfers.
         maxFee: 7_060000n,
         spec: {
           version:              1,
@@ -931,10 +948,8 @@ function TransferTab({ address, gatewayBalance, onSuccess }: {
         },
       }
 
-      // Sign via wagmi — viem handles bigint encoding for uint256 fields.
-      // EIP712Domain must NOT be in the types object: viem derives it automatically
-      // from the domain field. Passing it causes MetaMask/viem to reject or double-hash.
-      const { EIP712Domain: _dropWagmi, ...wagmiTypes } = BURN_INTENT_TYPED_DATA.types
+      // EIP712Domain must NOT be in types — viem derives it from domain automatically.
+      const { EIP712Domain: _drop, ...wagmiTypes } = BURN_INTENT_TYPED_DATA.types
       const signature = await signTypedDataAsync({
         domain:      BURN_INTENT_TYPED_DATA.domain,
         types:       wagmiTypes,
@@ -946,28 +961,21 @@ function TransferTab({ address, gatewayBalance, onSuccess }: {
       setPhase('submitting')
       const { attestation, signature: mintSignature } = await submitBurnIntent(burnIntent, signature)
 
-      // Step 3: switch to dest chain and call gatewayMint.
-      // Always switch — don't rely on the stale `chainId` closure value captured
-      // before the first switchChain call; switchChainAsync is idempotent when
-      // the wallet is already on the target chain.
+      // Step 3: switch to dest chain, then store attestation in state.
+      // doMint fires from a useEffect once chainId === destChainId — this avoids
+      // the "chainId NaN" error caused by calling writeContract before wagmi's
+      // reactive chainId has updated after switchChainAsync.
       await switchChainAsync({ chainId: destChainId })
       setPhase('minting')
-      // Do NOT pass chainId to writeContract after switchChainAsync — the wagmi
-      // useAccount chainId state hasn't updated yet (async), so the hook sees a
-      // mismatch and emits chainId "NaN". The wallet IS on destChainId already.
-      doMint({
-        address:      GATEWAY_MINTER,
-        abi:          GATEWAY_MINTER_ABI,
-        functionName: 'gatewayMint',
-        args:         [attestation!, mintSignature!],
-      })
+      setPendingMint({ attestation: attestation!, sig: mintSignature! })
     } catch (e: unknown) {
       setPhase('error')
+      setPendingMint(null)
       setErrMsg(e instanceof Error ? e.message : 'Transfer failed.')
     }
   }
 
-  const reset = () => { setPhase('idle'); setAmount(''); setErrMsg(''); setMintTxHash(undefined) }
+  const reset = () => { setPhase('idle'); setAmount(''); setErrMsg(''); setMintTxHash(undefined); setPendingMint(null) }
 
   const DEST_CHAINS = GATEWAY_CHAINS.filter(c => c.chainId !== ARC)
 
