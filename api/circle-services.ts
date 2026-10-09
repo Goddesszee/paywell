@@ -6,7 +6,6 @@
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { initiateUserControlledWalletsClient } from '@circle-fin/user-controlled-wallets'
-import { createAppServerKit, createSessionRouteHandler } from '@circle-fin/app-kit/server'
 import { getRedis } from './_redis'
 
 // ── shared helpers ─────────────────────────────────────────────────────────────
@@ -44,21 +43,46 @@ async function getSession(authHeader: string | undefined): Promise<SessionRecord
   }
 }
 
-// ── onramp singleton ──────────────────────────────────────────────────────────
+// ── onramp — call Circle API directly ────────────────────────────────────────
+// NOTE: createSessionRouteHandler from @circle-fin/app-kit/server only works on
+// Fetch-API runtimes (Next.js App Router, Cloudflare Workers). Vercel Node.js
+// functions receive Express-style req/res objects, so we call the Circle
+// onramp sessions REST API directly instead.
 const onrampApiKey = process.env.CIRCLE_STABLECOIN_KIT_API_KEY ?? process.env.CIRCLE_API_KEY
-const onrampDomain =
-  process.env.ONRAMP_DOMAIN ??
-  process.env.VERCEL_URL ??
-  process.env.VERCEL_BRANCH_URL ??
-  'localhost:5173'
 
-let _onrampHandler: ((req: Request) => Promise<Response>) | null = null
-function getOnrampHandler() {
-  if (!onrampApiKey) return null
-  if (_onrampHandler) return _onrampHandler
-  const server = createAppServerKit({ onramp: { apiKey: onrampApiKey, referrerDomain: onrampDomain } })
-  _onrampHandler = createSessionRouteHandler(server.onramp)
-  return _onrampHandler
+async function mintOnrampSession(opts: {
+  appUserId: string
+  destinationAddress: string
+  destinationChain?: string
+  amount?: string
+  currency?: string
+}): Promise<Record<string, unknown>> {
+  if (!onrampApiKey) throw new Error('CIRCLE_STABLECOIN_KIT_API_KEY not configured')
+  const res = await fetch('https://api.circle.com/v1/w3s/onramp/sessions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${onrampApiKey}`,
+    },
+    body: JSON.stringify({
+      appUserId: opts.appUserId,
+      destinationWallets: [{
+        address: opts.destinationAddress,
+        blockchains: [opts.destinationChain ?? 'ARC-TESTNET'],
+      }],
+      ...(opts.amount ? { quoteAmount: opts.amount } : {}),
+    }),
+  })
+  const data = await res.json() as Record<string, unknown>
+  if (!res.ok) {
+    const msg = (data as { message?: string; error?: string }).message
+      ?? (data as { message?: string; error?: string }).error
+      ?? JSON.stringify(data)
+    throw new Error(`Circle API ${res.status}: ${msg}`)
+  }
+  // Unwrap Circle's { data: { ... } } envelope if present and surface widgetUrl
+  const inner = (data.data ?? data) as Record<string, unknown>
+  return { ...inner, widgetUrl: inner.widgetUrl ?? inner.widget_url }
 }
 
 // ── main handler ──────────────────────────────────────────────────────────────
@@ -125,44 +149,35 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // ── ONRAMP ──────────────────────────────────────────────────────────────────
   if (service === 'onramp') {
     if (!onrampApiKey) {
-      return res.status(503).json({ error: 'onramp_not_configured', message: 'Add CIRCLE_API_KEY to Vercel environment variables' })
+      return res.status(503).json({
+        error: 'onramp_not_configured',
+        message: 'Add CIRCLE_STABLECOIN_KIT_API_KEY (or CIRCLE_API_KEY) to Vercel environment variables',
+      })
     }
-
-    const fn = getOnrampHandler()
-    if (!fn) return res.status(503).json({ error: 'Failed to initialise onramp handler' })
 
     const { destinationAddress, amount: amountRaw, appUserId } = req.body as {
       destinationAddress?: string; amount?: string | number; appUserId?: string
     }
-    const amount = amountRaw !== undefined ? String(amountRaw) : '100'
 
     if (!destinationAddress) {
       return res.status(400).json({ error: 'destinationAddress is required — connect a wallet first' })
     }
 
-    // Build a Request with the correct OnrampSessionRequest field names:
-    // { userId, destinationAddress, destinationChain, amount, currency }
-    // The URL is arbitrary — the kit only reads the body, not the URL.
-    const sessionBody = {
-      userId: appUserId ?? destinationAddress,
-      destinationAddress,
-      destinationChain: 'ARC-TESTNET',
-      amount,
-      currency: 'USD',
-    }
+    const amount = amountRaw !== undefined ? String(amountRaw) : undefined
 
     try {
-      const fetchReq = new Request('https://internal/onramp-session', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(sessionBody),
+      const session = await mintOnrampSession({
+        appUserId: appUserId ?? destinationAddress,
+        destinationAddress,
+        destinationChain: 'ARC-TESTNET',
+        amount,
+        currency: 'USD',
       })
-      const fetchRes = await fn(fetchReq)
-      const text = await fetchRes.text()
-      res.setHeader('content-type', 'application/json')
-      return res.status(fetchRes.status).send(text)
+      res.setHeader('Cache-Control', 'no-store')
+      return res.status(200).json(session)
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Onramp session error'
+      console.error('[circle-services/onramp]', message)
       return res.status(500).json({ error: message })
     }
   }
