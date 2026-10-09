@@ -935,41 +935,45 @@ function TransferTab({ address, gatewayBalance, onSuccess }: {
     const destDomain = DOMAIN_MAP[destChainId]
     if (destDomain === undefined) { setErrMsg('Destination chain domain unknown'); return }
 
-    // wallet_addEthereumChain switches AND adds the chain if missing, bypassing
-    // viem's assertCurrentChain which throws "chainId NaN" on mobile wallets whose
-    // connector hasn't fully resolved the chain object yet.
-    // Falls back to switchChain for WalletConnect wallets that have no window.ethereum.
-    const safeSwitch = async (targetChainId: number) => {
-      const targetChain = ONCHAIN_CHAINS.find(c => c.chainId === targetChainId)
-      if (!targetChain) throw new Error(`Chain ${targetChainId} not found`)
+    // Direct provider switch — bypasses viem/wagmi chain-ID assertions entirely.
+    // Uses wallet_switchEthereumChain for standard chains (Base, Arb, etc.) and
+    // wallet_addEthereumChain only for custom chains (Arc Testnet) that may not
+    // be pre-configured in the wallet.
+    // Skips the call entirely if already on the target chain.
+    const safeSwitch = async (targetChainId: number, currentChainId?: number) => {
+      if (currentChainId === targetChainId) return // already there — no-op
       // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment
       const provider = (window as any).ethereum
-      if (provider) {
+      if (!provider) return // WalletConnect — user must switch manually in wallet app
+      const hexId = `0x${targetChainId.toString(16)}`
+      try {
+        // Try switch first — works for any chain the wallet already knows
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+        await provider.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: hexId }] })
+      } catch (switchErr) {
+        // Error code 4902 = chain not added — fall back to addEthereumChain
+        const code = (switchErr as { code?: number })?.code
+        if (code !== 4902) throw switchErr
+        const targetChain = ONCHAIN_CHAINS.find(c => c.chainId === targetChainId)
+        if (!targetChain) throw new Error(`Chain ${targetChainId} not found`)
         // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
         await provider.request({
           method: 'wallet_addEthereumChain',
           params: [{
-            chainId: `0x${targetChainId.toString(16)}`,
+            chainId: hexId,
             chainName: targetChain.name,
             nativeCurrency: targetChain.nativeCurrency,
             rpcUrls: targetChain.rpcUrls,
             blockExplorerUrls: [targetChain.explorerBase],
           }],
         })
-      } else {
-        // WalletConnect / no injected provider — use wagmi switchChain via dynamic import
-        const { getConnectorClient } = await import('@wagmi/core')
-        const { config } = await import('@/config')
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-explicit-any
-        const client = await getConnectorClient(config as any)
-        await client.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: `0x${targetChainId.toString(16)}` }] })
       }
     }
 
     try {
-      // Step 1: switch to Arc Testnet for signing using wallet_addEthereumChain
-      // (idempotent — silently succeeds if already on Arc)
-      await safeSwitch(ARC)
+      // Step 1: ensure we are on Arc Testnet for signing.
+      // Pass current chainId so safeSwitch can skip if already there.
+      await safeSwitch(ARC, chainId)
       setPhase('signing')
 
       const burnIntent = {
@@ -1009,9 +1013,8 @@ function TransferTab({ address, gatewayBalance, onSuccess }: {
         throw new Error('Gateway API returned no attestation — check your balance and try again')
       }
 
-      // Step 3: switch to dest chain via wallet_addEthereumChain (bypasses assertCurrentChain).
-      // doMint fires from useEffect once chainId settles, with a 3s fallback for mobile.
-      await safeSwitch(destChainId)
+      // Step 3: switch to dest chain. Skip if already there (unlikely but safe).
+      await safeSwitch(destChainId, chainId)
       setPhase('minting')
       setPendingMint({ attestation: result.attestation, sig: result.signature, destChainIdSnapshot: destChainId })
     } catch (e: unknown) {
