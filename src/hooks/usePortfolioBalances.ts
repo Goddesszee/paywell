@@ -197,7 +197,10 @@ export function usePortfolioBalances(address: string | undefined): PortfolioSumm
 
   // ── EUR→USD rate (EURC 1:1 EUR by design) ────────────────────────────────
   // usdPerEur = how many USD does 1 EUR buy (from useFxRates)
-  const eurRate = fxLoading ? 1.09 : usdPerEur
+  // Use 0 while FX is loading so EURC contributes $0 until we have a real rate.
+  // This prevents the total from silently inflating by ~8.7% if the fallback
+  // 1.09 rate was baked in before the live rate arrived.
+  const eurRate = fxLoading ? 0 : usdPerEur
 
   // ── Build positions ───────────────────────────────────────────────────────
   const positions: TokenPosition[] = useMemo(() => {

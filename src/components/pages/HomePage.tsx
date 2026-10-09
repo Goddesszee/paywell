@@ -23,7 +23,6 @@ import { TokenNetworkSheet } from './TokenNetworkSheet'
 const F    = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif"
 const MONO = "'JetBrains Mono', 'SF Mono', Menlo, monospace"
 const ARC  = 5042002
-const EURC_ADDRESS = '0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a' as const
 
 // ─── Transaction row ──────────────────────────────────────────────────────────
 
@@ -281,40 +280,33 @@ export function HomePage() {
   const address   = wagmiAddress ?? (auth?.circleWalletAddress as `0x${string}` | undefined)
   const hasWallet = isConnected || !!auth?.circleWalletAddress
 
-  // ── Legacy single-chain reads (kept for fallback while portfolio loads) ────
+  // ── Store sync: single-chain Arc USDC read for setMainWalletBalance ──────────
+  // The portfolio hook covers all chains, but the store setter expects the Arc balance
+  // specifically for the "wallet address → balance" map used by the payment watcher.
   const usdcFact = getUsdc(ARC)
-  const { data: rawBalance, isLoading: arcUsdcLoading } = useReadContract({
+  const { data: rawBalance } = useReadContract({
     address: usdcFact?.address as `0x${string}`,
     abi: erc20Abi,
     functionName: 'balanceOf',
     args: address ? [address] : undefined,
     chainId: ARC,
-    query: { enabled: !!address && !!usdcFact },
+    query: { enabled: !!address && !!usdcFact, refetchInterval: 30_000 },
   })
-  const { data: rawEurc } = useReadContract({
-    address: EURC_ADDRESS,
-    abi: erc20Abi,
-    functionName: 'balanceOf',
-    args: address ? [address] : undefined,
-    chainId: ARC,
-    query: { enabled: !!address },
-  })
-  const usdcNum = rawBalance !== undefined ? Number(rawBalance) / 1e6 : 0
-  const eurcNum = rawEurc    !== undefined ? Number(rawEurc)    / 1e6 : 0
 
   // ── Portfolio (multi-chain, multi-token) ──────────────────────────────────
   const portfolio = usePortfolioBalances(address)
   const { usdPerEur, rates, loading: fxLoading } = useFxRates()
 
-  const portfolioTotal   = parseFloat(portfolio.totalUsd)
-  const legacyTotal      = usdcNum + eurcNum * usdPerEur
-  const displayTotal     = portfolio.isLoading ? legacyTotal.toFixed(2) : portfolio.totalUsd
-  const isLoadingBalance = portfolio.isLoading && arcUsdcLoading
+  // Show the real multi-chain total once loaded; $0.00 while loading (skeleton covers it).
+  const displayTotal     = portfolio.totalUsd
+  // Skeleton shows whenever the portfolio batch is still in-flight.
+  const isLoadingBalance = portfolio.isLoading
 
   // ── Sync store ────────────────────────────────────────────────────────────
   useEffect(() => {
-    if (address && portfolioTotal > 0) setMainWalletBalance(portfolio.totalUsd, address)
-  }, [portfolio.totalUsd, address, portfolioTotal, setMainWalletBalance])
+    const arcBal = rawBalance !== undefined ? (Number(rawBalance) / 1e6).toFixed(2) : undefined
+    if (address && arcBal) setMainWalletBalance(arcBal, address)
+  }, [rawBalance, address, setMainWalletBalance])
 
   useSyncMultiChainBalances(address, setCrossChainBalances)
 
