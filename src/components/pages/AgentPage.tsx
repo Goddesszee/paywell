@@ -1,10 +1,10 @@
 /* eslint-disable react/purity */
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import {
-  Bot, Send, X, Check, Zap, Shield, ShoppingBag,
+  Bot, Send, X, Check, Zap, Shield,
   ToggleLeft, ToggleRight, Coins, Loader2, Plus,
   Play,
-  Search, Globe, Cpu, FileText, AlertTriangle, CheckCircle2,
+  Search, Globe, AlertTriangle, CheckCircle2,
   Clock, ChevronRight, Sparkles, Network, Activity,
   UserCheck, TrendingUp, PackageCheck
 } from 'lucide-react'
@@ -31,9 +31,9 @@ import {
   type AgentPolicy, type OrchestrationUpdate,
 } from '../../lib/agent-orchestrator'
 import {
-  getAllServices, discoverServices, getAllNetworkAgents,
+  discoverServices, getAllNetworkAgents,
   searchNetworkAgents, getNetworkAgentsByCategory,
-  type NanService, type ServiceDiscoveryResult,
+  type ServiceDiscoveryResult,
   type NetworkAgent, ALL_CATEGORIES,
 } from '../../lib/agent-registry'
 import {
@@ -79,11 +79,10 @@ function MoreMenu({ active, onSelect, onClose }: {
   onClose: () => void
 }) {
   const items: { id: AgentTab; label: string; icon: React.ElementType }[] = [
-    { id: 'wallet',   label: 'Agent Wallet',    icon: Coins },
-    { id: 'discover', label: 'Services',         icon: Globe },
-    { id: 'network',  label: 'Agent Network',    icon: Network },
-    { id: 'policy',   label: 'Spending Policy',  icon: Shield },
-    { id: 'log',      label: 'Execution Log',    icon: Activity },
+    { id: 'wallet',  label: 'Agent Wallet',   icon: Coins },
+    { id: 'network', label: 'Agent Network',  icon: Network },
+    { id: 'policy',  label: 'Spending Policy', icon: Shield },
+    { id: 'log',     label: 'Execution Log',  icon: Activity },
   ]
   return (
     <>
@@ -390,12 +389,11 @@ export function AgentPage() {
         scrollbarWidth: 'none',
         WebkitOverflowScrolling: 'touch' as React.CSSProperties['WebkitOverflowScrolling'],
       }}>
-        {tab === 'chat'     && <AgentChat onNavigate={(page, _query) => { setActiveView(page); setTab('chat') }} />}
-        {tab === 'wallet'   && <AgentWalletExperience />}
-        {tab === 'discover' && <DiscoverTab />}
-        {tab === 'network'  && <NetworkTab />}
-        {tab === 'policy'   && <PolicyTab />}
-        {tab === 'log'      && <ExecutionLogTab />}
+        {tab === 'chat'    && <AgentChat onNavigate={(page, _query) => { setActiveView(page); setTab('chat') }} />}
+        {tab === 'wallet'  && <AgentWalletExperience />}
+        {tab === 'network' && <NetworkTab />}
+        {tab === 'policy'  && <PolicyTab />}
+        {tab === 'log'     && <ExecutionLogTab />}
       </div>
     </div>
   )
@@ -1444,8 +1442,6 @@ function AgentChat({ onNavigate }: { onNavigate?: (page: string, query?: string)
     'Bridge 10 USDC to Base Sepolia',
     'Set my daily spending limit to 50 USDC',
     'Create a payment request for 25 USDC',
-    'What is the current Bitcoin price?',
-    'Find me a web research service',
     'Enable the NAN Agent',
   ]
 
@@ -1929,112 +1925,6 @@ function MsgBubble({ msg, onApprove, onReject, onUseService, onInspectService }:
   )
 }
 
-
-
-// ── Service Discovery Tab ─────────────────────────────────────────────────────
-
-const CATEGORY_ICONS: Record<string, React.ElementType> = {
-  search: Search, research: FileText, travel: Globe,
-  career: Cpu, data: FileText, developer: Cpu,
-  ai: Sparkles, infrastructure: Cpu, digital_services: Globe,
-  other_agents: Bot, supplier: ShoppingBag, commerce: ShoppingBag,
-}
-
-function DiscoverTab() {
-  const [filter, setFilter] = useState('all')
-  const [query, setQuery] = useState('')
-  const allSvcs = getAllServices()
-  const categories = ['all', ...Array.from(new Set(allSvcs.map((s: NanService) => s.category)))]
-  const filtered = allSvcs.filter((s: NanService) => {
-    if (filter !== 'all' && s.category !== filter) return false
-    if (query && !s.name.toLowerCase().includes(query.toLowerCase()) && !s.description.toLowerCase().includes(query.toLowerCase())) return false
-    return true
-  })
-
-  return (
-    <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
-      <div style={{ background:'rgba(0,102,255,0.08)', border:'1px solid rgba(0,102,255,0.18)', borderRadius:14, padding:14 }}>
-        <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:6 }}>
-          <Globe size={14} color={BLUE} />
-          <span style={{ fontSize:13, fontWeight:700, color:TEXT }}>Service Registry</span>
-          <span style={{ marginLeft:'auto', fontSize:11, fontWeight:600, color:TEXT3 }}>{allSvcs.length} services</span>
-        </div>
-        <div style={{ fontSize:12, color:TEXT2, lineHeight:1.5 }}>
-          NAN can use these services on your behalf. All payments require your approval unless you configure autopay.
-        </div>
-      </div>
-
-      {/* Search */}
-      <div style={{ position:'relative' }}>
-        <Search size={13} color={TEXT3} style={{ position:'absolute', left:11, top:'50%', transform:'translateY(-50%)', pointerEvents:'none' }} />
-        <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search services…"
-          style={{ width:'100%', padding:'9px 12px 9px 32px', border:`1px solid ${BDR}`, borderRadius:10, fontFamily:F, fontSize:13, outline:'none', background:SURF2, color:TEXT, boxSizing:'border-box' }} />
-      </div>
-
-      {/* Category chips */}
-      <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
-        {categories.map(c => (
-          <button key={c} onClick={() => setFilter(c)} style={{
-            height:28, padding:'0 12px', borderRadius:20, border:`1px solid ${filter===c?BLUE:BDR}`,
-            background:filter===c?BLUE:SURF, color:filter===c?'#fff':TEXT2,
-            fontSize:11, fontWeight:600, cursor:'pointer', fontFamily:F,
-          }}>{c === 'all' ? 'All' : c}</button>
-        ))}
-      </div>
-
-      {/* Service cards */}
-      {filtered.map(svc => <ServiceCard key={svc.service_id} svc={svc} />)}
-      {filtered.length === 0 && (
-        <div style={{ textAlign:'center', padding:'40px 0', color:TEXT3 }}>
-          <Globe size={28} color={TEXT3} style={{ margin:'0 auto 10px' }} />
-          <div style={{ fontSize:13 }}>No services match your filter</div>
-        </div>
-      )}
-    </div>
-  )
-}
-
-function ServiceCard({ svc }: { svc: NanService }) {
-  const Icon = CATEGORY_ICONS[svc.category] ?? Globe
-  return (
-    <div style={{ background:SURF, border:`1px solid ${BDR}`, borderRadius:14, padding:14 }}>
-      <div style={{ display:'flex', alignItems:'flex-start', gap:10 }}>
-        <div style={{ width:34, height:34, borderRadius:9, background:'rgba(0,102,255,0.1)', border:'1px solid rgba(0,102,255,0.18)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-          <Icon size={15} color={BLUE} />
-        </div>
-        <div style={{ flex:1, minWidth:0 }}>
-          <div style={{ display:'flex', alignItems:'center', gap:6, flexWrap:'wrap' }}>
-            <span style={{ fontSize:13, fontWeight:700, color:TEXT }}>{svc.name}</span>
-            <span style={{ fontSize:10, fontWeight:600, color:TEXT3, textTransform:'uppercase', letterSpacing:'0.05em', background:SURF2, border:`1px solid ${BDR}`, borderRadius:6, padding:'1px 6px' }}>{svc.category}</span>
-            {!svc.enabled && <span style={{ fontSize:10, fontWeight:600, color:DANGER, background:'rgba(255,59,59,0.08)', border:'1px solid rgba(255,59,59,0.2)', borderRadius:6, padding:'1px 6px' }}>Disabled</span>}
-          </div>
-          <div style={{ fontSize:11, color:TEXT2, marginTop:3, lineHeight:1.4 }}>{svc.description}</div>
-        </div>
-      </div>
-      <div style={{ marginTop:10, paddingTop:10, borderTop:`1px solid ${BDR}`, display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
-        <div style={{ display:'flex', alignItems:'center', gap:5 }}>
-          <Coins size={11} color={TEXT3} />
-          <span style={{ fontSize:12, fontWeight:700, color:TEXT }}>{svc.price_usdc > 0 ? `${svc.price_usdc} USDC` : 'Free'}</span>
-          {svc.price_usdc > 0 && <span style={{ fontSize:10, color:TEXT3 }}>per call</span>}
-        </div>
-        <span style={{ fontSize:10, color:TEXT3, marginLeft:'auto' }}>{svc.provider}</span>
-        {svc.endpoint && (
-          <a href={svc.endpoint.startsWith('http') ? svc.endpoint : '#'} target="_blank" rel="noreferrer"
-            style={{ width:26, height:26, borderRadius:7, background:SURF2, border:`1px solid ${BDR}`, display:'flex', alignItems:'center', justifyContent:'center', textDecoration:'none' }}>
-            <ChevronRight size={12} color={TEXT2} />
-          </a>
-        )}
-      </div>
-      {svc.capabilities.length > 0 && (
-        <div style={{ display:'flex', flexWrap:'wrap', gap:5, marginTop:8 }}>
-          {svc.capabilities.slice(0, 4).map(cap => (
-            <span key={cap} style={{ fontSize:10, color:TEXT3, background:SURF2, border:`1px solid ${BDR}`, borderRadius:6, padding:'2px 7px' }}>{cap}</span>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
 
 // ── Policy Tab ────────────────────────────────────────────────────────────────
 

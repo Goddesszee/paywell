@@ -26,7 +26,6 @@ import {
 } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
 import { useNanTheme } from '../../hooks/useNanTheme'
-import { AgentServicesTab }   from './AgentServicesTab'
 import { AgentRecurringTab } from './AgentRecurringTab'
 
 // ── design tokens ─────────────────────────────────────────────────────────────
@@ -1079,12 +1078,11 @@ function ActionDrawer({ view, agentAddress, onClose, C }: {
   )
 }
 
-type DashTab = 'overview' | 'activity' | 'services'
+type DashTab = 'overview' | 'activity'
 
 const PRIMARY_TABS: { id: DashTab; label: string }[] = [
   { id: 'overview',  label: 'Overview'  },
   { id: 'activity',  label: 'Activity'  },
-  { id: 'services',  label: 'Services'  },
 ]
 
 
@@ -1154,16 +1152,6 @@ function DashboardScreen({ C, onDisconnect }: { C: ReturnType<typeof useNanTheme
   const createdLabel = agentWallet.createDate
     ? new Date(agentWallet.createDate).toLocaleDateString('en', { year: 'numeric', month: 'short', day: 'numeric' })
     : '—'
-
-  const themeColors = {
-    bg:    C.bg   ?? 'var(--nan-bg)',
-    surf:  C.surf,
-    surf2: C.surf2,
-    bdr:   C.bdr,
-    text:  C.text,
-    t2:    C.t2,
-    t3:    C.t3,
-  }
 
   // Derive a stable label from the ISO timestamp string — no Date.now() at render time
   const lastRefreshedLabel = agentWallet.lastRefreshed
@@ -1237,9 +1225,6 @@ function DashboardScreen({ C, onDisconnect }: { C: ReturnType<typeof useNanTheme
         WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none',
         boxSizing: 'border-box',
       }}>
-
-      {/* ══ SERVICES TAB ══════════════════════════════════════════════════════ */}
-      {dashTab === 'services' && <AgentServicesTab C={themeColors} />}
 
       {/* ══ ACTIVITY TAB ══════════════════════════════════════════════════════ */}
       {dashTab === 'activity' && (() => {
@@ -1809,7 +1794,7 @@ export function AgentWalletExperience() {
 
   if (screen === 'detect') {
     return (
-      <div style={{ width: '100%', minHeight: '100%', padding: 0, fontFamily: F, boxSizing: 'border-box' }}>
+      <div style={{ width: '100%', minHeight: '100%', padding: 0, fontFamily: F, boxSizing: 'border-box', background: C.bg }}>
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 320 }}>
           <svg width="28" height="28" viewBox="0 0 28 28" style={{ animation: 'aw-spin 0.9s linear infinite' }}>
             <circle cx="14" cy="14" r="11" fill="none" stroke="rgba(0,102,255,0.2)" strokeWidth="3" />
@@ -1839,7 +1824,7 @@ export function AgentWalletExperience() {
         }
       `}</style>
 
-      <div style={{ width: '100%', minHeight: '100%', padding: 0, fontFamily: F, boxSizing: 'border-box', overflowX: 'hidden' }}>
+      <div style={{ width: '100%', minHeight: '100%', padding: 0, fontFamily: F, boxSizing: 'border-box', overflowX: 'hidden', background: C.bg }}>
         {/* header */}
         {showBack && (
           <BackButton onBack={() => { if (screen === 'setup') setScreen('edu'); else setActiveView('home') }} C={C} />
