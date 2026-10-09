@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Layers, RefreshCw, ArrowDownToLine, ArrowLeftRight, ExternalLink, Check, AlertCircle, Copy, Info, ChevronDown } from 'lucide-react'
-import { useAccount, useWriteContract, useWaitForTransactionReceipt, useSwitchChain, useReadContract, useSignTypedData } from 'wagmi'
+import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContract, useSignTypedData } from 'wagmi'
 import { erc20Abi, parseUnits, formatUnits, zeroAddress } from 'viem'
 import { toast } from 'sonner'
 import { getUsdc, getProtocolContractByName, buildTxExplorerUrl, ONCHAIN_CHAINS } from '@/onchain-facts'
@@ -390,7 +390,6 @@ function DepositTab({ address, walletBalance, usdcFact, onSuccess }: {
   onSuccess: () => void
 }) {
   const { chainId } = useAccount()
-  const { switchChainAsync } = useSwitchChain()
   const [amount, setAmount] = useState('')
   const [phase, setPhase] = useState<'idle'|'approving'|'depositing'|'done'|'error'>('idle')
   const [errMsg, setErrMsg] = useState('')
@@ -438,7 +437,11 @@ function DepositTab({ address, walletBalance, usdcFact, onSuccess }: {
     if (!address || !usdcFact || !amount || parseFloat(amount) <= 0) return
     setErrMsg('')
     try {
-      if (chainId !== ARC) await switchChainAsync({ chainId: ARC })
+      if (chainId !== ARC) {
+        const arcChainInfo = ONCHAIN_CHAINS.find(c => c.chainId === ARC)!
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+        await (window as any).ethereum?.request({ method: 'wallet_addEthereumChain', params: [{ chainId: `0x${ARC.toString(16)}`, chainName: arcChainInfo.name, nativeCurrency: arcChainInfo.nativeCurrency, rpcUrls: arcChainInfo.rpcUrls, blockExplorerUrls: [arcChainInfo.explorerBase] }] })
+      }
       setPhase('approving')
       approve({
         address: usdcFact.address as `0x${string}`,
@@ -854,7 +857,6 @@ function TransferTab({ address, gatewayBalance, onSuccess }: {
   address: `0x${string}`; gatewayBalance: string|null; onSuccess: () => void
 }) {
   const { chainId } = useAccount()
-  const { switchChainAsync } = useSwitchChain()
   const [amount, setAmount] = useState('')
   const [destChainId, setDestChainId] = useState<number>(84532)
   const [phase, setPhase] = useState<TransferPhase>('idle')
@@ -933,9 +935,32 @@ function TransferTab({ address, gatewayBalance, onSuccess }: {
     const destDomain = DOMAIN_MAP[destChainId]
     if (destDomain === undefined) { setErrMsg('Destination chain domain unknown'); return }
 
+    // wallet_addEthereumChain switches AND adds the chain if missing, bypassing
+    // viem's assertCurrentChain which throws "chainId NaN" on mobile wallets whose
+    // connector hasn't fully resolved the chain object yet.
+    const safeSwitch = async (targetChainId: number) => {
+      const targetChain = ONCHAIN_CHAINS.find(c => c.chainId === targetChainId)
+      if (!targetChain) throw new Error(`Chain ${targetChainId} not found`)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment
+      const provider = (window as any).ethereum
+      if (!provider) throw new Error('No injected wallet found')
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+      await provider.request({
+        method: 'wallet_addEthereumChain',
+        params: [{
+          chainId: `0x${targetChainId.toString(16)}`,
+          chainName: targetChain.name,
+          nativeCurrency: targetChain.nativeCurrency,
+          rpcUrls: targetChain.rpcUrls,
+          blockExplorerUrls: [targetChain.explorerBase],
+        }],
+      })
+    }
+
     try {
-      // Step 1: switch to Arc Testnet for signing (idempotent if already there)
-      await switchChainAsync({ chainId: ARC })
+      // Step 1: switch to Arc Testnet for signing using wallet_addEthereumChain
+      // (idempotent — silently succeeds if already on Arc)
+      await safeSwitch(ARC)
       setPhase('signing')
 
       const burnIntent = {
@@ -972,11 +997,9 @@ function TransferTab({ address, gatewayBalance, onSuccess }: {
       setPhase('submitting')
       const { attestation, signature: mintSignature } = await submitBurnIntent(burnIntent, signature)
 
-      // Step 3: switch to dest chain, then store attestation in state.
-      // doMint fires from a useEffect once chainId === destChainId — this avoids
-      // the "chainId NaN" error caused by calling writeContract before wagmi's
-      // reactive chainId has updated after switchChainAsync.
-      await switchChainAsync({ chainId: destChainId })
+      // Step 3: switch to dest chain via wallet_addEthereumChain (bypasses assertCurrentChain).
+      // doMint fires from useEffect once chainId settles, with a 3s fallback for mobile.
+      await safeSwitch(destChainId)
       setPhase('minting')
       setPendingMint({ attestation: attestation!, sig: mintSignature!, destChainIdSnapshot: destChainId })
     } catch (e: unknown) {
