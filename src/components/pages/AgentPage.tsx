@@ -1566,7 +1566,12 @@ function AgentChat({ onNavigate }: { onNavigate?: (page: string, query?: string)
             onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void send() } }}
             placeholder="Ask NAN anything about your money…"
             style={{
-              flex: 1, border: 'none', outline: 'none',
+              flex: 1,
+              border: 'none',
+              outline: 'none',
+              boxShadow: 'none',
+              WebkitAppearance: 'none',
+              WebkitTapHighlightColor: 'transparent',
               background: 'transparent',
               fontFamily: F, fontSize: 14, color: BLACK,
               minWidth: 0,
