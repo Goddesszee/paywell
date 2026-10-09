@@ -856,112 +856,55 @@ type TransferPhase = 'idle' | 'signing' | 'submitting' | 'minting' | 'done' | 'e
 function TransferTab({ address, gatewayBalance, onSuccess }: {
   address: `0x${string}`; gatewayBalance: string|null; onSuccess: () => void
 }) {
-  const { chainId } = useAccount()
   const [amount, setAmount] = useState('')
   const [destChainId, setDestChainId] = useState<number>(84532)
   const [phase, setPhase] = useState<TransferPhase>('idle')
   const [errMsg, setErrMsg] = useState('')
   const [mintTxHash, setMintTxHash] = useState<`0x${string}` | undefined>()
-  // Store attestation after Gateway API responds — doMint fires once chainId settles
-  const [pendingMint, setPendingMint] = useState<{ attestation: `0x${string}`; sig: `0x${string}`; destChainIdSnapshot: number } | null>(null)
   const gwBal = gatewayBalance ? parseFloat(gatewayBalance) : 0
 
   const destChain = GATEWAY_CHAINS.find(c => c.chainId === destChainId)
   const srcChain  = GATEWAY_CHAINS.find(c => c.chainId === ARC)
 
-  const { writeContract: doMint, data: mintHash, error: mintWriteError } = useWriteContract()
-  const { isSuccess: mintSuccess, isError: mintReceiptError } = useWaitForTransactionReceipt({ hash: mintHash })
-  const mintError = mintReceiptError || !!mintWriteError
-
-  useEffect(() => {
-    if (mintHash) setMintTxHash(mintHash) // eslint-disable-line react/set-state-in-effect
-  }, [mintHash])
-
-  useEffect(() => {
-    if (mintSuccess) {
-      setPhase('done') // eslint-disable-line react/set-state-in-effect
-      setPendingMint(null) // eslint-disable-line react/set-state-in-effect
-      toast.success(`Transferred ${amount} USDC to ${destChain?.name ?? 'destination'}`)
-      setTimeout(onSuccess, 2000)
-    }
-  }, [mintSuccess]) // eslint-disable-line
-
-  useEffect(() => {
-    if (mintError) {
-      setPhase('error') // eslint-disable-line react/set-state-in-effect
-      setPendingMint(null) // eslint-disable-line react/set-state-in-effect
-      const msg = mintWriteError?.message?.includes('User rejected')
-        ? 'Wallet prompt rejected — click Transfer again to retry.'
-        : 'Mint transaction failed. The attestation may have already been used.'
-      setErrMsg(msg) // eslint-disable-line react/set-state-in-effect
-    }
-  }, [mintError, mintWriteError]) // eslint-disable-line
-
-  // Fire doMint — always without a chainId pin so wagmi never calls assertCurrentChain.
-  // The wallet is already on destChain (safeSwitch resolved successfully before we
-  // set pendingMint). Passing chainId to writeContract triggers viem's chain-ID
-  // assertion which reads connector.chain.id as NaN on MetaMask mobile.
-  useEffect(() => {
-    if (!pendingMint || phase !== 'minting') return
-    doMint({
-      address:      GATEWAY_MINTER,
-      abi:          GATEWAY_MINTER_ABI,
-      functionName: 'gatewayMint',
-      args:         [pendingMint.attestation, pendingMint.sig],
-      // NO chainId — avoids assertCurrentChain NaN on MetaMask mobile
-    })
-  }, [pendingMint, phase]) // eslint-disable-line
-
   const handleTransfer = async () => {
     if (!address || !amount || parseFloat(amount) <= 0 || !destChain?.usdc || !srcChain?.usdc) return
     if (!destChainId || isNaN(destChainId) || destChainId === ARC) { toast.error('Select a different destination chain'); return }
-    setErrMsg('')
-    setPendingMint(null)
+    setErrMsg(''); setMintTxHash(undefined)
     const parsed = parseUnits(amount, 6)
     const srcDomain  = DOMAIN_MAP[ARC] ?? 26
     const destDomain = DOMAIN_MAP[destChainId]
     if (destDomain === undefined) { setErrMsg('Destination chain domain unknown'); return }
 
-    // Direct provider switch — bypasses viem/wagmi chain-ID assertions entirely.
-    // Uses wallet_switchEthereumChain for standard chains (Base, Arb, etc.) and
-    // wallet_addEthereumChain only for custom chains (Arc Testnet) that may not
-    // be pre-configured in the wallet.
-    // Skips the call entirely if already on the target chain.
-    const safeSwitch = async (targetChainId: number, currentChainId?: number) => {
-      if (currentChainId === targetChainId) return // already there — no-op
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment
-      const provider = (window as any).ethereum
-      if (!provider) return // WalletConnect — user must switch manually in wallet app
-      const hexId = `0x${targetChainId.toString(16)}`
+    // Get window.ethereum — all operations go directly through it.
+    // This bypasses wagmi/viem's assertCurrentChain entirely.
+    // assertCurrentChain reads connector.chain.id which is NaN on MetaMask mobile
+    // in-app browser regardless of which chain is actually active.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment
+    const provider = (window as any).ethereum
+    if (!provider) { setErrMsg('No injected wallet found — please open in MetaMask browser'); return }
+
+    // Switch chain via direct provider.request — no viem chain objects, no assertions.
+    const switchChain = async (hexChainId: string) => {
       try {
-        // Try switch first — works for any chain the wallet already knows
         // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-        await provider.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: hexId }] })
-      } catch (switchErr) {
-        // Error code 4902 = chain not added — fall back to addEthereumChain
-        const code = (switchErr as { code?: number })?.code
-        if (code !== 4902) throw switchErr
-        const targetChain = ONCHAIN_CHAINS.find(c => c.chainId === targetChainId)
-        if (!targetChain) throw new Error(`Chain ${targetChainId} not found`)
+        await provider.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: hexChainId }] })
+      } catch (e) {
+        if ((e as { code?: number })?.code !== 4902) throw e
+        const numId = parseInt(hexChainId, 16)
+        const chain = ONCHAIN_CHAINS.find(c => c.chainId === numId)
+        if (!chain) throw new Error(`Chain ${hexChainId} not configured`)
         // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
         await provider.request({
           method: 'wallet_addEthereumChain',
-          params: [{
-            chainId: hexId,
-            chainName: targetChain.name,
-            nativeCurrency: targetChain.nativeCurrency,
-            rpcUrls: targetChain.rpcUrls,
-            blockExplorerUrls: [targetChain.explorerBase],
-          }],
+          params: [{ chainId: hexChainId, chainName: chain.name, nativeCurrency: chain.nativeCurrency, rpcUrls: chain.rpcUrls, blockExplorerUrls: [chain.explorerBase] }],
         })
       }
     }
 
     try {
-      // Step 1: ensure we are on Arc Testnet for signing.
-      // Pass current chainId so safeSwitch can skip if already there.
-      await safeSwitch(ARC, chainId)
+      // ── Step 1: Sign BurnIntent on Arc ──────────────────────────────────────
       setPhase('signing')
+      await switchChain(`0x${ARC.toString(16)}`)
 
       const burnIntent = {
         maxBlockHeight: 2n ** 256n - 1n,
@@ -984,47 +927,73 @@ function TransferTab({ address, gatewayBalance, onSuccess }: {
         },
       }
 
-      // Sign via eth_signTypedData_v4 directly on window.ethereum.
-      // This bypasses wagmi/viem's assertCurrentChain which reads connector.chain.id
-      // as NaN on MetaMask mobile in-app browser even after a successful chain switch.
-      // The typed data must include EIP712Domain in types for eth_signTypedData_v4.
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment
-      const provider = (window as any).ethereum
-      if (!provider) throw new Error('No injected wallet found — please open in MetaMask browser')
-      const typedData = JSON.stringify(
-        {
-          domain:      BURN_INTENT_TYPED_DATA.domain,
-          types:       BURN_INTENT_TYPED_DATA.types,
-          primaryType: BURN_INTENT_TYPED_DATA.primaryType,
-          message:     burnIntent,
-        },
+      // eth_signTypedData_v4 directly — no wagmi, no assertCurrentChain
+      const typedDataStr = JSON.stringify(
+        { domain: BURN_INTENT_TYPED_DATA.domain, types: BURN_INTENT_TYPED_DATA.types, primaryType: BURN_INTENT_TYPED_DATA.primaryType, message: burnIntent },
         (_k, v: unknown) => typeof v === 'bigint' ? `0x${v.toString(16)}` : v,
       )
       // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment
-      const signature: string = await provider.request({
-        method: 'eth_signTypedData_v4',
-        params: [address, typedData],
-      })
+      const signature: string = await provider.request({ method: 'eth_signTypedData_v4', params: [address, typedDataStr] })
 
-      // Step 2: submit to Gateway API
+      // ── Step 2: Submit to Gateway API ───────────────────────────────────────
       setPhase('submitting')
       const result = await submitBurnIntent(burnIntent, signature)
       if (!result.attestation || !result.signature) {
         throw new Error('Gateway API returned no attestation — check your balance and try again')
       }
 
-      // Step 3: switch to dest chain. Skip if already there (unlikely but safe).
-      await safeSwitch(destChainId, chainId)
+      // ── Step 3: gatewayMint on destination via viem walletClient (no wagmi) ─
+      // createWalletClient with chain: undefined + custom transport bypasses
+      // assertCurrentChain completely — exactly how Circle's own docs do it.
       setPhase('minting')
-      setPendingMint({ attestation: result.attestation, sig: result.signature, destChainIdSnapshot: destChainId })
+      await switchChain(`0x${destChainId.toString(16)}`)
+
+      const { createPublicClient, encodeFunctionData, http } = await import('viem')
+      const destChainObj = ONCHAIN_CHAINS.find(c => c.chainId === destChainId)
+      if (!destChainObj) throw new Error('Destination chain config not found')
+
+      // Build a minimal chain object — only what viem needs to send a tx
+      const viemChain = {
+        id: destChainId,
+        name: destChainObj.name,
+        nativeCurrency: destChainObj.nativeCurrency,
+        rpcUrls: { default: { http: [destChainObj.rpcUrls[0]] } },
+      }
+
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+      const publicClient = createPublicClient({ chain: viemChain as never, transport: http(destChainObj.rpcUrls[0]) })
+
+      const mintCalldata = encodeFunctionData({
+        abi: GATEWAY_MINTER_ABI,
+        functionName: 'gatewayMint',
+        args: [result.attestation, result.signature],
+      })
+
+      // Send via provider.request — walletClient.sendTransaction would still assertCurrentChain
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment
+      const txHash: `0x${string}` = await provider.request({
+        method: 'eth_sendTransaction',
+        params: [{ from: address, to: GATEWAY_MINTER, data: mintCalldata }],
+      })
+      setMintTxHash(txHash)
+
+      // Wait for receipt using publicClient (no wallet required — just reads the chain)
+      await publicClient.waitForTransactionReceipt({ hash: txHash })
+
+      setPhase('done')
+      toast.success(`Transferred ${amount} USDC to ${destChain?.name ?? 'destination'}`)
+      setTimeout(onSuccess, 2000)
+
     } catch (e: unknown) {
       setPhase('error')
-      setPendingMint(null)
-      setErrMsg(e instanceof Error ? e.message : 'Transfer failed.')
+      const msg = (e as { message?: string })?.message ?? 'Transfer failed.'
+      setErrMsg(msg.includes('User rejected') || msg.includes('user rejected')
+        ? 'Wallet prompt rejected — tap Transfer again to retry.'
+        : msg)
     }
   }
 
-  const reset = () => { setPhase('idle'); setAmount(''); setErrMsg(''); setMintTxHash(undefined); setPendingMint(null) }
+  const reset = () => { setPhase('idle'); setAmount(''); setErrMsg(''); setMintTxHash(undefined) }
 
   const DEST_CHAINS = GATEWAY_CHAINS.filter(c => c.chainId !== ARC)
 
