@@ -197,7 +197,8 @@ export interface NanChatContext {
   unreadNotifications?: number
 }
 
-/** Backward-compat alias used by AgentPage */
+/** NAN AI chat — always calls the Vercel /api/chat function on the same origin,
+ *  regardless of VITE_API_URL (which may point to Railway for other endpoints). */
 export async function nanChat(opts: {
   messages: Array<{ role: 'user' | 'assistant'; content: string }>
   usdcBal?: string
@@ -206,14 +207,27 @@ export async function nanChat(opts: {
   context?: NanChatContext
 }): Promise<{ reply: string; service_used?: string | null; action?: Record<string, unknown> | null; marketplace_services?: MarketplaceServiceCard[] }> {
   const last = opts.messages[opts.messages.length - 1]?.content ?? ''
-  return apiPost<{ reply: string; service_used?: string | null; action?: Record<string, unknown> | null; marketplace_services?: MarketplaceServiceCard[] }>('/api/chat', {
-    message: last,
-    messages: opts.messages,
-    history: opts.messages.slice(0, -1),
-    usdcBal: opts.usdcBal,
-    userAddress: opts.userAddress,
-    context: opts.context,
-  }, opts.sessionToken)
+  // Always use same-origin so the Vercel /api/chat serverless function is called,
+  // even when VITE_API_URL points to a separate Railway/Express backend.
+  const CHAT_BASE = typeof window !== 'undefined' ? window.location.origin : ''
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  if (opts.sessionToken) headers['Authorization'] = `Bearer ${opts.sessionToken}`
+  const res = await fetch(`${CHAT_BASE}/api/chat`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({
+      message: last,
+      messages: opts.messages,
+      history: opts.messages.slice(0, -1),
+      usdcBal: opts.usdcBal,
+      userAddress: opts.userAddress,
+      context: opts.context,
+    }),
+  })
+  const data = await res.json() as { reply?: string; success?: boolean; error?: string; service_used?: string | null; action?: Record<string, unknown> | null; marketplace_services?: MarketplaceServiceCard[] }
+  if (!res.ok) throw new Error(data?.error ?? `/api/chat failed (${res.status})`)
+  if (!data.reply) throw new Error('No reply from AI')
+  return data as { reply: string; service_used?: string | null; action?: Record<string, unknown> | null; marketplace_services?: MarketplaceServiceCard[] }
 }
 
 
