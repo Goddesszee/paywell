@@ -116,6 +116,7 @@ interface ChatContext {
   mainAddress?: string
   agentBalance?: string
   agentAddress?: string
+  isPasskeyUser?: boolean
   agentWalletProvisioned?: boolean
   dailyLimit?: number
   perTxLimit?: number
@@ -316,7 +317,7 @@ Open faucet (get free testnet USDC):
 
 **Circle UCW users** (logged in with Email OTP or Google): use ucw_send, ucw_bridge, ucw_swap, ucw_gateway_deposit, ucw_gateway_transfer.
 **Wagmi users** (MetaMask/WalletConnect): use send_usdc, bridge_start, swap_start, navigate to gateway.
-**Passkey users**: use agent_send from Agent Wallet. For bridge/swap, navigate to the tab.
+**Passkey users** (WebAuthn/modular wallet — they have a connected 0x address but no Circle UCW auth): use send_usdc for sends (same as wagmi), bridge_start for bridge, swap_start for swap. Do NOT use ucw_* or agent_send for passkey users.
 **Agent Wallet**: use agent_wallet_send for agent wallet sends, agent_wallet_balance to check balance, agent_wallet_fund to open funding, agent_service_search to find services, agent_service_pay to hire a service.
 
 **BRIDGE rule**: user says "bridge X USDC to Y" → emit bridge_start (wagmi) OR ucw_bridge (UCW). NEVER just describe bridging.
@@ -492,6 +493,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 - Agent Wallet: **${parseFloat(ctx.agentBalance ?? '0').toFixed(2)} USDC** (${ctx.agentWalletProvisioned ? 'provisioned' : 'NOT set up'})
   ${ctx.agentAddress ? `Address: ${ctx.agentAddress}` : '(no address — not provisioned)'}
   ${ctx.agentWalletBlockchain ? `Blockchain: ${ctx.agentWalletBlockchain} · AccountType: ${ctx.agentWalletAccountType ?? 'SCA'}` : ''}
+- Login type: ${ctx.isPasskeyUser ? 'Passkey/Modular Wallet (use send_usdc, bridge_start, swap_start — NEVER ucw_* for this user)' : ctx.mainAddress && !ctx.agentWalletProvisioned ? 'Wagmi/MetaMask (use send_usdc, bridge_start, swap_start)' : 'Circle UCW email/Google (use ucw_send, ucw_bridge, ucw_swap)'}
 - Agent enabled: ${ctx.agentEnabled !== false ? 'YES' : 'NO'}
 - Daily limit: ${ctx.dailyLimit ?? 'not set'} USDC · Used today: ${(ctx.agentDailyUsed ?? 0).toFixed(2)} USDC · Remaining: ${ctx.remainingToday !== undefined ? ctx.remainingToday.toFixed(2) : 'unknown'} USDC
 - Per-tx limit: ${ctx.perTxLimit ?? 'not set'} USDC · Per-service limit: ${ctx.perServiceLimit ?? 'not set'} USDC

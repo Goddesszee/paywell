@@ -149,6 +149,7 @@ export interface NanChatContext {
   // Balances & wallet
   mainBalance?: string
   mainAddress?: string
+  isPasskeyUser?: boolean
   agentBalance?: string
   agentAddress?: string
   agentWalletProvisioned?: boolean

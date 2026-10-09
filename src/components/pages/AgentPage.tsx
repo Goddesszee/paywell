@@ -1205,6 +1205,7 @@ function AgentChat({ onNavigate }: { onNavigate?: (page: string, query?: string)
           context: {
             mainBalance: storeSnap.mainWalletBalance,
             mainAddress: address ?? auth?.walletAddress ?? '',
+            isPasskeyUser: auth?.isPasskeyUser ?? false,
             agentBalance: agentWallet.balance_usdc ?? '0',
             agentAddress: agentWallet.address,
             agentWalletProvisioned: agentWallet.provisioned,
@@ -1522,11 +1523,16 @@ function AgentChat({ onNavigate }: { onNavigate?: (page: string, query?: string)
         )}
         {/* ── Inline swap UI — appears in conversation after swap_start ── */}
         {inlineSwap && !agentWallet.provisioned && (
-          <div style={{ display:'flex', justifyContent:'flex-start', paddingLeft:36 }}>
-            <div style={{ background:'rgba(255,149,0,0.08)', border:'1px solid rgba(255,149,0,0.2)', borderRadius:14, padding:'12px 14px', fontSize:13, color:'#FF9500', fontFamily:F, maxWidth:'85%' }}>
-              Set up your Agent Wallet first to use swaps.
-            </div>
-          </div>
+          // Passkey/wagmi users: navigate to Swap tab instead of inline swap
+          (() => {
+            // Navigate immediately and clear
+            if (onNavigate) {
+              useAppStore.getState().setSwapPrefill({ fromToken: inlineSwap.fromToken, toToken: inlineSwap.toToken, amount: inlineSwap.amount })
+              onNavigate('swap')
+            }
+            setTimeout(() => setInlineSwap(null), 100)
+            return null
+          })()
         )}
         {inlineSwap && agentWallet.provisioned && (
           <div style={{ paddingLeft:36, paddingRight:4 }}>
