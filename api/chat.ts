@@ -264,6 +264,28 @@ Navigate to any page:
 Open the Circle onramp (buy USDC with card/bank):
 {"action":"navigate","params":{"page":"onramp"}}
 
+**── RECEIPTS & QR ──**
+
+Generate and download a receipt for the most recent transaction:
+{"action":"generate_receipt","params":{}}
+
+Generate receipt for a specific tx hash:
+{"action":"generate_receipt","params":{"txHash":"<0x...>"}}
+
+Generate receipt for the Nth recent transaction (0 = latest):
+{"action":"generate_receipt","params":{"index":0}}
+
+Show a QR code for receiving USDC (opens wallet receive screen):
+{"action":"show_qr","params":{"address":"<optional 0x>","amount":"<optional>","note":"<optional>"}}
+
+**── NOTIFICATIONS & FAUCET ──**
+
+Open notifications:
+{"action":"show_notifications","params":{}}
+
+Open faucet (get free testnet USDC):
+{"action":"open_faucet","params":{}}
+
 ---
 
 ## ROUTING RULES — CRITICAL

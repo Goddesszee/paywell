@@ -24,6 +24,7 @@
 
 import { parseUnits, getAddress } from 'viem'
 import { getUsdc } from '../onchain-facts'
+import { buildReceiptHtml } from './receipt'
 import type { AppState, RecurringFrequency } from '../store/appStore'
 
 const USDC_TRANSFER_ABI = [{
@@ -55,6 +56,10 @@ export type NanActionType =
   | 'create_payment_request'
   | 'create_invoice'
   | 'check_balance'
+  | 'generate_receipt'
+  | 'show_qr'
+  | 'show_notifications'
+  | 'open_faucet'
 
 // ── Individual action interfaces ───────────────────────────────────────────────
 
@@ -170,6 +175,26 @@ export interface CheckBalanceAction {
   params: Record<string, never>
 }
 
+export interface GenerateReceiptAction {
+  action: 'generate_receipt'
+  params: { txHash?: string; index?: number } // index = nth recent activity (0=latest)
+}
+
+export interface ShowQrAction {
+  action: 'show_qr'
+  params: { address?: string; amount?: string; note?: string }
+}
+
+export interface ShowNotificationsAction {
+  action: 'show_notifications'
+  params: Record<string, never>
+}
+
+export interface OpenFaucetAction {
+  action: 'open_faucet'
+  params: Record<string, never>
+}
+
 // ── Union ─────────────────────────────────────────────────────────────────────
 
 export type NanAction =
@@ -193,6 +218,10 @@ export type NanAction =
   | CreatePaymentRequestAction
   | CreateInvoiceAction
   | CheckBalanceAction
+  | GenerateReceiptAction
+  | ShowQrAction
+  | ShowNotificationsAction
+  | OpenFaucetAction
 
 // ── Safe string coercion ───────────────────────────────────────────────────────
 
@@ -312,6 +341,14 @@ export function parseAction(raw: Record<string, unknown>): NanAction | null {
     }
     case 'check_balance':
       return { action: 'check_balance', params: {} }
+    case 'generate_receipt':
+      return { action: 'generate_receipt', params: { txHash: s(params.txHash) || undefined, index: params.index !== undefined ? Number(params.index) : undefined } }
+    case 'show_qr':
+      return { action: 'show_qr', params: { address: s(params.address) || undefined, amount: s(params.amount) || undefined, note: s(params.note) || undefined } }
+    case 'show_notifications':
+      return { action: 'show_notifications', params: {} }
+    case 'open_faucet':
+      return { action: 'open_faucet', params: {} }
     default:
       return null
   }
@@ -440,6 +477,19 @@ export function describeAction(action: NanAction): { title: string; lines: Array
       ]}
     case 'check_balance':
       return { title: 'Check Balance', lines: [{ label: 'Note', value: 'Refreshes your wallet balances' }] }
+    case 'generate_receipt':
+      return { title: 'Generate Receipt', lines: [
+        { label: 'For', value: action.params.txHash ? `tx: ${action.params.txHash.slice(0,12)}…` : `Transaction #${(action.params.index ?? 0) + 1}` },
+      ]}
+    case 'show_qr':
+      return { title: 'Show QR Code', lines: [
+        ...(action.params.address ? [{ label: 'Address', value: action.params.address }] : []),
+        ...(action.params.amount  ? [{ label: 'Amount',  value: `${action.params.amount} USDC` }] : []),
+      ]}
+    case 'show_notifications':
+      return { title: 'Notifications', lines: [{ label: 'Action', value: 'Open notifications' }] }
+    case 'open_faucet':
+      return { title: 'Open Faucet', lines: [{ label: 'Action', value: 'Get free testnet USDC' }] }
   }
 }
 
@@ -468,6 +518,10 @@ export function requiresConfirmation(action: NanAction): boolean {
     case 'bridge_info':
     case 'swap_start':
     case 'check_balance':
+    case 'generate_receipt':
+    case 'show_qr':
+    case 'show_notifications':
+    case 'open_faucet':
       return false
   }
 }
@@ -714,6 +768,45 @@ export async function executeAction(action: NanAction, ctx: ExecutorContext): Pr
         .map(([chain, bal]) => `${chain}: ${parseFloat(bal).toFixed(2)}`)
         .join(' | ')
       return `Main wallet: ${main} USDC${state.agentWallet.provisioned ? ` | Agent Wallet: ${agent} USDC` : ''}${cross ? ` | Cross-chain: ${cross}` : ''}`
+    }
+
+    case 'generate_receipt': {
+      const { txHash, index } = action.params
+      const activities = store.activity
+      let tx = txHash
+        ? activities.find(a => a.txHash === txHash)
+        : activities[index ?? 0]
+      if (!tx && activities.length === 0) return 'No transactions found to generate a receipt for.'
+      if (!tx) tx = activities[0]
+      const html = buildReceiptHtml({
+        amount: tx.amount,
+        sign: tx.sign,
+        description: tx.description,
+        status: tx.status,
+        timestamp: tx.timestamp instanceof Date ? tx.timestamp.toISOString() : String(tx.timestamp),
+        counterparty: tx.counterparty,
+        txHash: tx.txHash,
+      })
+      const blob = new Blob([html], { type: 'text/html' })
+      const url = URL.createObjectURL(blob)
+      window.open(url, '_blank')
+      return `Receipt generated for ${tx.sign}${parseFloat(String(tx.amount)).toFixed(2)} USDC — "${tx.description}". Opening in a new tab.`
+    }
+
+    case 'show_qr': {
+      const addr = action.params.address ?? ctx.connectedAddress ?? store.auth?.walletAddress ?? ''
+      navigate('wallet')
+      return `__SHOW_QR__:${addr}::${action.params.amount ?? ''}::${action.params.note ?? ''}`
+    }
+
+    case 'show_notifications': {
+      navigate('notifications')
+      return 'Opening your notifications.'
+    }
+
+    case 'open_faucet': {
+      navigate('faucet')
+      return 'Opening the faucet — you can get free testnet USDC there.'
     }
   }
 }
