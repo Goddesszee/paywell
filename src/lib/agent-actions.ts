@@ -60,6 +60,11 @@ export type NanActionType =
   | 'show_qr'
   | 'show_notifications'
   | 'open_faucet'
+  | 'agent_wallet_send'
+  | 'agent_wallet_fund'
+  | 'agent_wallet_balance'
+  | 'agent_service_search'
+  | 'agent_service_pay'
 
 // ── Individual action interfaces ───────────────────────────────────────────────
 

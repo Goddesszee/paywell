@@ -1279,7 +1279,7 @@ function AgentChat({ onNavigate }: { onNavigate?: (page: string, query?: string)
                 amount:    parsed.params.amount     ?? '',
               })
             } else if (!requiresConfirmation(parsed)) {
-              // Execute immediately (navigate, toggle, search)
+              // Execute immediately (navigate, toggle, search, balance, receipts, qr, etc.)
               try {
                 const store = useAppStore.getState()
                 const result = await executeAction(parsed, {
@@ -1290,10 +1290,22 @@ function AgentChat({ onNavigate }: { onNavigate?: (page: string, query?: string)
                   connectedAddress: address,
                   chainId,
                 })
-                addAgentMessage({ role:'agent', content: result, action:'info' })
+                // Handle special signal strings
+                if (result === '__AGENT_WALLET_FUND__') {
+                  if (onNavigate) onNavigate('agent-wallet')
+                  addAgentMessage({ role: 'agent', content: 'Opening your Agent Wallet funding screen.', action: 'info' })
+                } else if (result?.startsWith('__SHOW_QR__:')) {
+                  const [, rest] = result.split('__SHOW_QR__:')
+                  const [addr] = rest.split('::')
+                  addAgentMessage({ role: 'agent', content: `Opening your receive QR code${addr ? ` for address ${addr.slice(0,6)}...${addr.slice(-4)}` : ''}.`, action: 'info' })
+                  if (onNavigate) onNavigate('wallet')
+                } else {
+                  addAgentMessage({ role:'agent', content: result, action:'info' })
+                }
               } catch (e) {
                 addAgentMessage({ role:'agent', content: `Action failed: ${e instanceof Error ? e.message : 'Unknown error'}`, action:'info' })
               }
+              setTimeout(scrollToBottom, 50)
             } else {
               // Show confirmation card
               setPendingAction(parsed)

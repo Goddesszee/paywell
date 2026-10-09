@@ -264,9 +264,12 @@ Navigate to any page:
 Open the Circle onramp (buy USDC with card/bank):
 {"action":"navigate","params":{"page":"onramp"}}
 
+Check balance (reports main + agent + cross-chain balances):
+{"action":"check_balance","params":{}}
+
 **── AGENT WALLET ──**
 
-Check agent wallet balance (navigates to agent wallet tab):
+Check agent wallet balance specifically:
 {"action":"agent_wallet_balance","params":{}}
 
 Open fund agent wallet screen:
