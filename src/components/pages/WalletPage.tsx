@@ -1075,6 +1075,8 @@ function ReceiveView({ address, onBack }: { address: string; onBack: () => void 
   const [copied, setCopied] = useState(false)
   const qrRef = useRef<HTMLDivElement>(null)
   const shortAddr = `${address.slice(0, 8)}...${address.slice(-6)}`
+  // Detect light/dark mode for QR code colours
+  const isDark = typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches
 
   const copyAddress = () => {
     void navigator.clipboard.writeText(address)
@@ -1116,17 +1118,17 @@ function ReceiveView({ address, onBack }: { address: string; onBack: () => void 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
         <div ref={qrRef} style={{
           width: 260, height: 260,
-          background: 'var(--nan-surface)',
+          background: '#ffffff',
           borderRadius: 24,
           padding: 20,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          boxShadow: '0 8px 40px rgba(0,0,0,0.3)',
+          boxShadow: isDark ? '0 8px 40px rgba(0,0,0,0.5)' : '0 4px 24px rgba(0,0,0,0.12)',
         }}>
           <QRCodeSVG
             value={address}
             size={220}
-            bgColor="transparent"
-            fgColor="#ffffff"
+            bgColor="#ffffff"
+            fgColor="#111111"
             level="M"
           />
         </div>
