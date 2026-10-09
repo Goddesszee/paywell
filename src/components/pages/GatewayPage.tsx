@@ -1174,6 +1174,7 @@ function CircleTransferTab({ address, gatewayBalance, onSuccess }: {
         const { createPublicClient } = await import('viem')
         // Map Gateway chainId → viem chain object for bundler transport
         const viemChains = await import('viem/chains')
+        // chainId → viem chain object
         const VIEM_CHAIN_MAP: Record<number, import('viem').Chain> = {
           11155111: viemChains.sepolia,
           84532:    viemChains.baseSepolia,
@@ -1183,10 +1184,21 @@ function CircleTransferTab({ address, gatewayBalance, onSuccess }: {
           11155420: viemChains.optimismSepolia,
           1301:     viemChains.unichainSepolia,
         }
+        // chainId → Circle modular SDK camelCase slug (must match exactly)
+        const MODULAR_SLUG_MAP: Record<number, string> = {
+          11155111: 'sepolia',
+          84532:    'baseSepolia',
+          421614:   'arbitrumSepolia',
+          43113:    'avalancheFuji',
+          80002:    'polygonAmoy',
+          11155420: 'optimismSepolia',
+          1301:     'unichainSepolia',
+        }
         const destViemChain = VIEM_CHAIN_MAP[destChainId]
         if (!destViemChain) throw new Error(`No viem chain for ${destChain.name}`)
+        const destChainSlug = MODULAR_SLUG_MAP[destChainId]
+        if (!destChainSlug) throw new Error(`No modular SDK slug for ${destChain.name}`)
         const MODULAR_URL      = 'https://modular-sdk.circle.com/v1/rpc/w3s/buidl'
-        const destChainSlug    = destChain.name.toLowerCase().replace(/ /g, '')
         const modularTransport = toModularTransport(`${MODULAR_URL}/${destChainSlug}`, clientKey)
         const publicClient     = createPublicClient({ chain: destViemChain, transport: modularTransport })
         const passkeyTransport = toPasskeyTransport(MODULAR_URL, clientKey)
