@@ -13,7 +13,7 @@
       "memory": 1024,
       "maxDuration": 30
     },
-    "api/circle-wallets.ts": {
+    "api/circle-services.ts": {
       "includeFiles": "node_modules/@circle-fin/**",
       "memory": 512,
       "maxDuration": 30
@@ -34,9 +34,9 @@
       "memory": 256,
       "maxDuration": 10
     },
-    "api/gateway-proxy.ts": {
+    "api/payments-data.ts": {
       "memory": 256,
-      "maxDuration": 30
+      "maxDuration": 15
     }
   },
   "headers": [
@@ -58,9 +58,14 @@
     { "source": "/api/otp",                                      "destination": "/api/otp" },
     { "source": "/api/chat",                                     "destination": "/api/chat" },
     { "source": "/api/misc",                                     "destination": "/api/misc" },
-    { "source": "/api/onramp-session",                           "destination": "/api/onramp-session" },
+    { "source": "/api/onramp-session",                           "destination": "/api/circle-services?service=onramp" },
     { "source": "/api/wallet",                                   "destination": "/api/wallet" },
-    { "source": "/api/circle-wallets",                           "destination": "/api/circle-wallets" },
+    { "source": "/api/circle-wallets",                           "destination": "/api/circle-services?service=wallets" },
+    { "source": "/api/circle-services",                          "destination": "/api/circle-services" },
+    { "source": "/api/payment-requests",                         "destination": "/api/payments-data?type=payment-requests" },
+    { "source": "/api/payment-requests/:id",                     "destination": "/api/payments-data?type=payment-requests" },
+    { "source": "/api/recurring-tasks",                          "destination": "/api/payments-data?type=recurring-tasks" },
+    { "source": "/api/recurring-tasks/:id",                      "destination": "/api/payments-data?type=recurring-tasks" },
     { "source": "/api/activity-feed",                            "destination": "/api/misc?route=activity-feed" },
     { "source": "/api/agent-execute",                            "destination": "/api/agent-execute" },
     { "source": "/api/agent-registry",                           "destination": "/api/agent-registry" },
@@ -82,7 +87,7 @@
     { "source": "/api/admin/tx-report",                          "destination": "/api/community?route=admin/tx-report" },
     { "source": "/api/notifications",                            "destination": "/api/community?route=notifications" },
     { "source": "/api/notifications/read",                       "destination": "/api/community?route=notifications/read" },
-    { "source": "/api/gateway-proxy",                           "destination": "/api/gateway-proxy" },
+    { "source": "/api/gateway-proxy",                           "destination": "/api/misc?route=gateway" },
     { "source": "/(.*)",                                         "destination": "/index.html" }
   ]
 }
