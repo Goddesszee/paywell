@@ -182,26 +182,36 @@ async function submitBurnIntent(
   const transferId = json.transferId
   if (!transferId) throw new Error('Gateway API returned no attestation and no transferId')
 
-  const deadline = Date.now() + 90_000
+  const deadline = Date.now() + 120_000
   while (Date.now() < deadline) {
-    await new Promise(r => setTimeout(r, 2000))
-    const poll = await fetch(`${GATEWAY_API}/transfer/${transferId}`)
-    if (!poll.ok) continue
-    const record = await poll.json() as {
-      status?: string
-      attestation?: { payload?: `0x${string}`; signature?: `0x${string}` }
-    }
-    // Forwarded: once status is COMPLETE, mint happened server-side
-    if (record.status === 'COMPLETE') {
-      return { attestation: null, signature: null, transferId }
-    }
-    // Non-forwarded async: attestation arrives in the record
-    const att = record.attestation
-    if (att?.payload && att?.signature) {
-      return { attestation: att.payload, signature: att.signature, transferId }
+    await new Promise(r => setTimeout(r, 2500))
+    try {
+      const poll = await fetch(`${GATEWAY_API}/transfer/${transferId}`)
+      if (!poll.ok) continue
+      const record = await poll.json() as {
+        status?: string
+        message?: string
+        attestation?: { payload?: `0x${string}`; signature?: `0x${string}` }
+      }
+      // Terminal failure — surface immediately
+      if (record.status === 'failed') {
+        throw new Error(`Gateway transfer failed: ${record.message ?? 'unknown reason'}`)
+      }
+      // Forwarded: 'confirmed' or 'finalized' means the forwarder minted on dest
+      if (enableForwarder && (record.status === 'confirmed' || record.status === 'finalized')) {
+        return { attestation: null, signature: null, transferId }
+      }
+      // Non-forwarded async: attestation arrives in the record once confirmed
+      const att = record.attestation
+      if (att?.payload && att?.signature) {
+        return { attestation: att.payload, signature: att.signature, transferId }
+      }
+    } catch (e) {
+      if ((e as Error)?.message?.startsWith('Gateway transfer failed')) throw e
+      // network blip — keep polling
     }
   }
-  throw new Error('Timed out waiting for Gateway attestation')
+  throw new Error('Timed out waiting for Gateway attestation. Your funds are safe — check your balance in a few minutes.')
 }
 
 type Tab = 'balance' | 'deposit' | 'transfer'
@@ -921,10 +931,13 @@ function TransferTab({ address, gatewayBalance, onSuccess }: {
         },
       }
 
-      // Sign via wagmi — viem handles bigint encoding for uint256 fields
+      // Sign via wagmi — viem handles bigint encoding for uint256 fields.
+      // EIP712Domain must NOT be in the types object: viem derives it automatically
+      // from the domain field. Passing it causes MetaMask/viem to reject or double-hash.
+      const { EIP712Domain: _dropWagmi, ...wagmiTypes } = BURN_INTENT_TYPED_DATA.types
       const signature = await signTypedDataAsync({
         domain:      BURN_INTENT_TYPED_DATA.domain,
-        types:       BURN_INTENT_TYPED_DATA.types,
+        types:       wagmiTypes,
         primaryType: BURN_INTENT_TYPED_DATA.primaryType,
         message:     burnIntent,
       })
