@@ -159,7 +159,7 @@ function TokenCard({
         <div style={{ fontSize: 9, color: C.t3, fontFamily: MONO, marginBottom: 2 }}>≈ ${usdValue}</div>
       )}
       <div style={{ fontSize: 10, fontWeight: 600, color: tokenColor }}>
-        {symbol} · all chains
+        {symbol} · Arc
       </div>
     </button>
   )

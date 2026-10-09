@@ -210,10 +210,9 @@ function CommandPalette({ onClose, onGo }: { onClose: () => void; onGo: (action:
 
 // ── Nav items (mobile bottom bar) ─────────────────────────────────────────────
 const NAV_ITEMS = [
-  { id: 'home',     label: 'Home',     Icon: Home },
-  { id: 'bridge',   label: 'Bridge',   Icon: ArrowLeftRight },
-  { id: 'activity', label: 'Activity', Icon: Activity },
-  { id: 'gateway',  label: 'Gateway',  Icon: Layers },
+  { id: 'home',    label: 'Home',    Icon: Home },
+  { id: 'bridge',  label: 'Bridge',  Icon: ArrowLeftRight },
+  { id: 'gateway', label: 'Gateway', Icon: Layers },
 ]
 
 // ── Sidebar sections (desktop sidebar only — mobile drawer uses MOBILE_SECTIONS) ──
