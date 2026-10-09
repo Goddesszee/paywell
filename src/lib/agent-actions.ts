@@ -622,6 +622,12 @@ export type ExecutorContext = {
   }) => Promise<`0x${string}`>
   connectedAddress?: string
   chainId?: number
+  /** True when user authenticated via Circle email/Google UCW */
+  isCircleUcwUser?: boolean
+  /** True when user authenticated via passkey/Circle Modular Wallet */
+  isPasskeyUser?: boolean
+  /** Callback to trigger a Circle SDK challenge for UCW/passkey sends */
+  triggerCircleSend?: (params: { toAddress: string; amount: string; note?: string }) => Promise<string>
 }
 
 // ── Main executor ─────────────────────────────────────────────────────────────
@@ -674,7 +680,20 @@ export async function executeAction(action: NanAction, ctx: ExecutorContext): Pr
     case 'send_usdc': {
       const { toAddress: rawTo, amount, note } = action.params
       const toAddress = getAddress(rawTo) // normalize to EIP-55 checksum
-      if (!ctx.writeContractAsync) throw new Error('Wallet not connected. Please connect your wallet first.')
+
+      // Circle UCW (email/Google) or Passkey path — use triggerCircleSend callback
+      if (ctx.isCircleUcwUser || ctx.isPasskeyUser) {
+        if (!ctx.triggerCircleSend) {
+          ctx.navigate('wallet')
+          return `Opening your wallet — ${amount} USDC to ${toAddress.slice(0, 10)}…. Confirm the send there.`
+        }
+        const result = await ctx.triggerCircleSend({ toAddress, amount, note })
+        store.addActivity({ type: 'sent', description: note ?? 'Agent send', amount: parseFloat(amount), sign: '-', status: 'confirmed', counterparty: toAddress.slice(0, 10) + '…', txHash: result || undefined })
+        return `Sent ${amount} USDC to ${toAddress.slice(0, 10)}…${result ? ` — tx: ${result.slice(0, 12)}…` : ''}`
+      }
+
+      // Wagmi path
+      if (!ctx.writeContractAsync) throw new Error('No wallet connected. Please connect MetaMask or a browser wallet first.')
       if (!ctx.chainId) throw new Error('No chain connected.')
       const usdc = getUsdc(ctx.chainId)
       if (!usdc) throw new Error(`USDC not supported on chain ${ctx.chainId}.`)

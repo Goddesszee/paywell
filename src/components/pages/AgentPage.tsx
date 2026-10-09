@@ -9,6 +9,8 @@ import {
   UserCheck, TrendingUp, PackageCheck
 } from 'lucide-react'
 import { useWriteContract, useAccount } from 'wagmi'
+import { useCircleTransaction } from '../../hooks/useCircleTransaction'
+import { sendFromPasskeyWallet } from '../CirclePasskeyLogin'
 import { parseUnits } from 'viem'
 
 import { useAppStore } from '../../store/appStore'
@@ -753,6 +755,26 @@ function AgentChat({ onNavigate }: { onNavigate?: (page: string, query?: string)
 
   const { address, chainId } = useAccount()
   const { writeContractAsync } = useWriteContract()
+  const circleTx = useCircleTransaction()
+  const isCircleUcwUser = !!(auth?.userToken && !auth?.isPasskeyUser)
+  const isPasskeyUser = !!auth?.isPasskeyUser
+
+  // Universal send callback — handles all 3 login types
+  const triggerCircleSend = useCallback(async ({ toAddress, amount, note: _note }: { toAddress: string; amount: string; note?: string }) => {
+    if (isPasskeyUser) {
+      const clientKey = import.meta.env.VITE_CLIENT_KEY as string | undefined
+      if (!clientKey) throw new Error('VITE_CLIENT_KEY is not configured.')
+      const rawAmount = BigInt(Math.round(parseFloat(amount) * 1e6))
+      const hash = await sendFromPasskeyWallet({ clientKey, to: toAddress as `0x${string}`, amount: rawAmount })
+      return hash ?? ''
+    }
+    if (isCircleUcwUser) {
+      const hash = await circleTx.sendTransfer({ destinationAddress: toAddress, amount, blockchain: 'ARC-TESTNET' })
+      return hash ?? ''
+    }
+    return ''
+  }, [isPasskeyUser, isCircleUcwUser, circleTx])
+
   const [input, setInput] = useState('')
   const [typing, setTyping] = useState(false)
   const [_loadingMessage, setLoadingMessage] = useState('Let me check on that...')
@@ -1068,7 +1090,10 @@ function AgentChat({ onNavigate }: { onNavigate?: (page: string, query?: string)
         agentWalletUserToken: agentWallet.userToken,
         writeContractAsync,
         connectedAddress: address,
-        chainId: chainId ?? 5042002, // Arc Testnet fallback for passkey/modular wallet users
+        chainId: chainId ?? 5042002,
+        isCircleUcwUser,
+        isPasskeyUser,
+        triggerCircleSend,
       })
       // Handle special signal strings from agent-actions executor
       if (result?.startsWith('__AGENT_WALLET_CHALLENGE__:')) {
@@ -1290,7 +1315,10 @@ function AgentChat({ onNavigate }: { onNavigate?: (page: string, query?: string)
                   agentWalletUserToken: agentWallet.userToken,
                   writeContractAsync,
                   connectedAddress: address,
-                  chainId: chainId ?? 5042002, // Arc Testnet fallback for passkey/modular wallet users
+                  chainId: chainId ?? 5042002,
+                  isCircleUcwUser,
+                  isPasskeyUser,
+                  triggerCircleSend,
                 })
                 // Handle special signal strings
                 if (result === '__AGENT_WALLET_FUND__') {
