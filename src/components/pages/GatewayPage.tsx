@@ -194,10 +194,15 @@ export function GatewayPage() {
   const { address: wagmiAddress } = useAccount()
   const { auth } = useAppStore()
 
-  // Routing: Circle users (passkey or UCW/W3S) use CircleTransferTab regardless of
-  // whether a wagmi wallet (MetaMask) is also connected. Only pure wagmi users (no
-  // Circle auth) use TransferTab. This prevents NaN chainId and wrong depositor address.
-  const isCircleUser = !!(auth?.isPasskeyUser || auth?.userToken)
+  // Routing: Circle users (passkey or UCW/W3S) always use CircleTransferTab,
+  // regardless of whether MetaMask is also connected.
+  // isCircleUser is true when any Circle auth state is present.
+  const isCircleUser = !!(
+    auth?.isPasskeyUser ||
+    auth?.userToken ||
+    auth?.circleWalletAddress ||
+    auth?.circleWalletId
+  )
   const address = isCircleUser
     ? (auth?.circleWalletAddress as `0x${string}` | undefined)
     : wagmiAddress
@@ -859,7 +864,8 @@ function TransferTab({ address, gatewayBalance, onSuccess }: {
 
     try {
       // Step 1: ensure on Arc Testnet for signing
-      if (chainId !== ARC) await switchChainAsync({ chainId: ARC })
+      // Only switch if chainId is defined (connected wagmi wallet) and not already on Arc
+      if (chainId !== undefined && chainId !== ARC) await switchChainAsync({ chainId: ARC })
       setPhase('signing')
 
       const burnIntent = {
@@ -896,7 +902,7 @@ function TransferTab({ address, gatewayBalance, onSuccess }: {
       const { attestation, signature: mintSignature } = await submitBurnIntent(burnIntent, signature)
 
       // Step 3: switch to dest chain and call gatewayMint
-      await switchChainAsync({ chainId: destChainId })
+      if (chainId !== undefined && chainId !== destChainId) await switchChainAsync({ chainId: destChainId })
       setPhase('minting')
       doMint({
         address:      GATEWAY_MINTER,
