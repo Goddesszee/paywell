@@ -8,6 +8,7 @@ import { useWriteContract, useWaitForTransactionReceipt, useAccount, useSwitchCh
 import { erc20Abi, isAddress } from 'viem'
 import { toast } from 'sonner'
 import { useAppStore, type RecurringFrequency } from '../../store/appStore'
+import { syncRtCreate, syncRtUpdate, syncRtDelete } from '../../hooks/useBackendSync'
 import { getUsdc, buildTxExplorerUrl } from '@/onchain-facts'
 import { parseAmount } from '@/onchain-money'
 import { formatAddress } from '../../utils/format'
@@ -195,7 +196,9 @@ export function RecurringPage() {
 
   const confirmCreate = () => {
     const nextRunAt = nextRunDate(newFreq)
-    addRecurringTask({ name: newName.trim(), recipient: newRecipient.trim(), amount: newAmount.trim(), active: true, frequency: newFreq, nextRunAt })
+    const id = addRecurringTask({ name: newName.trim(), recipient: newRecipient.trim(), amount: newAmount.trim(), active: true, frequency: newFreq, nextRunAt })
+    const created = useAppStore.getState().recurringTasks.find(t => t.id === id)
+    if (created && address) void syncRtCreate(address, created)
     setLastCreated({ name: newName.trim(), amount: newAmount.trim(), freq: freqLabel(newFreq) })
     setStep('success')
   }
@@ -252,7 +255,9 @@ export function RecurringPage() {
 
   const togglePause = (task: typeof recurringTasks[0]) => {
     setPausingId(task.id)
-    updateRecurringTask(task.id, { active: !task.active })
+    const newActive = !task.active
+    updateRecurringTask(task.id, { active: newActive })
+    if (address) void syncRtUpdate(address, task.id, { active: newActive })
     toast.success(task.active ? 'Payment paused' : 'Payment resumed')
     setTimeout(() => setPausingId(null), 600)
   }
@@ -261,6 +266,7 @@ export function RecurringPage() {
     setDeletingId(id)
     setTimeout(() => {
       removeRecurringTask(id)
+      if (address) void syncRtDelete(address, id)
       setDeletingId(null)
       setConfirmDel(null)
       toast.success('Recurring payment deleted')

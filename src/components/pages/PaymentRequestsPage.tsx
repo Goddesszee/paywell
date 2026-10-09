@@ -13,6 +13,7 @@ import { toast } from 'sonner'
 import { useAppStore, PaymentRequest, PaymentRequestStatus } from '../../store/appStore'
 import { useNanTheme } from '../../hooks/useNanTheme'
 import { useAccount } from 'wagmi'
+import { syncPrCreate, syncPrUpdate, syncPrDelete } from '../../hooks/useBackendSync'
 
 const F    = "'Inter', -apple-system, sans-serif"
 const MONO = "'JetBrains Mono', Menlo, monospace"
@@ -369,6 +370,7 @@ function CreateForm({
     const req = paymentRequests.find(r => r.id === id)
     setSubmitting(false)
     if (req) {
+      void syncPrCreate(ownAddress, req)
       toast.success(`Request ${req.refNumber} created`)
       onCreated(req)
     }
@@ -518,6 +520,8 @@ function DetailView({
 }) {
   const C = useNanTheme()
   const { updatePaymentRequest, removePaymentRequest, paymentRequests, setActiveView } = useAppStore()
+  const { address: wagmiAddr } = useAccount()
+  const _detailWallet = (wagmiAddr ?? '').toLowerCase()
   // Always read from store so status updates are live
   const req = paymentRequests.find(r => r.id === initialReq.id) ?? initialReq
 
@@ -551,12 +555,14 @@ function DetailView({
 
   const handleCancel = () => {
     updatePaymentRequest(req.id, { status: 'cancelled' })
+    void syncPrUpdate(_detailWallet, req.id, { status: 'cancelled' })
     toast.success('Request cancelled')
     onBack()
   }
 
   const handleDelete = () => {
     removePaymentRequest(req.id)
+    void syncPrDelete(_detailWallet, req.id)
     toast.success('Request deleted')
     onBack()
   }

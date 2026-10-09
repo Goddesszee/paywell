@@ -1693,6 +1693,147 @@ function startChainWatcher() {
   setInterval(() => { void runWatcher() }, WATCHER_INTERVAL)
 }
 
+// ── Payment Requests ─────────────────────────────────────────────────────────
+// Keyed by walletAddress (lower-cased). Persisted to DATA_DIR/payment-requests.json.
+
+interface StoredPaymentRequest {
+  id: string; refNumber: string; title: string; description?: string
+  recipientName?: string; amount: number; currency: string; note?: string
+  reference?: string; dueDate?: string; createdAt: string; status: string
+  paidAt?: string; paidTxHash?: string; paidAmount?: number; creatorAddress?: string
+  updatedAt: string
+}
+
+const prStore = new Map<string, StoredPaymentRequest[]>(
+  Object.entries(loadStore<Record<string, StoredPaymentRequest[]>>('payment-requests', {}))
+)
+
+function prKey(req: express.Request): string {
+  const wallet = (req.headers['x-wallet-address'] as string | undefined ?? '').toLowerCase()
+  const session = getSession(req.headers.authorization)
+  return wallet || session?.walletAddress?.toLowerCase() || ''
+}
+
+app.get('/api/payment-requests', (req, res) => {
+  const key = prKey(req)
+  if (!key) { res.status(401).json({ success: false, error: 'wallet address required' }); return }
+  res.json({ success: true, requests: prStore.get(key) ?? [] })
+})
+
+app.post('/api/payment-requests', (req, res) => {
+  const key = prKey(req)
+  if (!key) { res.status(401).json({ success: false, error: 'wallet address required' }); return }
+  const body = req.body as Partial<StoredPaymentRequest>
+  if (!body.title || !body.amount || !body.currency) {
+    res.status(400).json({ success: false, error: 'title, amount, currency required' }); return
+  }
+  const list = prStore.get(key) ?? []
+  const seq = (list.length + 1).toString().padStart(4, '0')
+  const pr: StoredPaymentRequest = {
+    id: body.id ?? `pr-${genToken(8)}`,
+    refNumber: body.refNumber ?? `NAN-PR-${seq}`,
+    title: body.title, description: body.description,
+    recipientName: body.recipientName, amount: Number(body.amount),
+    currency: body.currency, note: body.note, reference: body.reference,
+    dueDate: body.dueDate, createdAt: body.createdAt ?? new Date().toISOString(),
+    status: body.status ?? 'pending', paidAt: body.paidAt, paidTxHash: body.paidTxHash,
+    paidAmount: body.paidAmount, creatorAddress: body.creatorAddress ?? key,
+    updatedAt: new Date().toISOString(),
+  }
+  list.unshift(pr)
+  prStore.set(key, list.slice(0, 500))
+  debouncedSave('payment-requests', Object.fromEntries(prStore))
+  res.json({ success: true, request: pr })
+})
+
+app.patch('/api/payment-requests/:id', (req, res) => {
+  const key = prKey(req)
+  if (!key) { res.status(401).json({ success: false, error: 'wallet address required' }); return }
+  const list = prStore.get(key) ?? []
+  const idx = list.findIndex(r => r.id === req.params.id)
+  if (idx === -1) { res.status(404).json({ success: false, error: 'Not found' }); return }
+  list[idx] = { ...list[idx], ...(req.body as Partial<StoredPaymentRequest>), id: req.params.id, updatedAt: new Date().toISOString() }
+  prStore.set(key, list)
+  debouncedSave('payment-requests', Object.fromEntries(prStore))
+  res.json({ success: true, request: list[idx] })
+})
+
+app.delete('/api/payment-requests/:id', (req, res) => {
+  const key = prKey(req)
+  if (!key) { res.status(401).json({ success: false, error: 'wallet address required' }); return }
+  const list = prStore.get(key) ?? []
+  prStore.set(key, list.filter(r => r.id !== req.params.id))
+  debouncedSave('payment-requests', Object.fromEntries(prStore))
+  res.json({ success: true })
+})
+
+// ── Recurring Tasks ───────────────────────────────────────────────────────────
+// Keyed by walletAddress. Persisted to DATA_DIR/recurring-tasks.json.
+
+interface StoredRecurringTask {
+  id: string; name: string; recipient: string; amount: string
+  active: boolean; frequency: string; nextRunAt?: string
+  lastRun?: string; lastTxHash?: string; runCount: number; createdAt: string
+}
+
+const rtStore = new Map<string, StoredRecurringTask[]>(
+  Object.entries(loadStore<Record<string, StoredRecurringTask[]>>('recurring-tasks', {}))
+)
+
+function rtKey(req: express.Request): string {
+  const wallet = (req.headers['x-wallet-address'] as string | undefined ?? '').toLowerCase()
+  const session = getSession(req.headers.authorization)
+  return wallet || session?.walletAddress?.toLowerCase() || ''
+}
+
+app.get('/api/recurring-tasks', (req, res) => {
+  const key = rtKey(req)
+  if (!key) { res.status(401).json({ success: false, error: 'wallet address required' }); return }
+  res.json({ success: true, tasks: rtStore.get(key) ?? [] })
+})
+
+app.post('/api/recurring-tasks', (req, res) => {
+  const key = rtKey(req)
+  if (!key) { res.status(401).json({ success: false, error: 'wallet address required' }); return }
+  const body = req.body as Partial<StoredRecurringTask>
+  if (!body.name || !body.recipient || !body.amount) {
+    res.status(400).json({ success: false, error: 'name, recipient, amount required' }); return
+  }
+  const list = rtStore.get(key) ?? []
+  const task: StoredRecurringTask = {
+    id: body.id ?? `rec-${genToken(8)}`,
+    name: body.name, recipient: body.recipient, amount: body.amount,
+    active: body.active ?? true, frequency: body.frequency ?? 'manual',
+    nextRunAt: body.nextRunAt, lastRun: body.lastRun, lastTxHash: body.lastTxHash,
+    runCount: body.runCount ?? 0, createdAt: body.createdAt ?? new Date().toISOString(),
+  }
+  list.push(task)
+  rtStore.set(key, list.slice(0, 200))
+  debouncedSave('recurring-tasks', Object.fromEntries(rtStore))
+  res.json({ success: true, task })
+})
+
+app.patch('/api/recurring-tasks/:id', (req, res) => {
+  const key = rtKey(req)
+  if (!key) { res.status(401).json({ success: false, error: 'wallet address required' }); return }
+  const list = rtStore.get(key) ?? []
+  const idx = list.findIndex(t => t.id === req.params.id)
+  if (idx === -1) { res.status(404).json({ success: false, error: 'Not found' }); return }
+  list[idx] = { ...list[idx], ...(req.body as Partial<StoredRecurringTask>), id: req.params.id }
+  rtStore.set(key, list)
+  debouncedSave('recurring-tasks', Object.fromEntries(rtStore))
+  res.json({ success: true, task: list[idx] })
+})
+
+app.delete('/api/recurring-tasks/:id', (req, res) => {
+  const key = rtKey(req)
+  if (!key) { res.status(401).json({ success: false, error: 'wallet address required' }); return }
+  const list = rtStore.get(key) ?? []
+  rtStore.set(key, list.filter(t => t.id !== req.params.id))
+  debouncedSave('recurring-tasks', Object.fromEntries(rtStore))
+  res.json({ success: true })
+})
+
 // ── Serve Vite build (production) ─────────────────────────────────────────────
 // In dev, Vite proxies /api to this server; in production Express serves both.
 const DIST = path.join(path.dirname(new URL(import.meta.url).pathname), '..', 'dist')

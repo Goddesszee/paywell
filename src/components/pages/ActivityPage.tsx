@@ -431,8 +431,8 @@ export function ActivityPage() {
                             style={{
                               display: 'flex', alignItems: 'center', gap: 3,
                               padding: '3px 7px', borderRadius: 6,
-                              background: 'rgba(255,255,255,0.06)',
-                              border: '1px solid rgba(255,255,255,0.1)',
+                              background: C.isDark ? 'rgba(255,255,255,0.06)' : C.surf2,
+                              border: `1px solid ${C.bdr}`,
                               color: C.t3, fontSize: 11, fontWeight: 600,
                               cursor: 'pointer', fontFamily: F,
                             }}

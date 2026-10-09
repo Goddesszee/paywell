@@ -14,6 +14,7 @@ import { NotificationBell } from '../ui/NotificationBell'
 import { NanLogo } from '../NanLogo'
 import { usePaymentWatcher } from '../../hooks/usePaymentWatcher'
 import { usePushNotifications } from '../../hooks/usePushNotifications'
+import { useBackendSync } from '../../hooks/useBackendSync'
 
 const F = "'Inter',-apple-system,sans-serif"
 const ADMIN_ADDRESS = (import.meta.env.VITE_ADMIN_ADDRESS as string ?? '').toLowerCase()
@@ -316,6 +317,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   // Global payment watcher — polls every 30 s regardless of which screen is open.
   // Fires notifications + adds to the activity store on new incoming USDC transfers.
   usePaymentWatcher()
+  useBackendSync()
   // Web Push subscription — registers this device with the server chain watcher
   // so notifications arrive even when the tab is closed.
   usePushNotifications()
