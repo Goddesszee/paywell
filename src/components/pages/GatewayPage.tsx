@@ -853,14 +853,12 @@ function TransferTab({ address, gatewayBalance, onSuccess }: {
       if (chainId !== ARC) await switchChainAsync({ chainId: ARC })
       setPhase('signing')
 
-      // maxBlockHeight: MAX_UINT256 per Circle reference (no block expiry)
-      const maxBlockHeight = (1n << 256n) - 1n
-      // maxFee: 2.01 USDC in 6-decimal units per Circle reference (2_010000)
-      const maxFee18 = 2_010000n
-
+      // Build burn intent matching Circle evm-to-evm-browser-wallet reference.
+      // wagmi signTypedDataAsync requires bigints for uint256 fields; the JSON replacer
+      // converts them to decimal strings before sending to the Gateway API.
       const burnIntent = {
-        maxBlockHeight,
-        maxFee: maxFee18,
+        maxBlockHeight: 2n ** 256n - 1n,
+        maxFee: 2_010000n,
         spec: {
           version: 1,
           sourceDomain:         srcDomain,
@@ -873,14 +871,13 @@ function TransferTab({ address, gatewayBalance, onSuccess }: {
           destinationRecipient: toBytes32(address),
           sourceSigner:         toBytes32(address),
           destinationCaller:    toBytes32(zeroAddress),
-          value:                parsed,
+          value:                parsed,  // bigint, converted to string by JSON replacer
           salt:                 randomHex32(),
           hookData:             '0x' as `0x${string}`,
         },
       }
 
-      // Sign EIP-712 burn intent using wagmi signTypedDataAsync (bigints handled by viem)
-      // Matches Circle reference: sourceWalletClient.signTypedData({ ...typedData, message: burnIntent })
+      // Sign using wagmi signTypedDataAsync — exactly as reference uses viem walletClient.signTypedData
       const signature = await signTypedDataAsync({
         ...BURN_INTENT_TYPED_DATA,
         message: burnIntent,
@@ -1042,7 +1039,6 @@ function CircleTransferTab({ address, gatewayBalance, onSuccess }: {
   const circleTx = useCircleTransaction()
   const { isConnected, address: wagmiAddress } = useAccount()
   const { switchChainAsync } = useSwitchChain()
-  const { signTypedDataAsync } = useSignTypedData()
   const { writeContract: doMint, data: mintHash } = useWriteContract()
   const { isSuccess: mintSuccess, isError: mintError } = useWaitForTransactionReceipt({ hash: mintHash })
 
@@ -1065,8 +1061,6 @@ function CircleTransferTab({ address, gatewayBalance, onSuccess }: {
     if (!address || !amount || parseFloat(amount) <= 0 || !destChain?.usdc || !srcChain?.usdc) return
     if (destChainId === ARC) { toast.error('Select a different destination chain'); return }
     setErrMsg('')
-    const decimals   = 6
-    const parsed     = parseUnits(amount, decimals)
     const srcDomain  = DOMAIN_MAP[ARC] ?? 26
     const destDomain = DOMAIN_MAP[destChainId]
     if (destDomain === undefined) { setErrMsg('Destination chain domain unknown'); return }
@@ -1074,59 +1068,71 @@ function CircleTransferTab({ address, gatewayBalance, onSuccess }: {
     try {
       setPhase('signing')
 
-      // maxBlockHeight: MAX_UINT256 per Circle reference (no block expiry)
-      const maxBlockHeight = (1n << 256n) - 1n
-      // maxFee: 2.01 USDC in 6-decimal units per Circle reference (2_010000)
-      const maxFee18 = 2_010000n
-
-      // For passkey users: sourceDepositor = SCA address, sourceSigner = connected EOA delegate.
-      // For W3S/UCW users: both = Circle wallet address (they sign directly).
-      if (isPasskey && (!isConnected || !wagmiAddress)) {
-        setErrMsg(
-          'Gateway transfers from passkey wallets require a connected EOA wallet (e.g. MetaMask) ' +
-          'to sign as a delegate. Please connect a wallet and try again.',
-        )
-        return
-      }
-      const signerAddress = (isPasskey ? wagmiAddress : address) as `0x${string}`
-
-      const burnIntentSpec = {
-        version:              1,
-        sourceDomain:         srcDomain,
-        destinationDomain:    destDomain,
-        sourceContract:       toBytes32(GATEWAY_WALLET),
-        destinationContract:  toBytes32(GATEWAY_MINTER),
-        sourceToken:          toBytes32(srcChain.usdc.address as `0x${string}`),
-        destinationToken:     toBytes32(destChain.usdc.address as `0x${string}`),
-        sourceDepositor:      toBytes32(address as `0x${string}`),
-        destinationRecipient: toBytes32(address as `0x${string}`),
-        sourceSigner:         toBytes32(signerAddress),
-        destinationCaller:    toBytes32(zeroAddress),
-        value:                parsed,
-        salt:                 randomHex32(),
-        hookData:             '0x' as `0x${string}`,
-      }
+      // Build burn intent with bigints (required for viem signTypedData with uint256 fields).
+      // For the UCW/Circle path we serialise to JSON string with bigint→string replacer.
       const burnIntent = {
-        maxBlockHeight,
-        maxFee: maxFee18,
-        spec:   burnIntentSpec,
+        maxBlockHeight: 2n ** 256n - 1n,
+        maxFee: 2_010000n,
+        spec: {
+          version:              1,
+          sourceDomain:         srcDomain,
+          destinationDomain:    destDomain,
+          sourceContract:       toBytes32(GATEWAY_WALLET),
+          destinationContract:  toBytes32(GATEWAY_MINTER),
+          sourceToken:          toBytes32(srcChain.usdc.address as `0x${string}`),
+          destinationToken:     toBytes32(destChain.usdc.address as `0x${string}`),
+          sourceDepositor:      toBytes32(address as `0x${string}`),
+          destinationRecipient: toBytes32(address as `0x${string}`),
+          sourceSigner:         toBytes32(address as `0x${string}`),
+          destinationCaller:    toBytes32(zeroAddress),
+          value:                parseUnits(amount, 6),
+          salt:                 randomHex32(),
+          hookData:             '0x' as `0x${string}`,
+        },
       }
+
+      // JSON string for Circle UCW signTypedData SDK — bigints become decimal strings
+      const typedDataStr = JSON.stringify(
+        { ...BURN_INTENT_TYPED_DATA, message: burnIntent },
+        (_k, v: unknown) => typeof v === 'bigint' ? v.toString() : v,
+      )
 
       let signature: `0x${string}`
 
       if (isPasskey) {
-        // Sign with the connected EOA wallet (delegate signer for the SCA depositor).
-        signature = await signTypedDataAsync({
-          ...BURN_INTENT_TYPED_DATA,
-          message: burnIntent,
-        })
+        // Passkey path: passkey SCA is the depositor; connected EOA wallet signs as delegate.
+        if (!isConnected || !wagmiAddress) {
+          setErrMsg('Please also connect a MetaMask/injected wallet to sign Gateway transfers from a passkey account.')
+          setPhase('error')
+          return
+        }
+        // Rebuild burnIntent with EOA as sourceSigner (SCA stays as depositor)
+        const passkeyBurnIntent = {
+          ...burnIntent,
+          spec: { ...burnIntent.spec, sourceSigner: toBytes32(wagmiAddress) },
+        }
+        signature = await signTypedDataAsync({ ...BURN_INTENT_TYPED_DATA, message: passkeyBurnIntent })
+      } else {
+        // W3S / Circle UCW path: use Circle's signTypedData challenge (eth_signTypedData_v4)
+        const result = await circleTx.signTypedData(typedDataStr)
+        if (!result) throw new Error(circleTx.error ?? 'Signing cancelled')
+        signature = result as `0x${string}`
+      }
 
-        // ── gatewayMint via bundler ────────────────────────────────────────────
-        setPhase('submitting')
-        const { attestation, signature: mintSignature } = await submitBurnIntent(burnIntent, signature)
-        setPhase('minting')
+      setPhase('submitting')
+      const { attestation, signature: mintSignature } = await submitBurnIntent(burnIntent, signature)
 
-        // gatewayMint on dest chain via wagmi (EOA wallet signed as delegate)
+      setPhase('minting')
+
+      // Mint on destination chain via Circle UCW (createContractExecutionTransaction)
+      // walletAddress + blockchain targets the dest chain, not walletId (which is Arc-only)
+      const destScpBlockchain = destChain.scpBlockchain
+      if (!destScpBlockchain) throw new Error(`No SCP blockchain ID for ${destChain.name}`)
+      const ucwWalletAddress = auth?.circleWalletAddress
+      if (!ucwWalletAddress) throw new Error('Circle wallet address not found — please log in again')
+
+      if (isPasskey) {
+        // Passkey path mint: use connected wagmi wallet (same EOA that signed)
         await switchChainAsync({ chainId: destChainId })
         doMint({
           address: GATEWAY_MINTER,
@@ -1135,36 +1141,12 @@ function CircleTransferTab({ address, gatewayBalance, onSuccess }: {
           args: [attestation, mintSignature],
           chainId: destChainId,
         })
-        return // passkey path — mint is async via doMint/useWaitForTransactionReceipt
-      } else {
-        // ── W3S SDK path (Circle UCW — email / Google / PIN) ─────────────────
-        // UCW wallets are SCAs. Use signTypedData (eth_signTypedData_v4) not
-        // signMessage (eth_sign) — the Gateway API needs a proper EIP-712 sig.
-        const typedDataStr = JSON.stringify(
-          { ...BURN_INTENT_TYPED_DATA, message: burnIntent },
-          (_k, v: unknown) => typeof v === 'bigint' ? (v).toString() : v,
-        )
-        const result = await circleTx.signTypedData(typedDataStr)
-        if (!result) throw new Error(circleTx.error ?? 'Signing cancelled')
-        signature = result as `0x${string}`
+        return // async — useWaitForTransactionReceipt handles done/error
       }
 
-      setPhase('submitting')
-      // UCW wallets are SCAs → contractSigner: true
-      const { attestation, signature: mintSignature } = await submitBurnIntent(burnIntent, signature)
-
-      setPhase('minting')
-
-      // W3S SDK / email path: execute gatewayMint on dest chain via Circle UCW
-      // Pass blockchain + walletAddress so Circle executes on the destination chain
-      // (walletId alone locks execution to Arc; blockchain is needed for cross-chain)
-      const destScpBlockchain = destChain.scpBlockchain
-      if (!destScpBlockchain) throw new Error(`No SCP blockchain identifier for ${destChain.name}`)
-      const ucwWalletAddress = auth?.circleWalletAddress
-      if (!ucwWalletAddress) throw new Error('Circle wallet address not found — please log in again')
-      const destMinter = getProtocolContractByName('GatewayMinter', 'testnet')?.address ?? GATEWAY_MINTER
+      // UCW path mint: Circle executes on destination chain
       const txHash = await circleTx.executeContract({
-        contractAddress: destMinter,
+        contractAddress: GATEWAY_MINTER,
         abiFunctionSignature: 'gatewayMint(bytes,bytes)',
         abiParameters: [attestation, mintSignature],
         blockchain: destScpBlockchain,
