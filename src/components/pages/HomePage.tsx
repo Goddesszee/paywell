@@ -8,7 +8,7 @@ import {
   ArrowUpRight, ArrowDownLeft, ChevronRight,
   ArrowDownToLine, Sparkles, Bot,
   CheckCircle2, Clock, ShoppingBag,
-  RefreshCw, Info, Zap, Globe,
+  RefreshCw, Info, Zap,
 } from 'lucide-react'
 import { useAppStore, ActivityItem } from '../../store/appStore'
 import { getUsdc } from '../../onchain-facts'
@@ -117,21 +117,25 @@ function ActionBtn({ Icon, label, primary, ai, onClick, C }: {
   )
 }
 
-// ─── Token card — clean: logo + amount + label only ──────────────────────────
+// ─── Card dimensions shared across the scroll row ────────────────────────────
+const CARD_W = 130  // px — fits ~2.5 on a 375 px screen so next card peeks
+
+// ─── Token card — logo + amount + label ──────────────────────────────────────
 
 function TokenCard({
   symbol, quantity, usdValue, onClick, hidden, C, isLoading,
 }: {
-  symbol: 'USDC' | 'EURC' | 'USDT'
+  symbol: 'USDC' | 'EURC'
   quantity: string; usdValue: string
   onClick: () => void; hidden: boolean; C: NanTheme; isLoading: boolean
 }) {
   const isEurc     = symbol === 'EURC'
-  const tokenColor = symbol === 'USDC' ? '#2775CA' : symbol === 'EURC' ? '#0099CC' : '#26A17B'
+  const tokenColor = symbol === 'USDC' ? '#2775CA' : '#0099CC'
   return (
     <button
       onClick={onClick}
       style={{
+        width: CARD_W, flexShrink: 0,
         background: C.surf, border: `1px solid ${C.bdr}`,
         borderRadius: 16, padding: '14px 12px 12px',
         cursor: 'pointer', fontFamily: F,
@@ -157,6 +161,108 @@ function TokenCard({
       )}
       <div style={{ fontSize: 10, fontWeight: 600, color: tokenColor }}>
         {symbol} · all chains
+      </div>
+    </button>
+  )
+}
+
+// ─── Gateway card ─────────────────────────────────────────────────────────────
+
+function GatewayCard({
+  available, pending, hidden, isLoading, onClick, C,
+}: {
+  available: string; pending: string
+  hidden: boolean; isLoading: boolean
+  onClick: () => void; C: NanTheme
+}) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        width: CARD_W, flexShrink: 0,
+        background: 'linear-gradient(135deg, rgba(0,102,255,0.14) 0%, rgba(0,102,255,0.05) 100%)',
+        border: '1px solid rgba(0,102,255,0.25)',
+        borderRadius: 16, padding: '14px 12px 12px',
+        cursor: 'pointer', fontFamily: F,
+        WebkitTapHighlightColor: 'transparent', textAlign: 'left',
+      }}
+    >
+      <div style={{
+        width: 30, height: 30, borderRadius: 9, marginBottom: 8,
+        background: C.blue,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        boxShadow: '0 3px 10px rgba(0,102,255,0.35)',
+      }}>
+        <Zap size={15} color="#fff" strokeWidth={2} />
+      </div>
+      {isLoading ? (
+        <div style={{ height: 18, width: 54, background: C.surf2, borderRadius: 6, marginBottom: 6 }} />
+      ) : (
+        <div style={{
+          fontSize: 14, fontWeight: 800, color: C.text,
+          fontFamily: MONO, letterSpacing: '-0.02em',
+          marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+        }}>
+          {hidden ? '••••' : `$${parseFloat(available).toFixed(2)}`}
+        </div>
+      )}
+      {!hidden && !isLoading && parseFloat(pending) > 0 && (
+        <div style={{ fontSize: 9, color: C.gold, fontFamily: MONO, marginBottom: 2 }}>
+          +${parseFloat(pending).toFixed(2)} pend.
+        </div>
+      )}
+      <div style={{ fontSize: 10, fontWeight: 600, color: C.blue }}>
+        Gateway
+      </div>
+    </button>
+  )
+}
+
+// ─── Cross-chain card ─────────────────────────────────────────────────────────
+
+function CrossChainCard({
+  networksWithBalance, totalUsd, hidden, isLoading, onClick, C,
+}: {
+  networksWithBalance: number; totalUsd: string
+  hidden: boolean; isLoading: boolean
+  onClick: () => void; C: NanTheme
+}) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        width: CARD_W, flexShrink: 0,
+        background: C.surf, border: `1px solid ${C.bdr}`,
+        borderRadius: 16, padding: '14px 12px 12px',
+        cursor: 'pointer', fontFamily: F,
+        WebkitTapHighlightColor: 'transparent', textAlign: 'left',
+      }}
+    >
+      {/* stacked dots as logo */}
+      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8, height: 30 }}>
+        {Array.from({ length: Math.min(networksWithBalance || 3, 4) }).map((_, i) => (
+          <div key={i} style={{
+            width: 18, height: 18, borderRadius: '50%',
+            background: C.blue,
+            border: `2px solid ${C.surf}`,
+            marginLeft: i === 0 ? 0 : -6,
+            opacity: 1 - i * 0.2,
+          }} />
+        ))}
+      </div>
+      {isLoading ? (
+        <div style={{ height: 18, width: 54, background: C.surf2, borderRadius: 6, marginBottom: 6 }} />
+      ) : (
+        <div style={{
+          fontSize: 14, fontWeight: 800, color: C.text,
+          fontFamily: MONO, letterSpacing: '-0.02em',
+          marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+        }}>
+          {hidden ? '••••' : `$${totalUsd}`}
+        </div>
+      )}
+      <div style={{ fontSize: 10, fontWeight: 600, color: C.t2 }}>
+        {networksWithBalance} chain{networksWithBalance !== 1 ? 's' : ''}
       </div>
     </button>
   )
@@ -384,11 +490,16 @@ export function HomePage() {
         </div>
       )}
 
-      {/* ── 3. TOKEN CARDS (USDC / EURC / USDT) ── */}
+      {/* ── 3. HORIZONTAL SCROLL ROW: USDC → EURC → Gateway → Cross-chain ── */}
+      {/* Negative side margins let it bleed to screen edge; padding restores gap */}
       <div style={{
-        display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)',
-        gap: 10, marginBottom: 10,
-        marginTop: fxLoading ? 18 : 0,
+        display: 'flex', gap: 10, overflowX: 'auto',
+        marginBottom: 20, marginTop: fxLoading ? 18 : 0,
+        marginLeft: -16, marginRight: -16,
+        paddingLeft: 16, paddingRight: 16,
+        paddingBottom: 4,
+        msOverflowStyle: 'none', scrollbarWidth: 'none',
+        WebkitOverflowScrolling: 'touch',
       }}>
         <TokenCard
           symbol="USDC"
@@ -404,128 +515,23 @@ export function HomePage() {
           onClick={() => setTokenSheet('EURC')}
           hidden={hidden} C={C} isLoading={portfolio.isLoading}
         />
-        <TokenCard
-          symbol="USDT"
-          quantity={portfolio.byToken.USDT.quantity}
-          usdValue={portfolio.byToken.USDT.usdValue}
-          onClick={() => setTokenSheet('USDT')}
-          hidden={hidden} C={C} isLoading={portfolio.isLoading}
+        <GatewayCard
+          available={portfolio.gatewayAvailable}
+          pending={portfolio.gatewayPending}
+          hidden={hidden} isLoading={portfolio.isLoading}
+          onClick={() => setActiveView('gateway')}
+          C={C}
         />
+        <CrossChainCard
+          networksWithBalance={portfolio.networks.filter(n => n.hasBalance).length}
+          totalUsd={portfolio.totalUsd}
+          hidden={hidden} isLoading={portfolio.isLoading}
+          onClick={() => setTokenSheet('USDC')}
+          C={C}
+        />
+        {/* trailing spacer so last card doesn't hug the right edge */}
+        <div style={{ width: 6, flexShrink: 0 }} />
       </div>
-
-      {/* ── 3b. GATEWAY CARD ── */}
-      <button
-        onClick={() => setActiveView('gateway')}
-        style={{
-          width: '100%', marginBottom: 10,
-          padding: '14px 16px',
-          background: 'linear-gradient(135deg, rgba(0,102,255,0.10) 0%, rgba(0,102,255,0.04) 100%)',
-          border: '1px solid rgba(0,102,255,0.20)',
-          borderRadius: 16, cursor: 'pointer', fontFamily: F,
-          WebkitTapHighlightColor: 'transparent', textAlign: 'left',
-          display: 'flex', alignItems: 'center', gap: 14,
-        }}
-      >
-        {/* Icon */}
-        <div style={{
-          width: 40, height: 40, borderRadius: 13, flexShrink: 0,
-          background: C.blue,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          boxShadow: '0 4px 14px rgba(0,102,255,0.35)',
-        }}>
-          <Zap size={18} color="#fff" strokeWidth={2} />
-        </div>
-
-        {/* Text */}
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
-            <span style={{ fontSize: 13, fontWeight: 800, color: C.text }}>Gateway Liquidity</span>
-            <button
-              onClick={e => e.stopPropagation()}
-              title="USDC deposited into Circle Gateway for instant cross-chain transfers. Not counted in your portfolio total — it's the same underlying USDC."
-              style={{ background: 'none', border: 'none', cursor: 'default', padding: 0, lineHeight: 1, display: 'flex' }}
-            >
-              <Info size={11} color={C.t3} />
-            </button>
-          </div>
-          {portfolio.isLoading ? (
-            <div style={{ height: 12, width: 80, background: C.surf2, borderRadius: 4 }} />
-          ) : (
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
-              <span style={{ fontFamily: MONO, fontSize: 15, fontWeight: 800, color: C.text }}>
-                {hidden ? '••••' : `$${parseFloat(portfolio.gatewayAvailable).toFixed(2)}`}
-              </span>
-              <span style={{ fontSize: 10, color: C.t3 }}>available</span>
-              {parseFloat(portfolio.gatewayPending) > 0 && !hidden && (
-                <span style={{ fontFamily: MONO, fontSize: 12, fontWeight: 700, color: C.gold }}>
-                  +${parseFloat(portfolio.gatewayPending).toFixed(2)} pending
-                </span>
-              )}
-            </div>
-          )}
-          <div style={{ fontSize: 10, color: C.t3, marginTop: 3 }}>
-            Excluded from portfolio total — same underlying USDC
-          </div>
-        </div>
-
-        <ChevronRight size={16} color={C.blue} strokeWidth={2.5} />
-      </button>
-
-      {/* ── 3c. CROSS-CHAIN CARD — tap to open Balances by Network ── */}
-      <button
-        onClick={() => setTokenSheet('USDC')}
-        style={{
-          width: '100%', marginBottom: 20,
-          padding: '14px 16px',
-          background: C.surf,
-          border: `1px solid ${C.bdr}`,
-          borderRadius: 16, cursor: 'pointer', fontFamily: F,
-          WebkitTapHighlightColor: 'transparent', textAlign: 'left',
-          display: 'flex', alignItems: 'center', gap: 14,
-        }}
-      >
-        {/* Icon */}
-        <div style={{
-          width: 40, height: 40, borderRadius: 13, flexShrink: 0,
-          background: C.surf2, border: `1px solid ${C.bdr}`,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}>
-          <Globe size={18} color={C.t2} strokeWidth={1.8} />
-        </div>
-
-        {/* Text */}
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 13, fontWeight: 800, color: C.text, marginBottom: 3 }}>
-            Cross-chain Balances
-          </div>
-          {portfolio.isLoading ? (
-            <div style={{ height: 12, width: 80, background: C.surf2, borderRadius: 4 }} />
-          ) : (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-              {/* stacked chain dots */}
-              <div style={{ display: 'flex' }}>
-                {Array.from({ length: Math.min(portfolio.networks.filter(n => n.hasBalance).length || 1, 4) }).map((_, i) => (
-                  <div key={i} style={{
-                    width: 14, height: 14, borderRadius: '50%',
-                    background: C.blue,
-                    border: `2px solid ${C.surf}`,
-                    marginLeft: i === 0 ? 0 : -5,
-                    opacity: 1 - i * 0.18,
-                  }} />
-                ))}
-              </div>
-              <span style={{ fontSize: 11, color: C.t3, fontWeight: 600 }}>
-                {portfolio.networks.filter(n => n.hasBalance).length} network{portfolio.networks.filter(n => n.hasBalance).length !== 1 ? 's' : ''} with balance
-              </span>
-              <span style={{ fontFamily: MONO, fontSize: 12, fontWeight: 800, color: C.text }}>
-                {hidden ? '••••' : `$${portfolio.totalUsd}`}
-              </span>
-            </div>
-          )}
-        </div>
-
-        <ChevronRight size={16} color={C.t3} strokeWidth={2.5} />
-      </button>
 
       {/* ── 4. ACTION BUTTONS ── */}
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 22, gap: 4 }}>
