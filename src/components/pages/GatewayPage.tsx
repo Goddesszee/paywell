@@ -1039,6 +1039,7 @@ function CircleTransferTab({ address, gatewayBalance, onSuccess }: {
   const circleTx = useCircleTransaction()
   const { isConnected, address: wagmiAddress } = useAccount()
   const { switchChainAsync } = useSwitchChain()
+  const { signTypedDataAsync } = useSignTypedData()
   const { writeContract: doMint, data: mintHash } = useWriteContract()
   const { isSuccess: mintSuccess, isError: mintError } = useWaitForTransactionReceipt({ hash: mintHash })
 
@@ -1098,6 +1099,7 @@ function CircleTransferTab({ address, gatewayBalance, onSuccess }: {
       )
 
       let signature: `0x${string}`
+      let finalBurnIntent: typeof burnIntent
 
       if (isPasskey) {
         // Passkey path: passkey SCA is the depositor; connected EOA wallet signs as delegate.
@@ -1106,21 +1108,19 @@ function CircleTransferTab({ address, gatewayBalance, onSuccess }: {
           setPhase('error')
           return
         }
-        // Rebuild burnIntent with EOA as sourceSigner (SCA stays as depositor)
-        const passkeyBurnIntent = {
-          ...burnIntent,
-          spec: { ...burnIntent.spec, sourceSigner: toBytes32(wagmiAddress) },
-        }
-        signature = await signTypedDataAsync({ ...BURN_INTENT_TYPED_DATA, message: passkeyBurnIntent })
+        // Rebuild with EOA as sourceSigner (SCA stays as depositor/recipient)
+        finalBurnIntent = { ...burnIntent, spec: { ...burnIntent.spec, sourceSigner: toBytes32(wagmiAddress) } }
+        signature = await signTypedDataAsync({ ...BURN_INTENT_TYPED_DATA, message: finalBurnIntent })
       } else {
         // W3S / Circle UCW path: use Circle's signTypedData challenge (eth_signTypedData_v4)
+        finalBurnIntent = burnIntent
         const result = await circleTx.signTypedData(typedDataStr)
         if (!result) throw new Error(circleTx.error ?? 'Signing cancelled')
         signature = result as `0x${string}`
       }
 
       setPhase('submitting')
-      const { attestation, signature: mintSignature } = await submitBurnIntent(burnIntent, signature)
+      const { attestation, signature: mintSignature } = await submitBurnIntent(finalBurnIntent, signature)
 
       setPhase('minting')
 
