@@ -938,23 +938,32 @@ function TransferTab({ address, gatewayBalance, onSuccess }: {
     // wallet_addEthereumChain switches AND adds the chain if missing, bypassing
     // viem's assertCurrentChain which throws "chainId NaN" on mobile wallets whose
     // connector hasn't fully resolved the chain object yet.
+    // Falls back to switchChain for WalletConnect wallets that have no window.ethereum.
     const safeSwitch = async (targetChainId: number) => {
       const targetChain = ONCHAIN_CHAINS.find(c => c.chainId === targetChainId)
       if (!targetChain) throw new Error(`Chain ${targetChainId} not found`)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment
       const provider = (window as any).ethereum
-      if (!provider) throw new Error('No injected wallet found')
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-      await provider.request({
-        method: 'wallet_addEthereumChain',
-        params: [{
-          chainId: `0x${targetChainId.toString(16)}`,
-          chainName: targetChain.name,
-          nativeCurrency: targetChain.nativeCurrency,
-          rpcUrls: targetChain.rpcUrls,
-          blockExplorerUrls: [targetChain.explorerBase],
-        }],
-      })
+      if (provider) {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+        await provider.request({
+          method: 'wallet_addEthereumChain',
+          params: [{
+            chainId: `0x${targetChainId.toString(16)}`,
+            chainName: targetChain.name,
+            nativeCurrency: targetChain.nativeCurrency,
+            rpcUrls: targetChain.rpcUrls,
+            blockExplorerUrls: [targetChain.explorerBase],
+          }],
+        })
+      } else {
+        // WalletConnect / no injected provider — use wagmi switchChain via dynamic import
+        const { getConnectorClient } = await import('@wagmi/core')
+        const { config } = await import('@/config')
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-explicit-any
+        const client = await getConnectorClient(config as any)
+        await client.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: `0x${targetChainId.toString(16)}` }] })
+      }
     }
 
     try {
@@ -995,13 +1004,16 @@ function TransferTab({ address, gatewayBalance, onSuccess }: {
 
       // Step 2: submit to Gateway API
       setPhase('submitting')
-      const { attestation, signature: mintSignature } = await submitBurnIntent(burnIntent, signature)
+      const result = await submitBurnIntent(burnIntent, signature)
+      if (!result.attestation || !result.signature) {
+        throw new Error('Gateway API returned no attestation — check your balance and try again')
+      }
 
       // Step 3: switch to dest chain via wallet_addEthereumChain (bypasses assertCurrentChain).
       // doMint fires from useEffect once chainId settles, with a 3s fallback for mobile.
       await safeSwitch(destChainId)
       setPhase('minting')
-      setPendingMint({ attestation: attestation!, sig: mintSignature!, destChainIdSnapshot: destChainId })
+      setPendingMint({ attestation: result.attestation, sig: result.signature, destChainIdSnapshot: destChainId })
     } catch (e: unknown) {
       setPhase('error')
       setPendingMint(null)

@@ -24,17 +24,18 @@ export function LoginPage() {
   const { setAuth, setActiveView, profile } = useAppStore()
   const [mode, setMode] = useState<LoginMode>('choose')
 
-  // ── wallet connect effect ─────────────────────────────────────────────────
+  // ── wallet connect effect — ONLY fires when user chose 'wallet' mode ──────
+  // Without this guard, a cached wagmi connection from a previous session would
+  // fire this effect the moment an email/Google/passkey user lands on LoginPage,
+  // overwriting their Circle auth with a wallet-based auth.
   useEffect(() => {
+    if (mode !== 'wallet') return
     if (isConnected && address) {
-      // Generate a real base64 session token so community endpoints (support,
-      // feedback, notifications) can decode email from it as a fallback.
-      // Wallet users have no email — we use the address as the identity key.
       const token = btoa(`${address}:${Date.now()}`)
       setAuth({ email: address, sessionToken: token, walletAddress: address, walletId: address })
       setActiveView(profile.displayName ? 'home' : 'name')
     }
-  }, [isConnected, address, profile.displayName, setAuth, setActiveView])
+  }, [mode, isConnected, address, profile.displayName, setAuth, setActiveView])
 
   // ── Circle email auth success ─────────────────────────────────────────────
   // CircleEmailLogin.handleFinishAuth already called setAuth with the real
