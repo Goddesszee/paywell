@@ -8,7 +8,7 @@ import {
   ArrowUpRight, ArrowDownLeft, ChevronRight,
   ArrowDownToLine, Sparkles, Bot,
   CheckCircle2, Clock, ShoppingBag,
-  RefreshCw, Info, Zap,
+  RefreshCw, Info,
 } from 'lucide-react'
 import { useAppStore, ActivityItem } from '../../store/appStore'
 import { getUsdc } from '../../onchain-facts'
@@ -165,58 +165,6 @@ function TokenCard({
   )
 }
 
-// ─── Gateway card ─────────────────────────────────────────────────────────────
-
-function GatewayCard({
-  available, pending, hidden, isLoading, onClick, C,
-}: {
-  available: string; pending: string
-  hidden: boolean; isLoading: boolean
-  onClick: () => void; C: NanTheme
-}) {
-  return (
-    <button
-      onClick={onClick}
-      style={{
-        width: CARD_W, flexShrink: 0,
-        background: 'linear-gradient(135deg, rgba(0,102,255,0.14) 0%, rgba(0,102,255,0.05) 100%)',
-        border: '1px solid rgba(0,102,255,0.25)',
-        borderRadius: 16, padding: '14px 12px 12px',
-        cursor: 'pointer', fontFamily: F,
-        WebkitTapHighlightColor: 'transparent', textAlign: 'left',
-      }}
-    >
-      <div style={{
-        width: 30, height: 30, borderRadius: 9, marginBottom: 8,
-        background: C.blue,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        boxShadow: '0 3px 10px rgba(0,102,255,0.35)',
-      }}>
-        <Zap size={15} color="#fff" strokeWidth={2} />
-      </div>
-      {isLoading ? (
-        <div style={{ height: 18, width: 54, background: C.surf2, borderRadius: 6, marginBottom: 6 }} />
-      ) : (
-        <div style={{
-          fontSize: 14, fontWeight: 800, color: C.text,
-          fontFamily: MONO, letterSpacing: '-0.02em',
-          marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-        }}>
-          {hidden ? '••••' : `$${parseFloat(available).toFixed(2)}`}
-        </div>
-      )}
-      {!hidden && !isLoading && parseFloat(pending) > 0 && (
-        <div style={{ fontSize: 9, color: C.gold, fontFamily: MONO, marginBottom: 2 }}>
-          +${parseFloat(pending).toFixed(2)} pend.
-        </div>
-      )}
-      <div style={{ fontSize: 10, fontWeight: 600, color: C.blue }}>
-        Gateway
-      </div>
-    </button>
-  )
-}
-
 // ─── Cross-chain card ─────────────────────────────────────────────────────────
 
 function CrossChainCard({
@@ -261,7 +209,7 @@ function CrossChainCard({
         </div>
       )}
       <div style={{ fontSize: 10, fontWeight: 600, color: C.t2 }}>
-        {networksWithBalance} chain{networksWithBalance !== 1 ? 's' : ''}
+        Other chains · {networksWithBalance}
       </div>
     </button>
   )
@@ -482,8 +430,10 @@ export function HomePage() {
         </div>
       )}
 
-      {/* ── 3. HORIZONTAL SCROLL ROW: USDC → EURC → Gateway → Cross-chain ── */}
-      {/* Negative side margins let it bleed to screen edge; padding restores gap */}
+      {/* ── 3. HORIZONTAL SCROLL ROW: USDC (Arc) → EURC (Arc) → Cross-chain (non-Arc) ── */}
+      {/* Gateway removed — accessible via bottom nav / sidebar.                         */}
+      {/* Cross-chain shows only non-Arc chains so Arc isn't double-counted.              */}
+      {/* Total portfolio = USDC card + EURC card + Cross-chain card (no overlap).        */}
       <div style={{
         display: 'flex', gap: 10, overflowX: 'auto',
         marginBottom: 20, marginTop: fxLoading ? 18 : 0,
@@ -507,16 +457,9 @@ export function HomePage() {
           onClick={() => setTokenSheet('EURC')}
           hidden={hidden} C={C} isLoading={portfolio.isLoading}
         />
-        <GatewayCard
-          available={portfolio.gatewayAvailable}
-          pending={portfolio.gatewayPending}
-          hidden={hidden} isLoading={portfolio.isLoading}
-          onClick={() => setActiveView('gateway')}
-          C={C}
-        />
         <CrossChainCard
-          networksWithBalance={portfolio.networks.filter(n => n.hasBalance).length}
-          totalUsd={portfolio.totalUsd}
+          networksWithBalance={portfolio.nonArcNetworksWithBalance}
+          totalUsd={portfolio.nonArcTotalUsd}
           hidden={hidden} isLoading={portfolio.isLoading}
           onClick={() => setTokenSheet('USDC')}
           C={C}

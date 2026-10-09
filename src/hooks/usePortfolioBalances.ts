@@ -61,7 +61,13 @@ export interface NetworkSummary {
 }
 
 export interface PortfolioSummary {
-  /** Total USD value across all chains and tokens (excl. Gateway to avoid double-count) */
+  /**
+   * Total portfolio USD value.
+   * = Arc USDC (ERC-20) + Arc EURC (converted to USD) + all non-Arc chain balances.
+   * Arc is counted via byToken (which is Arc-only for USDC/EURC since those cards
+   * show Arc balances), plus nonArcTotalUsd for every other supported chain.
+   * Gateway is excluded — it is the same underlying USDC, not an additional asset.
+   */
   totalUsd: string
   /** Total USDC quantity across all chains */
   totalUsdc: string
@@ -71,8 +77,19 @@ export interface PortfolioSummary {
   totalUsdt: string
   /** Per-chain summaries, sorted: chains with balances first */
   networks: NetworkSummary[]
-  /** Per-token roll-up (all chains summed) */
+  /**
+   * Per-token roll-up scoped to Arc Testnet only.
+   * Used by the USDC and EURC home-screen cards.
+   */
   byToken: Record<'USDC' | 'EURC' | 'USDT', { quantity: string; usdValue: string }>
+  /**
+   * Total USD value held on non-Arc chains (all tokens).
+   * Used by the Cross-chain card so it doesn't double-count what's already
+   * shown in the USDC and EURC cards (which display Arc balances).
+   */
+  nonArcTotalUsd: string
+  /** Number of non-Arc chains that have at least one non-zero balance */
+  nonArcNetworksWithBalance: number
   /** Gateway unified USDC balance (NOT added to totalUsd — same underlying funds) */
   gatewayAvailable: string
   gatewayPending: string
@@ -227,9 +244,19 @@ export function usePortfolioBalances(address: string | undefined): PortfolioSumm
   }, [data, contracts, eurRate])
 
   // ── Aggregate ─────────────────────────────────────────────────────────────
-  const { networks, byToken, totalUsd, totalUsdc, totalEurc, totalUsdt } = useMemo(() => {
+  const ARC_CHAIN_ID = 5042002
+
+  const {
+    networks, byToken, totalUsd, totalUsdc, totalEurc, totalUsdt,
+    nonArcTotalUsd, nonArcNetworksWithBalance,
+  } = useMemo(() => {
     const netMap: Record<number, NetworkSummary> = {}
-    let sumUsd = 0; let sumUsdc = 0; let sumEurc = 0; let sumUsdt = 0
+    // All-chain totals (for totalUsdc/Eurc/Usdt quantities)
+    let sumUsdc = 0; let sumEurc = 0; let sumUsdt = 0
+    // Arc-only totals (for byToken cards — those cards show Arc balances)
+    let arcUsdc = 0; let arcEurc = 0; let arcUsdt = 0
+    // Non-Arc totals (for Cross-chain card)
+    let nonArcUsd = 0; let nonArcNets = 0
 
     for (const chain of PORTFOLIO_CHAINS) {
       netMap[chain.chainId] = {
@@ -251,10 +278,22 @@ export function usePortfolioBalances(address: string | undefined): PortfolioSumm
       net.hasBalance = net.hasBalance || qtyNum > 0
       netMap[pos.chainId] = { ...net, totalUsd: (parseFloat(net.totalUsd) + usdNum).toFixed(2) }
 
-      sumUsd  += usdNum
       if (pos.symbol === 'USDC') sumUsdc += qtyNum
       if (pos.symbol === 'EURC') sumEurc += qtyNum
       if (pos.symbol === 'USDT') sumUsdt += qtyNum
+
+      if (pos.chainId === ARC_CHAIN_ID) {
+        if (pos.symbol === 'USDC') arcUsdc += qtyNum
+        if (pos.symbol === 'EURC') arcEurc += qtyNum
+        if (pos.symbol === 'USDT') arcUsdt += qtyNum
+      } else {
+        nonArcUsd += usdNum
+      }
+    }
+
+    // Count non-Arc chains with any balance
+    for (const net of Object.values(netMap)) {
+      if (net.chainId !== ARC_CHAIN_ID && net.hasBalance) nonArcNets++
     }
 
     // sort: chains with balances first, then alphabetical
@@ -264,18 +303,26 @@ export function usePortfolioBalances(address: string | undefined): PortfolioSumm
       return a.chainName.localeCompare(b.chainName)
     })
 
+    // byToken is Arc-only — these are the values shown in the USDC and EURC cards
     const byToken = {
-      USDC: { quantity: sumUsdc.toFixed(2), usdValue: sumUsdc.toFixed(2) },
-      EURC: { quantity: sumEurc.toFixed(2), usdValue: (sumEurc * eurRate).toFixed(2) },
-      USDT: { quantity: sumUsdt.toFixed(2), usdValue: sumUsdt.toFixed(2) },
+      USDC: { quantity: arcUsdc.toFixed(2), usdValue: arcUsdc.toFixed(2) },
+      EURC: { quantity: arcEurc.toFixed(2), usdValue: (arcEurc * eurRate).toFixed(2) },
+      USDT: { quantity: arcUsdt.toFixed(2), usdValue: arcUsdt.toFixed(2) },
     }
+
+    // Total portfolio = Arc USDC + Arc EURC (in USD) + non-Arc total
+    // This way: USDC card + EURC card + Cross-chain card = Total (no double-count)
+    const arcUsd = arcUsdc + arcEurc * eurRate + arcUsdt
+    const total = arcUsd + nonArcUsd
 
     return {
       networks, byToken,
-      totalUsd:  sumUsd.toFixed(2),
+      totalUsd:  total.toFixed(2),
       totalUsdc: sumUsdc.toFixed(2),
       totalEurc: sumEurc.toFixed(2),
       totalUsdt: sumUsdt.toFixed(2),
+      nonArcTotalUsd: nonArcUsd.toFixed(2),
+      nonArcNetworksWithBalance: nonArcNets,
     }
   }, [positions, eurRate])
 
@@ -288,6 +335,7 @@ export function usePortfolioBalances(address: string | undefined): PortfolioSumm
   return {
     totalUsd, totalUsdc, totalEurc, totalUsdt,
     networks, byToken,
+    nonArcTotalUsd, nonArcNetworksWithBalance,
     gatewayAvailable, gatewayPending,
     lastUpdated,
     isLoading: contractsLoading,
