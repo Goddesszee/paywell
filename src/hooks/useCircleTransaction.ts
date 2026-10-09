@@ -243,6 +243,63 @@ export function useCircleTransaction() {
   )
 
   /**
+   * Sign EIP-712 typed data via Circle SDK signTypedData challenge.
+   * This uses eth_signTypedData_v4 under the hood (unlike signMessage which is eth_sign).
+   * Required for Gateway BurnIntent signing from UCW wallets.
+   * Returns the hex signature string, or undefined on failure.
+   */
+  const signTypedData = useCallback(
+    async (typedDataJson: string): Promise<string | undefined> => {
+      setError(undefined); setStatus('idle')
+      const userToken     = auth?.userToken
+      const encryptionKey = auth?.encryptionKey
+      const walletId      = auth?.circleWalletId
+      const appId         = import.meta.env.VITE_CIRCLE_APP_ID as string | undefined
+      if (!userToken || !walletId) {
+        setError('Circle session expired — please log in again')
+        setStatus('error')
+        return undefined
+      }
+      if (!appId) {
+        setError('VITE_CIRCLE_APP_ID is not set')
+        setStatus('error')
+        return undefined
+      }
+      setStatus('creating')
+      const resp = await fetch('/api/wallet', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'sign-typed-data', userToken, walletId, data: typedDataJson }),
+      })
+      const data = await resp.json() as { challengeId?: string; error?: string }
+      if (!resp.ok || !data.challengeId) {
+        setError(data.error ?? `Failed to create sign-typed-data challenge (HTTP ${resp.status})`)
+        setStatus('error')
+        return undefined
+      }
+      setStatus('approving')
+      const { W3SSdk } = await import('@circle-fin/w3s-pw-web-sdk')
+      const sdk = new W3SSdk({ appSettings: { appId } })
+      sdk.setAuthentication({ userToken, encryptionKey: encryptionKey ?? '' })
+      return new Promise<string | undefined>(resolve => {
+        sdk.execute(data.challengeId!, (err, result) => {
+          if (err) {
+            setError(err.message ?? 'Sign typed data challenge failed')
+            setStatus('error')
+            resolve(undefined)
+          } else {
+            const anyResult = result as Record<string, unknown> | undefined
+            const sig = anyResult?.['signature'] as string ?? anyResult?.['result'] as string ?? undefined
+            setStatus('complete')
+            resolve(sig)
+          }
+        })
+      })
+    },
+    [auth, setError],
+  )
+
+  /**
    * Sign an arbitrary message via Circle SDK challenge (sign-message action).
    * Returns the hex signature string, or undefined on failure.
    * Used for EIP-712 typed data signing on the Circle UCW path.
@@ -304,5 +361,5 @@ export function useCircleTransaction() {
     setStatus('idle'); setTxHash(undefined); setError(undefined)
   }, [setError])
 
-  return { sendTransfer, executeContract, signMessage, status, txHash, error, getLastError, reset }
+  return { sendTransfer, executeContract, signMessage, signTypedData, status, txHash, error, getLastError, reset }
 }

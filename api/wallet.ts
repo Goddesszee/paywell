@@ -432,6 +432,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   }
 
+  // ── sign-typed-data — EIP-712 typed data signing challenge ──────────────────
+  // Creates a Circle sign-typed-data challenge. Required for Gateway BurnIntent
+  // signing from UCW wallets (signMessage only does eth_sign, not eth_signTypedData).
+  // The client executes the returned challengeId via sdk.execute() and reads
+  // result.signature from the callback.
+  if (action === 'sign-typed-data') {
+    const { userToken, walletId, data } = body
+    if (!userToken || !walletId || !data) return err(res, 400, 'userToken, walletId, data required')
+    try {
+      const client = ucwClient()
+      const response = await client.signTypedData({ userToken, walletId, data })
+      const challengeId = response.data?.challengeId
+      if (!challengeId) return err(res, 500, 'Circle did not return a challengeId for sign-typed-data')
+      return res.json({ challengeId })
+    } catch (e) {
+      const code = (e as { response?: { data?: { code?: number } } })?.response?.data?.code
+      if (code === 155104) return res.status(401).json({ error: 'Circle session expired — please log in again', code: 155104 })
+      return err(res, 500, e instanceof Error ? e.message : 'Sign typed data failed')
+    }
+  }
+
   // ── sign-message — EIP-191 / EIP-712 signing challenge ──────────────────────
   // Creates a Circle sign-message challenge on behalf of the user.
   // The client executes the returned challengeId via sdk.execute().

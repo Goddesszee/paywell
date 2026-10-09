@@ -135,17 +135,14 @@ async function fetchGatewayBalance(address: string): Promise<string> {
 
 /**
  * Submit a burn intent to the Gateway API and return attestation + signature.
- * - For SCAs (passkey / smart contract accounts), pass contractSigner=true.
- * - The API may return a transferId (forwarded) instead of inline attestation;
- *   in that case we poll GET /v1/transfer/{id} until the attestation is ready.
+ * Body is an array of { burnIntent, signature } per the Circle reference.
+ * bigints are serialised as decimal strings via the JSON replacer.
  */
 async function submitBurnIntent(
   burnIntent: unknown,
   signature: string,
-  contractSigner = false,
 ): Promise<{ attestation: `0x${string}`; signature: `0x${string}` }> {
   const item: Record<string, unknown> = { burnIntent, signature }
-  if (contractSigner) item.contractSigner = true
 
   const res = await fetch(`${GATEWAY_API}/transfer`, {
     method: 'POST',
@@ -901,7 +898,7 @@ function TransferTab({ address, gatewayBalance, onSuccess }: {
 
       setPhase('submitting')
       // EOA wallet — contractSigner: false
-      const { attestation, signature: mintSignature } = await submitBurnIntent(burnIntent, signature, false)
+      const { attestation, signature: mintSignature } = await submitBurnIntent(burnIntent, signature)
 
       // Switch to destination chain and call gatewayMint
       await switchChainAsync({ chainId: destChainId })
@@ -1156,7 +1153,7 @@ function CircleTransferTab({ address, gatewayBalance, onSuccess }: {
         })
 
         setPhase('submitting')
-        const { attestation, signature: mintSignature } = await submitBurnIntent(burnIntent, signature, true)
+        const { attestation, signature: mintSignature } = await submitBurnIntent(burnIntent, signature)
 
         // ── Step 2: gatewayMint on dest chain via bundler (reuse same credential) ──
         setPhase('minting')
@@ -1202,19 +1199,21 @@ function CircleTransferTab({ address, gatewayBalance, onSuccess }: {
         setTimeout(onSuccess, 2000)
         return // passkey path complete
       } else {
-        // ── W3S SDK path (EOA via Circle UCW) ────────────────────────────────
+        // ── W3S SDK path (Circle UCW — email / Google / PIN) ─────────────────
+        // UCW wallets are SCAs. Use signTypedData (eth_signTypedData_v4) not
+        // signMessage (eth_sign) — the Gateway API needs a proper EIP-712 sig.
         const typedDataStr = JSON.stringify(
           { ...BURN_INTENT_TYPED_DATA, message: burnIntent },
           (_k, v: unknown) => typeof v === 'bigint' ? (v).toString() : v,
         )
-        const result = await circleTx.signMessage(typedDataStr)
+        const result = await circleTx.signTypedData(typedDataStr)
         if (!result) throw new Error(circleTx.error ?? 'Signing cancelled')
         signature = result as `0x${string}`
       }
 
       setPhase('submitting')
-      // W3S SDK path: contractSigner:false (EOA)
-      const { attestation, signature: mintSignature } = await submitBurnIntent(burnIntent, signature, false)
+      // UCW wallets are SCAs → contractSigner: true
+      const { attestation, signature: mintSignature } = await submitBurnIntent(burnIntent, signature)
 
       setPhase('minting')
 
