@@ -33,6 +33,71 @@ function extractAction(raw: string): { text: string; action: Record<string, unkn
   }
 }
 
+// ── deterministic intent parsing ──────────────────────────────────────────────
+// Clear transaction commands must never depend on the LLM remembering to emit an
+// action block (past assistant turns in history have their blocks stripped, so the
+// model learns to just say "I will do that"). Parse the common ones directly.
+const SWAP_TOKENS: Record<string, string> = { usdc: 'USDC', eurc: 'EURC', cirbtc: 'cirBTC' }
+
+function normalizeChain(raw: string): string | null {
+  const c = raw.toLowerCase().replace(/[^a-z ]/g, ' ').replace(/\s+/g, ' ').trim()
+  if (!c) return null
+  if (/\bbase\b/.test(c)) return 'Base Sepolia'
+  if (/\barb/.test(c)) return 'Arbitrum Sepolia'
+  if (/\boptimism\b|\bop\b/.test(c)) return 'OP Sepolia'
+  if (/\bpolygon\b|\bamoy\b|\bpol\b/.test(c)) return 'Polygon Amoy'
+  if (/\bavalanche\b|\bfuji\b|\bavax\b/.test(c)) return 'Avalanche Fuji'
+  if (/\bunichain\b/.test(c)) return 'Unichain Sepolia'
+  if (/\blinea\b/.test(c)) return 'Linea Sepolia'
+  if (/\bsei\b/.test(c)) return 'Sei Testnet'
+  if (/\bworld\b/.test(c)) return 'World Chain Sepolia'
+  if (/\barc\b/.test(c)) return 'Arc Testnet'
+  if (/\bethereum\b|\beth\b|\bsepolia\b/.test(c)) return 'Ethereum Sepolia'
+  return null
+}
+
+function detectDirectAction(message: string): { reply: string; action: Record<string, unknown> } | null {
+  const text = message.trim()
+  const lower = text.toLowerCase()
+
+  const swap = lower.match(/\b(?:swap|convert|exchange)\s+(\d+(?:\.\d+)?)\s*([a-z]{3,6})\s+(?:to|for|into|->|→)\s+([a-z]{3,6})\b/)
+  if (swap) {
+    const from = SWAP_TOKENS[swap[2]], to = SWAP_TOKENS[swap[3]]
+    if (from && to && from !== to) {
+      const source = /agent wallet/.test(lower) ? 'agent' : 'main'
+      return {
+        reply: `Opening a swap of ${swap[1]} ${from} to ${to} from your ${source} wallet. Review the quote and confirm.`,
+        action: { action: 'swap_start', params: { fromToken: from, toToken: to, amount: swap[1], source } },
+      }
+    }
+  }
+
+  const bridge = lower.match(/\bbridge\s+(\d+(?:\.\d+)?)/)
+  if (bridge) {
+    const dest = text.match(/(?:\bto\b|->|→)\s+(.+?)[.!?\s]*$/i)
+    const chain = dest ? normalizeChain(dest[1]) : null
+    if (chain) {
+      return {
+        reply: `Opening the Bridge for ${bridge[1]} USDC to ${chain}. Review the details and confirm.`,
+        action: { action: 'bridge_start', params: { amount: bridge[1], toChain: chain } },
+      }
+    }
+  }
+
+  const addr = text.match(/0x[a-fA-F0-9]{40}\b/)
+  const send = lower.match(/\b(?:send|transfer|pay)\s+(\d+(?:\.\d+)?)/)
+  if (addr && send) {
+    const fromAgent = /agent wallet/.test(lower)
+    const short = `${addr[0].slice(0, 6)}…${addr[0].slice(-4)}`
+    return {
+      reply: `Ready to send ${send[1]} USDC to ${short} from your ${fromAgent ? 'Agent Wallet' : 'main wallet'}. Please confirm below.`,
+      action: { action: fromAgent ? 'agent_wallet_send' : 'send_usdc', params: { toAddress: addr[0], amount: send[1] } },
+    }
+  }
+
+  return null
+}
+
 // ── marketplace intent detection ──────────────────────────────────────────────
 function detectMarketplaceIntent(message: string): string | null {
   const m = message.toLowerCase()
@@ -75,6 +140,8 @@ type ServiceIntent = { service_id: string; query: string } | null
 
 function classifyToService(message: string): ServiceIntent {
   const m = message.toLowerCase()
+  // Transaction commands (swap/bridge/send…) are not market-data lookups, even if they mention ETH/BTC
+  if (/\b(swap|bridge|send|transfer|deposit|withdraw)\b/.test(m)) return null
   if (/bitcoin|ethereum|btc|eth|solana|bnb|crypto price|coin price|token price|market cap|dogecoin|ripple|xrp/.test(m))
     return { service_id: 'coingecko-prices', query: message }
   if (/exchange rate|usd to|dollar to|naira|ngn|gbp|forex|convert.*currency|currency.*convert|how much is.*in/.test(m))
@@ -473,6 +540,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         },
       })
     }
+  }
+
+  // ── deterministic transaction commands (no LLM round-trip, no service lookup) ──
+  const direct = detectDirectAction(message)
+  if (direct) {
+    return res.status(200).json({ reply: direct.reply, action: direct.action, service_used: null })
   }
 
   // ── marketplace discovery ─────────────────────────────────────────────────

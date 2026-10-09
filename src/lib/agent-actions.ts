@@ -147,7 +147,7 @@ export interface BridgeStartAction {
 
 export interface SwapStartAction {
   action: 'swap_start'
-  params: { fromToken?: string; toToken?: string; amount?: string }
+  params: { fromToken?: string; toToken?: string; amount?: string; source?: 'agent' | 'main' }
 }
 
 export interface NavigateAction {
@@ -380,7 +380,7 @@ export function parseAction(raw: Record<string, unknown>): NanAction | null {
     case 'bridge_start':
       return { action: 'bridge_start', params: { amount: s(params.amount) || undefined, toChain: s(params.toChain) || undefined } }
     case 'swap_start':
-      return { action: 'swap_start', params: { fromToken: s(params.fromToken) || undefined, toToken: s(params.toToken) || undefined, amount: s(params.amount) || undefined } }
+      return { action: 'swap_start', params: { fromToken: s(params.fromToken) || undefined, toToken: s(params.toToken) || undefined, amount: s(params.amount) || undefined, source: s(params.source) === 'agent' ? 'agent' : 'main' } }
     case 'navigate': {
       const page = s(params.page)
       if (!page) return null

@@ -98,6 +98,11 @@ export function BridgePage() {
   useEffect(() => {
     if (!bridgePrefill) return
     if (bridgePrefill.amount) setAmount(bridgePrefill.amount)
+    if (bridgePrefill.toChain) {
+      const want = bridgePrefill.toChain.toLowerCase()
+      const idx = CHAINS.findIndex(c => c.label.toLowerCase() === want)
+      if (idx > 0) setToIdx(idx)
+    }
     setBridgePrefill(null)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])

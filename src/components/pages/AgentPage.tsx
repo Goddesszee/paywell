@@ -1306,8 +1306,9 @@ function AgentChat({ onNavigate }: { onNavigate?: (page: string, query?: string)
         if (res.action) {
           const parsed = parseAction(res.action)
           if (parsed) {
-            // swap_start → inline swap flow in chat (never navigate away)
-            if (parsed.action === 'swap_start') {
+            // swap_start from the Agent Wallet → inline swap card in chat.
+            // Main-wallet swaps open the Swap tab pre-filled (handled by executeAction below).
+            if (parsed.action === 'swap_start' && parsed.params.source === 'agent' && agentWallet.provisioned) {
               setInlineSwap({
                 fromToken: parsed.params.fromToken ?? 'USDC',
                 toToken:   parsed.params.toToken   ?? 'USDC',
