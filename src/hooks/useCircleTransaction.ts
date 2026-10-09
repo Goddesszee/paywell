@@ -68,7 +68,10 @@ export function useCircleTransaction() {
   const _execute = useCallback(
     async (action: string, extraBody: Record<string, string>): Promise<string | undefined> => {
       const userToken     = auth?.userToken
-      const encryptionKey = auth?.encryptionKey  // may be undefined after a page reload (wiped for security)
+      // encryptionKey is wiped from the persisted store on reload for security.
+      // Restore it from sessionStorage (same-tab only, cleared on tab close).
+      const storedEk = (() => { try { return sessionStorage.getItem('circle_ek') ?? undefined } catch { return undefined } })()
+      const encryptionKey = auth?.encryptionKey ?? storedEk
       const walletId      = auth?.circleWalletId
       const appId         = import.meta.env.VITE_CIRCLE_APP_ID as string | undefined
 
@@ -252,7 +255,8 @@ export function useCircleTransaction() {
     async (typedDataJson: string): Promise<string | undefined> => {
       setError(undefined); setStatus('idle')
       const userToken     = auth?.userToken
-      const encryptionKey = auth?.encryptionKey
+      const storedEk2 = (() => { try { return sessionStorage.getItem('circle_ek') ?? undefined } catch { return undefined } })()
+      const encryptionKey = auth?.encryptionKey ?? storedEk2
       const walletId      = auth?.circleWalletId
       const appId         = import.meta.env.VITE_CIRCLE_APP_ID as string | undefined
       if (!userToken || !walletId) {
@@ -316,7 +320,8 @@ export function useCircleTransaction() {
     async (message: string): Promise<string | undefined> => {
       setError(undefined); setStatus('idle')
       const userToken     = auth?.userToken
-      const encryptionKey = auth?.encryptionKey
+      const storedEk3 = (() => { try { return sessionStorage.getItem('circle_ek') ?? undefined } catch { return undefined } })()
+      const encryptionKey = auth?.encryptionKey ?? storedEk3
       const walletId      = auth?.circleWalletId
       const appId         = import.meta.env.VITE_CIRCLE_APP_ID as string | undefined
       if (!userToken || !walletId) {

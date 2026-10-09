@@ -380,15 +380,26 @@ export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
       auth: null,
-      setAuth: (auth) => set((s) => {
-        // If the incoming wallet address differs from the current one, wipe all
-        // per-user data so the new account starts with a clean slate.
-        const prevAddr = s.auth?.walletAddress ?? s.auth?.circleWalletAddress ?? ''
-        const nextAddr = auth?.walletAddress ?? auth?.circleWalletAddress ?? ''
-        const accountChanged = !!auth && !!prevAddr && prevAddr !== nextAddr
-        return accountChanged ? { auth, ...USER_DEFAULTS } : { auth }
-      }),
-      logout: () => set({ auth: null, ...USER_DEFAULTS }),
+      setAuth: (auth) => {
+        // Persist encryptionKey to sessionStorage so it survives page reloads
+        // within the same tab. sessionStorage clears when the tab is closed,
+        // so the key never leaks to other sessions or other tabs.
+        if (auth?.encryptionKey) {
+          try { sessionStorage.setItem('circle_ek', auth.encryptionKey) } catch { /* ignore */ }
+        } else if (auth === null) {
+          try { sessionStorage.removeItem('circle_ek') } catch { /* ignore */ }
+        }
+        set((s) => {
+          const prevAddr = s.auth?.walletAddress ?? s.auth?.circleWalletAddress ?? ''
+          const nextAddr = auth?.walletAddress ?? auth?.circleWalletAddress ?? ''
+          const accountChanged = !!auth && !!prevAddr && prevAddr !== nextAddr
+          return accountChanged ? { auth, ...USER_DEFAULTS } : { auth }
+        })
+      },
+      logout: () => {
+        try { sessionStorage.removeItem('circle_ek') } catch { /* ignore */ }
+        set({ auth: null, ...USER_DEFAULTS })
+      },
       setWallet: (walletAddress, walletId) =>
         set((s) => ({ auth: s.auth ? { ...s.auth, walletAddress, walletId } : null })),
       onboarding: { completed: false, step: 0, useCases: [], agentConfigured: false },
