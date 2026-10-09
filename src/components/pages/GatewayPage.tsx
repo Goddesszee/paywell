@@ -939,13 +939,14 @@ function TransferTab({ address, gatewayBalance, onSuccess }: {
       // the wallet is already on the target chain.
       await switchChainAsync({ chainId: destChainId })
       setPhase('minting')
+      // Do NOT pass chainId to writeContract after switchChainAsync — the wagmi
+      // useAccount chainId state hasn't updated yet (async), so the hook sees a
+      // mismatch and emits chainId "NaN". The wallet IS on destChainId already.
       doMint({
         address:      GATEWAY_MINTER,
         abi:          GATEWAY_MINTER_ABI,
         functionName: 'gatewayMint',
-        // attestation and mintSignature are non-null when enableForwarder=false (wagmi path)
         args:         [attestation!, mintSignature!],
-        chainId:      destChainId, // explicitly pin to dest chain after the switch
       })
     } catch (e: unknown) {
       setPhase('error')
@@ -1175,17 +1176,27 @@ function CircleTransferTab({ address, gatewayBalance, onSuccess }: {
         // contractSigner:true → Gateway validates ERC-1271 on the Arc SCA (already deployed).
         const { transferId } = await submitBurnIntent(burnIntent, signature, true, true)
 
-        // Forwarding Service handles the mint. Poll until COMPLETE.
+        // Forwarding Service handles the mint. Poll GET /v1/transfer/{id} until
+        // status is 'confirmed' or 'finalized'. ('COMPLETE' is not a real status.)
+        // Also bail out on 'failed' so the user sees the error immediately.
         setPhase('minting')
         if (transferId) {
-          const deadline = Date.now() + 90_000
-          while (Date.now() < deadline) {
-            await new Promise(r => setTimeout(r, 2500))
-            const poll = await fetch(`${GATEWAY_API}/transfer/${transferId}`)
-            if (!poll.ok) continue
-            const rec = await poll.json() as { status?: string }
-            if (rec.status === 'COMPLETE') break
+          const deadline = Date.now() + 120_000
+          let done = false
+          while (Date.now() < deadline && !done) {
+            await new Promise(r => setTimeout(r, 3000))
+            try {
+              const poll = await fetch(`${GATEWAY_API}/transfer/${transferId}`)
+              if (!poll.ok) continue
+              const rec = await poll.json() as { status?: string; message?: string }
+              if (rec.status === 'confirmed' || rec.status === 'finalized') { done = true; break }
+              if (rec.status === 'failed') throw new Error(`Gateway transfer failed: ${rec.message ?? 'unknown reason'}`)
+            } catch (pollErr) {
+              if ((pollErr as Error)?.message?.startsWith('Gateway transfer failed')) throw pollErr
+              // network blip — keep polling
+            }
           }
+          if (!done) throw new Error('Timed out waiting for Gateway Forwarding Service to confirm. Your funds are safe — check your balance in a few minutes.')
         }
         setPhase('done')
         toast.success(`Transferred ${amount} USDC to ${destChain?.name}`)
