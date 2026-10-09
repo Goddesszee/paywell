@@ -18,8 +18,12 @@ export default defineConfig({
       // to use the exact same React instance — prevents "Invalid hook call" / duplicate React crash
       'react': path.resolve(__dirname, 'node_modules/react'),
       'react-dom': path.resolve(__dirname, 'node_modules/react-dom'),
+      // Alias jsx-runtime explicitly — zustand and some Circle kits resolve it
+      // separately from 'react' and end up with a second copy if this is missing.
+      'react/jsx-runtime': path.resolve(__dirname, 'node_modules/react/jsx-runtime'),
+      'react/jsx-dev-runtime': path.resolve(__dirname, 'node_modules/react/jsx-dev-runtime'),
     },
-    dedupe: ['react', 'react-dom', 'react/jsx-runtime', 'zustand'],
+    dedupe: ['react', 'react-dom', 'react/jsx-runtime', 'react/jsx-dev-runtime', 'zustand'],
   },
   optimizeDeps: {
     exclude: ['web-push'],
@@ -28,6 +32,7 @@ export default defineConfig({
       'react-dom',
       'react-dom/client',
       'react/jsx-runtime',
+      'react/jsx-dev-runtime',
       '@tanstack/react-query',
       'wagmi',
       'wagmi/chains',

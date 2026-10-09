@@ -327,7 +327,8 @@ export async function sendFromPasskeyWallet({
     client: publicClient,
     owner: toWebAuthnAccount({ credential }),
   })
-  const bundlerClient = createBundlerClient({ chain: arcTestnet, transport: modularTransport })
+  // Bind account to bundlerClient so it is always available for signing
+  const bundlerClient = createBundlerClient({ account, chain: arcTestnet, transport: modularTransport })
   const callData = encodeTransfer(to, ContractAddress.ArcTestnet_USDC, amount)
 
   // First try with Circle's gas sponsorship. If the bundler/paymaster rejects the

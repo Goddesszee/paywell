@@ -591,15 +591,36 @@ function PasskeyDepositTab({ address, walletBalance, usdcFact, onSuccess }: {
         transport: modularTransport,
       })
 
-      // Batch approve + deposit as a single user operation (one passkey prompt)
-      const userOpHash = await bundlerClient.sendUserOperation({
-        account,
-        calls: [
-          { to: usdcFact.address as `0x${string}`, data: approveData, value: 0n },
-          { to: GATEWAY_WALLET, data: depositData, value: 0n },
-        ],
-        paymaster: true,
-      })
+      // Batch approve + deposit as a single user operation (one passkey prompt).
+      // Try Circle gas sponsorship first; if the paymaster returns an internal error
+      // (-32603 / InternalRpcError) retry once unsponsored — on Arc, gas is USDC so
+      // the smart account can pay for itself.
+      let userOpHash: `0x${string}`
+      try {
+        userOpHash = await bundlerClient.sendUserOperation({
+          account,
+          calls: [
+            { to: usdcFact.address as `0x${string}`, data: approveData, value: 0n },
+            { to: GATEWAY_WALLET, data: depositData, value: 0n },
+          ],
+          paymaster: true,
+        })
+      } catch (paymasterErr: unknown) {
+        const isInternal = (e: unknown) => {
+          const err = e as { code?: number; name?: string; shortMessage?: string; message?: string } | undefined
+          return err?.code === -32603 || err?.name === 'InternalRpcError'
+            || /internal error/i.test(err?.shortMessage ?? err?.message ?? '')
+        }
+        if (!isInternal(paymasterErr)) throw paymasterErr
+        // Retry without paymaster sponsorship
+        userOpHash = await bundlerClient.sendUserOperation({
+          account,
+          calls: [
+            { to: usdcFact.address as `0x${string}`, data: approveData, value: 0n },
+            { to: GATEWAY_WALLET, data: depositData, value: 0n },
+          ],
+        })
+      }
 
       await bundlerClient.waitForUserOperationReceipt({ hash: userOpHash })
       setPhase('done')
@@ -607,10 +628,21 @@ function PasskeyDepositTab({ address, walletBalance, usdcFact, onSuccess }: {
       setTimeout(onSuccess, 1500)
     } catch (e: unknown) {
       setPhase('error')
-      const msg = e instanceof Error ? e.message : String(e)
-      setErrMsg(msg.includes('NotAllowedError') || msg.includes('cancelled')
-        ? 'Passkey prompt cancelled. Try again.'
-        : msg)
+      const err = e as { code?: number; name?: string; shortMessage?: string; details?: string; message?: string } | undefined
+      const raw = [err?.shortMessage, err?.details, err?.message].filter(Boolean).join(' ')
+      let msg: string
+      if (/NotAllowedError|cancel/i.test(raw)) {
+        msg = 'Passkey prompt cancelled. Try again.'
+      } else if (/insufficient|exceeds balance|AA21|AA31/i.test(raw)) {
+        msg = 'Not enough USDC in your passkey wallet to cover this deposit plus network fee.'
+      } else if (/AA23|AA24|signature/i.test(raw)) {
+        msg = 'Passkey signature was rejected — sign out, sign back in with your passkey, then retry.'
+      } else if (/internal error/i.test(raw)) {
+        msg = "Circle's network returned an internal error. Please retry in a moment."
+      } else {
+        msg = err?.shortMessage ?? err?.message ?? String(e)
+      }
+      setErrMsg(msg)
     }
   }
 
@@ -1161,9 +1193,22 @@ function CircleTransferTab({ address, gatewayBalance, onSuccess }: {
         const account          = await toCircleSmartAccount({ client: publicClient, owner: toWebAuthnAccount({ credential }) })
         const bundlerClient    = createBundlerClient({ account, chain: destViemChain, transport: modularTransport })
         const destMinter       = getProtocolContractByName('GatewayMinter', 'testnet')?.address ?? GATEWAY_MINTER
-        const uoh = await bundlerClient.sendUserOperation({
-          account, calls: [{ to: destMinter as `0x${string}`, data: mintCallData, value: 0n }], paymaster: true,
-        })
+        const isInternalRpcErr = (e: unknown) => {
+          const err = e as { code?: number; name?: string; shortMessage?: string; message?: string } | undefined
+          return err?.code === -32603 || err?.name === 'InternalRpcError'
+            || /internal error/i.test(err?.shortMessage ?? err?.message ?? '')
+        }
+        let uoh: `0x${string}`
+        try {
+          uoh = await bundlerClient.sendUserOperation({
+            account, calls: [{ to: destMinter as `0x${string}`, data: mintCallData, value: 0n }], paymaster: true,
+          })
+        } catch (pmErr: unknown) {
+          if (!isInternalRpcErr(pmErr)) throw pmErr
+          uoh = await bundlerClient.sendUserOperation({
+            account, calls: [{ to: destMinter as `0x${string}`, data: mintCallData, value: 0n }],
+          })
+        }
         const receipt = await bundlerClient.waitForUserOperationReceipt({ hash: uoh })
         txHash = receipt.receipt.transactionHash
       } else {
