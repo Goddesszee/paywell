@@ -116,20 +116,27 @@ const DOMAIN_MAP: Record<number, number> = {
 }
 
 // ── Gateway REST API helpers ──────────────────────────────────────────────────
-// Circle Gateway testnet balance API: GET /v1/balance?depositor=<addr>&domain=<n>
-// Sum balance across all supported domains for this address.
-async function fetchGatewayBalance(address: string): Promise<string> {
-  const domains = Object.values(DOMAIN_MAP)
-  const results = await Promise.allSettled(
-    domains.map(domain =>
-      fetch(`${GATEWAY_API}/balance?depositor=${address}&domain=${domain}`)
-        .then(r => r.ok ? r.json() as Promise<{ balance?: string }> : Promise.resolve({ balance: '0' }))
-        .then(d => parseFloat(d.balance ?? '0'))
-        .catch(() => 0)
-    )
-  )
-  const total = results.reduce((acc, r) => acc + (r.status === 'fulfilled' ? r.value : 0), 0)
-  return total.toFixed(6)
+// Circle Gateway balance API: POST /v1/balances
+// Omitting `domain` from each source returns balances across ALL domains for
+// that depositor in a single round-trip — no need to fan out per domain.
+// Returns { available, pending } where pending = unfinalized deposits.
+async function fetchGatewayBalance(address: string): Promise<{ available: string; pending: string }> {
+  const res = await fetch(`${GATEWAY_API}/balances`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token: 'USDC', sources: [{ depositor: address }] }),
+  })
+  if (!res.ok) return { available: '0.000000', pending: '0.000000' }
+  const json = await res.json() as {
+    balances?: { balance?: string; pendingBatch?: string }[]
+  }
+  let available = 0
+  let pending = 0
+  for (const b of json.balances ?? []) {
+    available += parseFloat(b.balance ?? '0')
+    pending   += parseFloat(b.pendingBatch ?? '0')
+  }
+  return { available: available.toFixed(6), pending: pending.toFixed(6) }
 }
 
 
@@ -208,7 +215,7 @@ export function GatewayPage() {
     : wagmiAddress
   const usdcFact = getUsdc(ARC)
 
-  const [gatewayBalance, setGatewayBalance] = useState<string | null>(null)
+  const [gatewayBalance, setGatewayBalance] = useState<{ available: string; pending: string } | null>(null)
   const [balanceLoading, setBalanceLoading] = useState(false)
 
   // Wallet USDC balance (ERC-20)
@@ -230,7 +237,7 @@ export function GatewayPage() {
       const bal = await fetchGatewayBalance(addr)
       setGatewayBalance(bal) // eslint-disable-line react/set-state-in-effect
     } catch {
-      setGatewayBalance('0.000000') // eslint-disable-line react/set-state-in-effect
+      setGatewayBalance({ available: '0.000000', pending: '0.000000' }) // eslint-disable-line react/set-state-in-effect
     } finally {
       setBalanceLoading(false) // eslint-disable-line react/set-state-in-effect
     }
@@ -277,22 +284,24 @@ export function GatewayPage() {
         ))}
       </div>
 
-      {tab === 'balance'  && <BalanceTab  address={address} walletBalance={walletBalance} gatewayBalance={gatewayBalance} isLoading={isLoading} />}
+      {tab === 'balance'  && <BalanceTab  address={address} walletBalance={walletBalance} gatewayBalance={gatewayBalance?.available ?? null} pendingBalance={gatewayBalance?.pending ?? null} isLoading={isLoading} />}
       {tab === 'deposit'  && (!isCircleUser && wagmiAddress
         ? <DepositTab  address={address} walletBalance={walletBalance} usdcFact={usdcFact} onSuccess={() => { refetchAll(); setTab('balance') }} />
         : <CircleDepositTab  address={address} walletBalance={walletBalance} usdcFact={usdcFact} onSuccess={() => { refetchAll(); setTab('balance') }} />)}
       {tab === 'transfer' && (!isCircleUser && wagmiAddress
-        ? <TransferTab address={wagmiAddress} gatewayBalance={gatewayBalance} onSuccess={() => { refetchAll(); setTab('balance') }} />
-        : <CircleTransferTab address={address} gatewayBalance={gatewayBalance} onSuccess={() => { refetchAll(); setTab('balance') }} />)}
+        ? <TransferTab address={wagmiAddress} gatewayBalance={gatewayBalance?.available ?? null} onSuccess={() => { refetchAll(); setTab('balance') }} />
+        : <CircleTransferTab address={address} gatewayBalance={gatewayBalance?.available ?? null} onSuccess={() => { refetchAll(); setTab('balance') }} />)}
     </div>
   )
 }
 
 // ── Balance tab ───────────────────────────────────────────────────────────────
-function BalanceTab({ address, walletBalance, gatewayBalance, isLoading }: {
-  address?: string; walletBalance: string|null; gatewayBalance: string|null; isLoading: boolean
+function BalanceTab({ address, walletBalance, gatewayBalance, pendingBalance, isLoading }: {
+  address?: string; walletBalance: string|null; gatewayBalance: string|null; pendingBalance: string|null; isLoading: boolean
 }) {
-  const display = gatewayBalance ? parseFloat(gatewayBalance).toFixed(2) : '0.00'
+  const display  = gatewayBalance ? parseFloat(gatewayBalance).toFixed(2) : '0.00'
+  const pending  = pendingBalance  ? parseFloat(pendingBalance).toFixed(2)  : '0.00'
+  const hasPending = parseFloat(pending) > 0
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
       <div style={{ background:'linear-gradient(145deg,#0A0D14 0%,#0E1422 60%,#080B10 100%)', border:`1px solid rgba(0,102,255,0.18)`, borderRadius:20, padding:'28px 24px' }}>
@@ -306,8 +315,14 @@ function BalanceTab({ address, walletBalance, gatewayBalance, isLoading }: {
             <div style={{ fontSize:40, fontWeight:700, color:'#FFFFFF', letterSpacing:'-1.5px', fontFamily:MONO }}>
               {display} <span style={{ fontSize:18, color:'rgba(255,255,255,0.40)' }}>USDC</span>
             </div>
+            {hasPending && (
+              <div style={{ marginTop:6, fontSize:12, color:'rgba(255,200,50,0.70)', display:'flex', alignItems:'center', gap:5 }}>
+                <div style={{ width:6, height:6, borderRadius:'50%', background:'rgba(255,200,50,0.70)', flexShrink:0 }} />
+                {pending} USDC pending — deposit finalising onchain
+              </div>
+            )}
             <div style={{ marginTop:8, fontSize:12, color:'rgba(255,255,255,0.30)' }}>
-              {parseFloat(display) > 0 ? 'Summed across all supported chains via Gateway API' : 'Deposit USDC to build your unified Gateway balance'}
+              {parseFloat(display) > 0 ? 'Summed across all supported chains via Gateway API' : hasPending ? 'Deposit received, awaiting finality — available balance updates shortly' : 'Deposit USDC to build your unified Gateway balance'}
             </div>
           </>
         )}
