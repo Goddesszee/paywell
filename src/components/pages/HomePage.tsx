@@ -8,7 +8,7 @@ import {
   ArrowUpRight, ArrowDownLeft, ChevronRight,
   ArrowDownToLine, Sparkles, Bot,
   CheckCircle2, Clock, ShoppingBag,
-  RefreshCw, Zap, Info, Globe,
+  RefreshCw, Info, Zap,
 } from 'lucide-react'
 import { useAppStore, ActivityItem } from '../../store/appStore'
 import { getUsdc } from '../../onchain-facts'
@@ -18,8 +18,7 @@ import { TokenLogo } from '../ui/TokenLogo'
 import { useSyncMultiChainBalances } from '../../hooks/useMultiChainBalances'
 import { usePortfolioBalances } from '../../hooks/usePortfolioBalances'
 import { useFxRates } from '../../hooks/useFxRates'
-import { NetworkDetailSheet } from './NetworkDetailSheet'
-import type { NetworkSummary } from '../../hooks/usePortfolioBalances'
+import { TokenNetworkSheet } from './TokenNetworkSheet'
 
 const F    = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif"
 const MONO = "'JetBrains Mono', 'SF Mono', Menlo, monospace"
@@ -118,109 +117,121 @@ function ActionBtn({ Icon, label, primary, ai, onClick, C }: {
   )
 }
 
-// ─── Token card (multi-chain aggregated) ─────────────────────────────────────
+// ─── Token card with cross-chain + gateway sub-rows ──────────────────────────
+
+interface TokenCardProps {
+  symbol: 'USDC' | 'EURC' | 'USDT'
+  quantity: string          // all-chains total
+  usdValue: string          // USD equivalent of total
+  crossChainCount: number   // how many chains have > 0 balance
+  gatewayAvailable: string  // shown only for USDC
+  gatewayPending: string
+  onClick: () => void
+  hidden: boolean
+  C: NanTheme
+  isLoading: boolean
+}
 
 function TokenCard({
-  symbol, quantity, usdValue, onClick, hidden, C, isLoading,
-}: {
-  symbol: string; quantity: string; usdValue: string
-  onClick: () => void; hidden: boolean; C: NanTheme; isLoading: boolean
-}) {
-  const isEurc = symbol === 'EURC'
-  const color = symbol === 'USDC' ? '#2775CA' : symbol === 'EURC' ? '#0099CC' : '#26A17B'
+  symbol, quantity, usdValue, crossChainCount,
+  gatewayAvailable, gatewayPending,
+  onClick, hidden, C, isLoading,
+}: TokenCardProps) {
+  const isEurc     = symbol === 'EURC'
+  const tokenColor = symbol === 'USDC' ? '#2775CA' : symbol === 'EURC' ? '#0099CC' : '#26A17B'
+  const gwAvail    = parseFloat(gatewayAvailable)
+  const gwPend     = parseFloat(gatewayPending)
+  const showGw     = symbol === 'USDC' && (gwAvail > 0 || gwPend > 0)
+
   return (
     <button
       onClick={onClick}
       style={{
         background: C.surf, border: `1px solid ${C.bdr}`,
-        borderRadius: 16, padding: '14px 12px 12px',
+        borderRadius: 18, padding: '14px 13px 12px',
         cursor: 'pointer', fontFamily: F,
-        WebkitTapHighlightColor: 'transparent', textAlign: 'left',
+        WebkitTapHighlightColor: 'transparent',
+        textAlign: 'left', display: 'flex', flexDirection: 'column', gap: 0,
       }}
     >
-      <div style={{ marginBottom: 8 }}>
+      {/* Token logo */}
+      <div style={{ marginBottom: 10 }}>
         <TokenLogo symbol={symbol} size={30} radius={9} />
       </div>
+
+      {/* Primary amount */}
       {isLoading ? (
-        <div style={{ height: 18, width: 50, background: C.surf2, borderRadius: 6, marginBottom: 6 }} />
+        <div style={{ height: 18, width: 54, background: C.surf2, borderRadius: 6, marginBottom: 4 }} />
       ) : (
-        <div style={{ fontSize: 14, fontWeight: 800, color: C.text, fontFamily: MONO, letterSpacing: '-0.02em', marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <div style={{
+          fontSize: 15, fontWeight: 800, color: C.text,
+          fontFamily: MONO, letterSpacing: '-0.02em',
+          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          marginBottom: 2,
+        }}>
           {hidden ? '••••' : `${isEurc ? '€' : '$'}${quantity}`}
         </div>
       )}
-      {!hidden && !isLoading && parseFloat(usdValue) > 0 && isEurc && (
-        <div style={{ fontSize: 9, color: C.t3, fontFamily: MONO, marginBottom: 2 }}>≈ ${usdValue}</div>
+
+      {/* USD equivalent for EURC */}
+      {!hidden && !isLoading && isEurc && parseFloat(usdValue) > 0 && (
+        <div style={{ fontSize: 9, color: C.t3, fontFamily: MONO, marginBottom: 2 }}>
+          ≈ ${usdValue}
+        </div>
       )}
-      <div style={{ fontSize: 10, fontWeight: 600, color }}>
-        {symbol} · all chains
+
+      {/* Token label */}
+      <div style={{ fontSize: 10, fontWeight: 700, color: tokenColor, marginBottom: 8 }}>
+        {symbol}
       </div>
-    </button>
-  )
-}
 
-// ─── Network row ──────────────────────────────────────────────────────────────
-
-function NetworkRow({
-  network, onClick, hidden, C, isLast,
-}: {
-  network: NetworkSummary; onClick: () => void; hidden: boolean; C: NanTheme; isLast: boolean
-}) {
-  const hasBalance = parseFloat(network.totalUsd) > 0
-  const tokenSymbols = [...new Set(network.positions.filter(p => parseFloat(p.quantity) > 0).map(p => p.symbol))]
-
-  return (
-    <button
-      onClick={onClick}
-      style={{
-        width: '100%', display: 'flex', alignItems: 'center', gap: 12,
-        padding: '13px 14px',
-        background: 'none', border: 'none', cursor: 'pointer', fontFamily: F,
-        borderBottom: isLast ? 'none' : `1px solid ${C.bdr}`,
-        WebkitTapHighlightColor: 'transparent',
-        textAlign: 'left',
-      }}
-    >
-      {/* Icon */}
+      {/* ── Cross-chain sub-row ── */}
       <div style={{
-        width: 36, height: 36, borderRadius: 11, flexShrink: 0,
-        background: hasBalance ? C.blueDim : C.surf2,
-        border: hasBalance ? `1px solid ${C.blueBd}` : `1px solid ${C.bdr}`,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        width: '100%', borderTop: `1px solid ${C.bdr}`,
+        paddingTop: 8, marginBottom: showGw ? 6 : 0,
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 4,
       }}>
-        <Globe size={16} color={hasBalance ? C.blue : C.t3} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <div style={{ display: 'flex', gap: -2 }}>
+            {/* mini chain dots */}
+            {Array.from({ length: Math.min(crossChainCount || 1, 3) }).map((_, i) => (
+              <div key={i} style={{
+                width: 10, height: 10, borderRadius: '50%',
+                background: crossChainCount > 0 ? tokenColor : C.t3,
+                border: `1.5px solid ${C.surf}`,
+                marginLeft: i === 0 ? 0 : -4,
+                opacity: crossChainCount > 0 ? 1 - i * 0.2 : 0.3,
+              }} />
+            ))}
+          </div>
+          <span style={{ fontSize: 9, color: C.t3, fontWeight: 600 }}>
+            {crossChainCount > 0
+              ? `${crossChainCount} network${crossChainCount > 1 ? 's' : ''}`
+              : 'cross-chain'}
+          </span>
+        </div>
+        <ChevronRight size={11} color={C.t3} />
       </div>
 
-      {/* Name + token pills */}
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 3 }}>
-          {network.chainName}
+      {/* ── Gateway sub-row (USDC only) ── */}
+      {showGw && (
+        <div style={{
+          width: '100%', borderTop: `1px solid ${C.bdr}`,
+          paddingTop: 7,
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 4,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <Zap size={10} color={C.blue} />
+            <span style={{ fontSize: 9, color: C.blue, fontWeight: 700 }}>Gateway</span>
+          </div>
+          <span style={{ fontSize: 9, fontFamily: MONO, fontWeight: 700, color: C.text }}>
+            {hidden ? '••••' : `$${gwAvail.toFixed(2)}`}
+            {gwPend > 0 && !hidden && (
+              <span style={{ color: C.gold, fontWeight: 600 }}> +${gwPend.toFixed(2)}</span>
+            )}
+          </span>
         </div>
-        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-          {tokenSymbols.length > 0
-            ? tokenSymbols.map(sym => (
-                <span
-                  key={sym}
-                  style={{
-                    fontSize: 9, fontWeight: 700,
-                    color: sym === 'USDC' ? '#2775CA' : sym === 'EURC' ? '#0099CC' : '#26A17B',
-                    background: sym === 'USDC' ? 'rgba(39,117,202,0.10)' : sym === 'EURC' ? 'rgba(0,153,204,0.10)' : 'rgba(38,161,123,0.10)',
-                    borderRadius: 5, padding: '2px 5px',
-                    letterSpacing: '0.04em',
-                  }}
-                >{sym}</span>
-              ))
-            : <span style={{ fontSize: 10, color: C.t3 }}>No balance</span>
-          }
-        </div>
-      </div>
-
-      {/* Value */}
-      <div style={{ textAlign: 'right', flexShrink: 0 }}>
-        <div style={{ fontFamily: MONO, fontSize: 14, fontWeight: 800, color: hasBalance ? C.text : C.t3 }}>
-          {hidden ? '••••' : `$${network.totalUsd}`}
-        </div>
-        <ChevronRight size={13} color={C.t3} style={{ marginTop: 2 }} />
-      </div>
+      )}
     </button>
   )
 }
@@ -238,7 +249,7 @@ export function HomePage() {
   const address   = wagmiAddress ?? (auth?.circleWalletAddress as `0x${string}` | undefined)
   const hasWallet = isConnected || !!auth?.circleWalletAddress
 
-  // ── Legacy single-chain reads (preserved — keep existing hooks working) ────
+  // ── Legacy single-chain reads (kept for fallback while portfolio loads) ────
   const usdcFact = getUsdc(ARC)
   const { data: rawBalance, isLoading: arcUsdcLoading } = useReadContract({
     address: usdcFact?.address as `0x${string}`,
@@ -256,24 +267,21 @@ export function HomePage() {
     chainId: ARC,
     query: { enabled: !!address },
   })
-  const usdcNum       = rawBalance !== undefined ? Number(rawBalance) / 1e6 : 0
-  const eurcNum       = rawEurc    !== undefined ? Number(rawEurc)    / 1e6 : 0
+  const usdcNum = rawBalance !== undefined ? Number(rawBalance) / 1e6 : 0
+  const eurcNum = rawEurc    !== undefined ? Number(rawEurc)    / 1e6 : 0
 
   // ── Portfolio (multi-chain, multi-token) ──────────────────────────────────
   const portfolio = usePortfolioBalances(address)
   const { usdPerEur, rates, loading: fxLoading } = useFxRates()
 
-  // Portfolio total drives the headline; fall back to legacy single-chain while loading
   const portfolioTotal   = parseFloat(portfolio.totalUsd)
   const legacyTotal      = usdcNum + eurcNum * usdPerEur
   const displayTotal     = portfolio.isLoading ? legacyTotal.toFixed(2) : portfolio.totalUsd
   const isLoadingBalance = portfolio.isLoading && arcUsdcLoading
 
-  // ── Sync store (keep existing consumers working) ─────────────────────────
+  // ── Sync store ────────────────────────────────────────────────────────────
   useEffect(() => {
-    if (address && portfolioTotal > 0) {
-      setMainWalletBalance(portfolio.totalUsd, address)
-    }
+    if (address && portfolioTotal > 0) setMainWalletBalance(portfolio.totalUsd, address)
   }, [portfolio.totalUsd, address, portfolioTotal, setMainWalletBalance])
 
   useSyncMultiChainBalances(address, setCrossChainBalances)
@@ -281,8 +289,7 @@ export function HomePage() {
   // ── UI state ─────────────────────────────────────────────────────────────
   const [hidden,   setHidden]   = useState(false)
   const [hydrated, setHydrated] = useState(false)
-  const [selectedNetwork, setSelectedNetwork] = useState<NetworkSummary | null>(null)
-  const [showAllNetworks, setShowAllNetworks] = useState(false)
+  const [tokenSheet, setTokenSheet] = useState<'USDC' | 'EURC' | 'USDT' | null>(null)
 
   /* eslint-disable react/set-state-in-effect */
   useEffect(() => { setHydrated(true) }, [])
@@ -296,24 +303,14 @@ export function HomePage() {
     .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
     .slice(0, 4)
 
-  // Reconciliation flag: is there any difference between portfolio total and
-  // displayed token cards that the user should know about?
-  const tokenCardSum = parseFloat(portfolio.byToken.USDC.usdValue)
-    + parseFloat(portfolio.byToken.EURC.usdValue)
-    + parseFloat(portfolio.byToken.USDT.usdValue)
-  const reconcileDiff = Math.abs(portfolioTotal - tokenCardSum)
-  const hasReconcileGap = !portfolio.isLoading && reconcileDiff > 0.01
+  // Per-token cross-chain count
+  const chainsWithUsdc = portfolio.networks.filter(n => n.positions.some(p => p.symbol === 'USDC' && parseFloat(p.quantity) > 0)).length
+  const chainsWithEurc = portfolio.networks.filter(n => n.positions.some(p => p.symbol === 'EURC' && parseFloat(p.quantity) > 0)).length
+  const chainsWithUsdt = portfolio.networks.filter(n => n.positions.some(p => p.symbol === 'USDT' && parseFloat(p.quantity) > 0)).length
 
-  // Networks: show chains with balances + top empty ones, expandable to all
-  const networksWithBalance = portfolio.networks.filter(n => n.hasBalance)
-  const networksToShow = showAllNetworks
-    ? portfolio.networks
-    : portfolio.networks.slice(0, Math.max(networksWithBalance.length + 2, 4))
-
-  // Gateway dedup info
-  const gwAvailable = parseFloat(portfolio.gatewayAvailable)
-  const gwPending   = parseFloat(portfolio.gatewayPending)
-  const hasGateway  = gwAvailable > 0 || gwPending > 0
+  // Positions filtered by token for the sheet
+  const positionsFor = (sym: 'USDC' | 'EURC' | 'USDT') =>
+    portfolio.networks.flatMap(n => n.positions.filter(p => p.symbol === sym))
 
   return (
     <div style={{ maxWidth: 480, width: '100%', margin: '0 auto', fontFamily: F, paddingBottom: 32 }}>
@@ -324,7 +321,6 @@ export function HomePage() {
         justifyContent: 'space-between',
         marginBottom: 20, gap: 10,
       }}>
-        {/* Avatar + greeting */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
           <button
             onClick={() => setActiveView('profile')}
@@ -355,7 +351,6 @@ export function HomePage() {
           </div>
         </div>
 
-        {/* Right: Notification bell + Add Money */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
           <NotificationBell color={C.t2} />
           <button
@@ -388,7 +383,7 @@ export function HomePage() {
               Total Portfolio Balance
             </span>
             <button
-              title="Includes USDC, EURC and USDT across all supported networks. Gateway balance is shown separately to avoid double-counting."
+              title="Sum of USDC, EURC and USDT across all supported networks. Gateway balance is shown separately inside each token card to avoid double-counting."
               style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', lineHeight: 1 }}
             >
               <Info size={12} color={C.t3} />
@@ -398,7 +393,7 @@ export function HomePage() {
             {portfolio.lastUpdated && (
               <button
                 onClick={() => portfolio.refetch()}
-                title={`Last updated ${portfolio.lastUpdated.toLocaleTimeString()}`}
+                title={`Updated ${portfolio.lastUpdated.toLocaleTimeString()}`}
                 style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 3, display: 'flex', lineHeight: 1 }}
               >
                 <RefreshCw size={12} color={C.t3} />
@@ -468,17 +463,20 @@ export function HomePage() {
         </div>
       )}
 
-      {/* ── 3. ASSET CARDS — 3-col grid (multi-chain aggregated) ── */}
+      {/* ── 3. TOKEN CARDS (USDC / EURC / USDT) — tap to open network breakdown ── */}
       <div style={{
         display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)',
-        gap: 10, marginBottom: 4,
+        gap: 10, marginBottom: 20,
         marginTop: fxLoading ? 18 : 0,
       }}>
         <TokenCard
           symbol="USDC"
           quantity={portfolio.byToken.USDC.quantity}
           usdValue={portfolio.byToken.USDC.usdValue}
-          onClick={() => setActiveView('wallet')}
+          crossChainCount={chainsWithUsdc}
+          gatewayAvailable={portfolio.gatewayAvailable}
+          gatewayPending={portfolio.gatewayPending}
+          onClick={() => setTokenSheet('USDC')}
           hidden={hidden}
           C={C}
           isLoading={portfolio.isLoading}
@@ -487,7 +485,10 @@ export function HomePage() {
           symbol="EURC"
           quantity={portfolio.byToken.EURC.quantity}
           usdValue={portfolio.byToken.EURC.usdValue}
-          onClick={() => setActiveView('swap')}
+          crossChainCount={chainsWithEurc}
+          gatewayAvailable="0"
+          gatewayPending="0"
+          onClick={() => setTokenSheet('EURC')}
           hidden={hidden}
           C={C}
           isLoading={portfolio.isLoading}
@@ -496,79 +497,17 @@ export function HomePage() {
           symbol="USDT"
           quantity={portfolio.byToken.USDT.quantity}
           usdValue={portfolio.byToken.USDT.usdValue}
-          onClick={() => setActiveView('swap')}
+          crossChainCount={chainsWithUsdt}
+          gatewayAvailable="0"
+          gatewayPending="0"
+          onClick={() => setTokenSheet('USDT')}
           hidden={hidden}
           C={C}
           isLoading={portfolio.isLoading}
         />
       </div>
 
-      {/* Reconciliation note (only shown when token cards don't fully add up) */}
-      {hasReconcileGap && (
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: 6,
-          marginBottom: 16, marginTop: 8,
-          padding: '8px 12px', borderRadius: 10,
-          background: 'rgba(240,165,0,0.08)',
-          border: '1px solid rgba(240,165,0,0.18)',
-        }}>
-          <Info size={12} color={C.gold} />
-          <span style={{ fontSize: 11, color: C.gold, fontWeight: 500 }}>
-            Token cards show ${tokenCardSum.toFixed(2)} · portfolio total is ${portfolio.totalUsd} — difference may include pending or unsupported tokens on some networks.
-          </span>
-        </div>
-      )}
-
-      {/* ── GATEWAY POSITION (separate, not added to portfolio total) ── */}
-      {hasGateway && (
-        <div style={{
-          marginBottom: 16,
-          padding: '14px 16px',
-          borderRadius: 16,
-          background: 'linear-gradient(135deg, rgba(0,102,255,0.08) 0%, rgba(0,102,255,0.03) 100%)',
-          border: '1px solid rgba(0,102,255,0.18)',
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-              <Zap size={14} color={C.blue} />
-              <span style={{ fontSize: 12, fontWeight: 700, color: C.text }}>Gateway Liquidity</span>
-              <button
-                title="This is USDC already deposited into Circle Gateway for instant cross-chain transfers. It is NOT counted in your portfolio total to avoid double-counting the same underlying funds."
-                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, lineHeight: 1 }}
-              >
-                <Info size={11} color={C.t3} />
-              </button>
-            </div>
-            <button
-              onClick={() => setActiveView('gateway')}
-              style={{ fontSize: 11, fontWeight: 700, color: C.blue, background: 'none', border: 'none', cursor: 'pointer', fontFamily: F }}
-            >
-              Manage
-            </button>
-          </div>
-          <div style={{ display: 'flex', gap: 16 }}>
-            <div>
-              <div style={{ fontSize: 10, color: C.t3, marginBottom: 3 }}>Available</div>
-              <div style={{ fontFamily: MONO, fontSize: 15, fontWeight: 800, color: C.text }}>
-                {hidden ? '••••' : `$${parseFloat(portfolio.gatewayAvailable).toFixed(2)}`}
-              </div>
-            </div>
-            {gwPending > 0 && (
-              <div>
-                <div style={{ fontSize: 10, color: C.t3, marginBottom: 3 }}>Pending</div>
-                <div style={{ fontFamily: MONO, fontSize: 15, fontWeight: 800, color: C.gold }}>
-                  {hidden ? '••••' : `$${gwPending.toFixed(2)}`}
-                </div>
-              </div>
-            )}
-          </div>
-          <div style={{ fontSize: 10, color: C.t3, marginTop: 6 }}>
-            Excluded from portfolio total — same underlying USDC
-          </div>
-        </div>
-      )}
-
-      {/* ── 4. ACTION BUTTONS: Send · Receive · Convert · NAN Agent ── */}
+      {/* ── 4. ACTION BUTTONS ── */}
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 22, gap: 4 }}>
         <ActionBtn Icon={Send}            label="Send"      primary onClick={() => setActiveView('send')}    C={C} />
         <ActionBtn Icon={ArrowDownToLine} label="Receive"           onClick={() => setActiveView('receive')} C={C} />
@@ -576,81 +515,7 @@ export function HomePage() {
         <ActionBtn Icon={Bot}             label="NAN AI"    ai      onClick={() => setActiveView('agent')}   C={C} />
       </div>
 
-      {/* ── 5. BALANCES BY NETWORK ── */}
-      <div style={{ marginBottom: 22 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-          <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>Balances by Network</span>
-          <button
-            onClick={() => portfolio.refetch()}
-            style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: C.t3, background: 'none', border: 'none', cursor: 'pointer', fontFamily: F, fontWeight: 600 }}
-          >
-            <RefreshCw size={11} color={C.t3} />
-            Refresh
-          </button>
-        </div>
-
-        <div style={{ background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 16, overflow: 'hidden' }}>
-          {portfolio.isLoading ? (
-            Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} style={{
-                display: 'flex', alignItems: 'center', gap: 12,
-                padding: '13px 14px',
-                borderBottom: i < 2 ? `1px solid ${C.bdr}` : 'none',
-              }}>
-                <div style={{ width: 36, height: 36, borderRadius: 11, background: C.surf2 }} />
-                <div style={{ flex: 1 }}>
-                  <div style={{ height: 13, width: 100, background: C.surf2, borderRadius: 5, marginBottom: 6 }} />
-                  <div style={{ height: 10, width: 60,  background: C.surf2, borderRadius: 4 }} />
-                </div>
-                <div style={{ height: 14, width: 50, background: C.surf2, borderRadius: 5 }} />
-              </div>
-            ))
-          ) : (
-            networksToShow.map((net, idx) => (
-              <NetworkRow
-                key={net.chainId}
-                network={net}
-                onClick={() => setSelectedNetwork(net)}
-                hidden={hidden}
-                C={C}
-                isLast={idx === networksToShow.length - 1 && !(!showAllNetworks && portfolio.networks.length > networksToShow.length)}
-              />
-            ))
-          )}
-
-          {/* Show more / less toggle */}
-          {!portfolio.isLoading && portfolio.networks.length > networksToShow.length && (
-            <button
-              onClick={() => setShowAllNetworks(true)}
-              style={{
-                width: '100%', padding: '12px 14px', background: 'none', border: 'none',
-                borderTop: `1px solid ${C.bdr}`, cursor: 'pointer', fontFamily: F,
-                fontSize: 12, fontWeight: 600, color: C.blue,
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
-              }}
-            >
-              Show {portfolio.networks.length - networksToShow.length} more networks
-              <ChevronRight size={13} style={{ transform: 'rotate(90deg)' }} />
-            </button>
-          )}
-          {showAllNetworks && portfolio.networks.length > 4 && (
-            <button
-              onClick={() => setShowAllNetworks(false)}
-              style={{
-                width: '100%', padding: '12px 14px', background: 'none', border: 'none',
-                borderTop: `1px solid ${C.bdr}`, cursor: 'pointer', fontFamily: F,
-                fontSize: 12, fontWeight: 600, color: C.t3,
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
-              }}
-            >
-              Show less
-              <ChevronRight size={13} style={{ transform: 'rotate(-90deg)' }} />
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* ── 6. QUICK ACTIONS — Agent Wallet management card ── */}
+      {/* ── 5. QUICK ACTIONS — Agent Wallet ── */}
       <div style={{ marginBottom: 22 }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 10 }}>Quick actions</div>
         <button
@@ -682,7 +547,7 @@ export function HomePage() {
         </button>
       </div>
 
-      {/* ── 7. RECENT ACTIVITY ── */}
+      {/* ── 6. RECENT ACTIVITY ── */}
       <div>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
           <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>Recent Activity</span>
@@ -725,11 +590,18 @@ export function HomePage() {
         </div>
       </div>
 
-      {/* ── Network detail sheet (slide-up) ── */}
-      {selectedNetwork && (
-        <NetworkDetailSheet
-          network={selectedNetwork}
-          onClose={() => setSelectedNetwork(null)}
+      {/* ── Token network sheet (slide-up, opens on card tap) ── */}
+      {tokenSheet && (
+        <TokenNetworkSheet
+          symbol={tokenSheet}
+          positions={positionsFor(tokenSheet)}
+          totalQuantity={portfolio.byToken[tokenSheet].quantity}
+          totalUsdValue={portfolio.byToken[tokenSheet].usdValue}
+          gatewayAvailable={portfolio.gatewayAvailable}
+          gatewayPending={portfolio.gatewayPending}
+          eurUsdRate={portfolio.eurUsdRate}
+          hidden={hidden}
+          onClose={() => setTokenSheet(null)}
         />
       )}
 
