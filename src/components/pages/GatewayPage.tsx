@@ -843,27 +843,23 @@ function TransferTab({ address, gatewayBalance, onSuccess }: {
 
   const handleTransfer = async () => {
     if (!address || !amount || parseFloat(amount) <= 0 || !destChain?.usdc || !srcChain?.usdc) return
-    if (destChainId === ARC) { toast.error('Select a different destination chain'); return }
+    if (!destChainId || isNaN(destChainId) || destChainId === ARC) { toast.error('Select a different destination chain'); return }
     setErrMsg('')
-    const decimals = 6
-    const parsed = parseUnits(amount, decimals)
+    const parsed = parseUnits(amount, 6)
     const srcDomain  = DOMAIN_MAP[ARC] ?? 26
     const destDomain = DOMAIN_MAP[destChainId]
     if (destDomain === undefined) { setErrMsg('Destination chain domain unknown'); return }
 
     try {
-      // Ensure on Arc Testnet for signing
+      // Step 1: ensure on Arc Testnet for signing
       if (chainId !== ARC) await switchChainAsync({ chainId: ARC })
       setPhase('signing')
 
-      // Build burn intent matching Circle evm-to-evm-browser-wallet reference.
-      // wagmi signTypedDataAsync requires bigints for uint256 fields; the JSON replacer
-      // converts them to decimal strings before sending to the Gateway API.
       const burnIntent = {
         maxBlockHeight: 2n ** 256n - 1n,
         maxFee: 2_010000n,
         spec: {
-          version: 1,
+          version:              1,
           sourceDomain:         srcDomain,
           destinationDomain:    destDomain,
           sourceContract:       toBytes32(GATEWAY_WALLET),
@@ -874,31 +870,33 @@ function TransferTab({ address, gatewayBalance, onSuccess }: {
           destinationRecipient: toBytes32(address),
           sourceSigner:         toBytes32(address),
           destinationCaller:    toBytes32(zeroAddress),
-          value:                parsed,  // bigint, converted to string by JSON replacer
+          value:                parsed,
           salt:                 randomHex32(),
           hookData:             '0x' as `0x${string}`,
         },
       }
 
-      // Sign using wagmi signTypedDataAsync — exactly as reference uses viem walletClient.signTypedData
+      // Sign via wagmi — viem handles bigint encoding for uint256 fields
       const signature = await signTypedDataAsync({
-        ...BURN_INTENT_TYPED_DATA,
-        message: burnIntent,
+        domain:      BURN_INTENT_TYPED_DATA.domain,
+        types:       BURN_INTENT_TYPED_DATA.types,
+        primaryType: BURN_INTENT_TYPED_DATA.primaryType,
+        message:     burnIntent,
       })
 
+      // Step 2: submit to Gateway API
       setPhase('submitting')
-      // EOA wallet — contractSigner: false
       const { attestation, signature: mintSignature } = await submitBurnIntent(burnIntent, signature)
 
-      // Switch to destination chain and call gatewayMint
+      // Step 3: switch to dest chain and call gatewayMint
       await switchChainAsync({ chainId: destChainId })
       setPhase('minting')
       doMint({
-        address: GATEWAY_MINTER,
-        abi: GATEWAY_MINTER_ABI,
+        address:      GATEWAY_MINTER,
+        abi:          GATEWAY_MINTER_ABI,
         functionName: 'gatewayMint',
-        args: [attestation, mintSignature],
-        chainId: destChainId,
+        args:         [attestation, mintSignature],
+        // chainId omitted — wagmi uses the currently active chain after switchChain
       })
     } catch (e: unknown) {
       setPhase('error')
@@ -1049,7 +1047,7 @@ function CircleTransferTab({ address, gatewayBalance, onSuccess }: {
 
   const handleTransfer = async () => {
     if (!address || !amount || parseFloat(amount) <= 0 || !destChain?.usdc || !srcChain?.usdc) return
-    if (destChainId === ARC) { toast.error('Select a different destination chain'); return }
+    if (!destChainId || isNaN(destChainId) || destChainId === ARC) { toast.error('Select a different destination chain'); return }
     setErrMsg('')
     const srcDomain  = DOMAIN_MAP[ARC] ?? 26
     const destDomain = DOMAIN_MAP[destChainId]
