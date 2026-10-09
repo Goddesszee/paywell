@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Layers, RefreshCw, ArrowDownToLine, ArrowLeftRight, ExternalLink, Check, AlertCircle, Copy, Info, ChevronDown } from 'lucide-react'
-import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContract, useSignTypedData } from 'wagmi'
+import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContract } from 'wagmi'
 import { erc20Abi, parseUnits, formatUnits, zeroAddress } from 'viem'
 import { toast } from 'sonner'
 import { getUsdc, getProtocolContractByName, buildTxExplorerUrl, ONCHAIN_CHAINS } from '@/onchain-facts'
@@ -872,7 +872,6 @@ function TransferTab({ address, gatewayBalance, onSuccess }: {
   const { writeContract: doMint, data: mintHash, error: mintWriteError } = useWriteContract()
   const { isSuccess: mintSuccess, isError: mintReceiptError } = useWaitForTransactionReceipt({ hash: mintHash })
   const mintError = mintReceiptError || !!mintWriteError
-  const { signTypedDataAsync } = useSignTypedData()
 
   useEffect(() => {
     if (mintHash) setMintTxHash(mintHash) // eslint-disable-line react/set-state-in-effect
@@ -898,32 +897,20 @@ function TransferTab({ address, gatewayBalance, onSuccess }: {
     }
   }, [mintError, mintWriteError]) // eslint-disable-line
 
-  // Fire doMint once wagmi's chainId has settled to destChainId.
-  // On mobile wallets the chainChanged event may be slow or never arrive.
-  // We wait up to 3 seconds for the reactive update; after that we fire
-  // anyway, omitting chainId from the writeContract call so viem uses
-  // whatever chain the wallet is currently on (which IS the dest chain
-  // because switchChainAsync already resolved successfully).
+  // Fire doMint — always without a chainId pin so wagmi never calls assertCurrentChain.
+  // The wallet is already on destChain (safeSwitch resolved successfully before we
+  // set pendingMint). Passing chainId to writeContract triggers viem's chain-ID
+  // assertion which reads connector.chain.id as NaN on MetaMask mobile.
   useEffect(() => {
     if (!pendingMint || phase !== 'minting') return
-    const target = pendingMint.destChainIdSnapshot
-    const fire = (withChainId: boolean) => {
-      doMint({
-        address:      GATEWAY_MINTER,
-        abi:          GATEWAY_MINTER_ABI,
-        functionName: 'gatewayMint',
-        args:         [pendingMint.attestation, pendingMint.sig],
-        ...(withChainId ? { chainId: target } : {}),
-      })
-    }
-    if (chainId === target) {
-      fire(true)
-      return
-    }
-    // Fallback: fire after 3 s without chainId pin if wagmi state hasn't updated
-    const t = setTimeout(() => { fire(false) }, 3000)
-    return () => clearTimeout(t)
-  }, [chainId, pendingMint, phase]) // eslint-disable-line
+    doMint({
+      address:      GATEWAY_MINTER,
+      abi:          GATEWAY_MINTER_ABI,
+      functionName: 'gatewayMint',
+      args:         [pendingMint.attestation, pendingMint.sig],
+      // NO chainId — avoids assertCurrentChain NaN on MetaMask mobile
+    })
+  }, [pendingMint, phase]) // eslint-disable-line
 
   const handleTransfer = async () => {
     if (!address || !amount || parseFloat(amount) <= 0 || !destChain?.usdc || !srcChain?.usdc) return
@@ -997,13 +984,26 @@ function TransferTab({ address, gatewayBalance, onSuccess }: {
         },
       }
 
-      // EIP712Domain must NOT be in types — viem derives it from domain automatically.
-      const { EIP712Domain: _drop, ...wagmiTypes } = BURN_INTENT_TYPED_DATA.types
-      const signature = await signTypedDataAsync({
-        domain:      BURN_INTENT_TYPED_DATA.domain,
-        types:       wagmiTypes,
-        primaryType: BURN_INTENT_TYPED_DATA.primaryType,
-        message:     burnIntent,
+      // Sign via eth_signTypedData_v4 directly on window.ethereum.
+      // This bypasses wagmi/viem's assertCurrentChain which reads connector.chain.id
+      // as NaN on MetaMask mobile in-app browser even after a successful chain switch.
+      // The typed data must include EIP712Domain in types for eth_signTypedData_v4.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment
+      const provider = (window as any).ethereum
+      if (!provider) throw new Error('No injected wallet found — please open in MetaMask browser')
+      const typedData = JSON.stringify(
+        {
+          domain:      BURN_INTENT_TYPED_DATA.domain,
+          types:       BURN_INTENT_TYPED_DATA.types,
+          primaryType: BURN_INTENT_TYPED_DATA.primaryType,
+          message:     burnIntent,
+        },
+        (_k, v: unknown) => typeof v === 'bigint' ? `0x${v.toString(16)}` : v,
+      )
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment
+      const signature: string = await provider.request({
+        method: 'eth_signTypedData_v4',
+        params: [address, typedData],
       })
 
       // Step 2: submit to Gateway API
