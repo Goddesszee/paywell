@@ -20,7 +20,7 @@ import { OnrampPage } from './components/pages/OnrampPage'
 // internal dispatcher is fully set up before any kit code runs.
 // If a lazy chunk fails to load (typically a stale tab after a new deploy, where the old hashed
 // file no longer exists), reload once to pick up the fresh bundle instead of leaving a blank page.
-function lazyWithReload<T extends ComponentType<any>>(factory: () => Promise<{ default: T }>) {
+function lazyWithReload<T extends ComponentType<Record<string, unknown>>>(factory: () => Promise<{ default: T }>) {
   return lazy(async () => {
     const KEY = 'chunk-reload-once'
     try {
