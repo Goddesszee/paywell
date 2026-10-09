@@ -13,8 +13,13 @@ const TEXT  = 'var(--nan-text)'
 const T2    = 'var(--nan-text2)'
 const T3    = 'var(--nan-text3)'
 
-// Widget origin for postMessage security
-const WIDGET_ORIGIN = 'https://onramp.arc.io'
+// Widget origins for postMessage security. Sandbox is used with Arc Testnet; production for mainnet.
+// Per https://docs.arc.io/app-kit/references/onramp-hosting-requirements the origin must match
+// what the server minted the session against, so we also derive it from session.widgetUrl.
+const WIDGET_ORIGINS = ['https://onramp-sandbox.arc.io', 'https://onramp.arc.io']
+function widgetOriginOf(url?: string): string | null {
+  try { return url ? new URL(url).origin : null } catch { return null }
+}
 
 // Onramp session response shape
 interface OnrampSession {
@@ -86,18 +91,23 @@ export function OnrampPage() {
           appUserId: address,
           destinationAddress: address,
           amount: String(amount),
-          blockchain: 'ARC-TESTNET',
         }),
       })
 
       if (!res.ok) {
         if (res.status === 503) {
-          setError('Add CIRCLE_API_KEY to environment variables to activate onramp')
+          setError('Onramp is not configured: add CIRCLE_STABLECOIN_KIT_API_KEY (sandbox key) to the server environment')
           setState('error')
           return
         }
-        const err = await (res.json() as Promise<{ message?: string; error?: string }>).catch(() => ({ message: undefined, error: undefined }))
-        throw new Error((err as { message?: string }).message ?? (err as { error?: string }).error ?? `HTTP ${res.status}`)
+        // Read as text first so a non-JSON crash page still gives a useful message
+        const raw = await res.text().catch(() => '')
+        let msg: string | undefined
+        try {
+          const j = JSON.parse(raw) as { message?: string; error?: string }
+          msg = j.message ?? j.error
+        } catch { /* non-JSON body */ }
+        throw new Error(msg ?? (raw ? `HTTP ${res.status}: ${raw.slice(0, 160)}` : `HTTP ${res.status}`))
       }
 
       const data = await res.json() as OnrampSession
@@ -117,7 +127,8 @@ export function OnrampPage() {
 
     function handleMessage(evt: MessageEvent) {
       // Security: only trust messages from the Circle onramp widget origin
-      if (evt.origin !== WIDGET_ORIGIN) return
+      const sessionOrigin = widgetOriginOf(session?.widgetUrl)
+      if (evt.origin !== sessionOrigin && !WIDGET_ORIGINS.includes(evt.origin)) return
 
       const msg = evt.data as { event?: WidgetEvent; code?: string; payload?: DepositPayload }
       if (!msg?.event) return
@@ -161,7 +172,7 @@ export function OnrampPage() {
 
     window.addEventListener('message', handleMessage)
     return () => window.removeEventListener('message', handleMessage)
-  }, [state, fetchSession])
+  }, [state, fetchSession, session])
 
   // ── Reset ──────────────────────────────────────────────────────────────────
   const reset = () => {
@@ -287,7 +298,7 @@ export function OnrampPage() {
             title="Circle Onramp"
             allow="camera; microphone; payment; clipboard-write"
             referrerPolicy="strict-origin-when-cross-origin"
-            style={{ width: '100%', minHeight: 580, border: 'none', display: 'block' }}
+            style={{ width: '100%', height: 720, border: 'none', display: 'block' }}
           />
         </div>
       )}
