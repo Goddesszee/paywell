@@ -5,9 +5,9 @@
  * Defaults to relative paths (same origin) when not set.
  */
 
-// Always route API calls to Vercel, regardless of which domain serves the frontend.
-// VITE_API_URL overrides this (set on Vercel to '' for same-origin, or the Vercel URL).
-const BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? 'https://www.nanarc.xyz'
+// Always use the same origin the app is served from — works on any domain/deployment.
+// VITE_API_URL can still override (e.g. for local dev pointing at a separate server).
+const BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? (typeof window !== 'undefined' ? window.location.origin : '')
 
 // ── Marketplace types (mirrors api/agent-marketplace.ts) ─────────────────────
 export interface MarketplaceServiceCard {

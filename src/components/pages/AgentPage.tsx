@@ -1108,7 +1108,7 @@ function AgentChat({ onNavigate }: { onNavigate?: (page: string, query?: string)
     // LLM first — handles all general questions including flights, rates, research
     // Allow for both Circle email users (auth) and wagmi/passkey users (address)
     try {
-      if (backendConfigured() && (auth || address)) {
+      if (backendConfigured()) {
         const msgs: Array<{role:'user'|'assistant';content:string}> = [
           ...agentMessages.filter(m=>m.role==='user'||m.role==='agent').slice(-10).map<{role:'user'|'assistant';content:string}>(m=>({role:(m.role==='agent'?'assistant':'user'),content:m.content})),
           {role:'user',content:text},
@@ -1307,7 +1307,16 @@ function AgentChat({ onNavigate }: { onNavigate?: (page: string, query?: string)
       } else if (/statement|download.*statement|export|csv|pdf/.test(lower)) {
         addAgentMessage({ role: 'agent', content: "You can download your full transaction statement from the **Exports** page. Tap the menu and go to **Exports** to download a CSV or PDF of your activity.", action: 'navigate', params: { page: 'exports' } })
       } else if (/send|pay|transfer/.test(lower)) {
-        addAgentMessage({ role: 'agent', content: "To send USDC, go to your **Wallet** and tap **Send**, or tell me the address and amount — for example: \"Send 10 USDC to 0x...\"", action: 'info' })
+        // Try to parse address and amount from the message
+        const addrMatch = text.match(/0x[a-fA-F0-9]{40}/)
+        const amtMatch = text.match(/(\d+(?:\.\d+)?)\s*usdc/i) ?? text.match(/(\d+(?:\.\d+)?)\s+usdc/i) ?? text.match(/send\s+(\d+(?:\.\d+)?)/i)
+        if (addrMatch && amtMatch) {
+          const toAddress = addrMatch[0]
+          const amount = amtMatch[1]
+          addAgentMessage({ role: 'agent', content: `Sending **${amount} USDC** to ${toAddress.slice(0,6)}...${toAddress.slice(-4)}. Please confirm below.`, action: 'send_usdc', params: { toAddress, amount } })
+        } else {
+          addAgentMessage({ role: 'agent', content: "To send USDC, tell me the address and amount — for example: \"Send 10 USDC to 0x...\"", action: 'info' })
+        }
       } else if (/bridge/.test(lower)) {
         addAgentMessage({ role: 'agent', content: "You can bridge USDC to other chains from the **Bridge** page. Tell me the chain and amount — for example: \"Bridge 20 USDC to Base Sepolia\"", action: 'info' })
       } else if (/swap/.test(lower)) {
