@@ -867,9 +867,10 @@ function TransferTab({ address, gatewayBalance, onSuccess }: {
       if (chainId !== ARC) await switchChainAsync({ chainId: ARC })
       setPhase('signing')
 
-      // maxBlockHeight: current Arc block + 100 (must be "sufficiently far in the future")
+      // maxBlockHeight: current Arc block + 2_000_000
+      // Arc has ~250ms block time so 2M blocks ≈ ~6 days; Gateway requires at least ~1.2M ahead
       const currentBlock = await fetchArcBlockNumber()
-      const maxBlockHeight = currentBlock + 100n
+      const maxBlockHeight = currentBlock + 2_000_000n
       // maxFee: Gateway uses 18-decimal precision (1e18 = 1 USDC worth of fee)
       const maxFee18 = 2n * 10n ** 18n  // 2 USDC max fee
 
@@ -1085,9 +1086,9 @@ function CircleTransferTab({ address, gatewayBalance, onSuccess }: {
     try {
       setPhase('signing')
 
-      // maxBlockHeight: current Arc block + 100 (must be sufficiently far in future)
+      // maxBlockHeight: current Arc block + 2_000_000 (Gateway requires at least ~1.2M ahead)
       const currentBlock = await fetchArcBlockNumber()
-      const maxBlockHeight = currentBlock + 100n
+      const maxBlockHeight = currentBlock + 2_000_000n
       // maxFee: Gateway uses 18-decimal precision (2 * 1e18 = 2 USDC max fee)
       const maxFee18 = 2n * 10n ** 18n
 
