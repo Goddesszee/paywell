@@ -140,20 +140,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'destinationAddress is required — connect a wallet first' })
     }
 
-    const body = {
-      appUserId: appUserId ?? destinationAddress,
+    // Build a Request with the correct OnrampSessionRequest field names:
+    // { userId, destinationAddress, destinationChain, amount, currency }
+    // The URL is arbitrary — the kit only reads the body, not the URL.
+    const sessionBody = {
+      userId: appUserId ?? destinationAddress,
       destinationAddress,
       destinationChain: 'ARC-TESTNET',
       amount,
       currency: 'USD',
-      assets: { tokens: ['USDC'], chains: ['ARC-TESTNET'] },
     }
 
     try {
-      const fetchReq = new Request(`https://${onrampDomain}/api/circle-services?service=onramp`, {
+      const fetchReq = new Request('https://internal/onramp-session', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(body),
+        body: JSON.stringify(sessionBody),
       })
       const fetchRes = await fn(fetchReq)
       const text = await fetchRes.text()

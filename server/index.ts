@@ -1834,6 +1834,121 @@ app.delete('/api/recurring-tasks/:id', (req, res) => {
   res.json({ success: true })
 })
 
+// ── Circle Services — onramp session minting ─────────────────────────────────
+// Mirrors api/circle-services.ts (Vercel/Netlify) for the local Express dev server.
+// Route: POST /api/circle-services?service=onramp
+// Requires CIRCLE_STABLECOIN_KIT_API_KEY or CIRCLE_API_KEY in .env.
+
+const _onrampApiKey = process.env.CIRCLE_STABLECOIN_KIT_API_KEY ?? process.env.CIRCLE_API_KEY
+const _onrampDomain = process.env.ONRAMP_DOMAIN ?? process.env.VERCEL_URL ?? 'localhost:5173'
+
+let _onrampHandlerExpress: ((req: Request) => Promise<Response>) | null = null
+
+async function initOnrampHandlerExpress(): Promise<((req: Request) => Promise<Response>) | null> {
+  if (!_onrampApiKey) return null
+  if (_onrampHandlerExpress) return _onrampHandlerExpress
+  try {
+    const { createAppServerKit, createSessionRouteHandler } = await import('@circle-fin/app-kit/server')
+    const server = createAppServerKit({ onramp: { apiKey: _onrampApiKey, referrerDomain: _onrampDomain } })
+    _onrampHandlerExpress = createSessionRouteHandler(server.onramp)
+  } catch {
+    // @circle-fin/app-kit/server may not be available — fall back to direct Circle API call
+    _onrampHandlerExpress = null
+  }
+  return _onrampHandlerExpress
+}
+
+app.post('/api/circle-services', async (req, res) => {
+  const service = (req.query.service ?? '') as string
+
+  if (service !== 'onramp') {
+    res.status(400).json({ error: 'service param required: onramp' })
+    return
+  }
+
+  if (!_onrampApiKey) {
+    res.status(503).json({
+      error: 'onramp_not_configured',
+      message: 'Add CIRCLE_STABLECOIN_KIT_API_KEY or CIRCLE_API_KEY to .env to enable fiat onramp.',
+    })
+    return
+  }
+
+  const { destinationAddress, amount: amountRaw, appUserId } = req.body as {
+    destinationAddress?: string; amount?: string | number; appUserId?: string
+  }
+  const amount = amountRaw !== undefined ? String(amountRaw) : '100'
+
+  if (!destinationAddress) {
+    res.status(400).json({ error: 'destinationAddress is required — connect a wallet first' })
+    return
+  }
+
+  // Try the App Kit server handler first (uses createAppServerKit + createSessionRouteHandler)
+  const handler = await initOnrampHandlerExpress()
+  if (handler) {
+    try {
+      // Use the correct OnrampSessionRequest field names (userId, not appUserId)
+      // URL is arbitrary — the kit handler only reads the body.
+      const body = JSON.stringify({
+        userId: appUserId ?? destinationAddress,
+        destinationAddress,
+        destinationChain: 'ARC-TESTNET',
+        amount,
+        currency: 'USD',
+      })
+      const fetchReq = new Request('https://internal/onramp-session', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body,
+      })
+      const fetchRes = await handler(fetchReq)
+      const text = await fetchRes.text()
+      res.setHeader('content-type', 'application/json')
+      res.status(fetchRes.status).send(text)
+      return
+    } catch (err) {
+      console.error('[circle-services/onramp] kit handler error:', err instanceof Error ? err.message : err)
+      // fall through to direct API
+    }
+  }
+
+  // Fallback: call Circle Onramp Sessions API directly
+  try {
+    const circleRes = await fetch('https://api.circle.com/v1/w3s/onramp/sessions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${_onrampApiKey}`,
+      },
+      body: JSON.stringify({
+        userId: appUserId ?? destinationAddress,
+        destinationWallets: [{ address: destinationAddress, blockchains: ['ARC-TESTNET'] }],
+        quoteAmount: amount,
+      }),
+    })
+    const data = await circleRes.json() as Record<string, unknown>
+    if (!circleRes.ok) {
+      res.status(circleRes.status).json({ error: 'circle_api_error', detail: data })
+      return
+    }
+    // Normalise: unwrap Circle's { data: { ... } } envelope if present,
+    // and surface widgetUrl at the top level so OnrampPage can use it directly.
+    const inner = (data.data ?? data) as Record<string, unknown>
+    res.status(200).json({
+      sessionId: inner.sessionId,
+      sessionToken: inner.sessionToken,
+      widgetUrl: inner.widgetUrl,
+      expiresAt: inner.expiresAt,
+      ...inner,
+    })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Onramp session error'
+    console.error('[circle-services/onramp] direct API error:', message)
+    res.status(500).json({ error: message })
+  }
+})
+
 // ── Serve Vite build (production) ─────────────────────────────────────────────
 // In dev, Vite proxies /api to this server; in production Express serves both.
 const DIST = path.join(path.dirname(new URL(import.meta.url).pathname), '..', 'dist')
