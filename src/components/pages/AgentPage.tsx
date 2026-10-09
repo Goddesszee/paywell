@@ -1304,10 +1304,22 @@ function AgentChat({ onNavigate }: { onNavigate?: (page: string, query?: string)
         } else {
           addAgentMessage({ role: 'agent', content: "No recurring payments set up yet. Say \"add a weekly payment of 5 USDC to 0x...\" to create one.", action: 'info' })
         }
+      } else if (/statement|download.*statement|export|csv|pdf/.test(lower)) {
+        addAgentMessage({ role: 'agent', content: "You can download your full transaction statement from the **Exports** page. Tap the menu and go to **Exports** to download a CSV or PDF of your activity.", action: 'navigate', params: { page: 'exports' } })
+      } else if (/send|pay|transfer/.test(lower)) {
+        addAgentMessage({ role: 'agent', content: "To send USDC, go to your **Wallet** and tap **Send**, or tell me the address and amount — for example: \"Send 10 USDC to 0x...\"", action: 'info' })
+      } else if (/bridge/.test(lower)) {
+        addAgentMessage({ role: 'agent', content: "You can bridge USDC to other chains from the **Bridge** page. Tell me the chain and amount — for example: \"Bridge 20 USDC to Base Sepolia\"", action: 'info' })
+      } else if (/swap/.test(lower)) {
+        addAgentMessage({ role: 'agent', content: "You can swap tokens from the **Swap** page. Tell me what you want to swap — for example: \"Swap 10 USDC to ETH\"", action: 'info' })
+      } else if (/payment request|invoice/.test(lower)) {
+        addAgentMessage({ role: 'agent', content: "You can create and manage payment requests from the **Payment Requests** page. Tell me the amount and I'll set one up — for example: \"Create a payment request for 50 USDC\"", action: 'info' })
+      } else if (/hello|hi|hey|good morning|good afternoon|good evening/.test(lower)) {
+        addAgentMessage({ role: 'agent', content: `Hey! I'm NAN, your financial assistant. Your main wallet has **${mainBal} USDC**. What can I help you with today?`, action: 'info' })
       } else {
         const errMsg = chatErr instanceof Error ? chatErr.message : 'Unknown error'
         console.warn('NAN chat fallback triggered:', errMsg)
-        addAgentMessage({ role: 'agent', content: "I'm having trouble reaching the AI backend right now. I can still help: ask me about your balance, recent transactions, or recurring payments and I'll answer from your live account data.", action: 'info' })
+        addAgentMessage({ role: 'agent', content: `I can help you with your balance, recent transactions, recurring payments, sending USDC, bridging, swapping, payment requests, and downloading statements. What would you like to do?`, action: 'info' })
       }
       return
     }
