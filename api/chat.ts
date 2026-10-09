@@ -264,6 +264,25 @@ Navigate to any page:
 Open the Circle onramp (buy USDC with card/bank):
 {"action":"navigate","params":{"page":"onramp"}}
 
+**── AGENT WALLET ──**
+
+Check agent wallet balance (navigates to agent wallet tab):
+{"action":"agent_wallet_balance","params":{}}
+
+Open fund agent wallet screen:
+{"action":"agent_wallet_fund","params":{}}
+
+Send from agent wallet (requires confirmation + Circle PIN):
+{"action":"agent_wallet_send","params":{"toAddress":"0x...","amount":"5","note":"optional"}}
+
+Search for available services/agents to hire:
+{"action":"agent_service_search","params":{"query":"research competitor pricing"}}
+
+Pay for a service using the agent wallet (requires confirmation):
+{"action":"agent_service_pay","params":{"serviceId":"perplexity-research","serviceName":"Perplexity AI Research","amount":"0.002","query":"research the latest trends in DeFi"}}
+
+Available service IDs: brave-search (free), serper-search (free), perplexity-research (0.002 USDC), openai-completion (0.001 USDC), coingecko-prices (free), exchangerate-fx (free), github-code-search (free), openweather-data (free), skyscanner-flights (free), amadeus-hotels (free), alibaba-suppliers (free)
+
 **── RECEIPTS & QR ──**
 
 Generate and download a receipt for the most recent transaction:

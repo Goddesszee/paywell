@@ -195,6 +195,31 @@ export interface OpenFaucetAction {
   params: Record<string, never>
 }
 
+export interface AgentWalletSendAction {
+  action: 'agent_wallet_send'
+  params: { toAddress: string; amount: string; note?: string }
+}
+
+export interface AgentWalletFundAction {
+  action: 'agent_wallet_fund'
+  params: Record<string, never>
+}
+
+export interface AgentWalletBalanceAction {
+  action: 'agent_wallet_balance'
+  params: Record<string, never>
+}
+
+export interface AgentServiceSearchAction {
+  action: 'agent_service_search'
+  params: { query: string }
+}
+
+export interface AgentServicePayAction {
+  action: 'agent_service_pay'
+  params: { serviceId: string; serviceName: string; amount: string; query: string }
+}
+
 // ── Union ─────────────────────────────────────────────────────────────────────
 
 export type NanAction =
@@ -222,6 +247,11 @@ export type NanAction =
   | ShowQrAction
   | ShowNotificationsAction
   | OpenFaucetAction
+  | AgentWalletSendAction
+  | AgentWalletFundAction
+  | AgentWalletBalanceAction
+  | AgentServiceSearchAction
+  | AgentServicePayAction
 
 // ── Safe string coercion ───────────────────────────────────────────────────────
 
@@ -349,6 +379,29 @@ export function parseAction(raw: Record<string, unknown>): NanAction | null {
       return { action: 'show_notifications', params: {} }
     case 'open_faucet':
       return { action: 'open_faucet', params: {} }
+    case 'agent_wallet_send': {
+      const toAddress = s(params.toAddress) || s(params.to)
+      const amount = s(params.amount)
+      if (!toAddress || !amount) return null
+      return { action: 'agent_wallet_send', params: { toAddress, amount, note: s(params.note) || undefined } }
+    }
+    case 'agent_wallet_fund':
+      return { action: 'agent_wallet_fund', params: {} }
+    case 'agent_wallet_balance':
+      return { action: 'agent_wallet_balance', params: {} }
+    case 'agent_service_search': {
+      const query = s(params.query) || s(params.search)
+      if (!query) return null
+      return { action: 'agent_service_search', params: { query } }
+    }
+    case 'agent_service_pay': {
+      const serviceId = s(params.serviceId) || s(params.service_id)
+      const serviceName = s(params.serviceName) || s(params.service_name) || serviceId
+      const amount = s(params.amount)
+      const query = s(params.query)
+      if (!serviceId || !amount) return null
+      return { action: 'agent_service_pay', params: { serviceId, serviceName, amount, query } }
+    }
     default:
       return null
   }
@@ -490,6 +543,24 @@ export function describeAction(action: NanAction): { title: string; lines: Array
       return { title: 'Notifications', lines: [{ label: 'Action', value: 'Open notifications' }] }
     case 'open_faucet':
       return { title: 'Open Faucet', lines: [{ label: 'Action', value: 'Get free testnet USDC' }] }
+    case 'agent_wallet_send':
+      return { title: 'Send from Agent Wallet', lines: [
+        { label: 'To', value: action.params.toAddress },
+        { label: 'Amount', value: `${action.params.amount} USDC` },
+        ...(action.params.note ? [{ label: 'Note', value: action.params.note }] : []),
+      ]}
+    case 'agent_wallet_fund':
+      return { title: 'Fund Agent Wallet', lines: [{ label: 'Action', value: 'Open funding screen' }] }
+    case 'agent_wallet_balance':
+      return { title: 'Agent Wallet Balance', lines: [{ label: 'Action', value: 'Refresh balance' }] }
+    case 'agent_service_search':
+      return { title: 'Search Agent Services', lines: [{ label: 'Query', value: action.params.query }] }
+    case 'agent_service_pay':
+      return { title: 'Pay for Service via Agent Wallet', lines: [
+        { label: 'Service', value: action.params.serviceName },
+        { label: 'Cost', value: `${action.params.amount} USDC` },
+        { label: 'Task', value: action.params.query },
+      ]}
   }
 }
 
@@ -522,7 +593,13 @@ export function requiresConfirmation(action: NanAction): boolean {
     case 'show_qr':
     case 'show_notifications':
     case 'open_faucet':
+    case 'agent_wallet_fund':
+    case 'agent_wallet_balance':
+    case 'agent_service_search':
       return false
+    case 'agent_wallet_send':
+    case 'agent_service_pay':
+      return true
   }
 }
 
@@ -807,6 +884,84 @@ export async function executeAction(action: NanAction, ctx: ExecutorContext): Pr
     case 'open_faucet': {
       navigate('faucet')
       return 'Opening the faucet — you can get free testnet USDC there.'
+    }
+
+    case 'agent_wallet_balance': {
+      const bal = parseFloat(store.agentWallet.balance_usdc || '0').toFixed(2)
+      const addr = store.agentWallet.address ?? ''
+      navigate('agent-wallet')
+      return `Your Agent Wallet balance is **${bal} USDC**${addr ? ` at ${addr.slice(0,6)}...${addr.slice(-4)}` : ''}.`
+    }
+
+    case 'agent_wallet_fund': {
+      navigate('agent-wallet')
+      return `__AGENT_WALLET_FUND__`
+    }
+
+    case 'agent_wallet_send': {
+      const { toAddress, amount, note } = action.params
+      const userToken = store.agentWallet.userToken
+      const walletId  = store.agentWallet.walletId
+      if (!store.agentWallet.provisioned) return 'Your Agent Wallet is not set up yet. Go to the Agent Wallet tab to create one first.'
+      if (!userToken || !walletId) return 'Your Agent Wallet session has expired. Please re-authenticate in the Agent Wallet tab.'
+      const checkedAddress = (() => { try { return getAddress(toAddress) } catch { return null } })()
+      if (!checkedAddress) return `Invalid recipient address: ${toAddress}`
+      try {
+        const r = await fetch('/api/agent-wallet', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-user-token': userToken },
+          body: JSON.stringify({ action: 'send', userToken, walletId, to: checkedAddress, amount }),
+        })
+        const d = await r.json() as { ok?: boolean; challengeId?: string; error?: string }
+        if (!r.ok || !d.ok || !d.challengeId) throw new Error(d.error ?? 'Send request failed')
+        return `__AGENT_WALLET_CHALLENGE__:${d.challengeId}::${checkedAddress}::${amount}::${note ?? ''}`
+      } catch(e) {
+        return `Agent Wallet send failed: ${e instanceof Error ? e.message : 'Unknown error'}`
+      }
+    }
+
+    case 'agent_service_search': {
+      const { discoverServices, discoverNetworkAgents } = await import('./agent-registry')
+      const query = action.params.query
+      const agents = discoverNetworkAgents(query).slice(0, 3)
+      const services = discoverServices(query, 3)
+      const lines: string[] = []
+      if (agents.length > 0) {
+        lines.push('**Network Agents:**')
+        agents.forEach(a => {
+          const cap = a.capabilities[0]
+          lines.push(`- **${a.name}**: ${cap.description} — ${cap.price_usdc > 0 ? `${cap.price_usdc} USDC` : 'Free'}`)
+        })
+      }
+      if (services.length > 0) {
+        lines.push('\n**Services:**')
+        services.forEach(r => {
+          lines.push(`- **${r.service.name}**: ${r.service.description} — ${r.service.price_usdc > 0 ? `${r.service.price_usdc} USDC` : 'Free'}`)
+        })
+      }
+      if (lines.length === 0) return `No services found for "${query}". Try searching for research, flights, weather, crypto prices, or code.`
+      return lines.join('\n')
+    }
+
+    case 'agent_service_pay': {
+      const { serviceId, serviceName, amount, query } = action.params
+      const userToken = store.agentWallet.userToken
+      if (!store.agentWallet.provisioned) return 'Your Agent Wallet is not set up yet. Set it up in the Agent Wallet tab first.'
+      if (!userToken) return 'Agent Wallet session expired — re-authenticate in the Agent Wallet tab.'
+      try {
+        const r = await fetch('/api/agent-execute', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ serviceId, query }),
+        })
+        if (!r.ok) throw new Error(`Service error ${r.status}`)
+        const d = await r.json() as { result?: string }
+        const bal = parseFloat(store.agentWallet.balance_usdc || '0') - parseFloat(amount)
+        store.setAgentWallet({ balance_usdc: Math.max(0, bal).toFixed(6) })
+        return `**${serviceName}** completed:\n\n${d.result ?? 'Task completed.'}\n\n_Agent Wallet charged: ${amount} USDC_`
+      } catch(e) {
+        return `Service execution failed: ${e instanceof Error ? e.message : 'Unknown error'}`
+      }
     }
   }
 }

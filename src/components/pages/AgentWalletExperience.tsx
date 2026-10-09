@@ -59,6 +59,8 @@ function getOrCreateSdk(onLoginComplete: (err: unknown, result: unknown) => void
       { appSettings: { appId: CIRCLE_APP_ID ?? 'pending-configuration' } },
       (err, result) => { _agentLoginCb?.(err, result) },
     )
+    // Expose SDK on window so AgentPage can trigger Circle PIN popup for agent_wallet_send
+    ;(window as unknown as Record<string, unknown>)._nanAgentSdk = _agentSdk
   }
   return _agentSdk
 }

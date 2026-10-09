@@ -1070,6 +1070,39 @@ function AgentChat({ onNavigate }: { onNavigate?: (page: string, query?: string)
         connectedAddress: address,
         chainId,
       })
+      // Handle special signal strings from agent-actions executor
+      if (result?.startsWith('__AGENT_WALLET_CHALLENGE__:')) {
+        const [, rest] = result.split('__AGENT_WALLET_CHALLENGE__:')
+        const [challengeId, toAddr, amt, note] = rest.split('::')
+        addAgentMessage({ role: 'agent', content: `Ready to send **${amt} USDC** to ${toAddr.slice(0,6)}...${toAddr.slice(-4)} via your Agent Wallet. A Circle PIN popup will open to sign the transaction.`, action: 'info' })
+        // Use the module-level agent SDK from AgentWalletExperience via store
+        const aw = useAppStore.getState().agentWallet
+        const sdk = (window as unknown as Record<string, unknown>)._nanAgentSdk as { setAuthentication: (a: { userToken: string; encryptionKey: string }) => void; execute: (id: string, cb: (err: unknown, res: unknown) => void) => void } | undefined
+        if (sdk && aw.userToken && aw.encryptionKey) {
+          sdk.setAuthentication({ userToken: aw.userToken, encryptionKey: aw.encryptionKey })
+          sdk.execute(challengeId, (err, res) => {
+            if (err) {
+              addAgentMessage({ role: 'agent', content: `Transaction signing failed: ${(err as { message?: string })?.message ?? 'Unknown error'}`, action: 'info' })
+            } else {
+              const tx = (res as { txHash?: string })?.txHash ?? ''
+              addAgentMessage({ role: 'agent', content: `Sent **${amt} USDC** to ${toAddr.slice(0,6)}...${toAddr.slice(-4)}!${tx ? ` [View on explorer](https://explorer.testnet.arc.io/tx/${tx})` : ''}${note ? ` — "${note}"` : ''}`, action: 'info' })
+              useAppStore.getState().addActivity({ type: 'sent', description: `Agent Send → ${toAddr.slice(0,8)}…${toAddr.slice(-4)}`, amount: parseFloat(amt), sign: '-', status: 'confirmed', counterparty: toAddr, txHash: tx || undefined, agentInitiated: true })
+            }
+          })
+        } else {
+          addAgentMessage({ role: 'agent', content: 'Please open the Agent Wallet tab and re-authenticate to restore signing access, then try again.', action: 'info' })
+        }
+        setActionExecuting(false)
+        setPendingAction(null)
+        return
+      }
+      if (result === '__AGENT_WALLET_FUND__') {
+        if (onNavigate) onNavigate('agent-wallet')
+        addAgentMessage({ role: 'agent', content: 'Opening your Agent Wallet funding screen.', action: 'info' })
+        setActionExecuting(false)
+        setPendingAction(null)
+        return
+      }
       setActionResult(result)
       addAgentMessage({ role: 'agent', content: `Done — ${result}`, action: 'info' })
     } catch (e) {
