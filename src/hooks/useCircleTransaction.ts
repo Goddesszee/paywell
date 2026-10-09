@@ -38,6 +38,11 @@ export interface ContractExecParams {
   abiParameters?: string[]     // must be serialisable to JSON strings
   callData?: string  // hex-encoded (0x...); mutually exclusive with abiFunctionSignature
   amount?: string              // for payable functions
+  /** Circle blockchain identifier for cross-chain execution (e.g. 'BASE-SEPOLIA').
+   *  When provided, walletAddress must also be set. Mutually exclusive with walletId. */
+  blockchain?: string
+  /** Wallet address — required when blockchain is set for cross-chain execution. */
+  walletAddress?: string
 }
 
 const TERMINAL = new Set(['COMPLETE', 'FAILED', 'DENIED', 'CANCELLED'])
@@ -225,6 +230,11 @@ export function useCircleTransaction() {
         body.abiParameters = JSON.stringify(params.abiParameters ?? [])
       }
       if (params.amount) body.amount = params.amount
+      // Cross-chain execution: pass walletAddress + blockchain instead of walletId
+      if (params.blockchain && params.walletAddress) {
+        body.blockchain = params.blockchain
+        body.walletAddress = params.walletAddress
+      }
       const transactionId = await _execute('create-contract-exec', body)
       if (!transactionId) return undefined
       return _poll(transactionId)

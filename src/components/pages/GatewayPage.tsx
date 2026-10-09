@@ -132,18 +132,6 @@ async function fetchGatewayBalance(address: string): Promise<string> {
   return total.toFixed(6)
 }
 
-/** Fetch current Arc block number via public RPC */
-async function fetchArcBlockNumber(): Promise<bigint> {
-  const rpcUrl = 'https://rpc.testnet.arc.io'
-  const res = await fetch(rpcUrl, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'eth_blockNumber', params: [] }),
-  })
-  const data = await res.json() as { result?: string }
-  if (!data.result) throw new Error('Could not fetch Arc block number')
-  return BigInt(data.result)
-}
 
 /**
  * Submit a burn intent to the Gateway API and return attestation + signature.
@@ -867,12 +855,10 @@ function TransferTab({ address, gatewayBalance, onSuccess }: {
       if (chainId !== ARC) await switchChainAsync({ chainId: ARC })
       setPhase('signing')
 
-      // maxBlockHeight: current Arc block + 2_000_000
-      // Arc has ~250ms block time so 2M blocks ≈ ~6 days; Gateway requires at least ~1.2M ahead
-      const currentBlock = await fetchArcBlockNumber()
-      const maxBlockHeight = currentBlock + 2_000_000n
-      // maxFee: Gateway uses 18-decimal precision (1e18 = 1 USDC worth of fee)
-      const maxFee18 = 2n * 10n ** 18n  // 2 USDC max fee
+      // maxBlockHeight: MAX_UINT256 per Circle reference (no block expiry)
+      const maxBlockHeight = (1n << 256n) - 1n
+      // maxFee: 2.01 USDC in 6-decimal units per Circle reference (2_010000)
+      const maxFee18 = 2_010000n
 
       const burnIntent = {
         maxBlockHeight,
@@ -1086,11 +1072,10 @@ function CircleTransferTab({ address, gatewayBalance, onSuccess }: {
     try {
       setPhase('signing')
 
-      // maxBlockHeight: current Arc block + 2_000_000 (Gateway requires at least ~1.2M ahead)
-      const currentBlock = await fetchArcBlockNumber()
-      const maxBlockHeight = currentBlock + 2_000_000n
-      // maxFee: Gateway uses 18-decimal precision (2 * 1e18 = 2 USDC max fee)
-      const maxFee18 = 2n * 10n ** 18n
+      // maxBlockHeight: MAX_UINT256 per Circle reference (no block expiry)
+      const maxBlockHeight = (1n << 256n) - 1n
+      // maxFee: 2.01 USDC in 6-decimal units per Circle reference (2_010000)
+      const maxFee18 = 2_010000n
 
       const burnIntentSpec = {
         version:              1,
@@ -1233,23 +1218,21 @@ function CircleTransferTab({ address, gatewayBalance, onSuccess }: {
 
       setPhase('minting')
 
-      // W3S SDK / email path: UCW wallet lives on Arc only — use server relay for dest chain
-      let txHash: string | undefined
-      const relayResp = await fetch('/api/wallet', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'ucw-gateway-mint',
-          attestation,
-          mintSignature,
-          destChainId: String(destChainId),
-        }),
+      // W3S SDK / email path: execute gatewayMint on dest chain via Circle UCW
+      // Pass blockchain + walletAddress so Circle executes on the destination chain
+      // (walletId alone locks execution to Arc; blockchain is needed for cross-chain)
+      const destScpBlockchain = destChain.scpBlockchain
+      if (!destScpBlockchain) throw new Error(`No SCP blockchain identifier for ${destChain.name}`)
+      const ucwWalletAddress = auth?.circleWalletAddress
+      if (!ucwWalletAddress) throw new Error('Circle wallet address not found — please log in again')
+      const destMinter = getProtocolContractByName('GatewayMinter', 'testnet')?.address ?? GATEWAY_MINTER
+      const txHash = await circleTx.executeContract({
+        contractAddress: destMinter,
+        abiFunctionSignature: 'gatewayMint(bytes,bytes)',
+        abiParameters: [attestation, mintSignature],
+        blockchain: destScpBlockchain,
+        walletAddress: ucwWalletAddress,
       })
-      const relayData = await relayResp.json() as { txHash?: string; error?: string }
-      if (!relayResp.ok || !relayData.txHash) {
-        throw new Error(relayData.error ?? `Relay failed (HTTP ${relayResp.status})`)
-      }
-      txHash = relayData.txHash
 
       setMintTxHash(txHash)
       setPhase('done')

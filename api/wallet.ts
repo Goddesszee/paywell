@@ -186,16 +186,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   // ── create-contract-exec — smart contract execution challenge ─────────────
   if (action === 'create-contract-exec') {
-    const { userToken, walletId, contractAddress, abiFunctionSignature, abiParameters, callData, amount } = body
-    if (!userToken || !walletId || !contractAddress)
-      return err(res, 400, 'userToken, walletId, contractAddress required')
+    const { userToken, walletId, walletAddress, blockchain, contractAddress, abiFunctionSignature, abiParameters, callData, amount } = body
+    if (!userToken || (!walletId && !walletAddress) || !contractAddress)
+      return err(res, 400, 'userToken, (walletId or walletAddress+blockchain), contractAddress required')
     try {
       const client = ucwClient()
+      // blockchain + walletAddress are mutually exclusive with walletId (Circle SDK rule).
+      // When a destination blockchain is specified (cross-chain execution), use walletAddress+blockchain.
+      // Otherwise fall back to walletId (same-chain execution on the wallet's home chain).
       const params: Record<string, unknown> = {
         userToken,
-        walletId,
         contractAddress,
         fee: { type: 'level', config: { feeLevel: 'MEDIUM' } },
+      }
+      if (blockchain && walletAddress) {
+        params.walletAddress = walletAddress
+        params.blockchain = blockchain
+      } else {
+        params.walletId = walletId
       }
       if (callData) {
         params.callData = callData
@@ -463,85 +471,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const status = (e as { response?: { status?: number } })?.response?.status ?? 500
       const msg = e instanceof Error ? e.message : 'Token refresh failed'
       return res.status(status === 401 || status === 403 ? 401 : 500).json({ error: msg })
-    }
-  }
-
-  // ── ucw-gateway-mint — relay gatewayMint on dest chain for UCW/email users ──
-  // UCW wallets only exist on Arc Testnet and cannot execute on other chains.
-  // gatewayMint is permissionless — a server-side relayer submits it.
-  // Requires GATEWAY_RELAYER_PRIVATE_KEY in Vercel env vars.
-  // The relayer wallet must hold native gas on each supported destination chain.
-  if (action === 'ucw-gateway-mint') {
-    const { attestation, mintSignature, destChainId: destChainIdStr } = body
-    if (!attestation || !mintSignature || !destChainIdStr)
-      return err(res, 400, 'attestation, mintSignature, destChainId required')
-
-    const relayerKey = process.env.GATEWAY_RELAYER_PRIVATE_KEY
-    if (!relayerKey)
-      return err(res, 503, 'GATEWAY_RELAYER_PRIVATE_KEY not configured — add it to Vercel environment variables')
-
-    const destChainId = Number(destChainIdStr)
-
-    // RPC proxy chain key map (SCP blockchain → proxy chain key)
-    const SCP_TO_PROXY: Record<string, string> = {
-      'ETH-SEPOLIA':  'Ethereum_Sepolia',
-      'BASE-SEPOLIA': 'Base_Sepolia',
-      'ARB-SEPOLIA':  'Arbitrum_Sepolia',
-      'AVAX-FUJI':    'Avax_Fuji',
-      'MATIC-AMOY':   'Polygon_Amoy',
-      'OP-SEPOLIA':   'Op_Sepolia',
-      'UNI-SEPOLIA':  'Unichain_Sepolia',
-    }
-
-    try {
-      // Import onchain facts to get chain RPC and GatewayMinter address
-      const { ONCHAIN_CHAINS, EVM_PROTOCOL_CONTRACTS } = await import('../src/onchain-facts.js')
-      const chainFact = ONCHAIN_CHAINS.find(c => c.chainId === destChainId)
-      if (!chainFact) return err(res, 400, `Chain ${destChainId} not in onchain-facts`)
-
-      const minterFact = EVM_PROTOCOL_CONTRACTS.find(c => c.name === 'GatewayMinter' && c.networkKind === 'testnet')
-      if (!minterFact) return err(res, 500, 'GatewayMinter testnet address not found in onchain-facts')
-
-      // Build RPC URL: prefer proxy, fall back to onchain-facts rpcUrls[0]
-      const proxyBase   = process.env.RPC_PROXY_BASE_URL
-      const proxyToken  = process.env.RPC_PROXY_TOKEN
-      const proxyChains = (process.env.RPC_PROXY_CHAINS ?? '').split(',').map(s => s.trim())
-      const proxyKey    = chainFact.scpBlockchain ? SCP_TO_PROXY[chainFact.scpBlockchain] : undefined
-      const rpcUrl = proxyBase && proxyToken && proxyKey && proxyChains.includes(proxyKey)
-        ? `${proxyBase}/api/rpc/${proxyKey}?_rpc_token=${proxyToken}`
-        : (chainFact.rpcUrls[0] ?? '')
-      if (!rpcUrl) return err(res, 500, `No RPC URL available for chain ${destChainId}`)
-
-      const { createWalletClient, createPublicClient, http, encodeFunctionData } = await import('viem')
-      const { privateKeyToAccount } = await import('viem/accounts')
-
-      const GATEWAY_MINTER_ABI = [
-        { type: 'function', name: 'gatewayMint', inputs: [{ name: 'attestationPayload', type: 'bytes' }, { name: 'signature', type: 'bytes' }], outputs: [], stateMutability: 'nonpayable' },
-      ] as const
-
-      const pk = relayerKey.startsWith('0x') ? relayerKey : `0x${relayerKey}`
-      const account   = privateKeyToAccount(pk as `0x${string}`)
-      const transport = http(rpcUrl)
-      const chain = {
-        id: destChainId,
-        name: chainFact.name,
-        nativeCurrency: { name: chainFact.nativeCurrency.symbol, symbol: chainFact.nativeCurrency.symbol, decimals: chainFact.nativeCurrency.decimals },
-        rpcUrls: { default: { http: [rpcUrl] } },
-      } as import('viem').Chain
-      const walletClient = createWalletClient({ account, chain, transport })
-      const publicClient = createPublicClient({ chain, transport })
-
-      const callData = encodeFunctionData({
-        abi: GATEWAY_MINTER_ABI,
-        functionName: 'gatewayMint',
-        args: [attestation as `0x${string}`, mintSignature as `0x${string}`],
-      })
-      const txHash = await walletClient.sendTransaction({ to: minterFact.address as `0x${string}`, data: callData })
-      const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash, timeout: 120_000 })
-      if (receipt.status === 'reverted') return err(res, 400, `gatewayMint reverted on chain ${destChainId}`)
-      return res.json({ txHash })
-    } catch (e) {
-      return err(res, 500, e instanceof Error ? e.message : 'gatewayMint relay failed')
     }
   }
 
