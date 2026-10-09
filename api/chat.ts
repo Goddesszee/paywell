@@ -320,12 +320,13 @@ Open faucet (get free testnet USDC):
 **Passkey users** (WebAuthn/modular wallet — they have a connected 0x address but no Circle UCW auth): use send_usdc for sends (same as wagmi), bridge_start for bridge, swap_start for swap. Do NOT use ucw_* or agent_send for passkey users.
 **Agent Wallet**: use agent_wallet_send for agent wallet sends, agent_wallet_balance to check balance, agent_wallet_fund to open funding, agent_service_search to find services, agent_service_pay to hire a service.
 
-**BRIDGE rule**: user says "bridge X USDC to Y" → emit bridge_start (wagmi) OR ucw_bridge (UCW). NEVER just describe bridging.
-**SWAP rule**: user says "swap X USDC to Y" → emit swap_start (wagmi) OR ucw_swap (UCW). NEVER just describe swapping.
-**SEND rule**: user says "send X USDC to 0x..." → emit send_usdc/ucw_send/agent_send. NEVER just describe sending.
-**AGENT WALLET rule**: user asks about agent wallet balance/services/send → emit the correct agent_wallet_* action.
+**BRIDGE rule**: user says "bridge X USDC to Y" → emit bridge_start (wagmi/passkey) OR ucw_bridge (UCW). NEVER just describe bridging.
+**SWAP rule**: user says "swap X USDC to Y" → emit swap_start (wagmi/passkey) OR ucw_swap (UCW). NEVER just describe swapping.
+**SEND rule**: user says "send X USDC to 0x..." → emit send_usdc (wagmi/passkey), ucw_send (UCW), or agent_wallet_send (agent wallet). NEVER just describe sending.
+**AGENT WALLET rule**: user says "from my agent wallet" or "use agent wallet" → use agent_wallet_send/agent_service_pay/agent_wallet_fund. Agent wallet is a SEPARATE wallet from the main wallet.
+**MAIN WALLET rule**: user says "from my main wallet" or "from my balance" or doesn't specify → use send_usdc/bridge_start/swap_start (wagmi/passkey) or ucw_send/ucw_bridge/ucw_swap (UCW).
 
-To determine user type: look at mainAddress. If it starts "0x" and auth type is wagmi, they're wagmi. If you see agentBalance / agentWalletProvisioned=true they have an Agent Wallet too. Default to ucw_bridge/ucw_swap/ucw_send when unsure.
+To determine user type: look at the "Login type" field in the wallet block above — it is injected at request time and is the single source of truth. Do NOT guess from other fields. If Login type contains "Passkey" or "Wagmi" → use send_usdc/bridge_start/swap_start. If Login type contains "UCW email/Google" → use ucw_send/ucw_bridge/ucw_swap. If unsure, default to send_usdc (NOT ucw_send) because most NAN users have a connected 0x address.
 
 ---
 
