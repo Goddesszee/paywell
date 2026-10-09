@@ -1,4 +1,5 @@
-import { lazy, Suspense, useState, useMemo } from 'react'
+import { lazy, Suspense, useState, useMemo, type ComponentType } from 'react'
+import { ErrorBoundary } from './components/ErrorBoundary'
 import { useAppStore } from './store/appStore'
 import { PaymentRequestPayPage } from './components/pages/PaymentRequestPayPage'
 import { SplashScreen } from './components/SplashScreen'
@@ -17,8 +18,37 @@ import { OnrampPage } from './components/pages/OnrampPage'
 // Lazy-load Circle App Kit pages — they import @circle-fin/app-kit which
 // initialises sub-kit module-level code. Loading them lazily ensures React's
 // internal dispatcher is fully set up before any kit code runs.
-const BridgePage = lazy(() => import('./components/pages/BridgePage').then(m => ({ default: m.BridgePage })))
-const SwapPage   = lazy(() => import('./components/pages/SwapPage').then(m => ({ default: m.SwapPage })))
+// If a lazy chunk fails to load (typically a stale tab after a new deploy, where the old hashed
+// file no longer exists), reload once to pick up the fresh bundle instead of leaving a blank page.
+function lazyWithReload<T extends ComponentType<any>>(factory: () => Promise<{ default: T }>) {
+  return lazy(async () => {
+    const KEY = 'chunk-reload-once'
+    try {
+      const mod = await factory()
+      try { sessionStorage.removeItem(KEY) } catch { /* ignore */ }
+      return mod
+    } catch (err) {
+      let alreadyReloaded = false
+      try { alreadyReloaded = sessionStorage.getItem(KEY) === '1'; sessionStorage.setItem(KEY, '1') } catch { /* ignore */ }
+      if (!alreadyReloaded) {
+        window.location.reload()
+        return new Promise<{ default: T }>(() => { /* page is reloading */ })
+      }
+      throw err // second failure: let the ErrorBoundary show a message
+    }
+  })
+}
+
+const BridgePage = lazyWithReload(() => import('./components/pages/BridgePage').then(m => ({ default: m.BridgePage })))
+const SwapPage   = lazyWithReload(() => import('./components/pages/SwapPage').then(m => ({ default: m.SwapPage })))
+
+function PageLoading() {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '64px 0', color: 'var(--nan-text2)', fontSize: 14 }}>
+      Loading…
+    </div>
+  )
+}
 import { FaucetPage } from './components/pages/FaucetPage'
 import { AdminDashboard } from './components/pages/AdminDashboard'
 import { GatewayPage } from './components/pages/GatewayPage'
@@ -90,8 +120,8 @@ export default function App() {
       {activeView === 'receive' && <WalletPage initialSubView="receive" />}
       {activeView === 'agent' && <AgentPage />}
       {activeView === 'agent-wallet' && <AgentWalletExperience />}
-      {activeView === 'bridge' && <Suspense fallback={null}><BridgePage /></Suspense>}
-      {activeView === 'swap'   && <Suspense fallback={null}><SwapPage /></Suspense>}
+      {activeView === 'bridge' && <ErrorBoundary key="bridge"><Suspense fallback={<PageLoading />}><BridgePage /></Suspense></ErrorBoundary>}
+      {activeView === 'swap'   && <ErrorBoundary key="swap"><Suspense fallback={<PageLoading />}><SwapPage /></Suspense></ErrorBoundary>}
       {activeView === 'onramp' && <OnrampPage />}
       {activeView === 'faucet' && <FaucetPage />}
       {activeView === 'activity' && <ActivityPage />}
