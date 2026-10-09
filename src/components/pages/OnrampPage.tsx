@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react'
 import { useAccount } from 'wagmi'
 import { ShoppingCart, AlertCircle, Check, X, RefreshCw, Loader2 } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
+import { NETWORK_LABEL, ONRAMP_WIDGET_ORIGIN } from '../../lib/network'
 
 // NAN design tokens
 const F     = "'Inter', -apple-system, sans-serif"
@@ -16,7 +17,7 @@ const T3    = 'var(--nan-text3)'
 // Widget origins for postMessage security. Sandbox is used with Arc Testnet; production for mainnet.
 // Per https://docs.arc.io/app-kit/references/onramp-hosting-requirements the origin must match
 // what the server minted the session against, so we also derive it from session.widgetUrl.
-const WIDGET_ORIGINS = ['https://onramp-sandbox.arc.io', 'https://onramp.arc.io']
+const WIDGET_ORIGINS = ['https://onramp-sandbox.arc.io', 'https://onramp.arc.io', ONRAMP_WIDGET_ORIGIN]
 function widgetOriginOf(url?: string): string | null {
   try { return url ? new URL(url).origin : null } catch { return null }
 }
@@ -195,7 +196,7 @@ export function OnrampPage() {
         </div>
         <div>
           <div style={{ fontSize: 17, fontWeight: 700, color: TEXT, letterSpacing: '-0.02em' }}>Buy USDC</div>
-          <div style={{ fontSize: 12, color: T2 }}>Powered by Circle · lands on Arc Testnet</div>
+          <div style={{ fontSize: 12, color: T2 }}>Powered by Circle · lands on {NETWORK_LABEL}</div>
         </div>
       </div>
 
@@ -215,7 +216,7 @@ export function OnrampPage() {
             <div style={{ marginBottom: 16, padding: 14, background: SURF, borderRadius: 12, border: `1px solid ${BDR}` }}>
               <div style={{ fontSize: 11, fontWeight: 600, color: T2, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 4 }}>Destination Wallet</div>
               <div style={{ fontSize: 13, fontWeight: 600, color: TEXT, fontFamily: 'monospace' }}>{address.slice(0, 10)}...{address.slice(-8)}</div>
-              <div style={{ fontSize: 12, color: T2, marginTop: 2 }}>Arc Testnet · USDC</div>
+              <div style={{ fontSize: 12, color: T2, marginTop: 2 }}>{NETWORK_LABEL} · USDC</div>
             </div>
           )}
 
@@ -317,7 +318,7 @@ export function OnrampPage() {
           <div style={{ fontSize: 13, color: T2, marginBottom: 8, lineHeight: 1.5 }}>
             {depositInfo?.settlementExpected === false
               ? 'USDC will arrive in your wallet shortly.'
-              : 'Your purchase was submitted. USDC will arrive on Arc Testnet once settled.'}
+              : `Your purchase was submitted. USDC will arrive on ${NETWORK_LABEL} once settled.`}
           </div>
           {depositInfo?.transactionHash && (
             <div style={{ fontSize: 11, color: T3, fontFamily: 'monospace', marginBottom: 20, wordBreak: 'break-all' }}>

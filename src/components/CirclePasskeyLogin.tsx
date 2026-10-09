@@ -17,6 +17,18 @@ import {
 } from '@circle-fin/modular-wallets-core'
 import type { BundlerClient } from 'viem/account-abstraction'
 import { ArrowLeft, Fingerprint, LogIn } from 'lucide-react'
+import { IS_MAINNET, MODULAR_CHAIN_SLUG, ARC_RPC_URL, NETWORK_LABEL } from '../lib/network'
+
+// Arc Mainnet chain definition for viem (not yet in viem/chains)
+const arcMainnet = {
+  id: 5042,
+  name: 'Arc',
+  nativeCurrency: { name: 'USD Coin', symbol: 'USDC', decimals: 18 },
+  rpcUrls: { default: { http: ['https://rpc.mainnet.arc.io'] } },
+  blockExplorers: { default: { name: 'Arc Explorer', url: 'https://explorer.arc.io' } },
+} as const
+
+const ARC_VIEM_CHAIN = IS_MAINNET ? arcMainnet : arcTestnet
 
 const F       = "'Inter', -apple-system, sans-serif"
 const BLUE    = '#0066FF'
@@ -70,8 +82,8 @@ export function CirclePasskeyLogin({ onBack, onSuccess }: Props) {
 
   async function buildAccount(credential: P256Credential) {
     if (!clientKey) throw new Error('VITE_CLIENT_KEY is not set. Add it in Circle Console → Client Keys.')
-    const modularTransport = toModularTransport(`${CIRCLE_MODULAR_URL}/arcTestnet`, clientKey)
-    const publicClient = createPublicClient({ chain: arcTestnet, transport: modularTransport })
+    const modularTransport = toModularTransport(`${CIRCLE_MODULAR_URL}/${MODULAR_CHAIN_SLUG}`, clientKey)
+    const publicClient = createPublicClient({ chain: ARC_VIEM_CHAIN, transport: modularTransport })
     const account = await toCircleSmartAccount({
       client: publicClient,
       owner: toWebAuthnAccount({ credential }),
@@ -207,7 +219,7 @@ export function CirclePasskeyLogin({ onBack, onSuccess }: Props) {
         background: SURFACE, border: `1px solid ${BORDER}`,
         borderRadius: 10, fontSize: 12, color: TEXT3, lineHeight: 1.6 }}>
         <strong style={{ color: TEXT2 }}>Circle Modular Wallet</strong><br />
-        Smart contract account (ERC-4337) on Arc Testnet. Gas is sponsored — no USDC needed to get started.
+        Smart contract account (ERC-4337) on {NETWORK_LABEL}. Gas is sponsored — no USDC needed to get started.
       </div>
     </div>
   )
@@ -243,9 +255,9 @@ export async function getPasskeyAdapter({
     ?? (credential as { id?: string }).id
     ?? JSON.stringify(credential).slice(0, 40)
 
-  // Step 1: read-only public client on Arc Testnet's standard HTTP RPC (not the bundler)
-  const arcRpcUrl = (import.meta.env.VITE_ARC_RPC_URL as string | undefined) || 'https://rpc.testnet.arc.io'
-  const readClient = createPublicClient({ chain: arcTestnet, transport: http(arcRpcUrl) })
+  // Step 1: read-only public client on Arc's standard HTTP RPC (not the bundler)
+  const arcRpcUrl = (import.meta.env.VITE_ARC_RPC_URL as string | undefined) || ARC_RPC_URL
+  const readClient = createPublicClient({ chain: ARC_VIEM_CHAIN, transport: http(arcRpcUrl) })
 
   // Step 2: BundlerClient with MSCA account — use module-level cache to avoid
   // rebuilding toCircleSmartAccount (network round-trip) on every bridge/swap click.
@@ -260,15 +272,15 @@ export async function getPasskeyAdapter({
     account = _passkeyClientCache!.account
     bundlerClient = _passkeyClientCache!.bundlerClient
   } else {
-    const modularTransport = toModularTransport(`${CIRCLE_MODULAR_URL}/arcTestnet`, clientKey)
-    const bundlerPublicClient = createPublicClient({ chain: arcTestnet, transport: modularTransport })
+    const modularTransport = toModularTransport(`${CIRCLE_MODULAR_URL}/${MODULAR_CHAIN_SLUG}`, clientKey)
+    const bundlerPublicClient = createPublicClient({ chain: ARC_VIEM_CHAIN, transport: modularTransport })
     account = await toCircleSmartAccount({
       client: bundlerPublicClient,
       owner: toWebAuthnAccount({ credential }),
     })
     bundlerClient = createBundlerClient({
       account,
-      chain: arcTestnet,
+      chain: ARC_VIEM_CHAIN,
       transport: modularTransport,
     })
     _passkeyClientCache = { account, bundlerClient, clientKey, credentialId }
@@ -321,15 +333,19 @@ export async function sendFromPasskeyWallet({
   const credential = getStoredCredential()
   if (!credential) throw new Error('No passkey credential found. Please log in first.')
 
-  const modularTransport = toModularTransport(`${CIRCLE_MODULAR_URL}/arcTestnet`, clientKey)
-  const publicClient = createPublicClient({ chain: arcTestnet, transport: modularTransport })
+  const modularTransport = toModularTransport(`${CIRCLE_MODULAR_URL}/${MODULAR_CHAIN_SLUG}`, clientKey)
+  const publicClient = createPublicClient({ chain: ARC_VIEM_CHAIN, transport: modularTransport })
   const account = await toCircleSmartAccount({
     client: publicClient,
     owner: toWebAuthnAccount({ credential }),
   })
   // Bind account to bundlerClient so it is always available for signing
-  const bundlerClient = createBundlerClient({ account, chain: arcTestnet, transport: modularTransport })
-  const callData = encodeTransfer(to, ContractAddress.ArcTestnet_USDC, amount)
+  const bundlerClient = createBundlerClient({ account, chain: ARC_VIEM_CHAIN, transport: modularTransport })
+  // ContractAddress.ArcTestnet_USDC = 0x3600...0000 — same address on Arc mainnet
+  const usdcAddress = IS_MAINNET
+    ? '0x3600000000000000000000000000000000000000' as `0x${string}`
+    : ContractAddress.ArcTestnet_USDC
+  const callData = encodeTransfer(to, usdcAddress, amount)
 
   // First try with Circle's gas sponsorship. If the bundler/paymaster rejects the
   // op with a generic JSON-RPC "Internal error" (-32603), retry once unsponsored:

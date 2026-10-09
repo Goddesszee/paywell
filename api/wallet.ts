@@ -32,6 +32,10 @@ import { AppKit } from '@circle-fin/app-kit'
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
+const IS_MAINNET = process.env.VITE_NETWORK === 'mainnet'
+const ARC_BLOCKCHAIN_ENUM = IS_MAINNET ? 'ARC' : 'ARC-TESTNET'
+const ARC_EXPLORER_BASE = IS_MAINNET ? 'https://explorer.arc.io' : 'https://explorer.testnet.arc.io'
+
 function apiKey(): string | undefined {
   return (
     process.env.CIRCLE_USER_CONTROLLED_API_KEY ??
@@ -148,7 +152,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const client = ucwClient()
       const response = await client.createUserPinWithWallets({
         userToken,
-        blockchains: [Blockchain.ArcTestnet],
+        blockchains: [IS_MAINNET ? Blockchain.Arc : Blockchain.ArcTestnet],
         accountType: 'SCA',
       })
       return res.json({ challengeId: response.data?.challengeId })
@@ -172,7 +176,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         walletId,
         destinationAddress,
         amounts: [amount],
-        blockchain: (blockchain ?? 'ARC-TESTNET') as Parameters<typeof client.createTransaction>[0]['blockchain'],
+        blockchain: (blockchain ?? ARC_BLOCKCHAIN_ENUM) as Parameters<typeof client.createTransaction>[0]['blockchain'],
         tokenAddress: tokenAddress ?? '',
         fee: { type: 'level', config: { feeLevel: 'MEDIUM' } },
       })
@@ -263,16 +267,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     try {
       const { createCircleUserWalletAdapter } = await import('@circle-fin/adapter-circle-wallets/ucw/server')
       const kit = new AppKit()
+      const arcChainSlug = IS_MAINNET ? 'Arc' : 'Arc_Testnet'
       const adapter = await createCircleUserWalletAdapter({
         apiKey: key,
         userToken,
         walletId,
         walletAddress: walletAddress as `0x${string}`,
-        chain: 'Arc_Testnet',
+        chain: arcChainSlug as 'Arc_Testnet' | 'Arc',
         accountType: 'SCA',
       })
       const estimate = await kit.estimateSwap({
-        from: { adapter, chain: 'Arc_Testnet' },
+        from: { adapter, chain: arcChainSlug as 'Arc_Testnet' | 'Arc' },
         tokenIn, tokenOut, amountIn,
         // SCA wallets (UCW) must use 'approve' — USDC permit uses ecrecover which rejects SCA signatures
         config: { slippageBps: slippageBps ? Number(slippageBps) : 300, allowanceStrategy: 'approve' },
@@ -302,19 +307,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       let resolveChallenge!: (id: string) => void
       const challengePromise = new Promise<string>(resolve => { resolveChallenge = resolve })
 
+      const arcSlug = IS_MAINNET ? 'Arc' : 'Arc_Testnet'
       const adapter = await createCircleUserWalletAdapter({
         apiKey: key,
         userToken,
         walletId,
         walletAddress: walletAddress as `0x${string}`,
-        chain: 'Arc_Testnet',
+        chain: arcSlug as 'Arc_Testnet' | 'Arc',
         accountType: 'SCA',
         onChallenge: ({ challengeId }: { challengeId: string }) => { resolveChallenge(challengeId) },
       })
 
       // Fire swap (will pause at onChallenge)
       void kit.swap({
-        from: { adapter, chain: 'Arc_Testnet' },
+        from: { adapter, chain: arcSlug as 'Arc_Testnet' | 'Arc' },
         tokenIn, tokenOut, amountIn,
         // SCA wallets (UCW) must use 'approve' — USDC permit uses ecrecover which rejects SCA signatures
         config: { slippageBps: slippageBps ? Number(slippageBps) : 300, allowanceStrategy: 'approve' },
@@ -343,7 +349,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const tx = await pollTransaction(userToken, transactionId)
       if (!tx) return err(res, 408, 'Swap timed out — check explorer for status')
       if (tx.state === 'COMPLETE')
-        return res.json({ result: { txHash: tx.txHash, explorerUrl: `https://explorer.testnet.arc.io/tx/${tx.txHash}` } })
+        return res.json({ result: { txHash: tx.txHash, explorerUrl: `${ARC_EXPLORER_BASE}/tx/${tx.txHash}` } })
       return err(res, 400, `Swap ${tx.state ?? 'failed'}: ${tx.errorReason ?? ''}`)
     } catch (e) {
       return err(res, 500, e instanceof Error ? e.message : 'Swap confirm failed')
@@ -366,19 +372,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       let resolveChallenge!: (id: string) => void
       const challengePromise = new Promise<string>(resolve => { resolveChallenge = resolve })
 
+      const arcSlug2 = IS_MAINNET ? 'Arc' : 'Arc_Testnet'
       const adapter = await createCircleUserWalletAdapter({
         apiKey: key,
         userToken,
         walletId,
         walletAddress: walletAddress as `0x${string}`,
-        chain: 'Arc_Testnet',
+        chain: arcSlug2 as 'Arc_Testnet' | 'Arc',
         accountType: 'SCA',
         onChallenge: ({ challengeId }: { challengeId: string }) => { resolveChallenge(challengeId) },
       })
 
       // Fire bridge (will pause at onChallenge)
       void kit.bridge({
-        from: { adapter, chain: 'Arc_Testnet' as const },
+        from: { adapter, chain: arcSlug2 as 'Arc_Testnet' | 'Arc' },
         to: {
           chain: destChain as Parameters<InstanceType<typeof AppKit>['bridge']>[0]['to']['chain'],
           recipientAddress: walletAddress,
@@ -409,7 +416,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const tx = await pollTransaction(userToken, transactionId)
       if (!tx) return err(res, 408, 'Bridge timed out — check explorer for status')
       if (tx.state === 'COMPLETE')
-        return res.json({ success: true, txHash: tx.txHash, explorerUrl: `https://explorer.testnet.arc.io/tx/${tx.txHash}` })
+        return res.json({ success: true, txHash: tx.txHash, explorerUrl: `${ARC_EXPLORER_BASE}/tx/${tx.txHash}` })
       return err(res, 400, `Bridge ${tx.state ?? 'failed'}: ${tx.errorReason ?? ''}`)
     } catch (e) {
       return err(res, 500, e instanceof Error ? e.message : 'Bridge confirm failed')
