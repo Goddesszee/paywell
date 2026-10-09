@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Layers, RefreshCw, ArrowDownToLine, ArrowLeftRight, ExternalLink, Check, AlertCircle, Copy, Info, ChevronDown } from 'lucide-react'
-import { useAccount, useWriteContract, useWaitForTransactionReceipt, useSwitchChain, useChainId, useReadContract, useSignTypedData } from 'wagmi'
+import { useAccount, useWriteContract, useWaitForTransactionReceipt, useSwitchChain, useReadContract, useSignTypedData } from 'wagmi'
 import { erc20Abi, parseUnits, formatUnits, zeroAddress } from 'viem'
 import { toast } from 'sonner'
 import { getUsdc, getProtocolContractByName, buildTxExplorerUrl, ONCHAIN_CHAINS } from '@/onchain-facts'
@@ -193,7 +193,14 @@ export function GatewayPage() {
   const [tab, setTab] = useState<Tab>('balance')
   const { address: wagmiAddress } = useAccount()
   const { auth } = useAppStore()
-  const address = wagmiAddress ?? (auth?.circleWalletAddress as `0x${string}` | undefined)
+
+  // Routing: Circle users (passkey or UCW/W3S) use CircleTransferTab regardless of
+  // whether a wagmi wallet (MetaMask) is also connected. Only pure wagmi users (no
+  // Circle auth) use TransferTab. This prevents NaN chainId and wrong depositor address.
+  const isCircleUser = !!(auth?.isPasskeyUser || auth?.userToken)
+  const address = isCircleUser
+    ? (auth?.circleWalletAddress as `0x${string}` | undefined)
+    : wagmiAddress
   const usdcFact = getUsdc(ARC)
 
   const [gatewayBalance, setGatewayBalance] = useState<string | null>(null)
@@ -266,10 +273,10 @@ export function GatewayPage() {
       </div>
 
       {tab === 'balance'  && <BalanceTab  address={address} walletBalance={walletBalance} gatewayBalance={gatewayBalance} isLoading={isLoading} />}
-      {tab === 'deposit'  && (wagmiAddress
+      {tab === 'deposit'  && (!isCircleUser && wagmiAddress
         ? <DepositTab  address={address} walletBalance={walletBalance} usdcFact={usdcFact} onSuccess={() => { refetchAll(); setTab('balance') }} />
         : <CircleDepositTab  address={address} walletBalance={walletBalance} usdcFact={usdcFact} onSuccess={() => { refetchAll(); setTab('balance') }} />)}
-      {tab === 'transfer' && (wagmiAddress
+      {tab === 'transfer' && (!isCircleUser && wagmiAddress
         ? <TransferTab address={wagmiAddress} gatewayBalance={gatewayBalance} onSuccess={() => { refetchAll(); setTab('balance') }} />
         : <CircleTransferTab address={address} gatewayBalance={gatewayBalance} onSuccess={() => { refetchAll(); setTab('balance') }} />)}
     </div>
@@ -342,7 +349,7 @@ function DepositTab({ address, walletBalance, usdcFact, onSuccess }: {
   usdcFact: { address: string; decimals: number; symbol: string } | undefined
   onSuccess: () => void
 }) {
-  const chainId = useChainId()
+  const { chainId } = useAccount()
   const { switchChainAsync } = useSwitchChain()
   const [amount, setAmount] = useState('')
   const [phase, setPhase] = useState<'idle'|'approving'|'depositing'|'done'|'error'>('idle')
@@ -806,7 +813,7 @@ type TransferPhase = 'idle' | 'signing' | 'submitting' | 'minting' | 'done' | 'e
 function TransferTab({ address, gatewayBalance, onSuccess }: {
   address: `0x${string}`; gatewayBalance: string|null; onSuccess: () => void
 }) {
-  const chainId = useChainId()
+  const { chainId } = useAccount() // use account chainId — defined only when wagmi wallet connected
   const { switchChainAsync } = useSwitchChain()
   const [amount, setAmount] = useState('')
   const [destChainId, setDestChainId] = useState<number>(84532) // Base Sepolia default
