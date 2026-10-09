@@ -3,13 +3,9 @@ import { Layers, RefreshCw, ArrowDownToLine, ArrowLeftRight, ExternalLink, Check
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContract } from 'wagmi'
 import { erc20Abi, parseUnits, formatUnits, zeroAddress } from 'viem'
 import { toast } from 'sonner'
-import { getUsdc, buildTxExplorerUrl, ONCHAIN_CHAINS } from '@/onchain-facts'
+import { getUsdc, getProtocolContractByName, buildTxExplorerUrl, ONCHAIN_CHAINS } from '@/onchain-facts'
 import { useAppStore } from '../../store/appStore'
 import { useCircleTransaction } from '../../hooks/useCircleTransaction'
-import {
-  IS_MAINNET, ARC_CHAIN_ID, GATEWAY_API_URL, GATEWAY_WALLET_ADDRESS, GATEWAY_MINTER_ADDRESS,
-  CCTP_DOMAIN_MAP, NETWORK_LABEL, GATEWAY_NETWORK_LABEL, ARC_RPC_URL, MODULAR_CHAIN_SLUG,
-} from '../../lib/network'
 
 const F    = "'Inter', -apple-system, sans-serif"
 const MONO = "'JetBrains Mono', Menlo, monospace"
@@ -20,14 +16,14 @@ const BLUE = '#0066FF'
 const TEXT = 'var(--nan-text)'
 const T2   = 'var(--nan-text2)'
 const T3   = 'var(--nan-text3)'
-const ARC  = ARC_CHAIN_ID
+const ARC  = 5042002
 
-// ── Gateway addresses from network.ts ────────────────────────────────────────
-const GATEWAY_WALLET = GATEWAY_WALLET_ADDRESS
-const GATEWAY_MINTER = GATEWAY_MINTER_ADDRESS
+// ── Gateway addresses from onchain-facts ─────────────────────────────────────
+const GATEWAY_WALLET = getProtocolContractByName('GatewayWallet', 'testnet')!.address as `0x${string}`
+const GATEWAY_MINTER = getProtocolContractByName('GatewayMinter', 'testnet')!.address as `0x${string}`
 
 // ── Gateway REST API ──────────────────────────────────────────────────────────
-const GATEWAY_API = GATEWAY_API_URL
+const GATEWAY_API = 'https://gateway-api-testnet.circle.com/v1'
 
 // ── Correct Gateway ABIs ──────────────────────────────────────────────────────
 // deposit(address token, uint256 value) — credits the caller's unified balance
@@ -100,15 +96,24 @@ function randomHex32(): `0x${string}` {
   return `0x${Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('')}`
 }
 
-// Chains with Gateway support — testnet uses testnets, mainnet uses mainnets
-const GATEWAY_TESTNET_IDS = [5042002, 11155111, 84532, 421614, 43113, 80002, 11155420, 1301]
-const GATEWAY_MAINNET_IDS = [5042, 1, 8453, 42161, 43114, 137, 10]
+// Chains with Gateway testnet support
 const GATEWAY_CHAINS = ONCHAIN_CHAINS.filter(c =>
-  c.usdc && (IS_MAINNET ? GATEWAY_MAINNET_IDS : GATEWAY_TESTNET_IDS).includes(c.chainId)
+  c.isTestnet && c.usdc && [5042002, 11155111, 84532, 421614, 43113, 80002, 11155420, 1301].includes(c.chainId)
 )
 
-// Domain IDs — imported from network.ts (covers both testnet and mainnet)
-const DOMAIN_MAP = CCTP_DOMAIN_MAP
+// Domain IDs for testnet — must match Circle's CCTP domain registry exactly.
+// Arbitrum Sepolia is domain 3 but has no cctpDomain in onchain-facts; add it here
+// so DOMAIN_MAP[421614] is never undefined when it is chosen as the destination.
+const DOMAIN_MAP: Record<number, number> = {
+  11155111: 0,  // Ethereum Sepolia
+  43113:    1,  // Avalanche Fuji
+  11155420: 2,  // OP Sepolia
+  421614:   3,  // Arbitrum Sepolia
+  84532:    6,  // Base Sepolia
+  80002:    7,  // Polygon Amoy
+  1301:     10, // Unichain Sepolia
+  5042002:  26, // Arc Testnet
+}
 
 // ── Gateway REST API helpers ──────────────────────────────────────────────────
 // Circle Gateway balance API: POST /v1/balances
@@ -280,7 +285,7 @@ export function GatewayPage() {
         </div>
         <div style={{ flex:1 }}>
           <div style={{ fontSize:17, fontWeight:700, color:TEXT, letterSpacing:'-0.02em' }}>Gateway</div>
-          <div style={{ fontSize:12, color:T2 }}>Unified USDC · {GATEWAY_NETWORK_LABEL}</div>
+          <div style={{ fontSize:12, color:T2 }}>Unified USDC · Circle Gateway Testnet</div>
         </div>
         <button onClick={refetchAll} style={{ width:36, height:36, borderRadius:10, background:SURF, border:`1px solid ${BDR}`, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer' }}>
           <RefreshCw size={15} color={T2} />
@@ -343,14 +348,14 @@ function BalanceTab({ address, walletBalance, gatewayBalance, pendingBalance, is
         )}
         {address && (
           <div style={{ marginTop:20, paddingTop:16, borderTop:'1px solid rgba(255,255,255,0.08)', fontSize:12, color:'rgba(255,255,255,0.30)', fontFamily:MONO }}>
-            {address.slice(0,8)}...{address.slice(-6)} · {NETWORK_LABEL}
+            {address.slice(0,8)}...{address.slice(-6)} · Arc Testnet
           </div>
         )}
       </div>
 
       {address && (
         <div style={{ background:SURF, border:`1px solid ${BDR}`, borderRadius:14, padding:'14px 16px', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-          <span style={{ fontSize:13, color:T2 }}>Wallet USDC ({NETWORK_LABEL})</span>
+          <span style={{ fontSize:13, color:T2 }}>Wallet USDC (Arc Testnet)</span>
           <span style={{ fontSize:15, fontWeight:700, color:TEXT, fontFamily:MONO }}>{isLoading ? '…' : `${walletBalance ? parseFloat(walletBalance).toFixed(2) : '0.00'} USDC`}</span>
         </div>
       )}
@@ -467,7 +472,7 @@ function DepositTab({ address, walletBalance, usdcFact, onSuccess }: {
         </div>
         <div>
           <div style={{ fontSize:14, fontWeight:700, color:TEXT }}>Deposit USDC</div>
-          <div style={{ fontSize:11, color:T2 }}>Deposit on {NETWORK_LABEL} to build your unified balance</div>
+          <div style={{ fontSize:11, color:T2 }}>Deposit on Arc Testnet to build your unified balance</div>
         </div>
       </div>
 
@@ -606,11 +611,8 @@ function PasskeyDepositTab({ address, walletBalance, usdcFact, onSuccess }: {
       const { arcTestnet } = await import('viem/chains')
 
       const MODULAR_URL = 'https://modular-sdk.circle.com/v1/rpc/w3s/buidl'
-      const modularTransport = toModularTransport(`${MODULAR_URL}/${MODULAR_CHAIN_SLUG}`, clientKey)
-      const arcViemChain = IS_MAINNET
-        ? { id: 5042, name: 'Arc', nativeCurrency: { name: 'USD Coin', symbol: 'USDC', decimals: 18 }, rpcUrls: { default: { http: [ARC_RPC_URL] } } } as const
-        : arcTestnet
-      const publicClient = createPublicClient({ chain: arcViemChain, transport: modularTransport })
+      const modularTransport = toModularTransport(`${MODULAR_URL}/arcTestnet`, clientKey)
+      const publicClient = createPublicClient({ chain: arcTestnet, transport: modularTransport })
 
       // Re-authenticate passkey to get a fresh credential for signing
       const passkeyTransport = (await import('@circle-fin/modular-wallets-core')).toPasskeyTransport(MODULAR_URL, clientKey)
@@ -623,7 +625,7 @@ function PasskeyDepositTab({ address, walletBalance, usdcFact, onSuccess }: {
 
       const bundlerClient = createBundlerClient({
         account,
-        chain: arcViemChain,
+        chain: arcTestnet,
         transport: modularTransport,
       })
 
@@ -1050,7 +1052,7 @@ function TransferTab({ address, gatewayBalance, onSuccess }: {
       {/* Source (always Arc Testnet) */}
       <div style={{ background:SURF, border:`1px solid ${BDR}`, borderRadius:12, padding:'12px 14px' }}>
         <div style={{ fontSize:11, color:T3, marginBottom:4, fontWeight:600, textTransform:'uppercase', letterSpacing:'0.05em' }}>From</div>
-        <div style={{ fontSize:14, fontWeight:700, color:TEXT }}>{NETWORK_LABEL}</div>
+        <div style={{ fontSize:14, fontWeight:700, color:TEXT }}>Arc Testnet</div>
         <div style={{ fontSize:12, color:T2, marginTop:2 }}>
           Gateway balance: <strong style={{ color:TEXT }}>{gwBal.toFixed(2)} USDC</strong>
         </div>
@@ -1095,7 +1097,7 @@ function TransferTab({ address, gatewayBalance, onSuccess }: {
               </div>
               <span style={{ fontSize:13, color:TEXT }}>{s.label}</span>
               {s.done && i===3 && transferId && (
-                <a href={`${GATEWAY_API}/transfer/${transferId}`} target="_blank" rel="noreferrer" style={{ marginLeft:'auto', fontSize:11, color:T2, display:'flex', alignItems:'center', gap:3 }}>Details <ExternalLink size={10} /></a>
+                <a href={`https://gateway-api-testnet.circle.com/v1/transfer/${transferId}`} target="_blank" rel="noreferrer" style={{ marginLeft:'auto', fontSize:11, color:T2, display:'flex', alignItems:'center', gap:3 }}>Details <ExternalLink size={10} /></a>
               )}
             </div>
           ))}
@@ -1126,7 +1128,7 @@ function TransferTab({ address, gatewayBalance, onSuccess }: {
 
       {/* Contract addresses */}
       <div style={{ background:SURF, border:`1px solid ${BDR}`, borderRadius:12, padding:'12px 14px' }}>
-        <div style={{ fontSize:11, color:T3, marginBottom:6, fontWeight:600, textTransform:'uppercase', letterSpacing:'0.05em' }}>Contracts ({NETWORK_LABEL})</div>
+        <div style={{ fontSize:11, color:T3, marginBottom:6, fontWeight:600, textTransform:'uppercase', letterSpacing:'0.05em' }}>Contracts (Arc Testnet)</div>
         {[
           { label:'GatewayWallet', addr: GATEWAY_WALLET },
           { label:'GatewayMinter', addr: GATEWAY_MINTER },
@@ -1226,15 +1228,13 @@ function CircleTransferTab({ address, gatewayBalance, onSuccess }: {
         const viemChains = await import('viem/chains')
 
         const MODULAR_URL = 'https://modular-sdk.circle.com/v1/rpc/w3s/buidl'
-        const arcChain = IS_MAINNET
-          ? { id: 5042, name: 'Arc', nativeCurrency: { name: 'USD Coin', symbol: 'USDC', decimals: 18 }, rpcUrls: { default: { http: [ARC_RPC_URL] } } } as const
-          : (viemChains.arcTestnet ?? { id: ARC, name: 'Arc Testnet', nativeCurrency: { name: 'USDC', symbol: 'USDC', decimals: 18 }, rpcUrls: { default: { http: ['https://rpc.testnet.arc.io'] } } })
+        const arcChain = viemChains.arcTestnet ?? { id: ARC, name: 'Arc Testnet', nativeCurrency: { name: 'USDC', symbol: 'USDC', decimals: 18 }, rpcUrls: { default: { http: ['https://rpc.testnet.arc.io'] } } }
 
         // Use a plain HTTP public client for chain reads (nonce, receipts).
         // toModularTransport is only needed for user-op bundler calls — we pass
         // it to toCircleSmartAccount so signTypedData goes via the bundler correctly.
-        const arcHttpClient = mkPublic({ chain: arcChain, transport: httpTransport(ARC_RPC_URL) })
-        const arcModularTransport = toModularTransport(`${MODULAR_URL}/${MODULAR_CHAIN_SLUG}`, clientKey)
+        const arcHttpClient = mkPublic({ chain: arcChain, transport: httpTransport('https://rpc.testnet.arc.io') })
+        const arcModularTransport = toModularTransport(`${MODULAR_URL}/arcTestnet`, clientKey)
         const arcBundlerClient   = mkPublic({ chain: arcChain, transport: arcModularTransport })
 
         // Authenticate the passkey — toPasskeyTransport calls WebAuthn (browser-native,
@@ -1381,7 +1381,7 @@ function CircleTransferTab({ address, gatewayBalance, onSuccess }: {
       {/* Source */}
       <div style={{ background:SURF, border:`1px solid ${BDR}`, borderRadius:12, padding:'12px 14px' }}>
         <div style={{ fontSize:11, color:T3, marginBottom:4, fontWeight:600, textTransform:'uppercase', letterSpacing:'0.05em' }}>From</div>
-        <div style={{ fontSize:14, fontWeight:700, color:TEXT }}>{NETWORK_LABEL}</div>
+        <div style={{ fontSize:14, fontWeight:700, color:TEXT }}>Arc Testnet</div>
         <div style={{ fontSize:12, color:T2, marginTop:2 }}>Gateway balance: <strong style={{ color:TEXT }}>{gwBal.toFixed(2)} USDC</strong></div>
       </div>
 

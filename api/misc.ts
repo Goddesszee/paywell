@@ -16,12 +16,8 @@ import { isAddress } from 'viem'
 import { SERVICE_REGISTRY } from '../src/lib/agent-registry'
 
 // ── faucet config ─────────────────────────────────────────────────────────────
-const IS_MAINNET  = process.env.VITE_NETWORK === 'mainnet'
 const FAUCET_URL  = 'https://api.circle.com/v1/faucet/drips'
-const BLOCKCHAIN  = IS_MAINNET ? 'ARC' : 'ARC-TESTNET'
-const GATEWAY_API_BASE = IS_MAINNET
-  ? 'https://gateway-api.circle.com/v1'
-  : 'https://gateway-api-testnet.circle.com/v1'
+const BLOCKCHAIN  = 'ARC-TESTNET'
 const COOLDOWN_MS = 24 * 60 * 60 * 1000
 const lastRequestByAddress = new Map<string, number>()
 
@@ -106,7 +102,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (route === 'gateway') {
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
 
-    const GATEWAY_API = GATEWAY_API_BASE
+    const GATEWAY_API = 'https://gateway-api-testnet.circle.com/v1'
     const MODULAR_SDK = 'https://modular-sdk.circle.com/v1/rpc/w3s/buidl'
     const action = req.query.action as string | undefined
 
