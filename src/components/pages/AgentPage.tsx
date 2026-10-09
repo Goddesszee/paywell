@@ -1068,7 +1068,7 @@ function AgentChat({ onNavigate }: { onNavigate?: (page: string, query?: string)
         agentWalletUserToken: agentWallet.userToken,
         writeContractAsync,
         connectedAddress: address,
-        chainId,
+        chainId: chainId ?? 5042002, // Arc Testnet fallback for passkey/modular wallet users
       })
       // Handle special signal strings from agent-actions executor
       if (result?.startsWith('__AGENT_WALLET_CHALLENGE__:')) {
@@ -1206,6 +1206,7 @@ function AgentChat({ onNavigate }: { onNavigate?: (page: string, query?: string)
             mainBalance: storeSnap.mainWalletBalance,
             mainAddress: address ?? auth?.walletAddress ?? '',
             isPasskeyUser: auth?.isPasskeyUser ?? false,
+            isCircleUcwUser: !!(auth?.userToken && !auth?.isPasskeyUser),
             agentBalance: agentWallet.balance_usdc ?? '0',
             agentAddress: agentWallet.address,
             agentWalletProvisioned: agentWallet.provisioned,
@@ -1289,7 +1290,7 @@ function AgentChat({ onNavigate }: { onNavigate?: (page: string, query?: string)
                   agentWalletUserToken: agentWallet.userToken,
                   writeContractAsync,
                   connectedAddress: address,
-                  chainId,
+                  chainId: chainId ?? 5042002, // Arc Testnet fallback for passkey/modular wallet users
                 })
                 // Handle special signal strings
                 if (result === '__AGENT_WALLET_FUND__') {

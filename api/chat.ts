@@ -117,6 +117,7 @@ interface ChatContext {
   agentBalance?: string
   agentAddress?: string
   isPasskeyUser?: boolean
+  isCircleUcwUser?: boolean
   agentWalletProvisioned?: boolean
   dailyLimit?: number
   perTxLimit?: number
@@ -494,7 +495,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 - Agent Wallet: **${parseFloat(ctx.agentBalance ?? '0').toFixed(2)} USDC** (${ctx.agentWalletProvisioned ? 'provisioned' : 'NOT set up'})
   ${ctx.agentAddress ? `Address: ${ctx.agentAddress}` : '(no address — not provisioned)'}
   ${ctx.agentWalletBlockchain ? `Blockchain: ${ctx.agentWalletBlockchain} · AccountType: ${ctx.agentWalletAccountType ?? 'SCA'}` : ''}
-- Login type: ${ctx.isPasskeyUser ? 'Passkey/Modular Wallet (use send_usdc, bridge_start, swap_start — NEVER ucw_* for this user)' : ctx.mainAddress && !ctx.agentWalletProvisioned ? 'Wagmi/MetaMask (use send_usdc, bridge_start, swap_start)' : 'Circle UCW email/Google (use ucw_send, ucw_bridge, ucw_swap)'}
+- Login type: ${ctx.isPasskeyUser ? 'Passkey/Modular Wallet (use send_usdc, bridge_start, swap_start — NEVER ucw_*)' : ctx.isCircleUcwUser ? 'Circle UCW email/Google (use ucw_send, ucw_bridge, ucw_swap, ucw_gateway_deposit, ucw_gateway_transfer)' : 'Wagmi/MetaMask (use send_usdc, bridge_start, swap_start)'}
 - Agent enabled: ${ctx.agentEnabled !== false ? 'YES' : 'NO'}
 - Daily limit: ${ctx.dailyLimit ?? 'not set'} USDC · Used today: ${(ctx.agentDailyUsed ?? 0).toFixed(2)} USDC · Remaining: ${ctx.remainingToday !== undefined ? ctx.remainingToday.toFixed(2) : 'unknown'} USDC
 - Per-tx limit: ${ctx.perTxLimit ?? 'not set'} USDC · Per-service limit: ${ctx.perServiceLimit ?? 'not set'} USDC
