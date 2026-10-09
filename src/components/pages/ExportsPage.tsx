@@ -332,15 +332,23 @@ export function ExportsPage() {
     return `nan-export-${label}-${source}.${ext}`
   }
 
+  function triggerDownload(url: string, filename: string) {
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    a.style.display = 'none'
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    setTimeout(() => URL.revokeObjectURL(url), 10000)
+  }
+
   function downloadCsv() {
     const header = CSV_HEADERS.join(',')
     const rows   = filtered.map(r => CSV_HEADERS.map(k => escCsv(r[k])).join(','))
     const csv    = [header, ...rows].join('\n')
     const blob   = new Blob([csv], { type: 'text/csv' })
-    const url    = URL.createObjectURL(blob)
-    const a      = document.createElement('a')
-    a.href = url; a.download = getFilename('csv'); a.click()
-    setTimeout(() => URL.revokeObjectURL(url), 10000)
+    triggerDownload(URL.createObjectURL(blob), getFilename('csv'))
     setDownloaded('csv')
     setTimeout(() => setDownloaded(null), 2500)
   }
@@ -348,10 +356,7 @@ export function ExportsPage() {
   function downloadJson() {
     const json = JSON.stringify({ exportedAt: new Date().toISOString(), period, source, from: from.toISOString(), to: to.toISOString(), count: filtered.length, records: filtered }, null, 2)
     const blob = new Blob([json], { type: 'application/json' })
-    const url  = URL.createObjectURL(blob)
-    const a    = document.createElement('a')
-    a.href = url; a.download = getFilename('json'); a.click()
-    setTimeout(() => URL.revokeObjectURL(url), 10000)
+    triggerDownload(URL.createObjectURL(blob), getFilename('json'))
     setDownloaded('json')
     setTimeout(() => setDownloaded(null), 2500)
   }
@@ -639,13 +644,10 @@ export function ExportsPage() {
   function downloadStatement() {
     const html = buildStatementHtml()
     const blob = new Blob([html], { type: 'text/html' })
-    const url  = URL.createObjectURL(blob)
-    const a    = document.createElement('a')
     const label = period === 'custom'
       ? `${customFrom}_to_${customTo}`
       : period
-    a.href = url; a.download = `nan-statement-${label}-${source}.html`; a.click()
-    setTimeout(() => URL.revokeObjectURL(url), 10000)
+    triggerDownload(URL.createObjectURL(blob), `nan-statement-${label}-${source}.html`)
     setDownloaded('statement')
     setTimeout(() => setDownloaded(null), 2500)
   }

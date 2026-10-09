@@ -324,7 +324,7 @@ function BalanceTab({ address, walletBalance, gatewayBalance, pendingBalance, is
   const hasPending = parseFloat(pending) > 0
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
-      <div style={{ background:'linear-gradient(145deg,#0A0D14 0%,#0E1422 60%,#080B10 100%)', border:`1px solid rgba(0,102,255,0.18)`, borderRadius:20, padding:'28px 24px' }}>
+      <div style={{ background:'linear-gradient(135deg, #0055e0 0%, #0044bb 100%)', border:`1px solid rgba(0,68,187,0.6)`, borderRadius:20, padding:'28px 24px' }}>
         <div style={{ fontSize:11, color:'rgba(255,255,255,0.35)', letterSpacing:'0.16em', textTransform:'uppercase', marginBottom:10, fontFamily:MONO }}>Gateway Balance (Unified)</div>
         {!address ? (
           <div style={{ fontSize:32, fontWeight:700, color:'rgba(255,255,255,0.25)', fontFamily:MONO }}>—</div>
