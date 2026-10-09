@@ -488,7 +488,7 @@ function SuccessScreen({ address, walletId, onDashboard, C }: {
         <p style={{ fontSize: 13, color: C.t2, margin: 0 }}>Your NAN Agent now has a dedicated wallet.</p>
       </div>
 
-      <div style={{ background: 'linear-gradient(135deg, rgba(0,102,255,0.18) 0%, rgba(0,102,255,0.06) 100%)', border: '1px solid rgba(0,102,255,0.28)', borderRadius: 22, padding: '20px 20px 16px', marginBottom: 20, position: 'relative', overflow: 'hidden' }}>
+      <div style={{ background: 'linear-gradient(135deg, #0055e0 0%, #0044bb 100%)', border: '1px solid rgba(0,68,187,0.6)', borderRadius: 22, padding: '20px 20px 16px', marginBottom: 20, position: 'relative', overflow: 'hidden' }}>
         <div style={{ position: 'absolute', top: -30, right: -30, width: 120, height: 120, borderRadius: '50%', background: 'rgba(0,102,255,0.15)', filter: 'blur(40px)', pointerEvents: 'none' }} />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
           <div>
@@ -1159,7 +1159,7 @@ function DashboardScreen({ C, onDisconnect }: { C: ReturnType<typeof useNanTheme
     : null
 
   return (
-    <div style={{ fontFamily: F, width: '100%', maxWidth: '100%', boxSizing: 'border-box', overflowX: 'hidden', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ fontFamily: F, width: '100%', maxWidth: '100%', boxSizing: 'border-box', overflowX: 'hidden', display: 'flex', flexDirection: 'column', background: C.bg }}>
 
       {/* ── Sticky header + tabs ────────────────────────────────────────────── */}
       <div style={{
@@ -1382,9 +1382,9 @@ function DashboardScreen({ C, onDisconnect }: { C: ReturnType<typeof useNanTheme
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 12 }}>
 
             {/* ── Balance card ──────────────────────────────────────────────── */}
-            <div style={{ background: 'rgba(0,102,255,0.12)', border: '1px solid rgba(0,102,255,0.24)', borderRadius: 18, padding: '18px 18px 14px', position: 'relative', overflow: 'hidden', boxSizing: 'border-box' }}>
+            <div style={{ background: 'linear-gradient(135deg, #0055e0 0%, #0044bb 100%)', border: '1px solid rgba(0,68,187,0.6)', borderRadius: 18, padding: '18px 18px 14px', position: 'relative', overflow: 'hidden', boxSizing: 'border-box' }}>
               {/* Subtle glow */}
-              <div style={{ position: 'absolute', top: -40, right: -40, width: 130, height: 130, borderRadius: '50%', background: 'rgba(0,102,255,0.18)', filter: 'blur(40px)', pointerEvents: 'none' }} />
+              <div style={{ position: 'absolute', top: -40, right: -40, width: 130, height: 130, borderRadius: '50%', background: 'rgba(0,102,255,0.35)', filter: 'blur(40px)', pointerEvents: 'none' }} />
 
               <div style={{ fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>
                 Available to Your Agent
