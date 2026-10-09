@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Layers, RefreshCw, ArrowDownToLine, ArrowLeftRight, ExternalLink, Check, AlertCircle, Copy, Info, ChevronDown } from 'lucide-react'
-import { useAccount, useWriteContract, useWaitForTransactionReceipt, useSwitchChain, useChainId, useReadContract } from 'wagmi'
+import { useAccount, useWriteContract, useWaitForTransactionReceipt, useSwitchChain, useChainId, useReadContract, useSignTypedData } from 'wagmi'
 import { erc20Abi, parseUnits, formatUnits, zeroAddress } from 'viem'
 import { toast } from 'sonner'
 import { getUsdc, getProtocolContractByName, buildTxExplorerUrl, ONCHAIN_CHAINS } from '@/onchain-facts'
@@ -56,7 +56,7 @@ const GATEWAY_MINTER_ABI = [
 
 // EIP-712 typed data for Gateway BurnIntent — MUST match exactly
 const BURN_INTENT_TYPED_DATA = {
-  domain: { name: 'GatewayWallet', version: '1' },
+  domain: { name: 'GatewayWallet', version: '1' } as const,
   types: {
     EIP712Domain: [
       { name: 'name',    type: 'string' },
@@ -83,7 +83,7 @@ const BURN_INTENT_TYPED_DATA = {
       { name: 'maxFee',         type: 'uint256' },
       { name: 'spec',           type: 'TransferSpec' },
     ],
-  },
+  } as const,
   primaryType: 'BurnIntent' as const,
 }
 
@@ -817,6 +817,7 @@ function TransferTab({ address, gatewayBalance, onSuccess }: {
 
   const { writeContract: doMint, data: mintHash } = useWriteContract()
   const { isSuccess: mintSuccess, isError: mintError } = useWaitForTransactionReceipt({ hash: mintHash })
+  const { signTypedDataAsync } = useSignTypedData()
 
   useEffect(() => {
     if (mintHash) setMintTxHash(mintHash) // eslint-disable-line react/set-state-in-effect
@@ -878,23 +879,12 @@ function TransferTab({ address, gatewayBalance, onSuccess }: {
         },
       }
 
-      // Sign EIP-712 burn intent using eth_signTypedData_v4 directly
-      const provider = (window as unknown as { ethereum?: { request: (a: unknown) => Promise<unknown> } }).ethereum
-      if (!provider) throw new Error('No wallet provider found')
-
-      const typedDataPayload = {
+      // Sign EIP-712 burn intent using wagmi signTypedDataAsync (bigints handled by viem)
+      // Matches Circle reference: sourceWalletClient.signTypedData({ ...typedData, message: burnIntent })
+      const signature = await signTypedDataAsync({
         ...BURN_INTENT_TYPED_DATA,
         message: burnIntent,
-      }
-      // Serialize with bigint support for the typed data payload
-      const typedDataStr = JSON.stringify(
-        typedDataPayload,
-        (_k, v: unknown) => typeof v === 'bigint' ? (v).toString() : v,
-      )
-      const signature = await provider.request({
-        method: 'eth_signTypedData_v4',
-        params: [address, typedDataStr],
-      }) as `0x${string}`
+      })
 
       setPhase('submitting')
       // EOA wallet — contractSigner: false
@@ -1050,6 +1040,21 @@ function CircleTransferTab({ address, gatewayBalance, onSuccess }: {
   const [errMsg, setErrMsg]           = useState('')
   const [mintTxHash, setMintTxHash]   = useState<string | undefined>()
   const circleTx = useCircleTransaction()
+  const { isConnected, address: wagmiAddress } = useAccount()
+  const { switchChainAsync } = useSwitchChain()
+  const { signTypedDataAsync } = useSignTypedData()
+  const { writeContract: doMint, data: mintHash } = useWriteContract()
+  const { isSuccess: mintSuccess, isError: mintError } = useWaitForTransactionReceipt({ hash: mintHash })
+
+  useEffect(() => {
+    if (mintHash) setMintTxHash(mintHash) // eslint-disable-line react/set-state-in-effect
+  }, [mintHash])
+  useEffect(() => {
+    if (mintSuccess) { setPhase('done'); toast.success(`Transferred ${amount} USDC to ${destChain?.name ?? 'destination'}`); setTimeout(onSuccess, 2000) } // eslint-disable-line react/set-state-in-effect
+  }, [mintSuccess]) // eslint-disable-line
+  useEffect(() => {
+    if (mintError) { setPhase('error'); setErrMsg('Mint transaction failed.') } // eslint-disable-line react/set-state-in-effect
+  }, [mintError]) // eslint-disable-line
 
   const gwBal     = gatewayBalance ? parseFloat(gatewayBalance) : 0
   const DEST_CHAINS = GATEWAY_CHAINS.filter(c => c.chainId !== ARC)
@@ -1074,6 +1079,17 @@ function CircleTransferTab({ address, gatewayBalance, onSuccess }: {
       // maxFee: 2.01 USDC in 6-decimal units per Circle reference (2_010000)
       const maxFee18 = 2_010000n
 
+      // For passkey users: sourceDepositor = SCA address, sourceSigner = connected EOA delegate.
+      // For W3S/UCW users: both = Circle wallet address (they sign directly).
+      if (isPasskey && (!isConnected || !wagmiAddress)) {
+        setErrMsg(
+          'Gateway transfers from passkey wallets require a connected EOA wallet (e.g. MetaMask) ' +
+          'to sign as a delegate. Please connect a wallet and try again.',
+        )
+        return
+      }
+      const signerAddress = (isPasskey ? wagmiAddress : address) as `0x${string}`
+
       const burnIntentSpec = {
         version:              1,
         sourceDomain:         srcDomain,
@@ -1084,7 +1100,7 @@ function CircleTransferTab({ address, gatewayBalance, onSuccess }: {
         destinationToken:     toBytes32(destChain.usdc.address as `0x${string}`),
         sourceDepositor:      toBytes32(address as `0x${string}`),
         destinationRecipient: toBytes32(address as `0x${string}`),
-        sourceSigner:         toBytes32(address as `0x${string}`),
+        sourceSigner:         toBytes32(signerAddress),
         destinationCaller:    toBytes32(zeroAddress),
         value:                parsed,
         salt:                 randomHex32(),
@@ -1099,105 +1115,27 @@ function CircleTransferTab({ address, gatewayBalance, onSuccess }: {
       let signature: `0x${string}`
 
       if (isPasskey) {
-        // ── Passkey path (SCA / ERC-1271) ─────────────────────────────────────
-        // Passkey users have no wagmi connector — all onchain calls go via the
-        // Circle modular SDK bundler. We create credential + account ONCE here
-        // and reuse them for both signing and the gatewayMint userOp.
-        const clientKey = import.meta.env.VITE_CLIENT_KEY as string | undefined
-        if (!clientKey) throw new Error('VITE_CLIENT_KEY not set — passkey transactions require a Circle Client Key.')
-
-        const { toWebAuthnAccount, createBundlerClient } = await import('viem/account-abstraction')
-        const { toCircleSmartAccount, toModularTransport, toWebAuthnCredential, WebAuthnMode, toPasskeyTransport } = await import('@circle-fin/modular-wallets-core')
-        const { createPublicClient, encodeFunctionData: encFn } = await import('viem')
-        const viemChains = await import('viem/chains')
-
-        const MODULAR_URL      = 'https://modular-sdk.circle.com/v1/rpc/w3s/buidl'
-        const passkeyTransport = toPasskeyTransport(MODULAR_URL, clientKey)
-
-        // chainId → Circle modular SDK camelCase slug
-        const MODULAR_SLUG_MAP: Record<number, string> = {
-          5042002:  'arcTestnet',
-          11155111: 'sepolia',
-          84532:    'baseSepolia',
-          421614:   'arbitrumSepolia',
-          43113:    'avalancheFuji',
-          80002:    'polygonAmoy',
-          11155420: 'optimismSepolia',
-          1301:     'unichainSepolia',
-        }
-        // chainId → viem chain object
-        const VIEM_CHAIN_MAP: Record<number, import('viem').Chain> = {
-          5042002:  viemChains.arcTestnet ?? { id: 5042002, name: 'Arc Testnet', nativeCurrency: { name: 'USDC', symbol: 'USDC', decimals: 18 }, rpcUrls: { default: { http: ['https://rpc.testnet.arc.io'] } } },
-          11155111: viemChains.sepolia,
-          84532:    viemChains.baseSepolia,
-          421614:   viemChains.arbitrumSepolia,
-          43113:    viemChains.avalancheFuji,
-          80002:    viemChains.polygonAmoy,
-          11155420: viemChains.optimismSepolia,
-          1301:     viemChains.unichainSepolia,
-        }
-
-        // ── Step 1: Sign BurnIntent on Arc using the passkey account ─────────
-        const arcSlug       = MODULAR_SLUG_MAP[ARC]
-        const arcTransport  = toModularTransport(`${MODULAR_URL}/${arcSlug}`, clientKey)
-        const arcClient     = createPublicClient({ chain: VIEM_CHAIN_MAP[ARC], transport: arcTransport })
-        // Single credential lookup — this is the only passkey prompt for signing
-        const credential    = await toWebAuthnCredential({ transport: passkeyTransport, mode: WebAuthnMode.Login })
-        const arcAccount    = await toCircleSmartAccount({ client: arcClient, owner: toWebAuthnAccount({ credential }) })
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
-        signature = await (arcAccount as any).signTypedData({
-          domain:      BURN_INTENT_TYPED_DATA.domain,
-          types:       { BurnIntent: BURN_INTENT_TYPED_DATA.types.BurnIntent, TransferSpec: BURN_INTENT_TYPED_DATA.types.TransferSpec },
-          primaryType: 'BurnIntent',
-          message:     burnIntent,
+        // Sign with the connected EOA wallet (delegate signer for the SCA depositor).
+        signature = await signTypedDataAsync({
+          ...BURN_INTENT_TYPED_DATA,
+          message: burnIntent,
         })
 
+        // ── gatewayMint via bundler ────────────────────────────────────────────
         setPhase('submitting')
         const { attestation, signature: mintSignature } = await submitBurnIntent(burnIntent, signature)
-
-        // ── Step 2: gatewayMint on dest chain via bundler (reuse same credential) ──
         setPhase('minting')
-        const destSlug      = MODULAR_SLUG_MAP[destChainId]
-        const destViemChain = VIEM_CHAIN_MAP[destChainId]
-        if (!destSlug || !destViemChain) throw new Error(`Unsupported destination chain: ${destChain?.name ?? destChainId}`)
 
-        const destTransport  = toModularTransport(`${MODULAR_URL}/${destSlug}`, clientKey)
-        const destClient     = createPublicClient({ chain: destViemChain, transport: destTransport })
-        // Reuse the same credential — no second passkey prompt for account lookup
-        const destAccount    = await toCircleSmartAccount({ client: destClient, owner: toWebAuthnAccount({ credential }) })
-        const bundlerClient  = createBundlerClient({ account: destAccount, chain: destViemChain, transport: destTransport })
-        const destMinterAddr = getProtocolContractByName('GatewayMinter', 'testnet')?.address ?? GATEWAY_MINTER
-
-        const mintCallData   = encFn({ abi: GATEWAY_MINTER_ABI, functionName: 'gatewayMint', args: [attestation, mintSignature] })
-        const factoryArgs    = await destAccount.getFactoryArgs()
-        const deployFields   = factoryArgs.factory ? { factory: factoryArgs.factory, factoryData: factoryArgs.factoryData } : {}
-
-        const isPaymasterErr = (e: unknown) => {
-          const m = (e as { code?: number; message?: string; shortMessage?: string } | undefined)
-          return m?.code === -32603 || /internal error|paymaster/i.test(m?.shortMessage ?? m?.message ?? '')
-        }
-        let uoh: `0x${string}`
-        try {
-          uoh = await bundlerClient.sendUserOperation({
-            account: destAccount,
-            calls: [{ to: destMinterAddr as `0x${string}`, data: mintCallData, value: 0n }],
-            paymaster: true,
-            ...deployFields,
-          })
-        } catch (pmErr: unknown) {
-          if (!isPaymasterErr(pmErr)) throw pmErr
-          uoh = await bundlerClient.sendUserOperation({
-            account: destAccount,
-            calls: [{ to: destMinterAddr as `0x${string}`, data: mintCallData, value: 0n }],
-            ...deployFields,
-          })
-        }
-        const receipt = await bundlerClient.waitForUserOperationReceipt({ hash: uoh })
-        setMintTxHash(receipt.receipt.transactionHash)
-        setPhase('done')
-        toast.success(`Transferred ${amount} USDC to ${destChain.name}`)
-        setTimeout(onSuccess, 2000)
-        return // passkey path complete
+        // gatewayMint on dest chain via wagmi (EOA wallet signed as delegate)
+        await switchChainAsync({ chainId: destChainId })
+        doMint({
+          address: GATEWAY_MINTER,
+          abi: GATEWAY_MINTER_ABI,
+          functionName: 'gatewayMint',
+          args: [attestation, mintSignature],
+          chainId: destChainId,
+        })
+        return // passkey path — mint is async via doMint/useWaitForTransactionReceipt
       } else {
         // ── W3S SDK path (Circle UCW — email / Google / PIN) ─────────────────
         // UCW wallets are SCAs. Use signTypedData (eth_signTypedData_v4) not
