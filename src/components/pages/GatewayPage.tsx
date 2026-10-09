@@ -1232,17 +1232,24 @@ function CircleTransferTab({ address, gatewayBalance, onSuccess }: {
       const { attestation, signature: mintSignature } = await submitBurnIntent(burnIntent, signature, false)
 
       setPhase('minting')
-      const { encodeFunctionData } = await import('viem')
-      const mintCallData = encodeFunctionData({
-        abi: GATEWAY_MINTER_ABI,
-        functionName: 'gatewayMint',
-        args: [attestation, mintSignature],
-      })
 
+      // W3S SDK / email path: UCW wallet lives on Arc only — use server relay for dest chain
       let txHash: string | undefined
-      const destMinter = getProtocolContractByName('GatewayMinter', 'testnet')?.address ?? GATEWAY_MINTER
-      const result2 = await circleTx.executeContract({ contractAddress: destMinter, callData: mintCallData })
-      txHash = result2 ?? undefined
+      const relayResp = await fetch('/api/wallet', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'ucw-gateway-mint',
+          attestation,
+          mintSignature,
+          destChainId: String(destChainId),
+        }),
+      })
+      const relayData = await relayResp.json() as { txHash?: string; error?: string }
+      if (!relayResp.ok || !relayData.txHash) {
+        throw new Error(relayData.error ?? `Relay failed (HTTP ${relayResp.status})`)
+      }
+      txHash = relayData.txHash
 
       setMintTxHash(txHash)
       setPhase('done')
