@@ -1264,6 +1264,7 @@ function AgentChat({ onNavigate }: { onNavigate?: (page: string, query?: string)
             } else {
               // Show confirmation card
               setPendingAction(parsed)
+              setTimeout(scrollToBottom, 50)
             }
           }
         }
