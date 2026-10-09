@@ -101,7 +101,9 @@ const GATEWAY_CHAINS = ONCHAIN_CHAINS.filter(c =>
   c.isTestnet && c.usdc && [5042002, 11155111, 84532, 421614, 43113, 80002, 11155420, 1301].includes(c.chainId)
 )
 
-// Domain IDs for testnet
+// Domain IDs for testnet — must match Circle's CCTP domain registry exactly.
+// Arbitrum Sepolia is domain 3 but has no cctpDomain in onchain-facts; add it here
+// so DOMAIN_MAP[421614] is never undefined when it is chosen as the destination.
 const DOMAIN_MAP: Record<number, number> = {
   11155111: 0,  // Ethereum Sepolia
   43113:    1,  // Avalanche Fuji
@@ -114,21 +116,19 @@ const DOMAIN_MAP: Record<number, number> = {
 }
 
 // ── Gateway REST API helpers ──────────────────────────────────────────────────
+// Circle Gateway testnet balance API: GET /v1/balance?depositor=<addr>&domain=<n>
+// Sum balance across all supported domains for this address.
 async function fetchGatewayBalance(address: string): Promise<string> {
-  // Query all supported domains for this depositor
-  const sources = Object.entries(DOMAIN_MAP).map(([, domain]) => ({
-    domain,
-    depositor: address,
-  }))
-  const res = await fetch(`${GATEWAY_API}/balances`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ token: 'USDC', sources }),
-  })
-  if (!res.ok) throw new Error(`Gateway balances API: ${res.status}`)
-  const data = await res.json() as { balances: { domain: number; depositor: string; balance: string }[] }
-  // Sum all domain balances
-  const total = data.balances.reduce((acc, b) => acc + parseFloat(b.balance || '0'), 0)
+  const domains = Object.values(DOMAIN_MAP)
+  const results = await Promise.allSettled(
+    domains.map(domain =>
+      fetch(`${GATEWAY_API}/balance?depositor=${address}&domain=${domain}`)
+        .then(r => r.ok ? r.json() as Promise<{ balance?: string }> : Promise.resolve({ balance: '0' }))
+        .then(d => parseFloat(d.balance ?? '0'))
+        .catch(() => 0)
+    )
+  )
+  const total = results.reduce((acc, r) => acc + (r.status === 'fulfilled' ? r.value : 0), 0)
   return total.toFixed(6)
 }
 
@@ -830,8 +830,9 @@ function TransferTab({ address, gatewayBalance, onSuccess }: {
   const destChain = GATEWAY_CHAINS.find(c => c.chainId === destChainId)
   const srcChain  = GATEWAY_CHAINS.find(c => c.chainId === ARC)
 
-  const { writeContract: doMint, data: mintHash } = useWriteContract()
-  const { isSuccess: mintSuccess, isError: mintError } = useWaitForTransactionReceipt({ hash: mintHash })
+  const { writeContract: doMint, data: mintHash, error: mintWriteError } = useWriteContract()
+  const { isSuccess: mintSuccess, isError: mintReceiptError } = useWaitForTransactionReceipt({ hash: mintHash })
+  const mintError = mintReceiptError || !!mintWriteError
   const { signTypedDataAsync } = useSignTypedData()
 
   useEffect(() => {
@@ -849,9 +850,13 @@ function TransferTab({ address, gatewayBalance, onSuccess }: {
   useEffect(() => {
     if (mintError) {
       setPhase('error') // eslint-disable-line react/set-state-in-effect
-      setErrMsg('Mint transaction failed. The attestation may have already been used.') // eslint-disable-line react/set-state-in-effect
+      // mintWriteError fires when the user rejects the prompt; mintReceiptError fires when the tx reverts
+      const msg = mintWriteError?.message?.includes('User rejected')
+        ? 'Wallet prompt rejected — click Transfer again to retry.'
+        : 'Mint transaction failed. The attestation may have already been used.'
+      setErrMsg(msg) // eslint-disable-line react/set-state-in-effect
     }
-  }, [mintError]) // eslint-disable-line
+  }, [mintError, mintWriteError]) // eslint-disable-line
 
   const handleTransfer = async () => {
     if (!address || !amount || parseFloat(amount) <= 0 || !destChain?.usdc || !srcChain?.usdc) return
@@ -901,15 +906,18 @@ function TransferTab({ address, gatewayBalance, onSuccess }: {
       setPhase('submitting')
       const { attestation, signature: mintSignature } = await submitBurnIntent(burnIntent, signature)
 
-      // Step 3: switch to dest chain and call gatewayMint
-      if (chainId !== undefined && chainId !== destChainId) await switchChainAsync({ chainId: destChainId })
+      // Step 3: switch to dest chain and call gatewayMint.
+      // Always switch — don't rely on the stale `chainId` closure value captured
+      // before the first switchChain call; switchChainAsync is idempotent when
+      // the wallet is already on the target chain.
+      await switchChainAsync({ chainId: destChainId })
       setPhase('minting')
       doMint({
         address:      GATEWAY_MINTER,
         abi:          GATEWAY_MINTER_ABI,
         functionName: 'gatewayMint',
         args:         [attestation, mintSignature],
-        // chainId omitted — wagmi uses the currently active chain after switchChain
+        chainId:      destChainId, // explicitly pin to dest chain after the switch
       })
     } catch (e: unknown) {
       setPhase('error')
@@ -1092,9 +1100,13 @@ function CircleTransferTab({ address, gatewayBalance, onSuccess }: {
         },
       }
 
-      // JSON string for Circle UCW signTypedData SDK — bigints become decimal strings
+      // JSON string for Circle UCW signTypedData SDK — bigints become decimal strings.
+      // EIP712Domain must NOT appear in the types object: it is derived automatically
+      // from the domain field. Including it causes the Circle SDK to reject with a
+      // schema validation error.
+      const { EIP712Domain: _drop, ...typesWithoutDomain } = BURN_INTENT_TYPED_DATA.types
       const typedDataStr = JSON.stringify(
-        { ...BURN_INTENT_TYPED_DATA, message: burnIntent },
+        { domain: BURN_INTENT_TYPED_DATA.domain, types: typesWithoutDomain, primaryType: BURN_INTENT_TYPED_DATA.primaryType, message: burnIntent },
         (_k, v: unknown) => typeof v === 'bigint' ? v.toString() : v,
       )
 
@@ -1119,11 +1131,13 @@ function CircleTransferTab({ address, gatewayBalance, onSuccess }: {
         const passkeyTransport = toPasskeyTransport(MODULAR_URL, clientKey)
         const credential    = await toWebAuthnCredential({ transport: passkeyTransport, mode: WebAuthnMode.Login })
         const arcAccount    = await toCircleSmartAccount({ client: arcClient, owner: toWebAuthnAccount({ credential }) })
+        // Pass only the application types — EIP712Domain must be absent; viem
+        // derives it automatically from the domain field and rejects if it is present.
         // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
         signature = await (arcAccount as any).signTypedData({
           domain:      BURN_INTENT_TYPED_DATA.domain,
-          types:       { BurnIntent: BURN_INTENT_TYPED_DATA.types.BurnIntent, TransferSpec: BURN_INTENT_TYPED_DATA.types.TransferSpec },
-          primaryType: 'BurnIntent',
+          types:       { BurnIntent: BURN_INTENT_TYPED_DATA.types.BurnIntent, TransferSpec: BURN_INTENT_TYPED_DATA.types.TransferSpec } as const,
+          primaryType: 'BurnIntent' as const,
           message:     burnIntent,
         })
 
@@ -1172,14 +1186,17 @@ function CircleTransferTab({ address, gatewayBalance, onSuccess }: {
         return
       } else {
         // ── W3S / Circle UCW path (email / Google) ────────────────────────────
-        // UCW wallets are EOA-backed — sign directly with signTypedData challenge.
+        // UCW wallets are SCA — sign with signTypedData challenge (eth_signTypedData_v4).
         const result = await circleTx.signTypedData(typedDataStr)
-        if (!result) throw new Error(circleTx.error ?? 'Signing cancelled')
+        if (!result) throw new Error(circleTx.error ?? 'Signing cancelled or signature not returned. Make sure VITE_CIRCLE_APP_ID is set and your Circle session is active.')
         signature = result as `0x${string}`
       }
 
       setPhase('submitting')
-      const { attestation, signature: mintSignature } = await submitBurnIntent(burnIntent, signature)
+      // UCW wallets are SCA (Smart Contract Accounts) — the Gateway API must
+      // validate the signature via ERC-1271, so contractSigner:true is required.
+      // Without it the API rejects with a signature verification error.
+      const { attestation, signature: mintSignature } = await submitBurnIntent(burnIntent, signature, true)
 
       setPhase('minting')
 
@@ -1189,10 +1206,18 @@ function CircleTransferTab({ address, gatewayBalance, onSuccess }: {
       const ucwWalletAddress = auth?.circleWalletAddress
       if (!ucwWalletAddress) throw new Error('Circle wallet address not found — please log in again')
 
+      // Use pre-encoded callData rather than abiFunctionSignature+abiParameters:
+      // the Circle UCW SDK ABI-encodes abiParameters server-side, which would
+      // double-encode the raw `bytes` hex values for attestation and mintSignature.
+      const { encodeFunctionData: encodeGatewayMint } = await import('viem')
+      const gatewayMintCallData = encodeGatewayMint({
+        abi: GATEWAY_MINTER_ABI,
+        functionName: 'gatewayMint',
+        args: [attestation, mintSignature],
+      })
       const txHash = await circleTx.executeContract({
         contractAddress: GATEWAY_MINTER,
-        abiFunctionSignature: 'gatewayMint(bytes,bytes)',
-        abiParameters: [attestation, mintSignature],
+        callData: gatewayMintCallData,
         blockchain: destScpBlockchain,
         walletAddress: ucwWalletAddress,
       })

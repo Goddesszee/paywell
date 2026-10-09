@@ -288,8 +288,16 @@ export function useCircleTransaction() {
             setStatus('error')
             resolve(undefined)
           } else {
+            // The W3S SDK wraps the signature differently across versions:
+            //   result.signature          — most common
+            //   result.result             — some SDK versions
+            //   result.data?.signature    — nested on some iOS SDK variants
             const anyResult = result as Record<string, unknown> | undefined
-            const sig = anyResult?.['signature'] as string ?? anyResult?.['result'] as string ?? undefined
+            const nested = anyResult?.['data'] as Record<string, unknown> | undefined
+            const sig = (anyResult?.['signature'] as string | undefined)
+              ?? (anyResult?.['result'] as string | undefined)
+              ?? (nested?.['signature'] as string | undefined)
+              ?? undefined
             setStatus('complete')
             resolve(sig)
           }
@@ -347,7 +355,11 @@ export function useCircleTransaction() {
             resolve(undefined)
           } else {
             const anyResult = result as Record<string, unknown> | undefined
-            const sig = anyResult?.['signature'] as string ?? anyResult?.['result'] as string ?? undefined
+            const nested = anyResult?.['data'] as Record<string, unknown> | undefined
+            const sig = (anyResult?.['signature'] as string | undefined)
+              ?? (anyResult?.['result'] as string | undefined)
+              ?? (nested?.['signature'] as string | undefined)
+              ?? undefined
             setStatus('complete')
             resolve(sig)
           }
