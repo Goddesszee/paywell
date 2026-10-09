@@ -1923,6 +1923,79 @@ app.post(['/api/circle-services', '/api/onramp-session'], async (req, res) => {
 const DIST = path.join(path.dirname(new URL(import.meta.url).pathname), '..', 'dist')
 app.use(express.static(DIST))
 // SPA fallback: any non-API route returns index.html
+// ── Gateway REST proxy ────────────────────────────────────────────────────────
+// Mirrors api/gateway-proxy.ts (Vercel) for the local Express dev server.
+// Passkey transfer path in GatewayPage.tsx calls /api/gateway-proxy to avoid CORS.
+const GATEWAY_API_BASE = 'https://gateway-api-testnet.circle.com/v1'
+const gwBigintReplacer = (_k: string, v: unknown): unknown =>
+  typeof v === 'bigint' ? v.toString() : v
+
+app.post('/api/gateway-proxy', async (req, res) => {
+  const action = (req.query.action ?? '') as string
+
+  if (action === 'gateway-transfer') {
+    const { items, enableForwarder } = req.body as { items?: unknown[]; enableForwarder?: boolean }
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      res.status(400).json({ error: 'items array required' }); return
+    }
+    const url = enableForwarder
+      ? `${GATEWAY_API_BASE}/transfer?enableForwarder=true`
+      : `${GATEWAY_API_BASE}/transfer`
+    try {
+      const gwRes = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(items, gwBigintReplacer),
+      })
+      const text = await gwRes.text()
+      res.setHeader('content-type', 'application/json')
+      res.status(gwRes.status).send(text)
+    } catch (e) {
+      res.status(500).json({ error: e instanceof Error ? e.message : 'Gateway transfer failed' })
+    }
+    return
+  }
+
+  if (action === 'gateway-poll') {
+    const { transferId } = req.body as { transferId?: string }
+    if (!transferId) { res.status(400).json({ error: 'transferId required' }); return }
+    try {
+      const pollRes = await fetch(`${GATEWAY_API_BASE}/transfer/${transferId}`)
+      const text = await pollRes.text()
+      res.setHeader('content-type', 'application/json')
+      res.status(pollRes.status).send(text)
+    } catch (e) {
+      res.status(500).json({ error: e instanceof Error ? e.message : 'Gateway poll failed' })
+    }
+    return
+  }
+
+  if (action === 'gateway-estimate') {
+    const { items, enableForwarder } = req.body as { items?: unknown[]; enableForwarder?: boolean }
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      res.status(400).json({ error: 'items array required' }); return
+    }
+    const url = enableForwarder
+      ? `${GATEWAY_API_BASE}/estimate?enableForwarder=true`
+      : `${GATEWAY_API_BASE}/estimate`
+    try {
+      const gwRes = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(items, gwBigintReplacer),
+      })
+      const text = await gwRes.text()
+      res.setHeader('content-type', 'application/json')
+      res.status(gwRes.status).send(text)
+    } catch (e) {
+      res.status(500).json({ error: e instanceof Error ? e.message : 'Gateway estimate failed' })
+    }
+    return
+  }
+
+  res.status(400).json({ error: 'action param required: gateway-transfer | gateway-poll | gateway-estimate' })
+})
+
 app.get(/^(?!\/api).*$/, (_req, res) => {
   res.sendFile(path.join(DIST, 'index.html'))
 })
