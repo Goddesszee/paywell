@@ -6,30 +6,30 @@
 /* ── Color tokens ── */
 :root {
   /* Core brand */
-  --nan-bg:       #08090B;
-  --nan-surface:  #111318;
-  --nan-surface2: #181B22;
-  --nan-surface3: #1E2230;
-  --nan-blue:     #0066FF;
-  --nan-blue-dim: rgba(0,102,255,0.12);
-  --nan-blue-bd:  rgba(0,102,255,0.22);
+  --nan-bg:       #0B0D12;
+  --nan-surface:  #171A21;
+  --nan-surface2: #1D2029;
+  --nan-surface3: #232731;
+  --nan-blue:     #0866F5;
+  --nan-blue-dim: rgba(8,102,245,0.12);
+  --nan-blue-bd:  rgba(8,102,245,0.24);
 
   /* Text */
-  --nan-text:   #FFFFFF;
-  --nan-text2:  #8A8F9E;
-  --nan-text3:  #50556A;
+  --nan-text:   #F5F7FB;
+  --nan-text2:  #A0A7B5;
+  --nan-text3:  #5A6175;
 
   /* Borders */
   --nan-bdr:    rgba(255,255,255,0.07);
   --nan-bdr2:   rgba(255,255,255,0.12);
 
   /* Semantic */
-  --nan-green:  #00C853;
-  --nan-red:    #FF4444;
-  --nan-gold:   #F0A500;
-  --nan-green-dim: rgba(0,200,83,0.10);
-  --nan-red-dim:   rgba(255,68,68,0.10);
-  --nan-gold-dim:  rgba(240,165,0,0.10);
+  --nan-green:  #10B981;
+  --nan-red:    #EF4444;
+  --nan-gold:   #F59E0B;
+  --nan-green-dim: rgba(16,185,129,0.10);
+  --nan-red-dim:   rgba(239,68,68,0.10);
+  --nan-gold-dim:  rgba(245,158,11,0.10);
 
   /* Font */
   --nan-font: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
@@ -46,22 +46,22 @@
 [data-theme="light"] {
   --nan-bg:        #F4F6FA;
   --nan-surface:   #FFFFFF;
-  --nan-surface2:  #F0F2F7;
-  --nan-surface3:  #E8EBF2;
-  --nan-blue:      #0066FF;
-  --nan-blue-dim:  rgba(0,102,255,0.08);
-  --nan-blue-bd:   rgba(0,102,255,0.18);
+  --nan-surface2:  #EEF1F7;
+  --nan-surface3:  #E5E9F2;
+  --nan-blue:      #0866F5;
+  --nan-blue-dim:  rgba(8,102,245,0.08);
+  --nan-blue-bd:   rgba(8,102,245,0.18);
   --nan-text:      #0A0C14;
   --nan-text2:     #4A5068;
   --nan-text3:     #8A8FA8;
   --nan-bdr:       rgba(0,0,0,0.07);
   --nan-bdr2:      rgba(0,0,0,0.13);
-  --nan-green:     #00A844;
-  --nan-red:       #E53535;
-  --nan-gold:      #C87800;
-  --nan-green-dim: rgba(0,168,68,0.09);
-  --nan-red-dim:   rgba(229,53,53,0.09);
-  --nan-gold-dim:  rgba(200,120,0,0.09);
+  --nan-green:     #059669;
+  --nan-red:       #DC2626;
+  --nan-gold:      #D97706;
+  --nan-green-dim: rgba(5,150,105,0.09);
+  --nan-red-dim:   rgba(220,38,38,0.09);
+  --nan-gold-dim:  rgba(217,119,6,0.09);
 }
 
 /* Light mode — force app shell chrome to use CSS vars */
@@ -256,13 +256,13 @@ input, select, textarea {
 }
 .nan-btn:active { transform: scale(0.97); }
 .nan-btn:disabled { opacity: 0.38; cursor: not-allowed; pointer-events: none; }
-.nan-btn-primary  { background: var(--nan-blue); color: #fff; }
-.nan-btn-primary:hover  { background: #0052CC; }
+.nan-btn-primary  { background: var(--nan-blue); color: #fff; box-shadow: 0 2px 12px rgba(8,102,245,0.28); }
+.nan-btn-primary:hover  { background: #0555D4; box-shadow: 0 4px 20px rgba(8,102,245,0.38); }
 .nan-btn-secondary { background: var(--nan-surface2); color: var(--nan-text); border: 1px solid var(--nan-bdr2); }
-.nan-btn-secondary:hover { background: var(--nan-surface3); }
+.nan-btn-secondary:hover { background: var(--nan-surface3); border-color: rgba(255,255,255,0.18); }
 .nan-btn-ghost { background: transparent; color: var(--nan-text2); border: 1px solid var(--nan-bdr); }
-.nan-btn-ghost:hover { border-color: var(--nan-bdr2); color: var(--nan-text); }
-.nan-btn-danger { background: rgba(255,68,68,0.10); color: var(--nan-red); border: 1px solid rgba(255,68,68,0.20); }
+.nan-btn-ghost:hover { border-color: var(--nan-bdr2); color: var(--nan-text); background: var(--nan-surface); }
+.nan-btn-danger { background: rgba(239,68,68,0.10); color: var(--nan-red); border: 1px solid rgba(239,68,68,0.22); }
 .nan-btn-sm { height: 36px; font-size: 13px; padding: 0 14px; border-radius: var(--nan-r-sm); }
 .nan-btn-lg { height: 56px; font-size: 16px; border-radius: var(--nan-r-lg); }
 .nan-btn-full { width: 100%; }
