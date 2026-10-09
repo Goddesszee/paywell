@@ -135,14 +135,17 @@ async function fetchGatewayBalance(address: string): Promise<string> {
 
 /**
  * Submit a burn intent to the Gateway API and return attestation + signature.
- * Body is an array of { burnIntent, signature } per the Circle reference.
+ * Body is an array of { burnIntent, signature, contractSigner? } per the Circle reference.
+ * Pass contractSigner=true for SCA/ERC-1271 signers (passkey, modular wallets).
  * bigints are serialised as decimal strings via the JSON replacer.
  */
 async function submitBurnIntent(
   burnIntent: unknown,
   signature: string,
+  contractSigner = false,
 ): Promise<{ attestation: `0x${string}`; signature: `0x${string}` }> {
   const item: Record<string, unknown> = { burnIntent, signature }
+  if (contractSigner) item.contractSigner = true
 
   const res = await fetch(`${GATEWAY_API}/transfer`, {
     method: 'POST',
@@ -1037,21 +1040,7 @@ function CircleTransferTab({ address, gatewayBalance, onSuccess }: {
   const [errMsg, setErrMsg]           = useState('')
   const [mintTxHash, setMintTxHash]   = useState<string | undefined>()
   const circleTx = useCircleTransaction()
-  const { isConnected, address: wagmiAddress } = useAccount()
-  const { switchChainAsync } = useSwitchChain()
-  const { signTypedDataAsync } = useSignTypedData()
-  const { writeContract: doMint, data: mintHash } = useWriteContract()
-  const { isSuccess: mintSuccess, isError: mintError } = useWaitForTransactionReceipt({ hash: mintHash })
 
-  useEffect(() => {
-    if (mintHash) setMintTxHash(mintHash) // eslint-disable-line react/set-state-in-effect
-  }, [mintHash])
-  useEffect(() => {
-    if (mintSuccess) { setPhase('done'); toast.success(`Transferred ${amount} USDC to ${destChain?.name ?? 'destination'}`); setTimeout(onSuccess, 2000) } // eslint-disable-line react/set-state-in-effect
-  }, [mintSuccess]) // eslint-disable-line
-  useEffect(() => {
-    if (mintError) { setPhase('error'); setErrMsg('Mint transaction failed.') } // eslint-disable-line react/set-state-in-effect
-  }, [mintError]) // eslint-disable-line
 
   const gwBal     = gatewayBalance ? parseFloat(gatewayBalance) : 0
   const DEST_CHAINS = GATEWAY_CHAINS.filter(c => c.chainId !== ARC)
@@ -1099,52 +1088,96 @@ function CircleTransferTab({ address, gatewayBalance, onSuccess }: {
       )
 
       let signature: `0x${string}`
-      let finalBurnIntent: typeof burnIntent
 
       if (isPasskey) {
-        // Passkey path: passkey SCA is the depositor; connected EOA wallet signs as delegate.
-        if (!isConnected || !wagmiAddress) {
-          setErrMsg('Please also connect a MetaMask/injected wallet to sign Gateway transfers from a passkey account.')
-          setPhase('error')
-          return
+        // ── Passkey path (Circle Modular Wallet / SCA) ────────────────────────
+        // Gateway supports ERC-1271 contract signatures — no delegate EOA needed.
+        // The SCA signs with its passkey; we pass contractSigner:true to the API.
+        // Per Circle docs: "The SCA authorizes the transfer with its own signature —
+        // no delegate EOA required." (gateway/howtos/transfer-with-erc-1271)
+        const clientKey = import.meta.env.VITE_CLIENT_KEY as string | undefined
+        if (!clientKey) throw new Error('VITE_CLIENT_KEY not set')
+        const { toWebAuthnAccount } = await import('viem/account-abstraction')
+        const { toCircleSmartAccount, toModularTransport, toWebAuthnCredential, WebAuthnMode, toPasskeyTransport } = await import('@circle-fin/modular-wallets-core')
+        const { createPublicClient: mkPublic } = await import('viem')
+        const viemChains = await import('viem/chains')
+        const MODULAR_URL = 'https://modular-sdk.circle.com/v1/rpc/w3s/buidl'
+        const arcChain = viemChains.arcTestnet ?? { id: ARC, name: 'Arc Testnet', nativeCurrency: { name: 'USDC', symbol: 'USDC', decimals: 18 }, rpcUrls: { default: { http: ['https://rpc.testnet.arc.io'] } } }
+        const arcTransport  = toModularTransport(`${MODULAR_URL}/arcTestnet`, clientKey)
+        const arcClient     = mkPublic({ chain: arcChain, transport: arcTransport })
+        const passkeyTransport = toPasskeyTransport(MODULAR_URL, clientKey)
+        const credential    = await toWebAuthnCredential({ transport: passkeyTransport, mode: WebAuthnMode.Login })
+        const arcAccount    = await toCircleSmartAccount({ client: arcClient, owner: toWebAuthnAccount({ credential }) })
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
+        signature = await (arcAccount as any).signTypedData({
+          domain:      BURN_INTENT_TYPED_DATA.domain,
+          types:       { BurnIntent: BURN_INTENT_TYPED_DATA.types.BurnIntent, TransferSpec: BURN_INTENT_TYPED_DATA.types.TransferSpec },
+          primaryType: 'BurnIntent',
+          message:     burnIntent,
+        })
+
+        setPhase('submitting')
+        // contractSigner:true → Gateway validates via ERC-1271 on sourceSigner (the SCA)
+        const { attestation, signature: mintSignature } = await submitBurnIntent(burnIntent, signature, true)
+
+        // Mint: use bundler on dest chain (reuse credential, no second passkey prompt)
+        setPhase('minting')
+        const MODULAR_SLUG_MAP: Record<number, string> = {
+          5042002: 'arcTestnet', 11155111: 'sepolia', 84532: 'baseSepolia',
+          421614: 'arbitrumSepolia', 43113: 'avalancheFuji', 80002: 'polygonAmoy',
+          11155420: 'optimismSepolia', 1301: 'unichainSepolia',
         }
-        // Rebuild with EOA as sourceSigner (SCA stays as depositor/recipient)
-        finalBurnIntent = { ...burnIntent, spec: { ...burnIntent.spec, sourceSigner: toBytes32(wagmiAddress) } }
-        signature = await signTypedDataAsync({ ...BURN_INTENT_TYPED_DATA, message: finalBurnIntent })
+        const VIEM_CHAIN_MAP: Record<number, import('viem').Chain> = {
+          5042002: arcChain, 11155111: viemChains.sepolia, 84532: viemChains.baseSepolia,
+          421614: viemChains.arbitrumSepolia, 43113: viemChains.avalancheFuji,
+          80002: viemChains.polygonAmoy, 11155420: viemChains.optimismSepolia,
+          1301: viemChains.unichainSepolia,
+        }
+        const destSlug = MODULAR_SLUG_MAP[destChainId]
+        const destViemChain = VIEM_CHAIN_MAP[destChainId]
+        if (!destSlug || !destViemChain) throw new Error(`Unsupported destination chain: ${destChain?.name ?? destChainId}`)
+        const { createBundlerClient } = await import('viem/account-abstraction')
+        const { encodeFunctionData: encFn } = await import('viem')
+        const destTransport = toModularTransport(`${MODULAR_URL}/${destSlug}`, clientKey)
+        const destClient    = mkPublic({ chain: destViemChain, transport: destTransport })
+        const destAccount   = await toCircleSmartAccount({ client: destClient, owner: toWebAuthnAccount({ credential }) })
+        const bundler       = createBundlerClient({ account: destAccount, chain: destViemChain, transport: destTransport })
+        const mintData       = encFn({ abi: GATEWAY_MINTER_ABI, functionName: 'gatewayMint', args: [attestation, mintSignature] })
+        const factoryArgs   = await destAccount.getFactoryArgs()
+        const deployFields  = factoryArgs.factory ? { factory: factoryArgs.factory, factoryData: factoryArgs.factoryData } : {}
+        const isPaymasterErr = (e: unknown) => /paymaster|internal error/i.test((e as { message?: string })?.message ?? '')
+        let uoh: `0x${string}`
+        try {
+          uoh = await bundler.sendUserOperation({ account: destAccount, calls: [{ to: GATEWAY_MINTER, data: mintData, value: 0n }], paymaster: true, ...deployFields })
+        } catch (pmErr) {
+          if (!isPaymasterErr(pmErr)) throw pmErr
+          uoh = await bundler.sendUserOperation({ account: destAccount, calls: [{ to: GATEWAY_MINTER, data: mintData, value: 0n }], ...deployFields })
+        }
+        const receipt = await bundler.waitForUserOperationReceipt({ hash: uoh })
+        setMintTxHash(receipt.receipt.transactionHash)
+        setPhase('done')
+        toast.success(`Transferred ${amount} USDC to ${destChain?.name}`)
+        setTimeout(onSuccess, 2000)
+        return
       } else {
-        // W3S / Circle UCW path: use Circle's signTypedData challenge (eth_signTypedData_v4)
-        finalBurnIntent = burnIntent
+        // ── W3S / Circle UCW path (email / Google) ────────────────────────────
+        // UCW wallets are EOA-backed — sign directly with signTypedData challenge.
         const result = await circleTx.signTypedData(typedDataStr)
         if (!result) throw new Error(circleTx.error ?? 'Signing cancelled')
         signature = result as `0x${string}`
       }
 
       setPhase('submitting')
-      const { attestation, signature: mintSignature } = await submitBurnIntent(finalBurnIntent, signature)
+      const { attestation, signature: mintSignature } = await submitBurnIntent(burnIntent, signature)
 
       setPhase('minting')
 
-      // Mint on destination chain via Circle UCW (createContractExecutionTransaction)
-      // walletAddress + blockchain targets the dest chain, not walletId (which is Arc-only)
+      // UCW path mint: Circle UCW executes gatewayMint on destination chain directly
       const destScpBlockchain = destChain.scpBlockchain
       if (!destScpBlockchain) throw new Error(`No SCP blockchain ID for ${destChain.name}`)
       const ucwWalletAddress = auth?.circleWalletAddress
       if (!ucwWalletAddress) throw new Error('Circle wallet address not found — please log in again')
 
-      if (isPasskey) {
-        // Passkey path mint: use connected wagmi wallet (same EOA that signed)
-        await switchChainAsync({ chainId: destChainId })
-        doMint({
-          address: GATEWAY_MINTER,
-          abi: GATEWAY_MINTER_ABI,
-          functionName: 'gatewayMint',
-          args: [attestation, mintSignature],
-          chainId: destChainId,
-        })
-        return // async — useWaitForTransactionReceipt handles done/error
-      }
-
-      // UCW path mint: Circle executes on destination chain
       const txHash = await circleTx.executeContract({
         contractAddress: GATEWAY_MINTER,
         abiFunctionSignature: 'gatewayMint(bytes,bytes)',
