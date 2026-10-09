@@ -1,11 +1,15 @@
 /**
  * /api/misc — consolidated miscellaneous handler
- * Merges activity-feed, agent-registry, and faucet to stay under Vercel Hobby's 12-function limit.
+ * Merges activity-feed, agent-registry, faucet, and gateway-proxy to stay under
+ * Vercel Hobby's 12-function limit.
  *
  * Routes:
- *   GET  ?route=activity-feed&address=0x…   returns empty tx list (activity from onchain getLogs)
- *   GET  ?route=agent-registry               returns the SERVICE_REGISTRY list
- *   POST ?route=faucet  { address }          drips testnet USDC via Circle faucet
+ *   GET  ?route=activity-feed&address=0x…      returns empty tx list (activity from onchain getLogs)
+ *   GET  ?route=agent-registry                  returns the SERVICE_REGISTRY list
+ *   POST ?route=faucet  { address }             drips testnet USDC via Circle faucet
+ *   POST ?route=gateway&action=modular-rpc      proxies modular SDK JSON-RPC call
+ *   POST ?route=gateway&action=gateway-transfer submits a Gateway burn intent
+ *   POST ?route=gateway&action=gateway-poll     polls a Gateway transfer
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { isAddress } from 'viem'
@@ -91,6 +95,53 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Faucet request error'
       return res.status(500).json({ error: 'faucet_request_failed', message })
+    }
+  }
+
+  // ── POST gateway proxy ─────────────────────────────────────────────────────
+  if (route === 'gateway') {
+    if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+
+    const GATEWAY_API = 'https://gateway-api-testnet.circle.com/v1'
+    const MODULAR_SDK = 'https://modular-sdk.circle.com/v1/rpc/w3s/buidl'
+    const action = req.query.action as string | undefined
+
+    try {
+      if (action === 'modular-rpc') {
+        const { chain, clientKey, body } = req.body as { chain: string; clientKey: string; body: unknown }
+        if (!chain || !clientKey || !body) return res.status(400).json({ error: 'chain, clientKey, and body are required' })
+        const upstream = await fetch(`${MODULAR_SDK}/${chain}?clientKey=${encodeURIComponent(clientKey)}`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+        })
+        const text = await upstream.text()
+        return res.status(upstream.status).setHeader('Content-Type', 'application/json').send(text)
+      }
+
+      if (action === 'gateway-transfer') {
+        const { items, enableForwarder } = req.body as { items: unknown[]; enableForwarder?: boolean }
+        if (!items?.length) return res.status(400).json({ error: 'items array required' })
+        const url = enableForwarder ? `${GATEWAY_API}/transfer?enableForwarder=true` : `${GATEWAY_API}/transfer`
+        const upstream = await fetch(url, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(items),
+        })
+        if (!upstream.ok) {
+          const text = await upstream.text()
+          return res.status(upstream.status).json({ error: `Gateway API ${upstream.status}: ${text}` })
+        }
+        return res.status(200).json(await upstream.json())
+      }
+
+      if (action === 'gateway-poll') {
+        const { transferId } = req.body as { transferId: string }
+        if (!transferId) return res.status(400).json({ error: 'transferId required' })
+        const upstream = await fetch(`${GATEWAY_API}/transfer/${transferId}`)
+        if (!upstream.ok) return res.status(upstream.status).json({ error: 'poll failed' })
+        return res.status(200).json(await upstream.json())
+      }
+
+      return res.status(400).json({ error: `Unknown gateway action: ${String(action)}` })
+    } catch (e: unknown) {
+      return res.status(500).json({ error: e instanceof Error ? e.message : 'Internal error' })
     }
   }
 

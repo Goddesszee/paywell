@@ -104,7 +104,7 @@ export async function getWallet(email: string, sessionToken: string): Promise<Wa
   const data = await apiPost<{
     wallet: { id: string; address: string }
     balances: Array<{ symbol: string; amount: string }>
-  }>('/api/circle-wallets', { action: 'getWallet', email }, sessionToken)
+  }>('/api/circle-services?service=wallets', { action: 'getWallet', email }, sessionToken)
   return {
     usdc: data.balances?.find((b) => b.symbol === 'USDC')?.amount ?? '0.00',
     eurc: data.balances?.find((b) => b.symbol === 'EURC')?.amount ?? '0.00',
@@ -117,7 +117,7 @@ export async function sendUsdc(
   email: string, sessionToken: string,
   to: string, amount: string, token: 'USDC' | 'EURC' = 'USDC',
 ): Promise<{ txId: string; txHash?: string }> {
-  return apiPost('/api/circle-wallets', { action: 'transfer', email, to, amount, tokenSymbol: token }, sessionToken)
+  return apiPost('/api/circle-services?service=wallets', { action: 'transfer', email, to, amount, tokenSymbol: token }, sessionToken)
 }
 
 // ── Activity ───────────────────────────────────────────────────────────────────
