@@ -150,11 +150,13 @@ async function submitBurnIntent(
   burnIntent: unknown,
   signature: string,
   contractSigner = false,
-): Promise<{ attestation: `0x${string}`; signature: `0x${string}` }> {
+  enableForwarder = false,
+): Promise<{ attestation: `0x${string}` | null; signature: `0x${string}` | null; transferId?: string }> {
   const item: Record<string, unknown> = { burnIntent, signature }
   if (contractSigner) item.contractSigner = true
 
-  const res = await fetch(`${GATEWAY_API}/transfer`, {
+  const url = enableForwarder ? `${GATEWAY_API}/transfer?enableForwarder=true` : `${GATEWAY_API}/transfer`
+  const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(
@@ -169,26 +171,34 @@ async function submitBurnIntent(
     transferId?: string
   }
 
-  // Inline response (non-forwarded)
+  // Inline response (non-forwarded): attestation + signature at top level
   if (json.attestation && json.signature) {
-    return { attestation: json.attestation, signature: json.signature }
+    return { attestation: json.attestation, signature: json.signature, transferId: json.transferId }
   }
 
-  // Forwarded response — poll GET /v1/transfer/{id}
+  // Forwarding Service or async response — poll GET /v1/transfer/{id}.
+  // When enableForwarder=true Circle mints on the destination chain; the caller
+  // should treat attestation=null as "forwarded, no manual mint needed".
   const transferId = json.transferId
   if (!transferId) throw new Error('Gateway API returned no attestation and no transferId')
 
-  const deadline = Date.now() + 60_000
+  const deadline = Date.now() + 90_000
   while (Date.now() < deadline) {
     await new Promise(r => setTimeout(r, 2000))
     const poll = await fetch(`${GATEWAY_API}/transfer/${transferId}`)
     if (!poll.ok) continue
     const record = await poll.json() as {
+      status?: string
       attestation?: { payload?: `0x${string}`; signature?: `0x${string}` }
     }
+    // Forwarded: once status is COMPLETE, mint happened server-side
+    if (record.status === 'COMPLETE') {
+      return { attestation: null, signature: null, transferId }
+    }
+    // Non-forwarded async: attestation arrives in the record
     const att = record.attestation
     if (att?.payload && att?.signature) {
-      return { attestation: att.payload, signature: att.signature }
+      return { attestation: att.payload, signature: att.signature, transferId }
     }
   }
   throw new Error('Timed out waiting for Gateway attestation')
@@ -890,7 +900,9 @@ function TransferTab({ address, gatewayBalance, onSuccess }: {
 
       const burnIntent = {
         maxBlockHeight: 2n ** 256n - 1n,
-        maxFee: 2_010000n,
+        // 7.06 USDC covers: ~0.01 gas + 0.05 forwarder service + ~0.01 forwarder gas
+        // + transfer_fee (amount * 0.00005). Headroom for up to 25 USDC transfers.
+        maxFee: 7_060000n,
         spec: {
           version:              1,
           sourceDomain:         srcDomain,
@@ -931,7 +943,8 @@ function TransferTab({ address, gatewayBalance, onSuccess }: {
         address:      GATEWAY_MINTER,
         abi:          GATEWAY_MINTER_ABI,
         functionName: 'gatewayMint',
-        args:         [attestation, mintSignature],
+        // attestation and mintSignature are non-null when enableForwarder=false (wagmi path)
+        args:         [attestation!, mintSignature!],
         chainId:      destChainId, // explicitly pin to dest chain after the switch
       })
     } catch (e: unknown) {
@@ -1096,7 +1109,7 @@ function CircleTransferTab({ address, gatewayBalance, onSuccess }: {
       // For the UCW/Circle path we serialise to JSON string with bigint→string replacer.
       const burnIntent = {
         maxBlockHeight: 2n ** 256n - 1n,
-        maxFee: 2_010000n,
+        maxFee: 7_060000n, // covers forwarder fee (0.05) + gas (~0.01) + transfer fee
         spec: {
           version:              1,
           sourceDomain:         srcDomain,
@@ -1157,46 +1170,23 @@ function CircleTransferTab({ address, gatewayBalance, onSuccess }: {
         })
 
         setPhase('submitting')
-        // contractSigner:true → Gateway validates via ERC-1271 on sourceSigner (the SCA)
-        const { attestation, signature: mintSignature } = await submitBurnIntent(burnIntent, signature, true)
+        // Use Forwarding Service (enableForwarder=true): Circle mints on the dest chain
+        // automatically — no dest-chain wallet, no bundler, no SCA deployment needed.
+        // contractSigner:true → Gateway validates ERC-1271 on the Arc SCA (already deployed).
+        const { transferId } = await submitBurnIntent(burnIntent, signature, true, true)
 
-        // Mint: use bundler on dest chain (reuse credential, no second passkey prompt)
+        // Forwarding Service handles the mint. Poll until COMPLETE.
         setPhase('minting')
-        const MODULAR_SLUG_MAP: Record<number, string> = {
-          5042002: 'arcTestnet', 11155111: 'sepolia', 84532: 'baseSepolia',
-          421614: 'arbitrumSepolia', 43113: 'avalancheFuji', 80002: 'polygonAmoy',
-          11155420: 'optimismSepolia', 1301: 'unichainSepolia',
+        if (transferId) {
+          const deadline = Date.now() + 90_000
+          while (Date.now() < deadline) {
+            await new Promise(r => setTimeout(r, 2500))
+            const poll = await fetch(`${GATEWAY_API}/transfer/${transferId}`)
+            if (!poll.ok) continue
+            const rec = await poll.json() as { status?: string }
+            if (rec.status === 'COMPLETE') break
+          }
         }
-        const VIEM_CHAIN_MAP: Record<number, import('viem').Chain> = {
-          5042002: arcChain, 11155111: viemChains.sepolia, 84532: viemChains.baseSepolia,
-          421614: viemChains.arbitrumSepolia, 43113: viemChains.avalancheFuji,
-          80002: viemChains.polygonAmoy, 11155420: viemChains.optimismSepolia,
-          1301: viemChains.unichainSepolia,
-        }
-        const destSlug = MODULAR_SLUG_MAP[destChainId]
-        const destViemChain = VIEM_CHAIN_MAP[destChainId]
-        if (!destSlug || !destViemChain) throw new Error(`Unsupported destination chain: ${destChain?.name ?? destChainId}`)
-        const { createBundlerClient } = await import('viem/account-abstraction')
-        const { encodeFunctionData: encFn } = await import('viem')
-        const destTransport = toModularTransport(`${MODULAR_URL}/${destSlug}`, clientKey)
-        const destClient    = mkPublic({ chain: destViemChain, transport: destTransport })
-        const destAccount   = await toCircleSmartAccount({ client: destClient, owner: toWebAuthnAccount({ credential }) })
-        const bundler       = createBundlerClient({ account: destAccount, chain: destViemChain, transport: destTransport })
-        const mintData = encFn({ abi: GATEWAY_MINTER_ABI, functionName: 'gatewayMint', args: [attestation, mintSignature] })
-        // Do NOT manually spread factory/factoryData — toCircleSmartAccount embeds the
-        // factory into the account object; the bundler reads it automatically when the
-        // account is not yet deployed on the destination chain. Passing factory at the
-        // top level of sendUserOperation causes "Missing or invalid factory" errors.
-        const isPaymasterErr = (e: unknown) => /paymaster|internal error/i.test((e as { message?: string })?.message ?? '')
-        let uoh: `0x${string}`
-        try {
-          uoh = await bundler.sendUserOperation({ account: destAccount, calls: [{ to: GATEWAY_MINTER, data: mintData, value: 0n }], paymaster: true })
-        } catch (pmErr) {
-          if (!isPaymasterErr(pmErr)) throw pmErr
-          uoh = await bundler.sendUserOperation({ account: destAccount, calls: [{ to: GATEWAY_MINTER, data: mintData, value: 0n }] })
-        }
-        const receipt = await bundler.waitForUserOperationReceipt({ hash: uoh })
-        setMintTxHash(receipt.receipt.transactionHash)
         setPhase('done')
         toast.success(`Transferred ${amount} USDC to ${destChain?.name}`)
         setTimeout(onSuccess, 2000)
@@ -1227,10 +1217,11 @@ function CircleTransferTab({ address, gatewayBalance, onSuccess }: {
       // the Circle UCW SDK ABI-encodes abiParameters server-side, which would
       // double-encode the raw `bytes` hex values for attestation and mintSignature.
       const { encodeFunctionData: encodeGatewayMint } = await import('viem')
+      // attestation and mintSignature are non-null when enableForwarder=false (UCW path)
       const gatewayMintCallData = encodeGatewayMint({
         abi: GATEWAY_MINTER_ABI,
         functionName: 'gatewayMint',
-        args: [attestation, mintSignature],
+        args: [attestation!, mintSignature!],
       })
       const txHash = await circleTx.executeContract({
         contractAddress: GATEWAY_MINTER,
