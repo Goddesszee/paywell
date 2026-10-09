@@ -8,7 +8,7 @@ import {
   ArrowUpRight, ExternalLink, Copy, Check,
   Wallet, Smartphone,
 } from 'lucide-react'
-import { useWriteContract, useWaitForTransactionReceipt, useAccount } from 'wagmi'
+import { useWriteContract, useWaitForTransactionReceipt, useAccount, useChainId, useSwitchChain } from 'wagmi'
 import { erc20Abi, isAddress } from 'viem'
 import { ConnectKitButton } from 'connectkit'
 import { QRCodeSVG } from 'qrcode.react'
@@ -98,11 +98,15 @@ function WalletPanel({
   onSuccess: (txHash: string) => void
 }) {
   const { address, isConnected } = useAccount()
+  const chainId = useChainId()
+  const { switchChain } = useSwitchChain()
   const { markPaymentRequestPaid, addActivity } = useAppStore()
   const [paying, setPaying] = useState(false)
+  const [switchingChain, setSwitchingChain] = useState(false)
 
   const { writeContract, data: txHash, isPending, error: writeError, reset } = useWriteContract()
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash: txHash })
+  const onWrongChain = isConnected && chainId !== ARC_TESTNET_ID
 
   useEffect(() => {
     if (isSuccess && txHash) {
@@ -124,8 +128,14 @@ function WalletPanel({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSuccess, txHash])
 
+  const handleSwitchChain = () => {
+    setSwitchingChain(true)
+    switchChain({ chainId: ARC_TESTNET_ID }, { onSettled: () => setSwitchingChain(false) })
+  }
+
   const handlePay = () => {
     if (!isConnected || !address) return
+    if (onWrongChain) { handleSwitchChain(); return }
     const dest = req.creatorAddress
     if (!dest || !isAddress(dest)) {
       toast.error("Requester's wallet address is missing.")
@@ -137,11 +147,10 @@ function WalletPanel({
       abi: erc20Abi,
       functionName: 'transfer',
       args: [dest, BigInt(Math.round(req.amount * 10 ** USDC_DECIMALS))],
-      chainId: ARC_TESTNET_ID,
     })
   }
 
-  const isDisabled = paying || isPending || isConfirming
+  const isDisabled = paying || isPending || isConfirming || switchingChain
 
   if (!isConnected) {
     return (
@@ -166,6 +175,15 @@ function WalletPanel({
         Connected: {address!.slice(0, 10)}…{address!.slice(-6)}
       </div>
 
+      {onWrongChain && (
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, background: '#fff8e1', border: '1px solid #ffe082', borderRadius: 10, padding: '10px 14px', marginBottom: 14 }}>
+          <AlertCircle size={14} color='#b45309' style={{ flexShrink: 0, marginTop: 1 }} />
+          <span style={{ fontSize: 12, color: '#b45309' }}>
+            Wrong network. Click Pay to switch to Arc Testnet automatically.
+          </span>
+        </div>
+      )}
+
       {writeError && (
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, background: '#fee8e8', border: '1px solid #f5c6c6', borderRadius: 10, padding: '10px 14px', marginBottom: 14 }}>
           <AlertCircle size={14} color='#c0392b' style={{ flexShrink: 0, marginTop: 1 }} />
@@ -188,12 +206,15 @@ function WalletPanel({
           transition: 'all 0.15s',
         }}
       >
-        {isPending ? 'Approve in wallet…' :
+        {switchingChain ? 'Switching to Arc Testnet…' :
+         isPending ? 'Approve in wallet…' :
          isConfirming ? (
            <>
              <span style={{ width: 18, height: 18, border: '2.5px solid rgba(255,255,255,0.35)', borderTopColor: '#fff', borderRadius: '50%', display: 'inline-block', animation: 'nan-spin 0.8s linear infinite' }} />
              Confirming…
            </>
+         ) : onWrongChain ? (
+           <><ArrowUpRight size={18} /> Switch to Arc Testnet &amp; Pay</>
          ) : (
            <><ArrowUpRight size={18} /> Pay {fmt(req.amount)} {req.currency}</>
          )}
@@ -428,15 +449,15 @@ export function PaymentRequestPayPage({
 
   // ── Main ─────────────────────────────────────────────────────────────────────
   return (
-    <div style={{ minHeight: '100dvh', background: '#f4f6fa', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start', padding: '32px 16px 48px', fontFamily: F }}>
+    <div style={{ minHeight: '100dvh', background: '#f4f6fa', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start', padding: '32px 16px 48px', fontFamily: F, overflowY: 'auto' }}>
 
       {/* Card */}
-      <div style={{ background: '#fff', borderRadius: 24, border: '1px solid #e8e8e8', width: '100%', maxWidth: 460, boxShadow: '0 8px 40px rgba(0,0,0,0.09)', overflow: 'hidden' }}>
+      <div style={{ background: '#fff', borderRadius: 24, border: '1px solid #e8e8e8', width: '100%', maxWidth: 460, boxShadow: '0 8px 40px rgba(0,0,0,0.09)' }}>
 
         {/* Top header — NAN branding */}
-        <div style={{ background: '#111', padding: '18px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ background: '#0057FF', padding: '18px 24px', borderRadius: '24px 24px 0 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <NanLogo height={22} />
-          <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', fontFamily: MONO, letterSpacing: '0.04em' }}>Arc Testnet</span>
+          <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.75)', fontFamily: MONO, letterSpacing: '0.04em' }}>Arc Testnet</span>
         </div>
 
         {/* Request info */}
