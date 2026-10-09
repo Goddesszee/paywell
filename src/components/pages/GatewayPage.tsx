@@ -851,7 +851,10 @@ function DestChainSelector({ chains, value, onChange, disabled }: {
 }
 
 // ── Transfer tab (EVM-to-EVM via Gateway burn intent + gatewayMint) ────────────
-type TransferPhase = 'idle' | 'signing' | 'submitting' | 'minting' | 'done' | 'error'
+// Per Circle docs, the Forwarding Service handles the dest-chain mint —
+// the user only needs Arc Testnet native tokens (USDC) to sign.
+// No dest-chain gas required at all.
+type TransferPhase = 'idle' | 'estimating' | 'signing' | 'submitting' | 'minting' | 'forwarding' | 'done' | 'error'
 
 function TransferTab({ address, gatewayBalance, onSuccess }: {
   address: `0x${string}`; gatewayBalance: string|null; onSuccess: () => void
@@ -860,7 +863,7 @@ function TransferTab({ address, gatewayBalance, onSuccess }: {
   const [destChainId, setDestChainId] = useState<number>(84532)
   const [phase, setPhase] = useState<TransferPhase>('idle')
   const [errMsg, setErrMsg] = useState('')
-  const [mintTxHash, setMintTxHash] = useState<`0x${string}` | undefined>()
+  const [transferId, setTransferId] = useState<string | undefined>()
   const gwBal = gatewayBalance ? parseFloat(gatewayBalance) : 0
 
   const destChain = GATEWAY_CHAINS.find(c => c.chainId === destChainId)
@@ -869,120 +872,150 @@ function TransferTab({ address, gatewayBalance, onSuccess }: {
   const handleTransfer = async () => {
     if (!address || !amount || parseFloat(amount) <= 0 || !destChain?.usdc || !srcChain?.usdc) return
     if (!destChainId || isNaN(destChainId) || destChainId === ARC) { toast.error('Select a different destination chain'); return }
-    setErrMsg(''); setMintTxHash(undefined)
+    setErrMsg(''); setTransferId(undefined)
     const parsed = parseUnits(amount, 6)
     const srcDomain  = DOMAIN_MAP[ARC] ?? 26
     const destDomain = DOMAIN_MAP[destChainId]
     if (destDomain === undefined) { setErrMsg('Destination chain domain unknown'); return }
 
-    // Get window.ethereum — all operations go directly through it.
-    // This bypasses wagmi/viem's assertCurrentChain entirely.
-    // assertCurrentChain reads connector.chain.id which is NaN on MetaMask mobile
-    // in-app browser regardless of which chain is actually active.
+    // All wallet calls go through window.ethereum directly.
+    // wagmi/viem hooks call assertCurrentChain which reads connector.chain.id —
+    // on MetaMask mobile in-app browser that value is permanently NaN.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment
     const provider = (window as any).ethereum
-    if (!provider) { setErrMsg('No injected wallet found — please open in MetaMask browser'); return }
+    if (!provider) { setErrMsg('No injected wallet — please open in MetaMask browser'); return }
 
-    // Switch chain via direct provider.request — no viem chain objects, no assertions.
-    const switchChain = async (hexChainId: string) => {
+    // Switch chain without going through viem's chain-ID validator.
+    const switchToChain = async (chainId: number) => {
+      const hexId = `0x${chainId.toString(16)}`
       try {
         // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-        await provider.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: hexChainId }] })
+        await provider.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: hexId }] })
       } catch (e) {
         if ((e as { code?: number })?.code !== 4902) throw e
-        const numId = parseInt(hexChainId, 16)
-        const chain = ONCHAIN_CHAINS.find(c => c.chainId === numId)
-        if (!chain) throw new Error(`Chain ${hexChainId} not configured`)
+        const chain = ONCHAIN_CHAINS.find(c => c.chainId === chainId)
+        if (!chain) throw new Error(`Chain ${chainId} not configured`)
         // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
         await provider.request({
           method: 'wallet_addEthereumChain',
-          params: [{ chainId: hexChainId, chainName: chain.name, nativeCurrency: chain.nativeCurrency, rpcUrls: chain.rpcUrls, blockExplorerUrls: [chain.explorerBase] }],
+          params: [{ chainId: hexId, chainName: chain.name, nativeCurrency: chain.nativeCurrency, rpcUrls: chain.rpcUrls, blockExplorerUrls: [chain.explorerBase] }],
         })
       }
     }
 
     try {
-      // ── Step 1: Sign BurnIntent on Arc ──────────────────────────────────────
-      setPhase('signing')
-      await switchChain(`0x${ARC.toString(16)}`)
-
-      const burnIntent = {
-        maxBlockHeight: 2n ** 256n - 1n,
-        maxFee: 7_060000n,
-        spec: {
-          version:              1,
-          sourceDomain:         srcDomain,
-          destinationDomain:    destDomain,
-          sourceContract:       toBytes32(GATEWAY_WALLET),
-          destinationContract:  toBytes32(GATEWAY_MINTER),
-          sourceToken:          toBytes32(srcChain.usdc.address as `0x${string}`),
-          destinationToken:     toBytes32(destChain.usdc.address as `0x${string}`),
-          sourceDepositor:      toBytes32(address),
-          destinationRecipient: toBytes32(address),
-          sourceSigner:         toBytes32(address),
-          destinationCaller:    toBytes32(zeroAddress),
-          value:                parsed,
-          salt:                 randomHex32(),
-          hookData:             '0x' as `0x${string}`,
-        },
+      // Build the spec (addresses NOT yet padded — padded version used for API calls)
+      const spec = {
+        version:              1,
+        sourceDomain:         srcDomain,
+        destinationDomain:    destDomain,
+        sourceContract:       GATEWAY_WALLET,
+        destinationContract:  GATEWAY_MINTER,
+        sourceToken:          srcChain.usdc.address as `0x${string}`,
+        destinationToken:     destChain.usdc.address as `0x${string}`,
+        sourceDepositor:      address,
+        destinationRecipient: address,
+        sourceSigner:         address,
+        destinationCaller:    zeroAddress,
+        value:                parsed,
+        salt:                 randomHex32(),
+        hookData:             '0x' as `0x${string}`,
       }
 
-      // eth_signTypedData_v4 directly — no wagmi, no assertCurrentChain
+      // Padded spec — bytes32 fields as per Circle docs
+      const specBytes32 = {
+        ...spec,
+        sourceContract:       toBytes32(spec.sourceContract),
+        destinationContract:  toBytes32(spec.destinationContract),
+        sourceToken:          toBytes32(spec.sourceToken),
+        destinationToken:     toBytes32(spec.destinationToken),
+        sourceDepositor:      toBytes32(spec.sourceDepositor),
+        destinationRecipient: toBytes32(spec.destinationRecipient),
+        sourceSigner:         toBytes32(spec.sourceSigner),
+        destinationCaller:    toBytes32(spec.destinationCaller),
+      }
+
+      // ── Step 1: Estimate fees (Circle docs: always estimate before signing) ──
+      setPhase('estimating')
+      const estimateRes = await fetch(`${GATEWAY_API}/estimate?enableForwarder=true`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+        body: JSON.stringify([{ spec: specBytes32 }], (_k, v) => typeof v === 'bigint' ? v.toString() : v),
+      })
+      if (!estimateRes.ok) throw new Error(`Estimate failed: ${await estimateRes.text()}`)
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      const estimateJson = await estimateRes.json()
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+      const estimated = estimateJson?.body?.[0]?.burnIntent
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument
+      const maxFee         = BigInt(estimated?.maxFee        ?? '7060000')
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument
+      const maxBlockHeight = BigInt(estimated?.maxBlockHeight ?? (2n ** 256n - 1n).toString())
+
+      const burnIntent = { maxBlockHeight, maxFee, spec: specBytes32 }
+
+      // ── Step 2: Switch to Arc and sign ──────────────────────────────────────
+      setPhase('signing')
+      await switchToChain(ARC)
+
+      // eth_signTypedData_v4 directly on provider — bypasses assertCurrentChain entirely
       const typedDataStr = JSON.stringify(
         { domain: BURN_INTENT_TYPED_DATA.domain, types: BURN_INTENT_TYPED_DATA.types, primaryType: BURN_INTENT_TYPED_DATA.primaryType, message: burnIntent },
-        (_k, v: unknown) => typeof v === 'bigint' ? `0x${v.toString(16)}` : v,
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+        (_k, v) => typeof v === 'bigint' ? `0x${v.toString(16)}` : v,
       )
       // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment
       const signature: string = await provider.request({ method: 'eth_signTypedData_v4', params: [address, typedDataStr] })
 
-      // ── Step 2: Submit to Gateway API ───────────────────────────────────────
+      // ── Step 3: Submit with enableForwarder=true ────────────────────────────
+      // The Forwarding Service handles the dest-chain mint — no dest-chain tx needed.
       setPhase('submitting')
-      const result = await submitBurnIntent(burnIntent, signature)
-      if (!result.attestation || !result.signature) {
-        throw new Error('Gateway API returned no attestation — check your balance and try again')
-      }
-
-      // ── Step 3: gatewayMint on destination via viem walletClient (no wagmi) ─
-      // createWalletClient with chain: undefined + custom transport bypasses
-      // assertCurrentChain completely — exactly how Circle's own docs do it.
-      setPhase('minting')
-      await switchChain(`0x${destChainId.toString(16)}`)
-
-      const { createPublicClient, encodeFunctionData, http } = await import('viem')
-      const destChainObj = ONCHAIN_CHAINS.find(c => c.chainId === destChainId)
-      if (!destChainObj) throw new Error('Destination chain config not found')
-
-      // Build a minimal chain object — only what viem needs to send a tx
-      const viemChain = {
-        id: destChainId,
-        name: destChainObj.name,
-        nativeCurrency: destChainObj.nativeCurrency,
-        rpcUrls: { default: { http: [destChainObj.rpcUrls[0]] } },
-      }
-
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-      const publicClient = createPublicClient({ chain: viemChain as never, transport: http(destChainObj.rpcUrls[0]) })
-
-      const mintCalldata = encodeFunctionData({
-        abi: GATEWAY_MINTER_ABI,
-        functionName: 'gatewayMint',
-        args: [result.attestation, result.signature],
+      const transferRes = await fetch(`${GATEWAY_API}/transfer?enableForwarder=true`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(
+          [{ burnIntent, signature }],
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+          (_k, v) => typeof v === 'bigint' ? v.toString() : v,
+        ),
       })
+      if (!transferRes.ok) throw new Error(`Gateway API error: ${await transferRes.text()}`)
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      const transferJson = await transferRes.json()
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+      const tid: string = transferJson?.transferId
+      if (!tid) throw new Error('Gateway API returned no transferId')
+      setTransferId(tid)
 
-      // Send via provider.request — walletClient.sendTransaction would still assertCurrentChain
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment
-      const txHash: `0x${string}` = await provider.request({
-        method: 'eth_sendTransaction',
-        params: [{ from: address, to: GATEWAY_MINTER, data: mintCalldata }],
-      })
-      setMintTxHash(txHash)
-
-      // Wait for receipt using publicClient (no wallet required — just reads the chain)
-      await publicClient.waitForTransactionReceipt({ hash: txHash })
-
-      setPhase('done')
-      toast.success(`Transferred ${amount} USDC to ${destChain?.name ?? 'destination'}`)
-      setTimeout(onSuccess, 2000)
+      // ── Step 4: Poll until confirmed/finalized ──────────────────────────────
+      // Circle Forwarding Service mints on dest chain — we just poll.
+      setPhase('forwarding')
+      const POLL_INTERVAL = 5_000
+      const POLL_TIMEOUT  = 300_000
+      const pollStart = Date.now()
+      while (Date.now() - pollStart < POLL_TIMEOUT) {
+        await new Promise(r => setTimeout(r, POLL_INTERVAL))
+        const pollRes  = await fetch(`${GATEWAY_API}/transfer/${tid}`)
+        if (!pollRes.ok) continue
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        const details  = await pollRes.json()
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+        const status   = details?.status as string | undefined
+        if (status === 'confirmed' || status === 'finalized') {
+          setPhase('done')
+          toast.success(`Transferred ${amount} USDC to ${destChain?.name ?? 'destination'}`)
+          setTimeout(onSuccess, 2000)
+          return
+        }
+        if (status === 'failed') {
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+          const reason = (details?.forwardingDetails as { failureReason?: string } | undefined)?.failureReason ?? 'unknown'
+          throw new Error(`Transfer failed: ${reason}`)
+        }
+        if (status === 'expired') throw new Error('Transfer attestation expired before forwarding completed')
+      }
+      throw new Error('Timed out waiting for forwarding. Your balance is intact — check Gateway balance and retry.')
 
     } catch (e: unknown) {
       setPhase('error')
@@ -993,7 +1026,7 @@ function TransferTab({ address, gatewayBalance, onSuccess }: {
     }
   }
 
-  const reset = () => { setPhase('idle'); setAmount(''); setErrMsg(''); setMintTxHash(undefined) }
+  const reset = () => { setPhase('idle'); setAmount(''); setErrMsg(''); setTransferId(undefined) }
 
   const DEST_CHAINS = GATEWAY_CHAINS.filter(c => c.chainId !== ARC)
 
@@ -1012,7 +1045,7 @@ function TransferTab({ address, gatewayBalance, onSuccess }: {
       <div style={{ background:`rgba(0,102,255,0.06)`, border:`1px solid rgba(0,102,255,0.15)`, borderRadius:10, padding:'10px 14px', display:'flex', gap:8, alignItems:'flex-start' }}>
         <Info size={13} color={BLUE} style={{ flexShrink:0, marginTop:1 }} />
         <div style={{ fontSize:11, color:T2, lineHeight:1.5 }}>
-          Signs a <strong>Gateway BurnIntent</strong> (EIP-712), submits to the Gateway API, then calls <strong>gatewayMint</strong> on the destination chain. Instant — no CCTP attestation wait.
+          Signs a <strong>Gateway BurnIntent</strong> (EIP-712) on Arc. Circle's <strong>Forwarding Service</strong> mints on the destination — <strong>no dest-chain gas needed</strong>.
         </div>
       </div>
 
@@ -1053,17 +1086,18 @@ function TransferTab({ address, gatewayBalance, onSuccess }: {
       {phase !== 'idle' && (
         <div style={{ border:`1px solid ${BDR}`, borderRadius:12, overflow:'hidden' }}>
           {[
-            { label:'Sign BurnIntent (EIP-712)',         done: ['submitting','minting','done'].includes(phase), active: phase==='signing'    },
-            { label:'Submit to Gateway API',              done: ['minting','done'].includes(phase),             active: phase==='submitting' },
-            { label:`gatewayMint on ${destChain?.name}`, done: phase==='done',                                 active: phase==='minting'   },
+            { label:'Estimate fees',                                        done: ['signing','submitting','forwarding','done'].includes(phase), active: phase==='estimating'  },
+            { label:'Sign BurnIntent (EIP-712)',                            done: ['submitting','forwarding','done'].includes(phase),           active: phase==='signing'     },
+            { label:'Submit to Gateway API',                                done: ['forwarding','done'].includes(phase),                       active: phase==='submitting'  },
+            { label:`Forwarding Service minting on ${destChain?.name}…`,   done: phase==='done',                                              active: phase==='forwarding'  },
           ].map((s, i) => (
-            <div key={i} style={{ padding:'12px 16px', borderBottom: i<2?`1px solid ${BDR}`:'none', display:'flex', alignItems:'center', gap:12 }}>
+            <div key={i} style={{ padding:'12px 16px', borderBottom: i<3?`1px solid ${BDR}`:'none', display:'flex', alignItems:'center', gap:12 }}>
               <div style={{ width:28, height:28, borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', background:s.done?BLUE:SURF2, border:`1px solid ${s.done?BLUE:BDR}`, flexShrink:0 }}>
                 {s.done ? <Check size={13} color="#fff" /> : s.active ? <div style={{ width:12, height:12, borderRadius:'50%', border:`2px solid ${BLUE}`, borderTopColor:'transparent', animation:'nan-spin 0.8s linear infinite' }} /> : <span style={{ fontSize:11, color:T3 }}>{i+1}</span>}
               </div>
               <span style={{ fontSize:13, color:TEXT }}>{s.label}</span>
-              {s.done && i===2 && mintTxHash && (
-                <a href={destChain ? destChain.explorerBase + '/tx/' + mintTxHash : '#'} target="_blank" rel="noreferrer" style={{ marginLeft:'auto', fontSize:11, color:T2, display:'flex', alignItems:'center', gap:3 }}>View <ExternalLink size={10} /></a>
+              {s.done && i===3 && transferId && (
+                <a href={`https://gateway-api-testnet.circle.com/v1/transfer/${transferId}`} target="_blank" rel="noreferrer" style={{ marginLeft:'auto', fontSize:11, color:T2, display:'flex', alignItems:'center', gap:3 }}>Details <ExternalLink size={10} /></a>
               )}
             </div>
           ))}
@@ -1088,7 +1122,7 @@ function TransferTab({ address, gatewayBalance, onSuccess }: {
       ) : (
         <button onClick={() => void handleTransfer()} disabled={!amount || parseFloat(amount)<=0 || phase!=='idle' || gwBal<=0}
           style={{ width:'100%', padding:'14px 0', borderRadius:14, fontSize:14, fontWeight:600, border:'none', fontFamily:F, cursor:(!amount||phase!=='idle'||gwBal<=0)?'not-allowed':'pointer', background:(!amount||phase!=='idle'||gwBal<=0)?SURF:BLUE, color:(!amount||phase!=='idle'||gwBal<=0)?T2:'#fff', transition:'all 0.15s' }}>
-          {phase==='signing'?'Sign in wallet…':phase==='submitting'?'Submitting to Gateway…':phase==='minting'?'Minting on destination…':`Transfer ${amount||'0.00'} USDC to ${destChain?.name ?? '…'}`}
+          {phase==='estimating'?'Estimating fees…':phase==='signing'?'Sign in wallet…':phase==='submitting'?'Submitting to Gateway…':phase==='forwarding'?'Forwarding Service working…':`Transfer ${amount||'0.00'} USDC to ${destChain?.name ?? '…'}`}
         </button>
       )}
 
