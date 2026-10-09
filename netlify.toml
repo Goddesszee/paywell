@@ -1,4 +1,0 @@
-# This project is deployed on Vercel — NOT Netlify.
-# vercel.json is the authoritative deployment config.
-# This file is intentionally left as a stub to prevent accidental Netlify deploys.
-# Do not add redirects or functions here.

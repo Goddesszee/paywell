@@ -1323,9 +1323,7 @@ sessionStore.set = function(key: string, value: { email: string; walletAddress: 
 }
 
 // ── Google OAuth (dev server) ─────────────────────────────────────────────────
-// In production the Netlify function at netlify/functions/auth-google-callback.ts
-// handles /api/auth/google/callback. The routes below mirror that behaviour for
-// the local dev server so the same Google login flow works in both environments.
+// Mirrors the Vercel function at api/misc.ts for the local Express dev server.
 
 app.get('/api/auth/google', (req, res) => {
   const clientId = process.env.VITE_GOOGLE_CLIENT_ID
@@ -1355,8 +1353,7 @@ app.get('/api/auth/google/callback', async (req, res) => {
   const redirectUri = `${req.protocol}://${req.headers.host}/api/auth/google/callback`
   // Use the configured public URL (Railway/Vercel) or derive from the Host header
   const appBase = process.env.APP_URL
-    ?? process.env.URL          // Netlify injects this
-    ?? process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : null
+    ?? (process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : null)
     ?? `${req.protocol}://${(req.headers.host ?? 'localhost:5173').replace(':3001', ':5173')}`
 
   if (!code || !clientId || !clientSecret) {
@@ -1835,7 +1832,7 @@ app.delete('/api/recurring-tasks/:id', (req, res) => {
 })
 
 // ── Circle Services — onramp session minting ─────────────────────────────────
-// Mirrors api/circle-services.ts (Vercel/Netlify) for the local Express dev server.
+// Mirrors api/circle-services.ts (Vercel) for the local Express dev server.
 // Route: POST /api/circle-services?service=onramp
 // Requires CIRCLE_STABLECOIN_KIT_API_KEY or CIRCLE_API_KEY in .env.
 
