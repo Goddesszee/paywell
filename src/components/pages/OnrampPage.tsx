@@ -84,7 +84,7 @@ export function OnrampPage() {
     credited.current = false
 
     try {
-      const res = await fetch('/api/circle-services?service=onramp', {
+      const res = await fetch('/api/onramp-session', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({

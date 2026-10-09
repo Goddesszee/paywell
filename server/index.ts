@@ -1864,8 +1864,8 @@ async function getOnrampServer(): Promise<_OnrampServer> {
   return _onrampServer
 }
 
-app.post('/api/circle-services', async (req, res) => {
-  const service = (req.query.service ?? '') as string
+app.post(['/api/circle-services', '/api/onramp-session'], async (req, res) => {
+  const service = req.path.endsWith('/onramp-session') ? 'onramp' : ((req.query.service ?? '') as string)
 
   if (service !== 'onramp') {
     res.status(400).json({ error: 'service param required: onramp' })

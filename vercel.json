@@ -13,6 +13,11 @@
       "memory": 1024,
       "maxDuration": 30
     },
+    "api/onramp-session.ts": {
+      "includeFiles": "node_modules/@circle-fin/**",
+      "memory": 512,
+      "maxDuration": 30
+    },
     "api/circle-services.ts": {
       "includeFiles": "node_modules/@circle-fin/**",
       "memory": 512,
@@ -58,7 +63,7 @@
     { "source": "/api/otp",                                      "destination": "/api/otp" },
     { "source": "/api/chat",                                     "destination": "/api/chat" },
     { "source": "/api/misc",                                     "destination": "/api/misc" },
-    { "source": "/api/onramp-session",                           "destination": "/api/circle-services?service=onramp" },
+    { "source": "/api/onramp-session",                           "destination": "/api/onramp-session" },
     { "source": "/api/wallet",                                   "destination": "/api/wallet" },
     { "source": "/api/circle-wallets",                           "destination": "/api/circle-services?service=wallets" },
     { "source": "/api/circle-services",                          "destination": "/api/circle-services" },
