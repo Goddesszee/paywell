@@ -1206,20 +1206,33 @@ function CircleTransferTab({ address, gatewayBalance, onSuccess }: {
         const account          = await toCircleSmartAccount({ client: publicClient, owner: toWebAuthnAccount({ credential }) })
         const bundlerClient    = createBundlerClient({ account, chain: destViemChain, transport: modularTransport })
         const destMinter       = getProtocolContractByName('GatewayMinter', 'testnet')?.address ?? GATEWAY_MINTER
-        const isInternalRpcErr = (e: unknown) => {
+
+        // Resolve factory args so the bundler can deploy the SCA on first use
+        const factoryArgs = await account.getFactoryArgs()
+        const deployFields = factoryArgs.factory
+          ? { factory: factoryArgs.factory, factoryData: factoryArgs.factoryData }
+          : {}
+
+        const isPaymasterErr = (e: unknown) => {
           const err = e as { code?: number; name?: string; shortMessage?: string; message?: string } | undefined
           return err?.code === -32603 || err?.name === 'InternalRpcError'
             || /internal error/i.test(err?.shortMessage ?? err?.message ?? '')
+            || /paymaster/i.test(err?.shortMessage ?? err?.message ?? '')
         }
         let uoh: `0x${string}`
         try {
           uoh = await bundlerClient.sendUserOperation({
-            account, calls: [{ to: destMinter as `0x${string}`, data: mintCallData, value: 0n }], paymaster: true,
+            account,
+            calls: [{ to: destMinter as `0x${string}`, data: mintCallData, value: 0n }],
+            paymaster: true,
+            ...deployFields,
           })
         } catch (pmErr: unknown) {
-          if (!isInternalRpcErr(pmErr)) throw pmErr
+          if (!isPaymasterErr(pmErr)) throw pmErr
           uoh = await bundlerClient.sendUserOperation({
-            account, calls: [{ to: destMinter as `0x${string}`, data: mintCallData, value: 0n }],
+            account,
+            calls: [{ to: destMinter as `0x${string}`, data: mintCallData, value: 0n }],
+            ...deployFields,
           })
         }
         const receipt = await bundlerClient.waitForUserOperationReceipt({ hash: uoh })
