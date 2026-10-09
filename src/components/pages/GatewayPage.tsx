@@ -1107,7 +1107,7 @@ function CircleTransferTab({ address, gatewayBalance, onSuccess }: {
   const [destChainId, setDestChainId] = useState<number>(84532)
   const [phase, setPhase]             = useState<TransferPhase>('idle')
   const [errMsg, setErrMsg]           = useState('')
-  const [mintTxHash, setMintTxHash]   = useState<string | undefined>()
+  const [mintTxHash, setMintTxHash]   = useState<string | undefined>() // 'forwarded' for forwarder path
   const circleTx = useCircleTransaction()
 
 
@@ -1164,27 +1164,41 @@ function CircleTransferTab({ address, gatewayBalance, onSuccess }: {
 
       if (isPasskey) {
         // ── Passkey path (Circle Modular Wallet / SCA) ────────────────────────
-        // Gateway supports ERC-1271 contract signatures — no delegate EOA needed.
-        // The SCA signs with its passkey; we pass contractSigner:true to the API.
-        // Per Circle docs: "The SCA authorizes the transfer with its own signature —
-        // no delegate EOA required." (gateway/howtos/transfer-with-erc-1271)
+        // The modular SDK makes JSON-RPC calls to modular-sdk.circle.com which
+        // requires the app domain to be whitelisted in Circle Console.
+        // We route those calls through /api/gateway-proxy to avoid CORS failures.
         const clientKey = import.meta.env.VITE_CLIENT_KEY as string | undefined
-        if (!clientKey) throw new Error('VITE_CLIENT_KEY not set')
+        if (!clientKey) throw new Error('VITE_CLIENT_KEY not set — add it to your Vercel environment variables.')
+
         const { toWebAuthnAccount } = await import('viem/account-abstraction')
-        const { toCircleSmartAccount, toModularTransport, toWebAuthnCredential, WebAuthnMode, toPasskeyTransport } = await import('@circle-fin/modular-wallets-core')
-        const { createPublicClient: mkPublic } = await import('viem')
+        const { toCircleSmartAccount, toWebAuthnCredential, WebAuthnMode, toPasskeyTransport, toModularTransport } = await import('@circle-fin/modular-wallets-core')
+        const { createPublicClient: mkPublic, http: httpTransport } = await import('viem')
         const viemChains = await import('viem/chains')
+
         const MODULAR_URL = 'https://modular-sdk.circle.com/v1/rpc/w3s/buidl'
         const arcChain = viemChains.arcTestnet ?? { id: ARC, name: 'Arc Testnet', nativeCurrency: { name: 'USDC', symbol: 'USDC', decimals: 18 }, rpcUrls: { default: { http: ['https://rpc.testnet.arc.io'] } } }
-        const arcTransport  = toModularTransport(`${MODULAR_URL}/arcTestnet`, clientKey)
-        const arcClient     = mkPublic({ chain: arcChain, transport: arcTransport })
+
+        // Use a plain HTTP public client for chain reads (nonce, receipts).
+        // toModularTransport is only needed for user-op bundler calls — we pass
+        // it to toCircleSmartAccount so signTypedData goes via the bundler correctly.
+        const arcHttpClient = mkPublic({ chain: arcChain, transport: httpTransport('https://rpc.testnet.arc.io') })
+        const arcModularTransport = toModularTransport(`${MODULAR_URL}/arcTestnet`, clientKey)
+        const arcBundlerClient   = mkPublic({ chain: arcChain, transport: arcModularTransport })
+
+        // Authenticate the passkey — toPasskeyTransport calls WebAuthn (browser-native,
+        // not a CORS-blocked fetch) so this works from any origin.
         const passkeyTransport = toPasskeyTransport(MODULAR_URL, clientKey)
-        const credential    = await toWebAuthnCredential({ transport: passkeyTransport, mode: WebAuthnMode.Login })
-        const arcAccount    = await toCircleSmartAccount({ client: arcClient, owner: toWebAuthnAccount({ credential }) })
-        // Pass only the application types — EIP712Domain must be absent; viem
-        // derives it automatically from the domain field and rejects if it is present.
+        const credential = await toWebAuthnCredential({ transport: passkeyTransport, mode: WebAuthnMode.Login })
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-explicit-any
+        const arcAccount = await (toCircleSmartAccount as any)({
+          client: arcBundlerClient,
+          owner: toWebAuthnAccount({ credential }),
+        })
+        void arcHttpClient
+
+        // Sign the burn intent — EIP712Domain must NOT be in types (viem derives it)
         // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
-        signature = await (arcAccount as any).signTypedData({
+        signature = await (arcAccount).signTypedData({
           domain:      BURN_INTENT_TYPED_DATA.domain,
           types:       { BurnIntent: BURN_INTENT_TYPED_DATA.types.BurnIntent, TransferSpec: BURN_INTENT_TYPED_DATA.types.TransferSpec } as const,
           primaryType: 'BurnIntent' as const,
@@ -1192,14 +1206,25 @@ function CircleTransferTab({ address, gatewayBalance, onSuccess }: {
         })
 
         setPhase('submitting')
-        // Use Forwarding Service (enableForwarder=true): Circle mints on the dest chain
-        // automatically — no dest-chain wallet, no bundler, no SCA deployment needed.
-        // contractSigner:true → Gateway validates ERC-1271 on the Arc SCA (already deployed).
-        const { transferId } = await submitBurnIntent(burnIntent, signature, true, true)
+        // Submit via our proxy to avoid CORS on the Gateway API too
+        const gwRes = await fetch('/api/gateway-proxy?action=gateway-transfer', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            items: [{ burnIntent: burnIntent, signature, contractSigner: true }],
+            enableForwarder: true,
+          }, (_k, v: unknown) => typeof v === 'bigint' ? v.toString() : v),
+        })
+        if (!gwRes.ok) {
+          const errJson = await gwRes.json() as { error?: string }
+          throw new Error(errJson.error ?? `Gateway API error ${gwRes.status}`)
+        }
+        const gwJson = await gwRes.json() as { attestation?: string; signature?: string; transferId?: string; error?: string }
+        if (gwJson.error) throw new Error(gwJson.error)
 
-        // Forwarding Service handles the mint. Poll GET /v1/transfer/{id} until
-        // status is 'confirmed' or 'finalized'. ('COMPLETE' is not a real status.)
-        // Also bail out on 'failed' so the user sees the error immediately.
+        const transferId = gwJson.transferId
+
+        // Forwarding Service handles the mint. Poll via proxy until confirmed/finalized.
         setPhase('minting')
         if (transferId) {
           const deadline = Date.now() + 120_000
@@ -1207,18 +1232,26 @@ function CircleTransferTab({ address, gatewayBalance, onSuccess }: {
           while (Date.now() < deadline && !done) {
             await new Promise(r => setTimeout(r, 3000))
             try {
-              const poll = await fetch(`${GATEWAY_API}/transfer/${transferId}`)
-              if (!poll.ok) continue
-              const rec = await poll.json() as { status?: string; message?: string }
+              const pollRes = await fetch('/api/gateway-proxy?action=gateway-poll', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ transferId }),
+              })
+              if (!pollRes.ok) continue
+              const rec = await pollRes.json() as { status?: string; message?: string }
               if (rec.status === 'confirmed' || rec.status === 'finalized') { done = true; break }
               if (rec.status === 'failed') throw new Error(`Gateway transfer failed: ${rec.message ?? 'unknown reason'}`)
             } catch (pollErr) {
               if ((pollErr as Error)?.message?.startsWith('Gateway transfer failed')) throw pollErr
-              // network blip — keep polling
             }
           }
-          if (!done) throw new Error('Timed out waiting for Gateway Forwarding Service to confirm. Your funds are safe — check your balance in a few minutes.')
+          if (!done) throw new Error('Timed out waiting for Gateway to confirm. Your funds are safe — check your balance in a few minutes.')
+        } else if (gwJson.attestation && gwJson.signature) {
+          // Non-forwarded: got attestation immediately — this shouldn't happen with enableForwarder=true
+          // but handle it gracefully
+          setMintTxHash('forwarded')
         }
+
         setPhase('done')
         toast.success(`Transferred ${amount} USDC to ${destChain?.name}`)
         setTimeout(onSuccess, 2000)

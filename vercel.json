@@ -33,6 +33,10 @@
     "api/support.ts": {
       "memory": 256,
       "maxDuration": 10
+    },
+    "api/gateway-proxy.ts": {
+      "memory": 256,
+      "maxDuration": 30
     }
   },
   "headers": [
@@ -78,6 +82,7 @@
     { "source": "/api/admin/tx-report",                          "destination": "/api/community?route=admin/tx-report" },
     { "source": "/api/notifications",                            "destination": "/api/community?route=notifications" },
     { "source": "/api/notifications/read",                       "destination": "/api/community?route=notifications/read" },
+    { "source": "/api/gateway-proxy",                           "destination": "/api/gateway-proxy" },
     { "source": "/(.*)",                                         "destination": "/index.html" }
   ]
 }
