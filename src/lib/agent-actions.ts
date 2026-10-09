@@ -550,19 +550,26 @@ export function describeAction(action: NanAction): { title: string; lines: Array
         { label: 'Via',      value: 'Circle Gateway (instant ~500ms)' },
         { label: 'Source',   value: 'Circle UCW' },
       ]}
-    case 'bridge_start':
+    case 'bridge_start': {
+      const ready = Boolean(action.params.amount && action.params.toChain)
       return { title: 'Bridge USDC', lines: [
         ...(action.params.amount  ? [{ label: 'Amount',   value: `${action.params.amount} USDC` }] : []),
+        { label: 'From', value: 'Arc Testnet' },
         ...(action.params.toChain ? [{ label: 'To Chain', value: action.params.toChain }] : []),
-        { label: 'Note', value: 'Opens Bridge tab pre-filled' },
+        { label: 'Via', value: 'Circle CCTP V2' },
+        { label: 'Note', value: ready ? 'Runs here in chat — you approve the signature' : 'Opens Bridge tab pre-filled' },
       ]}
-    case 'swap_start':
+    }
+    case 'swap_start': {
+      const ready = Boolean(action.params.amount && action.params.toToken)
       return { title: 'Swap Tokens', lines: [
-        ...(action.params.fromToken ? [{ label: 'From',   value: action.params.fromToken }] : []),
-        ...(action.params.toToken   ? [{ label: 'To',     value: action.params.toToken }] : []),
-        ...(action.params.amount    ? [{ label: 'Amount', value: `${action.params.amount} USDC` }] : []),
-        { label: 'Note', value: 'Opens Swap tab pre-filled' },
+        { label: 'From',   value: action.params.fromToken ?? 'USDC' },
+        ...(action.params.toToken ? [{ label: 'To', value: action.params.toToken }] : []),
+        ...(action.params.amount  ? [{ label: 'Amount', value: action.params.amount }] : []),
+        { label: 'Slippage', value: '3%' },
+        { label: 'Note', value: ready ? 'Runs here in chat — you approve the signature' : 'Opens Swap tab pre-filled' },
       ]}
+    }
     case 'navigate':
       return { title: `Navigate to ${action.params.page}`, lines: [{ label: 'Destination', value: action.params.page }] }
     case 'toggle_agent':
@@ -664,9 +671,6 @@ export function requiresConfirmation(action: NanAction): boolean {
     case 'navigate':
     case 'toggle_agent':
     case 'shop_search':
-    case 'bridge_start':
-    case 'bridge_info':
-    case 'swap_start':
     case 'check_balance':
     case 'generate_receipt':
     case 'show_qr':
@@ -680,6 +684,12 @@ export function requiresConfirmation(action: NanAction): boolean {
     case 'set_theme':
     case 'mark_notifications_read':
       return false
+    case 'bridge_start':
+      return Boolean(action.params.amount && action.params.toChain)
+    case 'bridge_info':
+      return Boolean(action.params.amount && action.params.toChain)
+    case 'swap_start':
+      return Boolean(action.params.amount && action.params.toToken)
     case 'set_recurring_active':
     case 'agent_wallet_send':
     case 'agent_service_pay':
@@ -707,6 +717,10 @@ export type ExecutorContext = {
   isPasskeyUser?: boolean
   /** Callback to trigger a Circle SDK challenge for UCW/passkey sends */
   triggerCircleSend?: (params: { toAddress: string; amount: string; note?: string }) => Promise<string>
+  /** Runs a bridge end to end from the chat (all login types). Throws on failure. */
+  runBridge?: (params: { amount: string; toChain: string }) => Promise<string>
+  /** Runs a swap end to end from the chat (all login types). Throws on failure. */
+  runSwap?: (params: { fromToken: string; toToken: string; amount: string }) => Promise<string>
 }
 
 // ── Main executor ─────────────────────────────────────────────────────────────
@@ -842,12 +856,14 @@ export async function executeAction(action: NanAction, ctx: ExecutorContext): Pr
       return sendMainWallet(action.params, ctx)
 
     case 'ucw_bridge': {
+      if (ctx.runBridge) return ctx.runBridge({ amount: action.params.amount, toChain: action.params.toChain })
       store.setBridgePrefill({ amount: action.params.amount, toChain: action.params.toChain })
       navigate('bridge')
       return `Opening Bridge tab — ${action.params.amount} USDC → ${action.params.toChain} via Circle CCTP V2. Complete the transaction there.`
     }
 
     case 'ucw_swap': {
+      if (ctx.runSwap) return ctx.runSwap({ fromToken: action.params.fromToken, toToken: action.params.toToken, amount: action.params.amount })
       store.setSwapPrefill({ fromToken: action.params.fromToken, toToken: action.params.toToken, amount: action.params.amount })
       navigate('swap')
       return `Opening Swap tab — ${action.params.amount} ${action.params.fromToken} → ${action.params.toToken}. Complete the swap there.`
@@ -881,17 +897,26 @@ export async function executeAction(action: NanAction, ctx: ExecutorContext): Pr
     }
 
     case 'bridge_start': {
+      if (ctx.runBridge && action.params.amount && action.params.toChain) {
+        return ctx.runBridge({ amount: action.params.amount, toChain: action.params.toChain })
+      }
       store.setBridgePrefill({ amount: action.params.amount, toChain: action.params.toChain })
       navigate('bridge')
       return `Opening Bridge tab${action.params.amount ? ` with ${action.params.amount} USDC` : ''}${action.params.toChain ? ` → ${action.params.toChain}` : ''}. Complete the transaction there.`
     }
 
     case 'bridge_info': {
+      if (ctx.runBridge && action.params.amount && action.params.toChain) {
+        return ctx.runBridge({ amount: action.params.amount, toChain: action.params.toChain })
+      }
       navigate('bridge')
       return `Opening Bridge tab — bridge ${action.params.amount} USDC from ${action.params.fromChain} to ${action.params.toChain}.`
     }
 
     case 'swap_start': {
+      if (ctx.runSwap && action.params.amount && action.params.toToken) {
+        return ctx.runSwap({ fromToken: action.params.fromToken ?? 'USDC', toToken: action.params.toToken, amount: action.params.amount })
+      }
       store.setSwapPrefill({ fromToken: action.params.fromToken, toToken: action.params.toToken, amount: action.params.amount })
       navigate('swap')
       return `Opening Swap tab${action.params.amount ? ` with ${action.params.amount}` : ''}. Complete the swap there.`

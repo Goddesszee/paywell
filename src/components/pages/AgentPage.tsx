@@ -8,7 +8,7 @@ import {
   Clock, ChevronRight, Sparkles, Network, Activity,
   UserCheck, TrendingUp, PackageCheck
 } from 'lucide-react'
-import { useWriteContract, useAccount } from 'wagmi'
+import { useWriteContract, useAccount, useSwitchChain } from 'wagmi'
 import { useCircleTransaction } from '../../hooks/useCircleTransaction'
 import { sendFromPasskeyWallet } from '../CirclePasskeyLogin'
 import { parseUnits } from 'viem'
@@ -45,6 +45,7 @@ import {
   parseAction, describeAction, requiresConfirmation, executeAction,
   type NanAction,
 } from '../../lib/agent-actions'
+import { runAgentBridge, runAgentSwap } from '../../lib/agent-exec'
 import { AgentWalletExperience } from './AgentWalletExperience'
 
 const F       = "'Inter', -apple-system, sans-serif"
@@ -753,8 +754,9 @@ function AgentChat({ onNavigate }: { onNavigate?: (page: string, query?: string)
     agentWallet,
   } = useAppStore()
 
-  const { address, chainId } = useAccount()
+  const { address, chainId, connector } = useAccount()
   const { writeContractAsync } = useWriteContract()
+  const { switchChainAsync } = useSwitchChain()
   const circleTx = useCircleTransaction()
   const isCircleUcwUser = !!(auth?.userToken && !auth?.isPasskeyUser)
   const isPasskeyUser = !!auth?.isPasskeyUser
@@ -782,6 +784,16 @@ function AgentChat({ onNavigate }: { onNavigate?: (page: string, query?: string)
     }
     throw new Error('Not signed in with a Circle wallet. Sign in again or connect a browser wallet.')
   }, [isPasskeyUser, isCircleUcwUser, circleTx])
+
+  // In-chat bridge / swap runners (all login types). Progress is posted as agent messages.
+  const runBridge = useCallback((p: { amount: string; toChain: string }) =>
+    runAgentBridge(p, { address, chainId, connector, switchChainAsync },
+      (m) => addAgentMessage({ role: 'agent', content: m, action: 'info' })),
+  [address, chainId, connector, switchChainAsync, addAgentMessage])
+  const runSwap = useCallback((p: { fromToken: string; toToken: string; amount: string }) =>
+    runAgentSwap(p, { address, chainId, connector, switchChainAsync },
+      (m) => addAgentMessage({ role: 'agent', content: m, action: 'info' })),
+  [address, chainId, connector, switchChainAsync, addAgentMessage])
 
   const [input, setInput] = useState('')
   const [typing, setTyping] = useState(false)
@@ -1102,6 +1114,8 @@ function AgentChat({ onNavigate }: { onNavigate?: (page: string, query?: string)
         isCircleUcwUser,
         isPasskeyUser,
         triggerCircleSend,
+        runBridge,
+        runSwap,
       })
       // Handle special signal strings from agent-actions executor
       if (result?.startsWith('__AGENT_WALLET_CHALLENGE__:')) {
@@ -1328,6 +1342,8 @@ function AgentChat({ onNavigate }: { onNavigate?: (page: string, query?: string)
                   isCircleUcwUser,
                   isPasskeyUser,
                   triggerCircleSend,
+                  runBridge,
+                  runSwap,
                 })
                 // Handle special signal strings
                 if (result === '__AGENT_WALLET_FUND__') {

@@ -66,7 +66,7 @@ function detectDirectAction(message: string): { reply: string; action: Record<st
     if (from && to && from !== to) {
       const source = /agent wallet/.test(lower) ? 'agent' : 'main'
       return {
-        reply: `Opening a swap of ${swap[1]} ${from} to ${to} from your ${source} wallet. Review the quote and confirm.`,
+        reply: `Ready to swap ${swap[1]} ${from} to ${to} from your ${source} wallet. Please confirm below.`,
         action: { action: 'swap_start', params: { fromToken: from, toToken: to, amount: swap[1], source } },
       }
     }
@@ -78,7 +78,7 @@ function detectDirectAction(message: string): { reply: string; action: Record<st
     const chain = dest ? normalizeChain(dest[1]) : null
     if (chain) {
       return {
-        reply: `Opening the Bridge for ${bridge[1]} USDC to ${chain}. Review the details and confirm.`,
+        reply: `Ready to bridge ${bridge[1]} USDC from Arc Testnet to ${chain}. Please confirm below.`,
         action: { action: 'bridge_start', params: { amount: bridge[1], toChain: chain } },
       }
     }
@@ -269,7 +269,7 @@ Send USDC from Agent Wallet:
 
 **── BRIDGE ──**
 
-Bridge via App Kit (opens Bridge tab, wagmi users):
+Bridge USDC from Arc Testnet (runs in chat after the user confirms; works for every login type):
 {"action":"bridge_start","params":{"amount":"<string>","toChain":"<chain name>"}}
 
 Bridge directly from Circle UCW (email/Google users, no tab switch):
@@ -277,7 +277,7 @@ Bridge directly from Circle UCW (email/Google users, no tab switch):
 
 **── SWAP ──**
 
-Swap tokens inline (shows quote card in chat):
+Swap tokens (runs in chat after the user confirms; works for every login type; supported tokens USDC, EURC, cirBTC):
 {"action":"swap_start","params":{"fromToken":"USDC","toToken":"<token>","amount":"<string>"}}
 
 Swap from Circle UCW directly:
