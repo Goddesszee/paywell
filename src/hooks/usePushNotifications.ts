@@ -13,7 +13,7 @@ import { useAccount } from 'wagmi'
 
 const STORAGE_KEY_ADDR  = 'nan-push-address-v2'
 const STORAGE_KEY_VAPID = 'nan-push-vapid-v2'
-const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? ''
+const API_BASE = (import.meta.env.VITE_RAILWAY_URL as string | undefined) ?? (import.meta.env.VITE_API_URL as string | undefined) ?? ''
 
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4)

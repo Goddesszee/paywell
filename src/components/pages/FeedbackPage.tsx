@@ -4,7 +4,7 @@ import { useAppStore } from '../../store/appStore'
 import { useNanTheme } from '../../hooks/useNanTheme'
 
 const F = "'Inter', -apple-system, sans-serif"
-const API = (import.meta.env.VITE_API_URL as string | undefined) ?? ''
+const API = (import.meta.env.VITE_RAILWAY_URL as string | undefined) ?? (import.meta.env.VITE_API_URL as string | undefined) ?? ''
 const CATEGORIES = [
   { id: 'general',  label: 'General' },
   { id: 'payments', label: 'Payments' },

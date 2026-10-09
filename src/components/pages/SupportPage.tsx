@@ -6,7 +6,7 @@ import {
 import { useAppStore } from '../../store/appStore'
 
 const SANS = "var(--nan-font, 'Inter', sans-serif)"
-const API = (import.meta.env.VITE_API_URL as string | undefined) ?? ''
+const API = (import.meta.env.VITE_RAILWAY_URL as string | undefined) ?? (import.meta.env.VITE_API_URL as string | undefined) ?? ''
 
 interface SupportMessage {
   id: string
