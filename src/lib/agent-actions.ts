@@ -22,7 +22,7 @@
  * - No action touches wallet credentials or secrets.
  */
 
-import { parseUnits } from 'viem'
+import { parseUnits, getAddress } from 'viem'
 import { getUsdc } from '../onchain-facts'
 import type { AppState, RecurringFrequency } from '../store/appStore'
 
@@ -536,7 +536,8 @@ export async function executeAction(action: NanAction, ctx: ExecutorContext): Pr
     }
 
     case 'send_usdc': {
-      const { toAddress, amount, note } = action.params
+      const { toAddress: rawTo, amount, note } = action.params
+      const toAddress = getAddress(rawTo) // normalize to EIP-55 checksum
       if (!ctx.writeContractAsync) throw new Error('Wallet not connected. Please connect your wallet first.')
       if (!ctx.chainId) throw new Error('No chain connected.')
       const usdc = getUsdc(ctx.chainId)
@@ -552,7 +553,8 @@ export async function executeAction(action: NanAction, ctx: ExecutorContext): Pr
     }
 
     case 'agent_send': {
-      const { toAddress, amount, note } = action.params
+      const { toAddress: rawTo2, amount, note } = action.params
+      const toAddress = getAddress(rawTo2)
       const userToken = ctx.agentWalletUserToken
       if (!userToken) throw new Error('Agent Wallet session not active. Authenticate in the Agent Wallet tab first.')
       const r = await fetch('/api/agent-wallet', {
@@ -572,7 +574,8 @@ export async function executeAction(action: NanAction, ctx: ExecutorContext): Pr
     case 'ucw_send': {
       // For email/Google UCW users — navigate to wallet and prefill send
       // The actual Circle SDK challenge happens in WalletPage
-      const { toAddress, amount, note } = action.params
+      const { toAddress: rawTo3, amount, note } = action.params
+      const toAddress = getAddress(rawTo3)
       // Trigger the send by navigating to wallet with state
       store.setBridgePrefill(null)
       store.setSwapPrefill(null)
