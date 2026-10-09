@@ -861,7 +861,7 @@ function TransferTab({ address, gatewayBalance, onSuccess }: {
   const [errMsg, setErrMsg] = useState('')
   const [mintTxHash, setMintTxHash] = useState<`0x${string}` | undefined>()
   // Store attestation after Gateway API responds — doMint fires once chainId settles
-  const [pendingMint, setPendingMint] = useState<{ attestation: `0x${string}`; sig: `0x${string}` } | null>(null)
+  const [pendingMint, setPendingMint] = useState<{ attestation: `0x${string}`; sig: `0x${string}`; destChainIdSnapshot: number } | null>(null)
   const gwBal = gatewayBalance ? parseFloat(gatewayBalance) : 0
 
   const destChain = GATEWAY_CHAINS.find(c => c.chainId === destChainId)
@@ -896,20 +896,31 @@ function TransferTab({ address, gatewayBalance, onSuccess }: {
     }
   }, [mintError, mintWriteError]) // eslint-disable-line
 
-  // Fire doMint only once wagmi's chainId has settled to destChainId.
-  // Calling writeContract immediately after switchChainAsync returns causes viem
-  // to see the stale pre-switch chainId (still undefined/NaN on mobile wallets)
-  // and throw "Provided chainId NaN must match active chainId". Waiting for the
-  // reactive chainId update guarantees the wallet state is consistent.
+  // Fire doMint once wagmi's chainId has settled to destChainId.
+  // On mobile wallets the chainChanged event may be slow or never arrive.
+  // We wait up to 3 seconds for the reactive update; after that we fire
+  // anyway, omitting chainId from the writeContract call so viem uses
+  // whatever chain the wallet is currently on (which IS the dest chain
+  // because switchChainAsync already resolved successfully).
   useEffect(() => {
     if (!pendingMint || phase !== 'minting') return
-    if (chainId !== destChainId) return // wait for chain switch to propagate
-    doMint({
-      address:      GATEWAY_MINTER,
-      abi:          GATEWAY_MINTER_ABI,
-      functionName: 'gatewayMint',
-      args:         [pendingMint.attestation, pendingMint.sig],
-    })
+    const target = pendingMint.destChainIdSnapshot
+    const fire = (withChainId: boolean) => {
+      doMint({
+        address:      GATEWAY_MINTER,
+        abi:          GATEWAY_MINTER_ABI,
+        functionName: 'gatewayMint',
+        args:         [pendingMint.attestation, pendingMint.sig],
+        ...(withChainId ? { chainId: target } : {}),
+      })
+    }
+    if (chainId === target) {
+      fire(true)
+      return
+    }
+    // Fallback: fire after 3 s without chainId pin if wagmi state hasn't updated
+    const t = setTimeout(() => { fire(false) }, 3000)
+    return () => clearTimeout(t)
   }, [chainId, pendingMint, phase]) // eslint-disable-line
 
   const handleTransfer = async () => {
@@ -967,7 +978,7 @@ function TransferTab({ address, gatewayBalance, onSuccess }: {
       // reactive chainId has updated after switchChainAsync.
       await switchChainAsync({ chainId: destChainId })
       setPhase('minting')
-      setPendingMint({ attestation: attestation!, sig: mintSignature! })
+      setPendingMint({ attestation: attestation!, sig: mintSignature!, destChainIdSnapshot: destChainId })
     } catch (e: unknown) {
       setPhase('error')
       setPendingMint(null)
