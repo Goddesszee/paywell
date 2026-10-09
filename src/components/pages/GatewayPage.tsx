@@ -1066,10 +1066,7 @@ function CircleTransferTab({ address, gatewayBalance, onSuccess }: {
   const [phase, setPhase]             = useState<TransferPhase>('idle')
   const [errMsg, setErrMsg]           = useState('')
   const [mintTxHash, setMintTxHash]   = useState<string | undefined>()
-  const circleTx                      = useCircleTransaction()
-  const { writeContractAsync }        = useWriteContract()
-  const chainId                       = useChainId()
-  const { switchChainAsync }          = useSwitchChain()
+  const circleTx = useCircleTransaction()
 
   const gwBal     = gatewayBalance ? parseFloat(gatewayBalance) : 0
   const DEST_CHAINS = GATEWAY_CHAINS.filter(c => c.chainId !== ARC)
@@ -1120,31 +1117,107 @@ function CircleTransferTab({ address, gatewayBalance, onSuccess }: {
       let signature: `0x${string}`
 
       if (isPasskey) {
-        // ── Passkey path (SCA / ERC-1271) ────────────────────────────────────
-        // SCAs use ERC-1271 — must pass contractSigner:true to Gateway API
+        // ── Passkey path (SCA / ERC-1271) ─────────────────────────────────────
+        // Passkey users have no wagmi connector — all onchain calls go via the
+        // Circle modular SDK bundler. We create credential + account ONCE here
+        // and reuse them for both signing and the gatewayMint userOp.
         const clientKey = import.meta.env.VITE_CLIENT_KEY as string | undefined
         if (!clientKey) throw new Error('VITE_CLIENT_KEY not set — passkey transactions require a Circle Client Key.')
-        const { toWebAuthnAccount } = await import('viem/account-abstraction')
+
+        const { toWebAuthnAccount, createBundlerClient } = await import('viem/account-abstraction')
         const { toCircleSmartAccount, toModularTransport, toWebAuthnCredential, WebAuthnMode, toPasskeyTransport } = await import('@circle-fin/modular-wallets-core')
-        const { createPublicClient } = await import('viem')
-        const { arcTestnet } = await import('viem/chains')
-        const MODULAR_URL   = 'https://modular-sdk.circle.com/v1/rpc/w3s/buidl'
-        const modularTransport = toModularTransport(`${MODULAR_URL}/arcTestnet`, clientKey)
-        const publicClient     = createPublicClient({ chain: arcTestnet, transport: modularTransport })
+        const { createPublicClient, encodeFunctionData: encFn } = await import('viem')
+        const viemChains = await import('viem/chains')
+
+        const MODULAR_URL      = 'https://modular-sdk.circle.com/v1/rpc/w3s/buidl'
         const passkeyTransport = toPasskeyTransport(MODULAR_URL, clientKey)
-        const credential       = await toWebAuthnCredential({ transport: passkeyTransport, mode: WebAuthnMode.Login })
-        const account          = await toCircleSmartAccount({ client: publicClient, owner: toWebAuthnAccount({ credential }) })
+
+        // chainId → Circle modular SDK camelCase slug
+        const MODULAR_SLUG_MAP: Record<number, string> = {
+          5042002:  'arcTestnet',
+          11155111: 'sepolia',
+          84532:    'baseSepolia',
+          421614:   'arbitrumSepolia',
+          43113:    'avalancheFuji',
+          80002:    'polygonAmoy',
+          11155420: 'optimismSepolia',
+          1301:     'unichainSepolia',
+        }
+        // chainId → viem chain object
+        const VIEM_CHAIN_MAP: Record<number, import('viem').Chain> = {
+          5042002:  viemChains.arcTestnet ?? { id: 5042002, name: 'Arc Testnet', nativeCurrency: { name: 'USDC', symbol: 'USDC', decimals: 18 }, rpcUrls: { default: { http: ['https://rpc.testnet.arc.io'] } } },
+          11155111: viemChains.sepolia,
+          84532:    viemChains.baseSepolia,
+          421614:   viemChains.arbitrumSepolia,
+          43113:    viemChains.avalancheFuji,
+          80002:    viemChains.polygonAmoy,
+          11155420: viemChains.optimismSepolia,
+          1301:     viemChains.unichainSepolia,
+        }
+
+        // ── Step 1: Sign BurnIntent on Arc using the passkey account ─────────
+        const arcSlug       = MODULAR_SLUG_MAP[ARC]
+        const arcTransport  = toModularTransport(`${MODULAR_URL}/${arcSlug}`, clientKey)
+        const arcClient     = createPublicClient({ chain: VIEM_CHAIN_MAP[ARC], transport: arcTransport })
+        // Single credential lookup — this is the only passkey prompt for signing
+        const credential    = await toWebAuthnCredential({ transport: passkeyTransport, mode: WebAuthnMode.Login })
+        const arcAccount    = await toCircleSmartAccount({ client: arcClient, owner: toWebAuthnAccount({ credential }) })
         // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
-        signature = await (account as any).signTypedData({
+        signature = await (arcAccount as any).signTypedData({
           domain:      BURN_INTENT_TYPED_DATA.domain,
           types:       { BurnIntent: BURN_INTENT_TYPED_DATA.types.BurnIntent, TransferSpec: BURN_INTENT_TYPED_DATA.types.TransferSpec },
           primaryType: 'BurnIntent',
           message:     burnIntent,
         })
+
+        setPhase('submitting')
+        const { attestation, signature: mintSignature } = await submitBurnIntent(burnIntent, signature, true)
+
+        // ── Step 2: gatewayMint on dest chain via bundler (reuse same credential) ──
+        setPhase('minting')
+        const destSlug      = MODULAR_SLUG_MAP[destChainId]
+        const destViemChain = VIEM_CHAIN_MAP[destChainId]
+        if (!destSlug || !destViemChain) throw new Error(`Unsupported destination chain: ${destChain?.name ?? destChainId}`)
+
+        const destTransport  = toModularTransport(`${MODULAR_URL}/${destSlug}`, clientKey)
+        const destClient     = createPublicClient({ chain: destViemChain, transport: destTransport })
+        // Reuse the same credential — no second passkey prompt for account lookup
+        const destAccount    = await toCircleSmartAccount({ client: destClient, owner: toWebAuthnAccount({ credential }) })
+        const bundlerClient  = createBundlerClient({ account: destAccount, chain: destViemChain, transport: destTransport })
+        const destMinterAddr = getProtocolContractByName('GatewayMinter', 'testnet')?.address ?? GATEWAY_MINTER
+
+        const mintCallData   = encFn({ abi: GATEWAY_MINTER_ABI, functionName: 'gatewayMint', args: [attestation, mintSignature] })
+        const factoryArgs    = await destAccount.getFactoryArgs()
+        const deployFields   = factoryArgs.factory ? { factory: factoryArgs.factory, factoryData: factoryArgs.factoryData } : {}
+
+        const isPaymasterErr = (e: unknown) => {
+          const m = (e as { code?: number; message?: string; shortMessage?: string } | undefined)
+          return m?.code === -32603 || /internal error|paymaster/i.test(m?.shortMessage ?? m?.message ?? '')
+        }
+        let uoh: `0x${string}`
+        try {
+          uoh = await bundlerClient.sendUserOperation({
+            account: destAccount,
+            calls: [{ to: destMinterAddr as `0x${string}`, data: mintCallData, value: 0n }],
+            paymaster: true,
+            ...deployFields,
+          })
+        } catch (pmErr: unknown) {
+          if (!isPaymasterErr(pmErr)) throw pmErr
+          uoh = await bundlerClient.sendUserOperation({
+            account: destAccount,
+            calls: [{ to: destMinterAddr as `0x${string}`, data: mintCallData, value: 0n }],
+            ...deployFields,
+          })
+        }
+        const receipt = await bundlerClient.waitForUserOperationReceipt({ hash: uoh })
+        setMintTxHash(receipt.receipt.transactionHash)
+        setPhase('done')
+        toast.success(`Transferred ${amount} USDC to ${destChain.name}`)
+        setTimeout(onSuccess, 2000)
+        return // passkey path complete
       } else {
         // ── W3S SDK path (EOA via Circle UCW) ────────────────────────────────
-        // Circle UCW signs EIP-712 typed data via the sign-message challenge.
-        // We pass the full typed data JSON; the SDK signs it as personal_sign.
         const typedDataStr = JSON.stringify(
           { ...BURN_INTENT_TYPED_DATA, message: burnIntent },
           (_k, v: unknown) => typeof v === 'bigint' ? (v).toString() : v,
@@ -1155,10 +1228,9 @@ function CircleTransferTab({ address, gatewayBalance, onSuccess }: {
       }
 
       setPhase('submitting')
-      // Pass contractSigner:true for passkey (SCA/ERC-1271); false for Circle UCW (EOA)
-      const { attestation, signature: mintSignature } = await submitBurnIntent(burnIntent, signature, isPasskey)
+      // W3S SDK path: contractSigner:false (EOA)
+      const { attestation, signature: mintSignature } = await submitBurnIntent(burnIntent, signature, false)
 
-      // ── Mint on destination via Circle wallet contract execution ─────────
       setPhase('minting')
       const { encodeFunctionData } = await import('viem')
       const mintCallData = encodeFunctionData({
@@ -1167,25 +1239,10 @@ function CircleTransferTab({ address, gatewayBalance, onSuccess }: {
         args: [attestation, mintSignature],
       })
 
-      // gatewayMint is permissionless — any caller can submit the attestation.
-      // Use wagmi writeContractAsync for both passkey and W3S SDK paths to avoid
-      // extra bundler complexity and redundant passkey prompts.
       let txHash: string | undefined
       const destMinter = getProtocolContractByName('GatewayMinter', 'testnet')?.address ?? GATEWAY_MINTER
-      if (isPasskey) {
-        // Switch to dest chain then call gatewayMint via the connected wagmi wallet
-        if (chainId !== destChainId) await switchChainAsync({ chainId: destChainId })
-        txHash = await writeContractAsync({
-          address: destMinter as `0x${string}`,
-          abi: GATEWAY_MINTER_ABI,
-          functionName: 'gatewayMint',
-          args: [attestation, mintSignature],
-          chainId: destChainId,
-        })
-      } else {
-        const result = await circleTx.executeContract({ contractAddress: destMinter, callData: mintCallData })
-        txHash = result ?? undefined
-      }
+      const result2 = await circleTx.executeContract({ contractAddress: destMinter, callData: mintCallData })
+      txHash = result2 ?? undefined
 
       setMintTxHash(txHash)
       setPhase('done')
