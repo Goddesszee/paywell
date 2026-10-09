@@ -12,7 +12,7 @@
  *   const { sendTransfer, executeContract, status, txHash, error, reset } = useCircleTransaction()
  */
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import { W3SSdk } from '@circle-fin/w3s-pw-web-sdk'
 import { useAppStore } from '../store/appStore'
 
@@ -49,7 +49,15 @@ export function useCircleTransaction() {
   const setAuth = useAppStore(s => s.setAuth)
   const [status, setStatus]   = useState<CircleTxStatus>('idle')
   const [txHash, setTxHash]   = useState<string | undefined>()
-  const [error,  setError]    = useState<string | undefined>()
+  const [error,  setErrorState] = useState<string | undefined>()
+  // Mirror of `error` readable synchronously by callers (e.g. the AI agent) that
+  // await sendTransfer() and need the real failure reason, not stale closure state.
+  const errorRef = useRef<string | undefined>(undefined)
+  const setError = useCallback((msg: string | undefined) => {
+    errorRef.current = msg
+    setErrorState(msg)
+  }, [])
+  const getLastError = useCallback(() => errorRef.current, [])
 
   /** Calls the backend to create a challenge, then executes it via the SDK */
   const _execute = useCallback(
@@ -143,7 +151,7 @@ export function useCircleTransaction() {
       }
       return transactionId
     },
-    [auth, setAuth],
+    [auth, setAuth, setError],
   )
 
   /** Poll transaction until terminal state, return txHash */
@@ -184,7 +192,7 @@ export function useCircleTransaction() {
       setStatus('error')
       return undefined
     },
-    [auth],
+    [auth, setError],
   )
 
   /** Send a token transfer */
@@ -200,7 +208,7 @@ export function useCircleTransaction() {
       if (!transactionId) return undefined
       return _poll(transactionId)
     },
-    [_execute, _poll],
+    [_execute, _poll, setError],
   )
 
   /** Execute a contract function */
@@ -221,7 +229,7 @@ export function useCircleTransaction() {
       if (!transactionId) return undefined
       return _poll(transactionId)
     },
-    [_execute, _poll],
+    [_execute, _poll, setError],
   )
 
   /**
@@ -279,12 +287,12 @@ export function useCircleTransaction() {
         })
       })
     },
-    [auth],
+    [auth, setError],
   )
 
   const reset = useCallback(() => {
     setStatus('idle'); setTxHash(undefined); setError(undefined)
-  }, [])
+  }, [setError])
 
-  return { sendTransfer, executeContract, signMessage, status, txHash, error, reset }
+  return { sendTransfer, executeContract, signMessage, status, txHash, error, getLastError, reset }
 }

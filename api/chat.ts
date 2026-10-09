@@ -302,6 +302,23 @@ Generate receipt for the Nth recent transaction (0 = latest):
 Show a QR code for receiving USDC (opens wallet receive screen):
 {"action":"show_qr","params":{"address":"<optional 0x>","amount":"<optional>","note":"<optional>"}}
 
+**── GATEWAY, PROFILE & SETTINGS ──**
+
+Gateway deposit or cross-chain transfer (any login type):
+{"action":"gateway_start","params":{"mode":"deposit|transfer","amount":"<string>","toChain":"<chain, transfer only>"}}
+
+Update the user's profile name or bio:
+{"action":"update_profile","params":{"displayName":"<optional>","bio":"<optional>"}}
+
+Switch the app theme:
+{"action":"set_theme","params":{"theme":"dark|light"}}
+
+Mark all notifications as read:
+{"action":"mark_notifications_read","params":{}}
+
+Pause or resume a recurring payment by exact name:
+{"action":"set_recurring_active","params":{"name":"<exact name>","active":true|false}}
+
 **── NOTIFICATIONS & FAUCET ──**
 
 Open notifications:
@@ -316,18 +333,16 @@ Open faucet (get free testnet USDC):
 
 **You MUST emit an action block whenever the user asks you to DO something. Never just say "I will do X" without the action block — that leaves the user waiting forever with nothing happening.**
 
-**Circle UCW users** (logged in with Email OTP or Google): use ucw_send, ucw_bridge, ucw_swap, ucw_gateway_deposit, ucw_gateway_transfer.
-**Wagmi users** (MetaMask/WalletConnect): use send_usdc, bridge_start, swap_start, navigate to gateway.
-**Passkey users** (WebAuthn/modular wallet — they have a connected 0x address but no Circle UCW auth): use send_usdc for sends (same as wagmi), bridge_start for bridge, swap_start for swap. Do NOT use ucw_* or agent_send for passkey users.
+**Sending, bridging and swapping from the main wallet works for EVERY login type** (email, Google, passkey, MetaMask). The app picks the correct signing path itself. Always emit send_usdc, bridge_start, swap_start (and gateway_start for Gateway). The ucw_* actions are accepted as aliases but you should not need them.
 **Agent Wallet**: use agent_wallet_send for agent wallet sends, agent_wallet_balance to check balance, agent_wallet_fund to open funding, agent_service_search to find services, agent_service_pay to hire a service.
 
-**BRIDGE rule**: user says "bridge X USDC to Y" → emit bridge_start (wagmi/passkey) OR ucw_bridge (UCW). NEVER just describe bridging.
-**SWAP rule**: user says "swap X USDC to Y" → emit swap_start (wagmi/passkey) OR ucw_swap (UCW). NEVER just describe swapping.
-**SEND rule**: user says "send X USDC to 0x..." → emit send_usdc (wagmi/passkey), ucw_send (UCW), or agent_wallet_send (agent wallet). NEVER just describe sending.
+**BRIDGE rule**: user says "bridge X USDC to Y" → emit bridge_start. NEVER just describe bridging.
+**SWAP rule**: user says "swap X USDC to Y" → emit swap_start. NEVER just describe swapping.
+**SEND rule**: user says "send X USDC to 0x..." → emit send_usdc (main wallet) or agent_wallet_send (agent wallet). NEVER just describe sending.
 **AGENT WALLET rule**: user says "from my agent wallet" or "use agent wallet" → use agent_wallet_send/agent_service_pay/agent_wallet_fund. Agent wallet is a SEPARATE wallet from the main wallet.
-**MAIN WALLET rule**: user says "from my main wallet" or "from my balance" or doesn't specify → use send_usdc/bridge_start/swap_start (wagmi/passkey) or ucw_send/ucw_bridge/ucw_swap (UCW).
+**MAIN WALLET rule**: user says "from my main wallet" or "from my balance" or doesn't specify → use send_usdc/bridge_start/swap_start (the app routes by login type).
 
-To determine user type: look at the "Login type" field in the wallet block above — it is injected at request time and is the single source of truth. Do NOT guess from other fields. If Login type contains "Passkey" or "Wagmi" → use send_usdc/bridge_start/swap_start. If Login type contains "UCW email/Google" → use ucw_send/ucw_bridge/ucw_swap. If unsure, default to send_usdc (NOT ucw_send) because most NAN users have a connected 0x address.
+The wallet block above shows the user's login type for context only; it does not change which action you emit for main-wallet sends, bridges or swaps.
 
 ---
 
@@ -495,7 +510,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 - Agent Wallet: **${parseFloat(ctx.agentBalance ?? '0').toFixed(2)} USDC** (${ctx.agentWalletProvisioned ? 'provisioned' : 'NOT set up'})
   ${ctx.agentAddress ? `Address: ${ctx.agentAddress}` : '(no address — not provisioned)'}
   ${ctx.agentWalletBlockchain ? `Blockchain: ${ctx.agentWalletBlockchain} · AccountType: ${ctx.agentWalletAccountType ?? 'SCA'}` : ''}
-- Login type: ${ctx.isPasskeyUser ? 'Passkey/Modular Wallet (use send_usdc, bridge_start, swap_start — NEVER ucw_*)' : ctx.isCircleUcwUser ? 'Circle UCW email/Google (use ucw_send, ucw_bridge, ucw_swap, ucw_gateway_deposit, ucw_gateway_transfer)' : 'Wagmi/MetaMask (use send_usdc, bridge_start, swap_start)'}
+- Login type: ${ctx.isPasskeyUser ? 'Passkey / Modular Wallet' : ctx.isCircleUcwUser ? 'Circle email/Google wallet' : 'Browser wallet (MetaMask/WalletConnect)'} (informational — always emit send_usdc, bridge_start, swap_start)
 - Agent enabled: ${ctx.agentEnabled !== false ? 'YES' : 'NO'}
 - Daily limit: ${ctx.dailyLimit ?? 'not set'} USDC · Used today: ${(ctx.agentDailyUsed ?? 0).toFixed(2)} USDC · Remaining: ${ctx.remainingToday !== undefined ? ctx.remainingToday.toFixed(2) : 'unknown'} USDC
 - Per-tx limit: ${ctx.perTxLimit ?? 'not set'} USDC · Per-service limit: ${ctx.perServiceLimit ?? 'not set'} USDC

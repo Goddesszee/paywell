@@ -329,11 +329,41 @@ export async function sendFromPasskeyWallet({
   })
   const bundlerClient = createBundlerClient({ chain: arcTestnet, transport: modularTransport })
   const callData = encodeTransfer(to, ContractAddress.ArcTestnet_USDC, amount)
-  const userOpHash = await bundlerClient.sendUserOperation({
-    account,
-    calls: [callData],
-    paymaster: true,
-  })
+
+  // First try with Circle's gas sponsorship. If the bundler/paymaster rejects the
+  // op with a generic JSON-RPC "Internal error" (-32603), retry once unsponsored:
+  // on Arc, gas is USDC, so the smart account can pay for itself.
+  let userOpHash: `0x${string}`
+  try {
+    userOpHash = await bundlerClient.sendUserOperation({ account, calls: [callData], paymaster: true })
+  } catch (e) {
+    console.error('[passkey-send] sponsored user operation failed', e)
+    if (!isGenericInternalRpcError(e)) throw new Error(describePasskeyError(e))
+    try {
+      userOpHash = await bundlerClient.sendUserOperation({ account, calls: [callData] })
+    } catch (e2) {
+      console.error('[passkey-send] unsponsored retry failed', e2)
+      throw new Error(describePasskeyError(e2))
+    }
+  }
   const { receipt } = await bundlerClient.waitForUserOperationReceipt({ hash: userOpHash })
   return receipt.transactionHash
+}
+
+function isGenericInternalRpcError(e: unknown): boolean {
+  const err = e as { code?: number; name?: string; shortMessage?: string; message?: string } | undefined
+  return err?.code === -32603
+    || err?.name === 'InternalRpcError'
+    || /internal error/i.test(err?.shortMessage ?? err?.message ?? '')
+}
+
+/** Turn viem / bundler errors into a message a person can act on. */
+export function describePasskeyError(e: unknown): string {
+  const err = e as { shortMessage?: string; details?: string; message?: string; name?: string } | undefined
+  const raw = [err?.shortMessage, err?.details, err?.message].filter(Boolean).join(' ')
+  if (/NotAllowedError|cancel/i.test(raw)) return 'Passkey prompt was cancelled.'
+  if (/insufficient|exceeds balance|AA21|AA31/i.test(raw)) return 'Not enough USDC in your passkey wallet to cover the amount plus network fee.'
+  if (/AA23|AA24|signature/i.test(raw)) return 'Passkey signature was rejected. Sign out, sign in with your passkey again, then retry.'
+  if (/internal error/i.test(raw)) return 'Circle\'s network service returned an internal error. Please retry in a moment.'
+  return err?.shortMessage ?? err?.message ?? 'Passkey transaction failed'
 }

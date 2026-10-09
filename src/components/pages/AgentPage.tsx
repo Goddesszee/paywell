@@ -759,7 +759,8 @@ function AgentChat({ onNavigate }: { onNavigate?: (page: string, query?: string)
   const isCircleUcwUser = !!(auth?.userToken && !auth?.isPasskeyUser)
   const isPasskeyUser = !!auth?.isPasskeyUser
 
-  // Universal send callback — handles all 3 login types
+  // Universal send callback for passkey and email/Google users.
+  // Always throws on failure so the agent never reports a send that did not happen.
   const triggerCircleSend = useCallback(async ({ toAddress, amount, note: _note }: { toAddress: string; amount: string; note?: string }) => {
     if (isPasskeyUser) {
       const clientKey = import.meta.env.VITE_CLIENT_KEY as string | undefined
@@ -769,10 +770,17 @@ function AgentChat({ onNavigate }: { onNavigate?: (page: string, query?: string)
       return hash ?? ''
     }
     if (isCircleUcwUser) {
-      const hash = await circleTx.sendTransfer({ destinationAddress: toAddress, amount, blockchain: 'ARC-TESTNET' })
-      return hash ?? ''
+      // Same token address the Wallet tab uses for USDC sends (proven path)
+      const hash = await circleTx.sendTransfer({
+        destinationAddress: toAddress,
+        amount,
+        tokenAddress: '0x3600000000000000000000000000000000000000',
+        blockchain: 'ARC-TESTNET',
+      })
+      if (!hash) throw new Error(circleTx.getLastError() ?? 'Circle transfer was cancelled or did not complete.')
+      return hash
     }
-    return ''
+    throw new Error('Not signed in with a Circle wallet. Sign in again or connect a browser wallet.')
   }, [isPasskeyUser, isCircleUcwUser, circleTx])
 
   const [input, setInput] = useState('')

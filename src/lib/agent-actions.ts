@@ -65,6 +65,11 @@ export type NanActionType =
   | 'agent_wallet_balance'
   | 'agent_service_search'
   | 'agent_service_pay'
+  | 'gateway_start'
+  | 'update_profile'
+  | 'set_theme'
+  | 'mark_notifications_read'
+  | 'set_recurring_active'
 
 // ── Individual action interfaces ───────────────────────────────────────────────
 
@@ -225,6 +230,31 @@ export interface AgentServicePayAction {
   params: { serviceId: string; serviceName: string; amount: string; query: string }
 }
 
+export interface GatewayStartAction {
+  action: 'gateway_start'
+  params: { mode: 'deposit' | 'transfer'; amount?: string; toChain?: string }
+}
+
+export interface UpdateProfileAction {
+  action: 'update_profile'
+  params: { displayName?: string; bio?: string }
+}
+
+export interface SetThemeAction {
+  action: 'set_theme'
+  params: { theme: 'dark' | 'light' }
+}
+
+export interface MarkNotificationsReadAction {
+  action: 'mark_notifications_read'
+  params: Record<string, never>
+}
+
+export interface SetRecurringActiveAction {
+  action: 'set_recurring_active'
+  params: { name: string; active: boolean }
+}
+
 // ── Union ─────────────────────────────────────────────────────────────────────
 
 export type NanAction =
@@ -257,6 +287,11 @@ export type NanAction =
   | AgentWalletBalanceAction
   | AgentServiceSearchAction
   | AgentServicePayAction
+  | GatewayStartAction
+  | UpdateProfileAction
+  | SetThemeAction
+  | MarkNotificationsReadAction
+  | SetRecurringActiveAction
 
 // ── Safe string coercion ───────────────────────────────────────────────────────
 
@@ -407,6 +442,28 @@ export function parseAction(raw: Record<string, unknown>): NanAction | null {
       if (!serviceId || !amount) return null
       return { action: 'agent_service_pay', params: { serviceId, serviceName, amount, query } }
     }
+    case 'gateway_start': {
+      const mode = s(params.mode) === 'transfer' ? 'transfer' : 'deposit'
+      return { action: 'gateway_start', params: { mode, amount: s(params.amount) || undefined, toChain: s(params.toChain) || undefined } }
+    }
+    case 'update_profile': {
+      const displayName = s(params.displayName) || undefined
+      const bio = s(params.bio) || undefined
+      if (!displayName && !bio) return null
+      return { action: 'update_profile', params: { displayName, bio } }
+    }
+    case 'set_theme': {
+      const theme = s(params.theme).toLowerCase()
+      if (theme !== 'dark' && theme !== 'light') return null
+      return { action: 'set_theme', params: { theme } }
+    }
+    case 'mark_notifications_read':
+      return { action: 'mark_notifications_read', params: {} }
+    case 'set_recurring_active': {
+      const name = s(params.name)
+      if (!name || params.active === undefined) return null
+      return { action: 'set_recurring_active', params: { name, active: Boolean(params.active) } }
+    }
     default:
       return null
   }
@@ -449,7 +506,7 @@ export function describeAction(action: NanAction): { title: string; lines: Array
         { label: 'To',     value: action.params.toAddress },
         { label: 'Amount', value: `${action.params.amount} USDC` },
         ...(action.params.note ? [{ label: 'Note', value: action.params.note }] : []),
-        { label: 'Source', value: 'Connected Wallet (wagmi)' },
+        { label: 'Source', value: 'Main wallet' },
       ]}
     case 'agent_send':
       return { title: 'Send USDC from Agent Wallet', lines: [
@@ -566,6 +623,23 @@ export function describeAction(action: NanAction): { title: string; lines: Array
         { label: 'Cost', value: `${action.params.amount} USDC` },
         { label: 'Task', value: action.params.query },
       ]}
+    case 'gateway_start':
+      return { title: action.params.mode === 'deposit' ? 'Gateway Deposit' : 'Gateway Transfer', lines: [
+        ...(action.params.amount  ? [{ label: 'Amount',   value: `${action.params.amount} USDC` }] : []),
+        ...(action.params.toChain ? [{ label: 'To Chain', value: action.params.toChain }] : []),
+        { label: 'Note', value: 'Opens Gateway tab pre-filled' },
+      ]}
+    case 'update_profile':
+      return { title: 'Update Profile', lines: [
+        ...(action.params.displayName ? [{ label: 'Name', value: action.params.displayName }] : []),
+        ...(action.params.bio ? [{ label: 'Bio', value: action.params.bio }] : []),
+      ]}
+    case 'set_theme':
+      return { title: 'Change Theme', lines: [{ label: 'Theme', value: action.params.theme }] }
+    case 'mark_notifications_read':
+      return { title: 'Mark Notifications Read', lines: [{ label: 'Action', value: 'Mark all as read' }] }
+    case 'set_recurring_active':
+      return { title: action.params.active ? 'Resume Recurring Payment' : 'Pause Recurring Payment', lines: [{ label: 'Name', value: action.params.name }] }
   }
 }
 
@@ -601,7 +675,12 @@ export function requiresConfirmation(action: NanAction): boolean {
     case 'agent_wallet_fund':
     case 'agent_wallet_balance':
     case 'agent_service_search':
+    case 'gateway_start':
+    case 'update_profile':
+    case 'set_theme':
+    case 'mark_notifications_read':
       return false
+    case 'set_recurring_active':
     case 'agent_wallet_send':
     case 'agent_service_pay':
       return true
@@ -631,6 +710,65 @@ export type ExecutorContext = {
 }
 
 // ── Main executor ─────────────────────────────────────────────────────────────
+
+/** Decide the signing path from the real session, not just from flags the caller passed. */
+function loginKind(ctx: ExecutorContext): 'passkey' | 'ucw' | 'wagmi' {
+  const a = ctx.store.auth
+  if (ctx.isPasskeyUser || a?.isPasskeyUser) return 'passkey'
+  if (ctx.isCircleUcwUser || a?.userToken) return 'ucw'
+  return 'wagmi'
+}
+
+function friendlyWagmiError(e: unknown): string {
+  const err = e as { shortMessage?: string; message?: string } | undefined
+  const msg = err?.shortMessage ?? err?.message ?? 'Transaction failed'
+  if (/internal error/i.test(msg)) return 'Your wallet\'s network returned an internal error. Make sure you are on Arc Testnet and hold USDC for gas, then retry.'
+  if (/user rejected|denied/i.test(msg)) return 'Transaction was rejected in your wallet.'
+  return msg
+}
+
+/** One send path for every login type. Used by both send_usdc and ucw_send. */
+async function sendMainWallet(params: { toAddress: string; amount: string; note?: string }, ctx: ExecutorContext): Promise<string> {
+  const { toAddress: rawTo, amount, note } = params
+  let toAddress: `0x${string}`
+  try { toAddress = getAddress(rawTo) } catch { throw new Error(`"${rawTo}" is not a valid wallet address.`) }
+  const n = parseFloat(amount)
+  if (!Number.isFinite(n) || n <= 0) throw new Error(`"${amount}" is not a valid amount.`)
+  const { store } = ctx
+  const short = `${toAddress.slice(0, 10)}…`
+
+  if (loginKind(ctx) !== 'wagmi') {
+    if (!ctx.triggerCircleSend) {
+      ctx.navigate('wallet')
+      return `Opening your wallet — ${amount} USDC to ${short}. Confirm the send there.`
+    }
+    // triggerCircleSend throws on failure, so we never record a send that did not happen
+    const txHash = await ctx.triggerCircleSend({ toAddress, amount, note })
+    store.addActivity({ type: 'sent', description: note ?? 'Agent send', amount: n, sign: '-', status: 'confirmed', counterparty: short, txHash: txHash || undefined })
+    return `Sent ${amount} USDC to ${short}${txHash ? ` — tx: ${txHash.slice(0, 12)}…` : ''}`
+  }
+
+  if (!ctx.connectedAddress || !ctx.writeContractAsync) {
+    throw new Error('No wallet connected. Connect MetaMask or a browser wallet, or sign in with email or passkey.')
+  }
+  if (!ctx.chainId) throw new Error('No chain connected.')
+  const usdc = getUsdc(ctx.chainId)
+  if (!usdc) throw new Error(`USDC is not supported on chain ${ctx.chainId}. Switch to Arc Testnet.`)
+  let txHash: `0x${string}`
+  try {
+    txHash = await ctx.writeContractAsync({
+      address: usdc.address as `0x${string}`,
+      abi: USDC_TRANSFER_ABI,
+      functionName: 'transfer',
+      args: [toAddress, parseUnits(amount, usdc.decimals)],
+    })
+  } catch (e) {
+    console.error('[agent send_usdc] wagmi write failed', e)
+    throw new Error(friendlyWagmiError(e))
+  }
+  store.addActivity({ type: 'sent', description: note ?? 'Agent-initiated send', amount: n, sign: '-', status: 'confirmed', counterparty: short, txHash })
+  return `Sent ${amount} USDC to ${short} — tx: ${txHash.slice(0, 12)}…`
+}
 
 export async function executeAction(action: NanAction, ctx: ExecutorContext): Promise<string> {
   const { store, navigate } = ctx
@@ -677,35 +815,8 @@ export async function executeAction(action: NanAction, ctx: ExecutorContext): Pr
       return `Spending policy updated — ${desc}`
     }
 
-    case 'send_usdc': {
-      const { toAddress: rawTo, amount, note } = action.params
-      const toAddress = getAddress(rawTo) // normalize to EIP-55 checksum
-
-      // Circle UCW (email/Google) or Passkey path — use triggerCircleSend callback
-      if (ctx.isCircleUcwUser || ctx.isPasskeyUser) {
-        if (!ctx.triggerCircleSend) {
-          ctx.navigate('wallet')
-          return `Opening your wallet — ${amount} USDC to ${toAddress.slice(0, 10)}…. Confirm the send there.`
-        }
-        const result = await ctx.triggerCircleSend({ toAddress, amount, note })
-        store.addActivity({ type: 'sent', description: note ?? 'Agent send', amount: parseFloat(amount), sign: '-', status: 'confirmed', counterparty: toAddress.slice(0, 10) + '…', txHash: result || undefined })
-        return `Sent ${amount} USDC to ${toAddress.slice(0, 10)}…${result ? ` — tx: ${result.slice(0, 12)}…` : ''}`
-      }
-
-      // Wagmi path
-      if (!ctx.writeContractAsync) throw new Error('No wallet connected. Please connect MetaMask or a browser wallet first.')
-      if (!ctx.chainId) throw new Error('No chain connected.')
-      const usdc = getUsdc(ctx.chainId)
-      if (!usdc) throw new Error(`USDC not supported on chain ${ctx.chainId}.`)
-      const txHash = await ctx.writeContractAsync({
-        address: usdc.address as `0x${string}`,
-        abi: USDC_TRANSFER_ABI,
-        functionName: 'transfer',
-        args: [toAddress, parseUnits(amount, usdc.decimals)],
-      })
-      store.addActivity({ type: 'sent', description: note ?? 'Agent-initiated send', amount: parseFloat(amount), sign: '-', status: 'confirmed', counterparty: toAddress.slice(0, 10) + '…', txHash })
-      return `Sent ${amount} USDC to ${toAddress.slice(0, 10)}… — tx: ${txHash.slice(0, 12)}…`
-    }
+    case 'send_usdc':
+      return sendMainWallet(action.params, ctx)
 
     case 'agent_send': {
       const { toAddress: rawTo2, amount, note } = action.params
@@ -726,38 +837,9 @@ export async function executeAction(action: NanAction, ctx: ExecutorContext): Pr
       return `Sent ${amount} USDC from Agent Wallet to ${toAddress.slice(0, 10)}…${txRef ? ` (tx: ${txRef.slice(0, 10)}…)` : ''}`
     }
 
-    case 'ucw_send': {
-      // For email/Google UCW users — navigate to wallet and prefill send
-      // The actual Circle SDK challenge happens in WalletPage
-      const { toAddress: rawTo3, amount, note } = action.params
-      const toAddress = getAddress(rawTo3)
-      // Trigger the send by navigating to wallet with state
-      store.setBridgePrefill(null)
-      store.setSwapPrefill(null)
-      navigate('wallet')
-      // Attempt backend send via Circle API
-      const auth = store.auth
-      const userToken = auth?.userToken
-      if (userToken) {
-        const r = await fetch('/api/wallet', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${auth?.sessionToken ?? ''}` },
-          body: JSON.stringify({ action: 'send-usdc', userToken, toAddress, amount }),
-        })
-        const d = await r.json() as { ok?: boolean; txHash?: string; challengeId?: string; error?: string; not_configured?: boolean }
-        if (d.not_configured) {
-          return `Opened Wallet tab — enter ${amount} USDC to ${toAddress.slice(0, 10)}… in the Send form. Circle API not configured server-side.`
-        }
-        if (d.challengeId) {
-          return `Circle W3S challenge initiated. Approve the transaction in the Circle popup to send ${amount} USDC to ${toAddress.slice(0, 10)}….`
-        }
-        if (!r.ok || d.error) throw new Error(d.error ?? 'UCW send failed')
-        const txRef = d.txHash
-        store.addActivity({ type: 'sent', description: note ?? 'Agent UCW send', amount: parseFloat(amount), sign: '-', status: 'confirmed', counterparty: toAddress.slice(0, 10) + '…', txHash: txRef })
-        return `Sent ${amount} USDC from your Circle wallet to ${toAddress.slice(0, 10)}…${txRef ? ` (tx: ${txRef.slice(0, 10)}…)` : ''}`
-      }
-      return `Opened Wallet tab — enter ${amount} USDC to ${toAddress.slice(0, 10)}… in the Send form and confirm.`
-    }
+    case 'ucw_send':
+      // Same unified path as send_usdc — routing is decided by the real login type
+      return sendMainWallet(action.params, ctx)
 
     case 'ucw_bridge': {
       store.setBridgePrefill({ amount: action.params.amount, toChain: action.params.toChain })
@@ -942,6 +1024,41 @@ export async function executeAction(action: NanAction, ctx: ExecutorContext): Pr
       } catch(e) {
         return `Agent Wallet send failed: ${e instanceof Error ? e.message : 'Unknown error'}`
       }
+    }
+
+    case 'gateway_start': {
+      const { mode, amount, toChain } = action.params
+      store.setBridgePrefill({ amount, toChain: mode === 'deposit' ? 'gateway' : toChain })
+      navigate('gateway')
+      return mode === 'deposit'
+        ? `Opening Gateway${amount ? ` — deposit ${amount} USDC` : ''}. Confirm the deposit there.`
+        : `Opening Gateway${amount ? ` — transfer ${amount} USDC` : ''}${toChain ? ` to ${toChain}` : ''}. Confirm the transfer there.`
+    }
+
+    case 'update_profile': {
+      const patch: { displayName?: string; bio?: string } = {}
+      if (action.params.displayName) patch.displayName = action.params.displayName
+      if (action.params.bio) patch.bio = action.params.bio
+      store.setProfile(patch)
+      return `Profile updated${patch.displayName ? ` — name is now "${patch.displayName}"` : ''}.`
+    }
+
+    case 'set_theme': {
+      store.setTheme(action.params.theme)
+      return `Theme switched to ${action.params.theme}.`
+    }
+
+    case 'mark_notifications_read': {
+      store.markAllNotificationsRead()
+      return 'All notifications marked as read.'
+    }
+
+    case 'set_recurring_active': {
+      const { name, active } = action.params
+      const found = store.recurringTasks.find(t => t.name === name || t.name === `agent:${name}` || t.name.replace(/^agent:/, '') === name)
+      if (!found) throw new Error(`No recurring payment named "${name}" found.`)
+      store.updateRecurringTask(found.id, { active })
+      return `Recurring payment "${found.name.replace(/^agent:/, '')}" ${active ? 'resumed' : 'paused'}.`
     }
 
     case 'agent_service_search': {
