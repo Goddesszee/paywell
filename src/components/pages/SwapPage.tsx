@@ -473,64 +473,79 @@ export function SwapPage() {
   const reset      = () => { setAmountIn(''); setReviewed(null); setPhase('idle'); setErrMsg(''); setTxHash('') }
   const estimatedOut = reviewed?.estimate?.estimatedOutput
 
+  const F = 'var(--nan-font)'
+  const MONO = 'var(--nan-mono)'
+
   // ── Success screen ────────────────────────────────────────────────────────
   if (phase === 'done') return (
-    <div style={{ maxWidth: 480, margin: '0 auto', padding: '0 0 100px', fontFamily: 'var(--nan-font)' }}>
-      <div style={{ textAlign: 'center', padding: '56px 24px 32px' }}>
-        <div className="nan-check-circle" style={{ margin: '0 auto 18px' }}><CheckCircle size={28} color={c.green} /></div>
-        <div style={{ fontSize: 22, fontWeight: 700, color: c.text, letterSpacing: '-0.025em', marginBottom: 6 }}>Swap complete</div>
+    <div style={{ maxWidth: 480, margin: '0 auto', padding: '0 16px 100px', fontFamily: F }}>
+      <div style={{ textAlign: 'center', padding: '56px 0 32px' }}>
+        <div style={{ width: 64, height: 64, borderRadius: 20, background: 'rgba(0,200,83,0.10)', border: '2px solid rgba(0,200,83,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+          <CheckCircle size={28} color={c.green} strokeWidth={1.8} />
+        </div>
+        <div style={{ fontSize: 22, fontWeight: 800, color: c.text, letterSpacing: '-0.03em', marginBottom: 6 }}>Swap complete</div>
         <div style={{ fontSize: 14, color: c.t2, marginBottom: 28 }}>Your tokens have been exchanged.</div>
         {txHash && (
           <a href={explorerUrl || `https://explorer.testnet.arc.io/tx/${txHash}`} target="_blank" rel="noreferrer"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, color: c.blue, textDecoration: 'none', background: c.blueDim, border: `1px solid ${c.blueBd}`, borderRadius: 8, padding: '8px 14px', marginBottom: 28 }}>
-            {txHash.slice(0, 14)}… <ExternalLink size={12} />
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: c.blue, textDecoration: 'none', background: c.blueDim, border: `1px solid ${c.blueBd}`, borderRadius: 8, padding: '7px 14px', marginBottom: 28, fontFamily: MONO }}>
+            {txHash.slice(0, 14)}… <ExternalLink size={11} />
           </a>
         )}
-        <button onClick={reset} className="nan-btn nan-btn-primary nan-btn-full" style={{ borderRadius: 14 }}>Swap again</button>
+        <button onClick={reset} style={{ width: '100%', height: 52, background: c.blue, color: '#fff', border: 'none', borderRadius: 14, fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: F, boxShadow: '0 4px 16px rgba(0,102,255,0.30)' }}>
+          Swap again
+        </button>
       </div>
     </div>
   )
 
-  // (Circle user gate removed — Circle users now swap via server-side path)
-
   // ── Main swap UI ──────────────────────────────────────────────────────────
   return (
-    <div style={{ maxWidth: 480, margin: '0 auto', padding: '0 0 100px', fontFamily: 'var(--nan-font)' }}>
+    <div style={{ maxWidth: 480, margin: '0 auto', padding: '0 16px 100px', fontFamily: F }}>
 
       {/* ── Header ── */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 0 16px' }}>
-        <span style={{ fontSize: 18, fontWeight: 700, color: c.text, letterSpacing: '-0.02em' }}>Swap</span>
+        <div>
+          <div style={{ fontSize: 20, fontWeight: 800, color: c.text, letterSpacing: '-0.03em', lineHeight: 1.1 }}>Swap</div>
+          <div style={{ fontSize: 12, color: c.t3, marginTop: 2 }}>Circle App Kit · Arc Testnet</div>
+        </div>
         <button onClick={() => setShowSlippage(true)}
-          style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 9, border: `1px solid ${c.bdr}`, background: c.surf, cursor: 'pointer', transition: 'all 0.15s' }}>
-          <Settings size={14} color={c.t2} />
-          <span style={{ fontSize: 12, fontWeight: 600, color: c.t2 }}>{(slippageBps / 100).toFixed(2)}%</span>
+          style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 12px', borderRadius: 10, border: `1px solid ${c.bdr}`, background: c.surf, cursor: 'pointer', transition: 'all 0.15s', WebkitTapHighlightColor: 'transparent' }}>
+          <Settings size={13} color={c.t2} strokeWidth={2} />
+          <span style={{ fontSize: 12, fontWeight: 700, color: c.t2 }}>{(slippageBps / 100).toFixed(2)}%</span>
         </button>
       </div>
 
       {/* ── Sell panel ── */}
-      <div style={{ background: c.surf, border: `1px solid ${c.bdr}`, borderRadius: 16, overflow: 'visible', marginBottom: 2 }}>
+      <div style={{ background: c.surf, border: `1px solid ${c.bdr}`, borderRadius: 18, overflow: 'visible', marginBottom: 2 }}>
         <div style={{ padding: '16px 16px 14px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-            <span style={{ fontSize: 13, fontWeight: 600, color: c.t2 }}>Sell</span>
-            {(isConnected || isCircleUser) && addrShort && <span style={{ fontSize: 12, color: c.t3, display: 'flex', alignItems: 'center', gap: 4 }}><span style={{ width: 7, height: 7, borderRadius: '50%', background: isCircleUser ? '#00C853' : c.blue, display: 'inline-block' }} />{addrShort}{isCircleUser && <span style={{ fontSize: 10, color: '#00C853', fontWeight: 600, marginLeft: 2 }}>Circle</span>}</span>}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: c.t3, textTransform: 'uppercase' as const, letterSpacing: '0.07em' }}>Sell</span>
+            {(isConnected || isCircleUser) && addrShort && (
+              <span style={{ fontSize: 11, color: c.t3, display: 'flex', alignItems: 'center', gap: 4 }}>
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: isCircleUser ? '#00C853' : c.blue, display: 'inline-block', flexShrink: 0 }} />
+                <span style={{ fontFamily: MONO }}>{addrShort}</span>
+                {isCircleUser && <span style={{ fontSize: 10, color: '#00C853', fontWeight: 700 }}>Circle</span>}
+              </span>
+            )}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <input type="text" inputMode="decimal" placeholder="0" value={amountIn}
               onChange={e => { const v = e.target.value.replace(/[^0-9.]/g, ''); if (v === '' || /^\d*\.?\d*$/.test(v)) { setAmountIn(v); setReviewed(null); setPhase('idle') } }}
               disabled={phase === 'swapping'}
-              style={{ flex: 1, fontSize: 36, fontWeight: 700, color: c.text, border: 'none', outline: 'none', background: 'transparent', fontFamily: 'var(--nan-mono)', minWidth: 0, fontVariantNumeric: 'tabular-nums' }} />
+              style={{ flex: 1, fontSize: 34, fontWeight: 800, color: c.text, border: 'none', outline: 'none', background: 'transparent', fontFamily: MONO, minWidth: 0, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em' }} />
             <TokenPill token={tokenIn} onClick={() => setShowSellModal(true)} c={c} />
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
-            <span style={{ fontSize: 13, color: c.t3 }}>{amountIn && parseFloat(amountIn) > 0 ? `$${parseFloat(amountIn).toFixed(2)}` : '$0.00'}</span>
-            {(isConnected || isCircleUser) && <span style={{ fontSize: 12, color: c.t3 }}>Balance: {balIn}</span>}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 6 }}>
+            <span style={{ fontSize: 12, color: c.t3 }}>{amountIn && parseFloat(amountIn) > 0 ? `≈ $${parseFloat(amountIn).toFixed(2)}` : '—'}</span>
+            {(isConnected || isCircleUser) && (
+              <span style={{ fontSize: 11, color: c.t3 }}>Balance: <span style={{ color: c.t2, fontWeight: 600 }}>{balIn}</span></span>
+            )}
           </div>
           {/* % chips */}
-          <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
+          <div style={{ display: 'flex', gap: 6, marginTop: 12 }}>
             {([['20%', 20], ['50%', 50], ['MAX', 'max']] as [string, number | 'max'][]).map(([label, pct]) => (
-              <button key={label}
-                onClick={() => applyPct(pct)}
-                style={{ flex: 1, padding: '7px 0', border: `1px solid ${c.bdr2}`, borderRadius: 8, background: c.surf2, color: c.t2, fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--nan-font)', transition: 'all 0.12s', WebkitTapHighlightColor: 'transparent' }}>
+              <button key={label} onClick={() => applyPct(pct)}
+                style={{ flex: 1, padding: '7px 0', border: `1px solid ${c.bdr}`, borderRadius: 8, background: c.surf2, color: c.t2, fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: F, transition: 'all 0.12s', WebkitTapHighlightColor: 'transparent' }}>
                 {label}
               </button>
             ))}
@@ -539,45 +554,50 @@ export function SwapPage() {
       </div>
 
       {/* ── Flip ── */}
-      <div style={{ display: 'flex', justifyContent: 'center', margin: '-1px 0', zIndex: 2, position: 'relative' }}>
-        <button onClick={flipTokens} style={{ width: 36, height: 36, borderRadius: 10, border: `1px solid ${c.bdr2}`, background: c.surf2, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.15s', boxShadow: c.isDark ? '0 2px 8px rgba(0,0,0,0.4)' : '0 2px 8px rgba(0,0,0,0.08)' }}>
-          <ArrowDown size={15} color={c.t2} />
+      <div style={{ display: 'flex', justifyContent: 'center', margin: '4px 0', zIndex: 2, position: 'relative' }}>
+        <button onClick={flipTokens} style={{ width: 38, height: 38, borderRadius: 12, border: `1px solid ${c.bdr}`, background: c.surf2, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'transform 0.2s', WebkitTapHighlightColor: 'transparent', boxShadow: '0 2px 8px rgba(0,0,0,0.15)' }}>
+          <ArrowDown size={16} color={c.blue} strokeWidth={2.5} />
         </button>
       </div>
 
       {/* ── Buy panel ── */}
-      <div style={{ background: c.surf, border: `1px solid ${c.bdr}`, borderRadius: 16, overflow: 'hidden', marginTop: 2, marginBottom: 10 }}>
+      <div style={{ background: c.surf, border: `1px solid ${c.bdr}`, borderRadius: 18, overflow: 'hidden', marginBottom: 12 }}>
         <div style={{ padding: '16px 16px 18px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-            <span style={{ fontSize: 13, fontWeight: 600, color: c.t2 }}>Buy</span>
-            {(isConnected || isCircleUser) && addrShort && <span style={{ fontSize: 12, color: c.t3, display: 'flex', alignItems: 'center', gap: 4 }}><span style={{ width: 7, height: 7, borderRadius: '50%', background: isCircleUser ? '#00C853' : c.blue, display: 'inline-block' }} />{addrShort}{isCircleUser && <span style={{ fontSize: 10, color: '#00C853', fontWeight: 600, marginLeft: 2 }}>Circle</span>}</span>}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: c.t3, textTransform: 'uppercase' as const, letterSpacing: '0.07em' }}>Buy</span>
+            {(isConnected || isCircleUser) && addrShort && (
+              <span style={{ fontSize: 11, color: c.t3, display: 'flex', alignItems: 'center', gap: 4 }}>
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: isCircleUser ? '#00C853' : c.blue, display: 'inline-block', flexShrink: 0 }} />
+                <span style={{ fontFamily: MONO }}>{addrShort}</span>
+              </span>
+            )}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ flex: 1, fontSize: 36, fontWeight: 700, color: estimatedOut ? c.green : c.t3, fontFamily: 'var(--nan-mono)', minWidth: 0, fontVariantNumeric: 'tabular-nums' }}>
-              {phase === 'estimating' ? <span className="nan-skel" style={{ display: 'inline-block', width: 80, height: 36, borderRadius: 8 }} /> : estimatedOut ? estimatedOut.amount : '0'}
+            <div style={{ flex: 1, fontSize: 34, fontWeight: 800, color: estimatedOut ? c.green : c.t3, fontFamily: MONO, minWidth: 0, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em' }}>
+              {phase === 'estimating'
+                ? <span style={{ display: 'inline-block', width: 100, height: 34, borderRadius: 8, background: c.surf2, animation: 'nan-pulse 1.2s ease-in-out infinite' }} />
+                : estimatedOut ? estimatedOut.amount : '0'}
             </div>
             <TokenPill token={tokenOut} onClick={() => setShowBuyModal(true)} c={c} />
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
-            <span style={{ fontSize: 13, color: c.t3 }}>
-              {estimatedOut && parseFloat(estimatedOut.amount) > 0
-                ? `~$${parseFloat(estimatedOut.amount).toFixed(2)}`
-                : '$0.00'}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 6 }}>
+            <span style={{ fontSize: 12, color: c.t3 }}>
+              {estimatedOut && parseFloat(estimatedOut.amount) > 0 ? `≈ $${parseFloat(estimatedOut.amount).toFixed(2)}` : '—'}
             </span>
-            {(isConnected || isCircleUser) && <span style={{ fontSize: 12, color: c.t3 }}>Balance: {balOut}</span>}
+            {(isConnected || isCircleUser) && (
+              <span style={{ fontSize: 11, color: c.t3 }}>Balance: <span style={{ color: c.t2, fontWeight: 600 }}>{balOut}</span></span>
+            )}
           </div>
         </div>
       </div>
 
       {/* ── Warnings ── */}
       {(sameToken || arcNoPair || arcUnsupportedPair) && (
-        <div className="nan-warn-box" style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 10 }}>
-          <AlertCircle size={14} style={{ flexShrink: 0, marginTop: 1 }} />
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '10px 14px', background: 'rgba(255,149,0,0.06)', border: '1px solid rgba(255,149,0,0.22)', borderRadius: 12, marginBottom: 10, fontSize: 13, color: c.t2, lineHeight: 1.5 }}>
+          <AlertCircle size={14} color="#FF9500" style={{ flexShrink: 0, marginTop: 1 }} />
           <span>
-            {arcNoPair
-              ? 'USDC and NATIVE are the same asset on Arc.'
-              : sameToken
-              ? 'Choose different tokens to swap.'
+            {arcNoPair ? 'USDC and NATIVE are the same asset on Arc.'
+              : sameToken ? 'Choose different tokens to swap.'
               : `${TOKEN_META[tokenIn]?.arcUnsupported ? tokenIn : tokenOut} is not available on Arc Testnet. Only USDC, EURC, and cirBTC can be swapped here.`}
           </span>
         </div>
@@ -585,43 +605,39 @@ export function SwapPage() {
 
       {/* ── Quote details ── */}
       {reviewed && phase === 'reviewed' && (
-        <div className="nan-card" style={{ marginBottom: 10 }}>
-          <div className="nan-card-inner">
-            {([
-              ['Estimated output', `${estimatedOut?.amount ?? '—'} ${estimatedOut?.token ?? tokenOut}`],
-              ['Slippage tolerance', `${(reviewed.slippageBps / 100).toFixed(2)}%`],
-              [`NAN fee (${bpsToPercent(SWAP_FEE_BPS)})`, `${swapFee(parseFloat(reviewed.amountIn) || 0).toFixed(4)} ${reviewed.tokenIn}`],
-              ...(reviewed.estimate.fees?.map(f => [`${f.type} fee`, `${f.amount} ${f.token}`]) ?? []),
-            ] as [string, string][]).map(([label, value]) => (
-              <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderBottom: `1px solid ${c.bdr}` }}>
-                <span style={{ fontSize: 12, color: c.t2 }}>{label}</span>
-                <span style={{ fontSize: 12, fontWeight: 600, color: c.text }}>{value}</span>
-              </div>
-            ))}
-            <div style={{ paddingTop: 8, fontSize: 11, color: c.t3 }}>Routed via LiFi aggregator. Amounts may vary at execution.</div>
-          </div>
+        <div style={{ background: c.surf, border: `1px solid ${c.bdr}`, borderRadius: 14, padding: '4px 16px', marginBottom: 12 }}>
+          {([
+            ['Estimated output', `${estimatedOut?.amount ?? '—'} ${estimatedOut?.token ?? tokenOut}`],
+            ['Slippage tolerance', `${(reviewed.slippageBps / 100).toFixed(2)}%`],
+            [`NAN fee (${bpsToPercent(SWAP_FEE_BPS)})`, `${swapFee(parseFloat(reviewed.amountIn) || 0).toFixed(4)} ${reviewed.tokenIn}`],
+            ...(reviewed.estimate.fees?.map(f => [`${f.type} fee`, `${f.amount} ${f.token}`]) ?? []),
+          ] as [string, string][]).map(([label, value], i, arr) => (
+            <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '9px 0', borderBottom: i < arr.length - 1 ? `1px solid ${c.bdr}` : 'none' }}>
+              <span style={{ fontSize: 12, color: c.t2 }}>{label}</span>
+              <span style={{ fontSize: 12, fontWeight: 700, color: c.text }}>{value}</span>
+            </div>
+          ))}
+          <div style={{ padding: '8px 0', fontSize: 11, color: c.t3 }}>Routed via LiFi · amounts may vary at execution.</div>
         </div>
       )}
 
       {/* ── Error ── */}
       {phase === 'error' && errMsg && (
         errMsg === 'SESSION_EXPIRED' ? (
-          <div className="nan-error-box" style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 10 }}>
-            <AlertCircle size={14} style={{ flexShrink: 0, marginTop: 1 }} />
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '12px 14px', background: 'rgba(255,59,59,0.06)', border: '1px solid rgba(255,59,59,0.22)', borderRadius: 12, marginBottom: 12 }}>
+            <AlertCircle size={14} color="#FF3B3B" style={{ flexShrink: 0, marginTop: 1 }} />
             <div>
-              <div style={{ fontWeight: 600, marginBottom: 4 }}>PIN required</div>
-              <div style={{ fontSize: 12, marginBottom: 8 }}>Get a new quote and confirm with your Circle PIN. Your wallet and balance are safe.</div>
-              <button
-                onClick={() => { setPhase('idle'); setErrMsg(''); setReviewed(null) }}
-                className="nan-btn nan-btn-primary"
-                style={{ fontSize: 12, padding: '6px 14px', height: 'auto', borderRadius: 8 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: c.text, marginBottom: 4 }}>PIN required</div>
+              <div style={{ fontSize: 12, color: c.t2, marginBottom: 10, lineHeight: 1.5 }}>Get a new quote and confirm with your Circle PIN. Your wallet and balance are safe.</div>
+              <button onClick={() => { setPhase('idle'); setErrMsg(''); setReviewed(null) }}
+                style={{ padding: '7px 16px', background: c.blue, border: 'none', borderRadius: 8, color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: F }}>
                 Get new quote
               </button>
             </div>
           </div>
         ) : (
-          <div className="nan-error-box" style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 10 }}>
-            <AlertCircle size={14} style={{ flexShrink: 0, marginTop: 1 }} /><span>{errMsg}</span>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '10px 14px', background: 'rgba(255,59,59,0.06)', border: '1px solid rgba(255,59,59,0.22)', borderRadius: 12, marginBottom: 12, fontSize: 13, color: c.t2, lineHeight: 1.5 }}>
+            <AlertCircle size={14} color="#FF3B3B" style={{ flexShrink: 0, marginTop: 1 }} /><span>{errMsg}</span>
           </div>
         )
       )}
@@ -629,26 +645,31 @@ export function SwapPage() {
       {/* ── CTA ── */}
       {phase === 'reviewed' ? (
         <div style={{ display: 'flex', gap: 8 }}>
-          <button onClick={clearQuote} className="nan-btn nan-btn-ghost" style={{ flex: 1, height: 54, borderRadius: 14, gap: 6 }}><RefreshCw size={14} /> New quote</button>
-          <button onClick={() => void executeSwap()} className="nan-btn nan-btn-primary" style={{ flex: 2, height: 54, borderRadius: 14 }}>
-            Swap {reviewed?.amountIn} {reviewed?.tokenIn} → {reviewed?.tokenOut}
+          <button onClick={clearQuote}
+            style={{ flex: 1, height: 52, borderRadius: 14, border: `1px solid ${c.bdr}`, background: c.surf, color: c.t2, fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, WebkitTapHighlightColor: 'transparent' }}>
+            <RefreshCw size={13} /> New quote
+          </button>
+          <button onClick={() => void executeSwap()}
+            style={{ flex: 2, height: 52, borderRadius: 14, border: 'none', background: c.blue, color: '#fff', fontSize: 14, fontWeight: 800, cursor: 'pointer', fontFamily: F, boxShadow: '0 4px 16px rgba(0,102,255,0.30)', WebkitTapHighlightColor: 'transparent' }}>
+            Confirm swap
           </button>
         </div>
       ) : (
         <button onClick={() => void reviewSwap()} disabled={!canReview || phase === 'estimating' || phase === 'swapping'}
-          className="nan-btn nan-btn-full"
-          style={{ height: 54, borderRadius: 14, background: canReview ? c.blue : c.surf2, color: canReview ? '#fff' : c.t3, border: `1px solid ${canReview ? c.blue : c.bdr}`, fontSize: 15, fontWeight: 700, cursor: canReview ? 'pointer' : 'not-allowed', transition: 'all 0.15s' }}>
-          {phase === 'estimating' ? <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}><span className="nan-spinner" />Getting quote…</span>
-            : phase === 'swapping' ? <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}><span className="nan-spinner" />Swapping…</span>
+          style={{ width: '100%', height: 52, borderRadius: 14, border: 'none', background: canReview && phase !== 'estimating' && phase !== 'swapping' ? c.blue : c.surf2, color: canReview && phase !== 'estimating' && phase !== 'swapping' ? '#fff' : c.t3, fontSize: 15, fontWeight: 800, cursor: canReview ? 'pointer' : 'not-allowed', fontFamily: F, transition: 'all 0.15s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, boxShadow: canReview && phase === 'idle' ? '0 4px 16px rgba(0,102,255,0.28)' : 'none', WebkitTapHighlightColor: 'transparent' }}>
+          {phase === 'estimating'
+            ? <><span className="nan-spinner" />Getting quote…</>
+            : phase === 'swapping'
+            ? <><span className="nan-spinner" />Swapping…</>
             : !isConnected && !isCircleUser && !isPasskeyUser ? 'Connect wallet to swap'
             : !amountIn || parseFloat(amountIn) === 0 ? 'Enter an amount'
-            : arcUnsupportedPair ? 'Token not available on Arc Testnet'
+            : arcUnsupportedPair ? 'Token not on Arc Testnet'
             : invalid ? 'Select different tokens'
             : 'Get quote'}
         </button>
       )}
 
-      <div style={{ marginTop: 14, fontSize: 11, color: c.t3, textAlign: 'center' }}>Powered by Circle App Kit · Routed via LiFi</div>
+      <div style={{ marginTop: 12, fontSize: 11, color: c.t3, textAlign: 'center' }}>Powered by Circle App Kit · Routed via LiFi</div>
 
       {/* ── Modals ── */}
       {showSellModal && <TokenModal current={tokenIn} exclude={tokenOut} onSelect={t => { setTokenIn(t); setReviewed(null); setPhase('idle') }} onClose={() => setShowSellModal(false)} c={c} />}
