@@ -94,10 +94,10 @@ export function BusinessDashboard() {
       {/* Quick actions */}
       <div style={{ background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 16, overflow: 'hidden', marginBottom: 16 }}>
         {[
-          { icon: <QrCode size={17} color={BLUE} />, label: 'Generate merchant QR', sub: 'Customers pay without an account', action: () => setActiveView('merchant-qr') },
-          { icon: <FileText size={17} color={C.gold} />, label: 'Create invoice', sub: 'Send a payment request', action: () => setActiveView('payment-requests') },
-          { icon: <Share2 size={17} color={C.green} />, label: 'Share payment page', sub: payUrl ? payUrl.slice(0, 40) + '…' : 'Connect wallet first', action: sharePayPage },
-          { icon: <TrendingUp size={17} color="#818CF8" />, label: 'Export statement', sub: 'Download transaction history', action: () => setActiveView('exports') },
+          { icon: <QrCode size={17} color={BLUE} />, label: 'My payment QR code', sub: 'Printable QR — customers pay without an account', action: () => setActiveView('merchant-qr') },
+          { icon: <FileText size={17} color={C.gold} />, label: 'New payment request', sub: 'Create & send an invoice link', action: () => setActiveView('payment-requests') },
+          { icon: <Share2 size={17} color={C.green} />, label: 'Share my pay link', sub: payUrl ? payUrl.slice(0, 40) + '…' : 'Connect wallet first', action: sharePayPage },
+          { icon: <TrendingUp size={17} color="#818CF8" />, label: 'Download statement', sub: 'CSV / JSON transaction history', action: () => setActiveView('exports') },
         ].map((item, i) => (
           <button key={i} onClick={item.action} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px', background: 'none', border: 'none', borderTop: i === 0 ? 'none' : `1px solid ${C.bdr}`, cursor: 'pointer', fontFamily: F, WebkitTapHighlightColor: 'transparent', textAlign: 'left' }}>
             <div style={{ width: 36, height: 36, borderRadius: 10, background: C.surf2, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>

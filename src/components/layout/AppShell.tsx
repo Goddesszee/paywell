@@ -5,7 +5,7 @@ import {
   Droplet, Layers, Repeat, Bot, Wallet,
   MessageSquare, HelpCircle, Info, User, Search, Bookmark,
   Star, Lightbulb, ArrowRight, Clock, ShoppingBag, FileDown,
-  FileText,
+  FileText, QrCode,
 } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
 import { useAccount } from 'wagmi'
@@ -240,10 +240,15 @@ const SIDEBAR_SECTIONS = [
     { id: 'agent-wallet', label: 'Agent Wallet',  Icon: Wallet, desc: 'Swap, bridge & recurring via agent' },
     { id: 'recurring',    label: 'Recurring',     Icon: Repeat, desc: 'Scheduled payments' },
   ]},
+  { title: 'Business', items: [
+    { id: 'business',     label: 'Business',      Icon: LayoutDashboard, desc: 'Revenue, invoices & QR payments' },
+    { id: 'merchant-qr',  label: 'Payment QR',    Icon: QrCode,          desc: 'Printable QR for in-person payments' },
+    { id: 'contacts',     label: 'Contacts',       Icon: User,            desc: 'People you have paid' },
+  ]},
   { title: 'Account', items: [
-    { id: 'exports',   label: 'Generate Statement', Icon: FileDown, desc: 'Download your account statement' },
-    { id: 'settings',  label: 'Settings',  Icon: Settings, desc: 'Wallet & app settings' },
-    { id: 'favorites', label: 'Saved',     Icon: Bookmark, desc: 'Your bookmarked items' },
+    { id: 'exports',   label: 'Statement',   Icon: FileDown, desc: 'Download your account statement' },
+    { id: 'settings',  label: 'Settings',    Icon: Settings, desc: 'Wallet & app settings' },
+    { id: 'favorites', label: 'Saved',       Icon: Bookmark, desc: 'Your bookmarked items' },
   ]},
   { title: 'Help & Info', items: [
     { id: 'support',     label: 'Support',     Icon: MessageSquare, desc: 'Get help' },

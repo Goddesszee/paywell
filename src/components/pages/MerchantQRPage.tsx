@@ -3,25 +3,33 @@
  * No account needed on the payer side; links to ?pay=<address>
  * which resolves to the PaymentRequestPayPage flow.
  */
-import React, { useRef, useState } from 'react'
+import React, { useRef, useState, useEffect, useCallback } from 'react'
 import { ArrowLeft, Printer, Copy, Check, QrCode, Share2 } from 'lucide-react'
 import { useAccount } from 'wagmi'
 import { useAppStore } from '../../store/appStore'
 import { useNanTheme } from '../../hooks/useNanTheme'
 import { formatAddress } from '../../utils/format'
 import { toast } from 'sonner'
+import QRCode from 'qrcode'
 
 const F = "'Inter', -apple-system, sans-serif"
 const BLUE = '#0066FF'
 
-// Minimal deterministic QR via a public CDN-free approach: use a QR API
-function QRImage({ value, size = 200 }: { value: string; size?: number }) {
-  // Derive URL directly during render — no state needed
-  const src = value
-    ? `https://chart.googleapis.com/chart?chs=${size}x${size}&cht=qr&chl=${encodeURIComponent(value)}&choe=UTF-8`
-    : ''
-  if (!src) return <div style={{ width: size, height: size, background: '#f5f5f5', borderRadius: 12 }} />
-  return <img src={src} width={size} height={size} alt="QR code" style={{ borderRadius: 12, display: 'block' }} />
+/** Canvas-based QR — no external API, works fully offline */
+function QRCanvas({ value, size = 200, dark = '#000000', light = '#FFFFFF' }: { value: string; size?: number; dark?: string; light?: string }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const render = useCallback(() => {
+    if (!canvasRef.current || !value) return
+    void QRCode.toCanvas(canvasRef.current, value, {
+      width: size,
+      margin: 2,
+      color: { dark, light },
+      errorCorrectionLevel: 'M',
+    })
+  }, [value, size, dark, light])
+  useEffect(() => { render() }, [render])
+  if (!value) return <div style={{ width: size, height: size, background: '#f5f5f5', borderRadius: 12 }} />
+  return <canvas ref={canvasRef} width={size} height={size} style={{ borderRadius: 12, display: 'block' }} />
 }
 
 export function MerchantQRPage() {
@@ -134,7 +142,7 @@ export function MerchantQRPage() {
           <div className="logo">NAN</div>
           {businessName && <div className="biz">{businessName}</div>}
           <div className="addr">{formatAddress(address)}</div>
-          <div className="qr"><QRImage value={payUrl} size={220} /></div>
+          <div className="qr"><QRCanvas value={payUrl} size={220} /></div>
           {amount && <div className="amt">{amount} USDC</div>}
           {note && <div className="note">{note}</div>}
           <div className="url">{payUrl}</div>
@@ -145,7 +153,7 @@ export function MerchantQRPage() {
         {businessName && <div style={{ fontSize: 16, fontWeight: 700, color: C.text, marginBottom: 4 }}>{businessName}</div>}
         <div style={{ fontSize: 11, color: C.t3, fontFamily: "'JetBrains Mono',monospace", marginBottom: 16 }}>{formatAddress(address)}</div>
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 14 }}>
-          <QRImage value={payUrl} size={200} />
+          <QRCanvas value={payUrl} size={200} dark={C.isDark ? '#FFFFFF' : '#000000'} light={C.isDark ? '#1A1D24' : '#FFFFFF'} />
         </div>
         {amount && <div style={{ fontSize: 20, fontWeight: 800, color: BLUE, marginBottom: 4 }}>{amount} USDC</div>}
         {note && <div style={{ fontSize: 12, color: C.t3, marginBottom: 8 }}>{note}</div>}
