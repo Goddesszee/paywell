@@ -737,7 +737,7 @@ const MULTICALL3_ABI = [{
   stateMutability: 'payable',
 }] as const
 
-// W3S SDK (user-controlled wallet) deposit — one Circle popup via Multicall3 batch
+// W3S SDK (user-controlled wallet) deposit — approve, then deposit (two Circle approvals)
 function W3SDepositTab({ address, walletBalance, usdcFact, onSuccess }: {
   address?: string; walletBalance: string|null
   usdcFact: { address: string } | undefined; onSuccess: () => void
@@ -753,28 +753,25 @@ function W3SDepositTab({ address, walletBalance, usdcFact, onSuccess }: {
     const parsed = parseUnits(amount, decimals)
     const { encodeFunctionData, erc20Abi: abi } = await import('viem')
 
-    // Batch approve + deposit via Multicall3 → single Circle challenge = one popup
+    // Two separate Circle transactions: approve USDC, then deposit.
+    // NOTE: do NOT batch these through Multicall3 — for a Circle smart-account wallet, Multicall3
+    // becomes msg.sender, so the approval would come from Multicall3 (no funds) and the deposit's
+    // transferFrom would revert.
     const approveCallData = encodeFunctionData({ abi, functionName: 'approve', args: [GATEWAY_WALLET, parsed] })
     const depositCallData = encodeFunctionData({
       abi: GATEWAY_WALLET_ABI,
       functionName: 'deposit',
       args: [usdcFact.address as `0x${string}`, parsed],
     })
-    const batchCallData = encodeFunctionData({
-      abi: MULTICALL3_ABI,
-      functionName: 'aggregate3',
-      args: [[
-        { target: usdcFact.address as `0x${string}`, allowFailure: false, callData: approveCallData },
-        { target: GATEWAY_WALLET,                    allowFailure: false, callData: depositCallData },
-      ]],
-    })
-    const result = await circleTx.executeContract({ contractAddress: MULTICALL3, callData: batchCallData })
+    const approved = await circleTx.executeContract({ contractAddress: usdcFact.address, callData: approveCallData })
+    if (!approved) return
+    const result = await circleTx.executeContract({ contractAddress: GATEWAY_WALLET, callData: depositCallData })
     if (result) { toast.success(`Deposited ${amount} USDC to Gateway`); onSuccess() }
   }
 
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
-      <div style={{ fontSize:13, color:T2, lineHeight:1.6 }}>Deposit USDC into your unified Gateway balance using your Circle wallet.</div>
+      <div style={{ fontSize:13, color:T2, lineHeight:1.6 }}>Deposit USDC into your unified Gateway balance using your Circle wallet. You'll approve twice: first USDC spending, then the deposit.</div>
       <div>
         <div style={{ fontSize:11, fontWeight:600, color:T2, marginBottom:6, textTransform:'uppercase', letterSpacing:'0.05em' }}>Amount (USDC)</div>
         <div style={{ position:'relative' }}>

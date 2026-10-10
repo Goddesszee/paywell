@@ -426,7 +426,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const client = ucwClient()
       const response = await client.getUserChallenge({ userToken, challengeId })
       const challenge = response.data?.challenge
-      return res.json({ challenge })
+      // Circle challenges have no `transactionId` field: for CREATE_TRANSACTION the transaction
+      // id is in `correlationIds[0]`. Normalise it so clients don't have to know.
+      const transactionId = (challenge as { transactionId?: string } | undefined)?.transactionId
+        ?? challenge?.correlationIds?.[0]
+      return res.json({ challenge, transactionId })
     } catch (e) {
       return err(res, 500, e instanceof Error ? e.message : 'Get challenge failed')
     }

@@ -140,20 +140,36 @@ export function useCircleTransaction() {
       })
       if (!sdkOk) return undefined
 
-      // Fetch transactionId from the completed challenge
-      const challengeResp = await fetch('/api/wallet', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'get-challenge', userToken, challengeId }),
-      })
-      const challengeData = await challengeResp.json() as {
-        challenge?: { transactionId?: string; txHash?: string }
+      // Fetch the transactionId from the completed challenge. Circle exposes it as
+      // challenge.correlationIds[0] (the server also normalises it to `transactionId`).
+      // It can lag the approval by a moment, so retry briefly before giving up.
+      type ChallengeResp = {
+        transactionId?: string
+        error?: string
+        challenge?: { status?: string; errorCode?: number; errorMessage?: string; transactionId?: string; correlationIds?: string[] }
       }
-      const transactionId = challengeData.challenge?.transactionId
+      let transactionId: string | undefined
+      let lastChallenge: ChallengeResp['challenge']
+      for (let attempt = 0; attempt < 10 && !transactionId; attempt++) {
+        if (attempt > 0) await new Promise(r => setTimeout(r, 1500))
+        const challengeResp = await fetch('/api/wallet', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'get-challenge', userToken, challengeId }),
+        })
+        const challengeData = await challengeResp.json().catch(() => ({})) as ChallengeResp
+        lastChallenge = challengeData.challenge
+        transactionId = challengeData.transactionId
+          ?? lastChallenge?.transactionId
+          ?? lastChallenge?.correlationIds?.[0]
+        if (!transactionId && lastChallenge?.status === 'FAILED') break
+      }
       if (!transactionId) {
-        // No transactionId means the challenge type didn't create a tx (e.g. sign)
-        // or it failed silently — surface a clear error
-        setError('Transaction was approved but Circle returned no transactionId')
+        setError(
+          lastChallenge?.status === 'FAILED'
+            ? `Circle rejected the transaction${lastChallenge.errorMessage ? `: ${lastChallenge.errorMessage}` : ''}`
+            : 'Transaction was approved but Circle has not returned a transaction id yet — check your balance in a minute before retrying',
+        )
         setStatus('error')
         return undefined
       }
