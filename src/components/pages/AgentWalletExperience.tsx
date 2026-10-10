@@ -1081,11 +1081,9 @@ function ActionDrawer({ view, agentAddress, onClose, C }: {
 type DashTab = 'overview' | 'activity'
 
 const PRIMARY_TABS: { id: DashTab; label: string }[] = [
-  { id: 'overview',  label: 'Overview'  },
-  { id: 'activity',  label: 'Activity'  },
+  { id: 'overview', label: 'Overview' },
+  { id: 'activity', label: 'Activity' },
 ]
-
-
 
 function DashboardScreen({ C, onDisconnect }: { C: ReturnType<typeof useNanTheme>; onDisconnect: () => void }) {
   const { agentWallet, setAgentWallet, agentSpendLog, activity, recurringTasks, setActiveView } = useAppStore()
@@ -1161,70 +1159,146 @@ function DashboardScreen({ C, onDisconnect }: { C: ReturnType<typeof useNanTheme
   return (
     <div style={{ fontFamily: F, width: '100%', maxWidth: '100%', boxSizing: 'border-box', overflowX: 'hidden', display: 'flex', flexDirection: 'column', background: C.bg }}>
 
-      {/* ── Sticky header + tabs ────────────────────────────────────────────── */}
+      {/* ── Sticky header ───────────────────────────────────────────────────── */}
       <div style={{
         position: 'sticky', top: 0, zIndex: 20,
         background: C.bg ?? 'var(--nan-bg)',
         borderBottom: `1px solid ${C.bdr}`,
         paddingTop: 'max(12px, env(safe-area-inset-top))',
-        paddingLeft: 16, paddingRight: 16, paddingBottom: 0,
+        paddingLeft: 16, paddingRight: 16, paddingBottom: 12,
       }}>
-        {/* Header row */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, gap: 8 }}>
-          {/* ← back to agent chat */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <button
             onClick={() => setActiveView('agent')}
             aria-label="Back to Agent"
-            style={{ width: 34, height: 34, borderRadius: 9, background: 'transparent', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, WebkitTapHighlightColor: 'transparent', padding: 0 }}
+            style={{ width: 34, height: 34, borderRadius: 9, background: C.surf, border: `1px solid ${C.bdr}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, WebkitTapHighlightColor: 'transparent', padding: 0 }}
           >
-            <ArrowLeft size={18} color={C.t2} strokeWidth={2.2} />
+            <ArrowLeft size={16} color={C.t2} strokeWidth={2.2} />
           </button>
+
+          <div style={{ width: 32, height: 32, borderRadius: 9, background: 'rgba(0,102,255,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <Wallet size={15} color={BLUE} strokeWidth={1.8} />
+          </div>
+
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 16, fontWeight: 800, color: C.text, letterSpacing: '-0.02em', lineHeight: 1.2 }}>NAN Agent Wallet</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 2 }}>
-              <div style={{ width: 6, height: 6, borderRadius: '50%', background: isActive ? GREEN : AMBER, boxShadow: isActive ? `0 0 5px ${GREEN}` : 'none', flexShrink: 0 }} />
-              <span style={{ fontSize: 11, color: C.t3 }}>Connected to Circle Agent Stack</span>
+            <div style={{ fontSize: 15, fontWeight: 800, color: C.text, letterSpacing: '-0.02em', lineHeight: 1.2 }}>Agent Wallet</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 1 }}>
+              <div style={{ width: 5, height: 5, borderRadius: '50%', background: isActive ? GREEN : AMBER, flexShrink: 0 }} />
+              <span style={{ fontSize: 10, color: C.t3 }}>Circle Agent Stack</span>
             </div>
           </div>
+
           <button
             onClick={() => void refresh()}
             aria-label="Refresh balance"
             style={{ width: 34, height: 34, borderRadius: 9, background: C.surf, border: `1px solid ${C.bdr}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, WebkitTapHighlightColor: 'transparent' }}
           >
-            <RefreshCw size={14} color={C.t2} style={{ animation: refreshing ? 'aw-spin 1s linear infinite' : 'none' }} />
+            <RefreshCw size={13} color={refreshing ? BLUE : C.t2} style={{ animation: refreshing ? 'aw-spin 1s linear infinite' : 'none' }} />
           </button>
         </div>
-
-        {/* Tab bar */}
-        <div style={{ display: 'flex', gap: 2, background: C.surf, borderRadius: 10, padding: 3, marginBottom: 0 }}>
-          {PRIMARY_TABS.map(t => {
-            const active = dashTab === t.id
-            return (
-              <button key={t.id} onClick={() => setDashTab(t.id)} style={{
-                flex: 1, padding: '7px 4px', border: 'none', borderRadius: 7,
-                cursor: 'pointer', fontFamily: F, fontSize: 13, fontWeight: active ? 700 : 500,
-                background: active ? BLUE : 'transparent',
-                color: active ? '#fff' : C.t2,
-                transition: 'all 0.15s', WebkitTapHighlightColor: 'transparent',
-                whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-              }}>
-                {t.label}
-              </button>
-            )
-          })}
-        </div>
-        {/* Spacer under tab bar */}
-        <div style={{ height: 12 }} />
       </div>
 
       {/* ── Scrollable content ──────────────────────────────────────────────── */}
       <div style={{
         flex: 1, overflowY: 'auto', overflowX: 'hidden',
-        padding: '12px 16px',
+        padding: '16px 16px',
         paddingBottom: 'max(120px, calc(env(safe-area-inset-bottom) + 100px))',
         WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none',
         boxSizing: 'border-box',
       }}>
+
+      {/* ── Balance card ──────────────────────────────────────────────────── */}
+      <div style={{ background: '#0e1117', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 20, padding: '20px 18px 16px', marginBottom: 12, position: 'relative', overflow: 'hidden', boxSizing: 'border-box' }}>
+        <div style={{ position: 'absolute', top: -50, right: -50, width: 160, height: 160, borderRadius: '50%', background: 'rgba(0,102,255,0.08)', filter: 'blur(50px)', pointerEvents: 'none' }} />
+
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
+          <div>
+            <div style={{ fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 8 }}>
+              Available Balance
+            </div>
+            {refreshing ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, height: 40 }}>
+                <svg width="16" height="16" viewBox="0 0 16 16" style={{ animation: 'aw-spin 0.9s linear infinite' }}>
+                  <circle cx="8" cy="8" r="6" fill="none" stroke="rgba(0,102,255,0.3)" strokeWidth="2" />
+                  <path d="M8 2 A6 6 0 0 1 14 8" fill="none" stroke={BLUE} strokeWidth="2" strokeLinecap="round" />
+                </svg>
+                <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.3)' }}>Refreshing…</span>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                <span style={{ fontSize: 36, fontWeight: 800, color: '#fff', fontFamily: MONO, letterSpacing: '-0.03em', lineHeight: 1 }}>
+                  {balance.toFixed(2)}
+                </span>
+                <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)', fontWeight: 600 }}>USDC</span>
+              </div>
+            )}
+          </div>
+          <div style={{ background: isActive ? 'rgba(0,200,83,0.12)' : 'rgba(255,149,0,0.10)', border: `1px solid ${isActive ? 'rgba(0,200,83,0.25)' : 'rgba(255,149,0,0.25)'}`, borderRadius: 8, padding: '4px 10px', display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
+            <div style={{ width: 5, height: 5, borderRadius: '50%', background: isActive ? GREEN : AMBER }} />
+            <span style={{ fontSize: 10, fontWeight: 700, color: isActive ? GREEN : AMBER }}>{isActive ? 'Active' : 'Inactive'}</span>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+          <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)' }}>{chainLabel}</span>
+          <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.15)' }}>·</span>
+          <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)' }}>USDC</span>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ flex: 1, background: 'rgba(255,255,255,0.05)', borderRadius: 8, padding: '7px 10px', overflow: 'hidden' }}>
+            <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', fontFamily: MONO, display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
+              {agentWallet.address ? shortenAddress(agentWallet.address) : '—'}
+            </span>
+          </div>
+          <button onClick={copyAddress} aria-label="Copy address" style={{ width: 32, height: 32, borderRadius: 8, flexShrink: 0, background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitTapHighlightColor: 'transparent' }}>
+            {copied ? <Check size={12} color={GREEN} /> : <Copy size={12} color="rgba(255,255,255,0.5)" />}
+          </button>
+        </div>
+
+        {lastRefreshedLabel && (
+          <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.18)', marginTop: 8 }}>Updated {lastRefreshedLabel}</div>
+        )}
+      </div>
+
+      {/* ── Action buttons ────────────────────────────────────────────────── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8, marginBottom: 16 }}>
+        {([
+          { label: 'Fund',      icon: <Coins size={16} color={BLUE} />,      view: 'fund'      },
+          { label: 'Send',      icon: <ArrowRight size={16} color={BLUE} />, view: 'send'      },
+          { label: 'Recurring', icon: <Repeat size={16} color={BLUE} />,     view: 'recurring' },
+        ] as { label: string; icon: React.ReactNode; view: Exclude<DrawerView, null> }[]).map(({ label, icon, view: v }) => (
+          <button key={label} onClick={() => setDrawerView(v)} style={{
+            display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'center', gap: 6,
+            padding: '14px 4px', background: drawerView === v ? 'rgba(0,102,255,0.12)' : C.surf,
+            border: `1px solid ${drawerView === v ? BLUE : C.bdr}`, borderRadius: 14,
+            cursor: 'pointer', fontFamily: F, WebkitTapHighlightColor: 'transparent', transition: 'all 0.12s',
+            boxSizing: 'border-box' as const,
+          }}>
+            <div style={{ width: 36, height: 36, borderRadius: 10, background: drawerView === v ? 'rgba(0,102,255,0.18)' : 'rgba(0,102,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              {icon}
+            </div>
+            <span style={{ fontSize: 11, fontWeight: 600, color: drawerView === v ? BLUE : C.text }}>{label}</span>
+          </button>
+        ))}
+      </div>
+
+      {/* ── Tab bar ───────────────────────────────────────────────────────── */}
+      <div style={{ display: 'flex', borderBottom: `1px solid ${C.bdr}`, marginBottom: 16, gap: 0 }}>
+        {PRIMARY_TABS.map(t => {
+          const active = dashTab === t.id
+          return (
+            <button key={t.id} onClick={() => setDashTab(t.id)} style={{
+              flex: 1, padding: '10px 4px', border: 'none', borderBottom: active ? `2px solid ${BLUE}` : '2px solid transparent',
+              background: 'transparent', cursor: 'pointer', fontFamily: F, fontSize: 13,
+              fontWeight: active ? 700 : 500, color: active ? BLUE : C.t2,
+              transition: 'all 0.15s', WebkitTapHighlightColor: 'transparent', marginBottom: -1,
+            }}>
+              {t.label}
+            </button>
+          )
+        })}
+      </div>
 
       {/* ══ ACTIVITY TAB ══════════════════════════════════════════════════════ */}
       {dashTab === 'activity' && (() => {
@@ -1378,90 +1452,33 @@ function DashboardScreen({ C, onDisconnect }: { C: ReturnType<typeof useNanTheme
       {dashTab === 'overview' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12, minWidth: 0 }}>
 
-          {/* Desktop 2-col grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 12 }}>
-
-            {/* ── Balance card ──────────────────────────────────────────────── */}
-            <div style={{ background: 'linear-gradient(135deg, #0055e0 0%, #0044bb 100%)', border: '1px solid rgba(0,68,187,0.6)', borderRadius: 18, padding: '18px 18px 14px', position: 'relative', overflow: 'hidden', boxSizing: 'border-box' }}>
-              {/* Subtle glow */}
-              <div style={{ position: 'absolute', top: -40, right: -40, width: 130, height: 130, borderRadius: '50%', background: 'rgba(0,102,255,0.35)', filter: 'blur(40px)', pointerEvents: 'none' }} />
-
-              <div style={{ fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>
-                Available to Your Agent
+          {/* ── Spending Controls ─────────────────────────────────────────────── */}
+          <div style={{ background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 18, overflow: 'hidden' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px 10px', borderBottom: `1px solid ${C.bdr}` }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Shield size={13} color={BLUE} strokeWidth={2} />
+                <span style={{ fontSize: 11, fontWeight: 700, color: C.text, textTransform: 'uppercase' as const, letterSpacing: '0.07em' }}>Spending Controls</span>
               </div>
-
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 2 }}>
-                <span style={{ fontSize: 'clamp(28px, 8vw, 38px)', fontWeight: 800, color: '#fff', fontFamily: MONO, letterSpacing: '-0.03em', lineHeight: 1 }}>{balance.toFixed(2)}</span>
-                <span style={{ fontSize: 14, color: 'rgba(255,255,255,0.45)', fontWeight: 600 }}>USDC</span>
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 14 }}>
-                <div style={{ width: 6, height: 6, borderRadius: '50%', background: isActive ? GREEN : AMBER }} />
-                <span style={{ fontSize: 11, color: isActive ? GREEN : AMBER, fontWeight: 600 }}>Active</span>
-                <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)', marginLeft: 4 }}>{chainLabel}</span>
-              </div>
-
-              {/* Address row */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                <div style={{ flex: 1, background: 'rgba(0,0,0,0.25)', borderRadius: 8, padding: '7px 10px', overflow: 'hidden' }}>
-                  <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', fontFamily: MONO, display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {agentWallet.address ? shortenAddress(agentWallet.address) : '—'}
-                  </span>
-                </div>
-                <button onClick={copyAddress} aria-label="Copy address" style={{ width: 32, height: 32, borderRadius: 8, flexShrink: 0, background: 'rgba(255,255,255,0.10)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitTapHighlightColor: 'transparent' }}>
-                  {copied ? <Check size={13} color={GREEN} /> : <Copy size={13} color="rgba(255,255,255,0.6)" />}
-                </button>
-              </div>
-
-              {lastRefreshedLabel && (
-                <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.22)', marginTop: 8 }}>Updated {lastRefreshedLabel}</div>
-              )}
-            </div>
-
-            {/* ── Agent Controls ─────────────────────────────────────────────── */}
-            <div style={{ background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 18, padding: '16px 18px', boxSizing: 'border-box' }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: C.t3, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>Agent Controls</div>
-
-              {[
-                { label: 'Policy status', value: isActive ? 'Active' : 'Inactive', valueColor: isActive ? GREEN : AMBER },
-                { label: 'Source',        value: 'Circle Agent Stack',              valueColor: BLUE },
-              ].map(({ label, value, valueColor }, i, arr) => (
-                <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '9px 0', borderBottom: i < arr.length - 1 ? `1px solid ${C.bdr}` : 'none', gap: 8 }}>
-                  <span style={{ fontSize: 12, color: C.t2 }}>{label}</span>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: valueColor }}>{value}</span>
-                </div>
-              ))}
-
               <button
                 onClick={() => setPolicyOpen(true)}
-                style={{ width: '100%', marginTop: 14, height: 38, background: 'rgba(0,102,255,0.08)', border: '1px solid rgba(0,102,255,0.2)', borderRadius: 10, fontSize: 12, fontWeight: 700, color: BLUE, fontFamily: F, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, WebkitTapHighlightColor: 'transparent' }}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, color: BLUE, fontFamily: F, display: 'flex', alignItems: 'center', gap: 3, padding: 0, WebkitTapHighlightColor: 'transparent' }}
               >
-                <Settings size={13} color={BLUE} strokeWidth={2} />
-                Manage spending policy
-                <ChevronRight size={12} color={BLUE} />
+                Manage <ChevronRight size={11} color={BLUE} />
               </button>
             </div>
-          </div>
-
-          {/* ── Wallet actions ─────────────────────────────────────────────────── */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 6, minWidth: 0 }}>
-            {([
-              { label: 'Fund',      icon: <Coins size={15} color={BLUE} />,      view: 'fund'      },
-              { label: 'Send',      icon: <ArrowRight size={15} color={BLUE} />, view: 'send'      },
-              { label: 'Recurring', icon: <Repeat size={15} color={BLUE} />,     view: 'recurring' },
-            ] as { label: string; icon: React.ReactNode; view: Exclude<DrawerView, null> }[]).map(({ label, icon, view }) => (
-              <button key={label} onClick={() => setDrawerView(view)} style={{
-                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4,
-                padding: '10px 4px', background: drawerView === view ? 'rgba(0,102,255,0.10)' : C.surf,
-                border: `1px solid ${drawerView === view ? BLUE : C.bdr}`, borderRadius: 12,
-                cursor: 'pointer', fontFamily: F, WebkitTapHighlightColor: 'transparent', transition: 'all 0.12s',
-              }}>
-                <div style={{ width: 32, height: 32, borderRadius: 9, background: drawerView === view ? 'rgba(0,102,255,0.15)' : 'rgba(0,102,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  {icon}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0 }}>
+              {[
+                { label: 'Policy',    value: isActive ? 'Active' : 'Inactive',   color: isActive ? GREEN : AMBER },
+                { label: 'Source',    value: 'Circle Agent Stack',                color: BLUE },
+                { label: 'Spent',     value: `${totalSpent.toFixed(2)} USDC`,     color: C.text },
+                { label: 'Network',   value: chainLabel,                           color: C.text },
+              ].map(({ label, value, color }, i) => (
+                <div key={label} style={{ padding: '11px 16px', borderBottom: i < 2 ? `1px solid ${C.bdr}` : 'none', borderRight: i % 2 === 0 ? `1px solid ${C.bdr}` : 'none' }}>
+                  <div style={{ fontSize: 10, color: C.t3, marginBottom: 3 }}>{label}</div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{value}</div>
                 </div>
-                <span style={{ fontSize: 10, fontWeight: 600, color: drawerView === view ? BLUE : C.text, textAlign: 'center' }}>{label}</span>
-              </button>
-            ))}
+              ))}
+            </div>
           </div>
 
           {/* ── Pending recurring payments ──────────────────────────────────────── */}
