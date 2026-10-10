@@ -221,9 +221,6 @@ export function ProfilePage() {
           <div style={{ background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 16, overflow: 'hidden' }}>
             {[
               { label: 'NAN Name', sub: nanHandle ? `@${nanHandle}` : 'Register your @handle', view: 'nan-name', accent: !nanHandle },
-              { label: 'Saved Items', sub: `${favorites.length} items`, view: 'favorites' },
-              { label: 'Support history', sub: 'View your conversations', view: 'support' },
-              { label: 'Activity history', sub: `${activity.length} transactions`, view: 'activity' },
             ].map(({ label, sub, view, accent }, i, arr) => (
               <button key={view} onClick={() => setActiveView(view)}
                 style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '13px 16px', borderTop: 'none', borderLeft: 'none', borderRight: 'none', borderBottom: i < arr.length - 1 ? `1px solid ${C.bdr}` : 'none', background: accent ? 'rgba(0,102,255,0.04)' : 'transparent', cursor: 'pointer', fontFamily: F, textAlign: 'left' }}>
