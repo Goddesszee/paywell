@@ -493,40 +493,41 @@ export function HomePage() {
           onClick={() => setTokenSheet('USDC')}
           C={C}
         />
-        {/* trailing spacer so last card doesn't hug the right edge */}
-        <div style={{ width: 6, flexShrink: 0 }} />
-      </div>
-
-      {/* ── REWARDS BOX ── */}
-      <div
-        onClick={() => setActiveView('faucet')}
-        style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          background: 'linear-gradient(135deg, rgba(0,102,255,0.10) 0%, rgba(80,0,255,0.06) 100%)',
-          border: '1px solid rgba(0,102,255,0.20)',
-          borderRadius: 14, padding: '11px 14px',
-          marginBottom: 20, cursor: 'pointer',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        {/* ── Rewards card — same size as token cards ── */}
+        <button
+          onClick={() => setActiveView('faucet')}
+          style={{
+            width: CARD_W, flexShrink: 0,
+            background: 'linear-gradient(145deg, rgba(0,102,255,0.14) 0%, rgba(80,0,255,0.08) 100%)',
+            border: '1px solid rgba(0,102,255,0.25)',
+            borderRadius: 16, padding: '14px 12px 12px',
+            cursor: 'pointer', fontFamily: F,
+            WebkitTapHighlightColor: 'transparent', textAlign: 'left',
+          }}
+        >
+          <div style={{ marginBottom: 8 }}>
+            <div style={{
+              width: 30, height: 30, borderRadius: 9,
+              background: C.blue,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <Gift size={15} color="#fff" strokeWidth={1.8} />
+            </div>
+          </div>
           <div style={{
-            width: 34, height: 34, borderRadius: 10, flexShrink: 0,
-            background: 'rgba(0,102,255,0.15)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 14, fontWeight: 800, color: C.text,
+            fontFamily: MONO, letterSpacing: '-0.02em',
+            marginBottom: 2,
           }}>
-            <Gift size={16} color={C.blue} strokeWidth={1.8} />
-          </div>
-          <div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: C.blue, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Rewards</div>
-            <div style={{ fontSize: 12, color: C.t2, marginTop: 1 }}>Earn USDC for referring friends</div>
-          </div>
-        </div>
-        <div style={{ textAlign: 'right', flexShrink: 0 }}>
-          <div style={{ fontSize: 16, fontWeight: 800, color: C.text, fontFamily: MONO, letterSpacing: '-0.02em' }}>
             {hidden ? '••••' : '$0.00'}
           </div>
-          <div style={{ fontSize: 10, fontWeight: 600, color: C.blue }}>USDC</div>
-        </div>
+          <div style={{ fontSize: 10, fontWeight: 600, color: C.blue }}>
+            Rewards · USDC
+          </div>
+        </button>
+
+        {/* trailing spacer so last card doesn't hug the right edge */}
+        <div style={{ width: 6, flexShrink: 0 }} />
       </div>
 
       {/* ── 4. ACTION BUTTONS ── */}
