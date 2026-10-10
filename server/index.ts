@@ -1441,7 +1441,11 @@ app.get('/api/referral', (req, res) => {
   const wallet = (req.query.wallet as string ?? '').toLowerCase()
   if (!wallet) { res.status(400).json({ error: 'wallet required' }); return }
   if (!referralStore.has(wallet)) {
-    const code = wallet.slice(2, 8).toUpperCase() + Math.random().toString(36).slice(2, 5).toUpperCase()
+    // For 0x addresses take chars 2-8, for email/other keys take first 6 non-special chars
+    const prefix = wallet.startsWith('0x')
+      ? wallet.slice(2, 8)
+      : wallet.replace(/[^a-z0-9]/gi, '').slice(0, 6)
+    const code = prefix.toUpperCase() + Math.random().toString(36).slice(2, 5).toUpperCase()
     referralStore.set(wallet, { code, uses: 0, createdAt: Date.now() })
     debouncedSave('referrals', Object.fromEntries(referralStore))
   }
