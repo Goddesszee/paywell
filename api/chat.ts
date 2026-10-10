@@ -59,6 +59,42 @@ function normalizeChain(raw: string): string | null {
 function detectDirectAction(message: string): { reply: string; action: Record<string, unknown> } | null {
   const text = message.trim()
   const lower = text.toLowerCase()
+  const isQuestion = /^(how|what|why|where|when|can|could|is|are|does|do|which)\b/.test(lower)
+
+  // Payment request: "create a payment request for John Fatolu, he bought 2000 usdc worth of children clothing"
+  if (!isQuestion && /\bpayment request\b/.test(lower) && /\b(create|make|generate|set up|raise|new|send)\b/.test(lower)) {
+    const amt = lower.match(/(\d[\d,]*(?:\.\d+)?)\s*(?:usdc|usd|dollars?)\b|\$\s*(\d[\d,]*(?:\.\d+)?)/) ?? lower.match(/(\d[\d,]*(?:\.\d+)?)/)
+    const amount = amt ? Number((amt[1] ?? amt[2]).replace(/,/g, '')) : NaN
+    if (Number.isFinite(amount) && amount > 0) {
+      const payer = text.match(/\bfor\s+([A-Z][A-Za-z'’.-]+(?:\s+[A-Z][A-Za-z'’.-]+){0,3})/)?.[1]
+      const thing = lower.match(/\bworth of\s+(.+?)[.!?]*$/)?.[1] ?? lower.match(/\bfor\s+(?!\d)([a-z][a-z' -]{2,60}?)[.!?]*$/)?.[1]
+      const cap = (t: string) => t.charAt(0).toUpperCase() + t.slice(1)
+      const title = thing && !(payer && thing === payer.toLowerCase()) ? cap(thing.trim()) : payer ? `Payment request - ${payer}` : 'Payment request'
+      return {
+        reply: `Creating a payment request for ${amount} USDC${payer ? ` for ${payer}` : ''}…`,
+        action: { action: 'create_payment_request', params: { title, amount, ...(payer ? { payerName: payer } : {}) } },
+      }
+    }
+  }
+
+  // Recurring payment: "send 50 usdc to 0x... every week", "set up a monthly payment of 20 usdc to 0x..."
+  const recurAddr = text.match(/0x[a-fA-F0-9]{40}\b/)
+  const freqMatch = lower.match(/\b(daily|every day|each day|weekly|every week|each week|monthly|every month|each month)\b/)
+  if (!isQuestion && recurAddr && freqMatch && /\b(send|pay|transfer|recurring|subscription|schedule|set up|standing)\b/.test(lower)) {
+    const noAddr = lower.replace(recurAddr[0].toLowerCase(), ' ')
+    const amt = noAddr.match(/(\d[\d,]*(?:\.\d+)?)\s*(?:usdc|usd|dollars?)?/)
+    const amount = amt ? amt[1].replace(/,/g, '') : ''
+    if (amount && Number(amount) > 0) {
+      const f = freqMatch[1]
+      const frequency = /day|daily/.test(f) ? 'daily' : /week/.test(f) ? 'weekly' : 'monthly'
+      const short = `${recurAddr[0].slice(0, 6)}…${recurAddr[0].slice(-4)}`
+      const name = `${frequency.charAt(0).toUpperCase() + frequency.slice(1)} payment to ${short}`
+      return {
+        reply: `Ready to set up a ${frequency} payment of ${amount} USDC to ${short}. Please confirm below.`,
+        action: { action: 'add_recurring', params: { name, recipient: recurAddr[0], amount, frequency } },
+      }
+    }
+  }
 
   const swap = lower.match(/\b(?:swap|convert|exchange)\s+(\d+(?:\.\d+)?)\s*([a-z]{3,6})\s+(?:to|for|into|->|→)\s+([a-z]{3,6})\b/)
   if (swap) {
@@ -456,6 +492,9 @@ Open faucet (get free testnet USDC):
 **Sending, bridging and swapping from the main wallet works for EVERY login type** (email, Google, passkey, MetaMask). The app picks the correct signing path itself. Always emit send_usdc, bridge_start, swap_start (and gateway_start for Gateway). The ucw_* actions are accepted as aliases but you should not need them.
 **Agent Wallet**: use agent_wallet_send for agent wallet sends, agent_wallet_balance to check balance, agent_wallet_fund to open funding, agent_service_search to find services, agent_service_pay to hire a service.
 
+**NEVER SAY YOU WILL DO SOMETHING WITHOUT DOING IT**: if you tell the user you will create / send / schedule / swap / bridge / set up anything, the SAME reply MUST end with the matching nan-action block. If a required detail is missing (recipient address, amount), ask for it instead of saying "please hold on".
+**PAYMENT REQUEST rule**: user says "create a payment request for <name> … <amount>" → emit create_payment_request with title (what it is for), amount and payerName. The app returns the shareable link automatically.
+**RECURRING rule**: user wants a repeating payment (daily/weekly/monthly) to a 0x address → emit add_recurring (it appears in the Recurring dashboard). If no address is given, ask for it.
 **BRIDGE rule**: user says "bridge X USDC to Y" → emit bridge_start. NEVER just describe bridging.
 **SWAP rule**: user says "swap X USDC to Y" → emit swap_start. NEVER just describe swapping.
 **SEND rule**: user says "send X USDC to 0x..." → emit send_usdc (main wallet) or agent_wallet_send (agent wallet). NEVER just describe sending.

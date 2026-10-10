@@ -25,7 +25,8 @@
 import { parseUnits, getAddress } from 'viem'
 import { getUsdc } from '../onchain-facts'
 import { buildReceiptHtml } from './receipt'
-import type { AppState, RecurringFrequency } from '../store/appStore'
+import { syncRtCreate } from '../hooks/useBackendSync'
+import { useAppStore, type AppState, type RecurringFrequency } from '../store/appStore'
 
 const USDC_TRANSFER_ABI = [{
   name: 'transfer', type: 'function', stateMutability: 'nonpayable',
@@ -196,7 +197,7 @@ export interface BridgeInfoAction {
 
 export interface CreatePaymentRequestAction {
   action: 'create_payment_request'
-  params: { title: string; amount: number; note?: string; dueDate?: string }
+  params: { title: string; amount: number; note?: string; dueDate?: string; payerName?: string }
 }
 
 export interface CreateInvoiceAction {
@@ -434,7 +435,7 @@ export function parseAction(raw: Record<string, unknown>): NanAction | null {
       const title  = s(params.title)
       const amount = Number(params.amount)
       if (!title || !amount) return null
-      return { action: 'create_payment_request', params: { title, amount, note: s(params.note) || undefined, dueDate: s(params.dueDate) || undefined } }
+      return { action: 'create_payment_request', params: { title, amount, note: s(params.note) || undefined, dueDate: s(params.dueDate) || undefined, payerName: s(params.payerName) || s(params.customerName) || s(params.recipientName) || undefined } }
     }
     case 'create_invoice': {
       const customerName = s(params.customerName)
@@ -657,6 +658,7 @@ export function describeAction(action: NanAction): { title: string; lines: Array
       return { title: 'Create Payment Request', lines: [
         { label: 'Title',   value: action.params.title },
         { label: 'Amount',  value: `${action.params.amount} USDC` },
+        ...(action.params.payerName ? [{ label: 'From', value: action.params.payerName }] : []),
         ...(action.params.note    ? [{ label: 'Note',     value: action.params.note }] : []),
         ...(action.params.dueDate ? [{ label: 'Due Date', value: action.params.dueDate }] : []),
       ]}
@@ -735,7 +737,6 @@ export function requiresConfirmation(action: NanAction): boolean {
     case 'ucw_gateway_deposit':
     case 'ucw_gateway_transfer':
     case 'set_policy':
-    case 'create_payment_request':
     case 'create_invoice':
     case 'submit_feedback':
     case 'create_support_ticket':
@@ -755,6 +756,7 @@ export function requiresConfirmation(action: NanAction): boolean {
     case 'update_profile':
     case 'set_theme':
     case 'mark_notifications_read':
+    case 'create_payment_request':
     case 'buy_usdc':
     case 'claim_faucet':
     case 'export_activity':
@@ -871,9 +873,12 @@ export async function executeAction(action: NanAction, ctx: ExecutorContext): Pr
       if (frequency === 'daily')   nextRunAt = new Date(now.getTime() + 86400000).toISOString()
       if (frequency === 'weekly')  nextRunAt = new Date(now.getTime() + 7 * 86400000).toISOString()
       if (frequency === 'monthly') nextRunAt = new Date(now.getFullYear(), now.getMonth() + 1, now.getDate()).toISOString()
-      store.addRecurringTask({ name, recipient, amount, active: true, frequency, nextRunAt })
+      const rid = store.addRecurringTask({ name, recipient, amount, active: true, frequency, nextRunAt })
+      const created = useAppStore.getState().recurringTasks.find(t => t.id === rid)
+      const owner = ctx.connectedAddress ?? store.auth?.walletAddress ?? store.auth?.circleWalletAddress ?? ''
+      if (created && owner) void syncRtCreate(owner, created)
       navigate('recurring')
-      return `Recurring payment "${name}" created — ${amount} USDC ${frequency} to ${recipient.slice(0, 10)}…`
+      return `Recurring payment "${name}" created — ${amount} USDC ${frequency} to ${recipient.slice(0, 10)}… You can see it in your Recurring dashboard.`
     }
 
     case 'add_agent_recurring': {
@@ -883,9 +888,12 @@ export async function executeAction(action: NanAction, ctx: ExecutorContext): Pr
       if (frequency === 'daily')   nextRunAt = new Date(now.getTime() + 86400000).toISOString()
       if (frequency === 'weekly')  nextRunAt = new Date(now.getTime() + 7 * 86400000).toISOString()
       if (frequency === 'monthly') nextRunAt = new Date(now.getFullYear(), now.getMonth() + 1, now.getDate()).toISOString()
-      store.addRecurringTask({ name: `agent:${name}`, recipient, amount, active: true, frequency, nextRunAt })
-      navigate('agent')
-      return `Agent recurring payment "${name}" created — ${amount} USDC ${frequency} from Agent Wallet.`
+      const rid = store.addRecurringTask({ name: `agent:${name}`, recipient, amount, active: true, frequency, nextRunAt })
+      const created = useAppStore.getState().recurringTasks.find(t => t.id === rid)
+      const owner = ctx.connectedAddress ?? store.auth?.walletAddress ?? store.auth?.circleWalletAddress ?? ''
+      if (created && owner) void syncRtCreate(owner, created)
+      navigate('recurring')
+      return `Recurring payment "${name}" created — ${amount} USDC ${frequency} to ${recipient.slice(0, 10)}… You can see it in your Recurring dashboard.`
     }
 
     case 'cancel_recurring': {
@@ -999,7 +1007,8 @@ export async function executeAction(action: NanAction, ctx: ExecutorContext): Pr
     }
 
     case 'create_payment_request': {
-      const { title, amount, note, dueDate } = action.params
+      const { title, amount, note, dueDate, payerName } = action.params
+      const creatorAddress = ctx.connectedAddress ?? store.auth?.walletAddress ?? store.auth?.circleWalletAddress ?? ''
       const id = store.addPaymentRequest({
         title,
         amount,
@@ -1007,11 +1016,20 @@ export async function executeAction(action: NanAction, ctx: ExecutorContext): Pr
         status: 'pending',
         note,
         dueDate,
-        creatorAddress: store.auth?.walletAddress ?? store.auth?.circleWalletAddress ?? '',
+        recipientName: payerName,
+        creatorAddress,
         creatorName: store.profile.displayName || undefined,
       })
-      navigate('payment-requests')
-      return `Payment request "${title}" created for ${amount} USDC (ref: ${id.slice(0, 8)}…). Opening Payment Requests tab.`
+      // Same link format as the Payment Requests page (buildPayLink)
+      const q = new URLSearchParams()
+      q.set('pr', id)
+      q.set('pay', creatorAddress)
+      q.set('amount', String(amount))
+      if (title) q.set('note', title)
+      const link = `${window.location.origin}?${q.toString()}`
+      let copied = false
+      try { await navigator.clipboard.writeText(link); copied = true } catch { /* clipboard unavailable */ }
+      return `Payment request created${payerName ? ` for ${payerName}` : ''}: ${amount} USDC — "${title}".\n\nShare this link:\n[Open payment link](${link})\n\n${link}${copied ? '\n\n(Link copied to your clipboard.)' : ''}\n\nYou can track it under Payment Requests.`
     }
 
     case 'create_invoice': {

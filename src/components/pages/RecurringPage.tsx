@@ -529,7 +529,7 @@ export function RecurringPage() {
                       {/* Left: name + status */}
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap', marginBottom: 4 }}>
-                          <span style={{ fontSize: 14, fontWeight: 700, color: TEXT }}>{task.name}</span>
+                          <span style={{ fontSize: 14, fontWeight: 700, color: TEXT }}>{task.name.replace(/^agent:/, '')}</span>
                           <span style={{
                             fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20,
                             color: task.active ? GREEN : T3,
