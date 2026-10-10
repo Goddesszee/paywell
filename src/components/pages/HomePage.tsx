@@ -221,7 +221,7 @@ export function HomePage() {
   const C = useNanTheme()
   const { address: wagmiAddress, isConnected } = useAccount()
   const {
-    activity, setActiveView, auth, profile,
+    activity, setActiveView, auth, profile, nanHandle,
     setMainWalletBalance, setCrossChainBalances,
   } = useAppStore()
 
@@ -267,9 +267,12 @@ export function HomePage() {
   useEffect(() => { setHydrated(true) }, [])
   /* eslint-enable react/set-state-in-effect */
 
-  const firstName = profile.displayName?.split(' ')[0]
+  const firstName = nanHandle
+    ? `@${nanHandle}`
+    : profile.displayName?.split(' ')[0]
     || auth?.email?.split('@')[0]
     || 'there'
+  const hasHandle = !!nanHandle
 
   const recent = [...activity]
     .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
@@ -312,9 +315,21 @@ export function HomePage() {
             <div style={{ fontSize: 15, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               Hi, {firstName}
             </div>
-            <div style={{ fontSize: 11, color: C.t3, marginTop: 1 }}>
-              Your AI agent is ready
-            </div>
+            {!hasHandle && (
+              <button
+                onClick={() => setActiveView('nan-name')}
+                style={{
+                  background: 'none', border: 'none', padding: 0,
+                  cursor: 'pointer', fontFamily: F,
+                  fontSize: 11, fontWeight: 600,
+                  color: C.blue, marginTop: 1,
+                  animation: 'nan-pulse 1.4s ease-in-out infinite',
+                  WebkitTapHighlightColor: 'transparent',
+                }}
+              >
+                ✦ Get an Arc name
+              </button>
+            )}
           </div>
         </div>
 
