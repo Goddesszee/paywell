@@ -17,7 +17,7 @@ export function ProfilePage() {
   const C = useNanTheme()
   const { address, isConnected } = useAccount()
   const { disconnect } = useDisconnect()
-  const { auth, profile, setProfile, setActiveView, theme, setTheme, nanHandle, setNanHandle, logout } = useAppStore()
+  const { auth, profile, setProfile, setActiveView, theme, setTheme, nanHandle, setNanHandle, logout, previousView } = useAppStore()
   const { resolveName, registrySet } = useNanName()
   const { data: referral } = useReferral()
   const [copied, setCopied] = useState(false)
@@ -172,7 +172,7 @@ export function ProfilePage() {
       <div style={{ width: '100%', fontFamily: F, paddingBottom: 80 }}>
         {/* Top bar */}
         <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', height: 40, marginBottom: 12 }}>
-          <button onClick={() => setActiveView('settings')} aria-label="Back"
+          <button onClick={() => setActiveView(previousView && previousView !== 'profile' ? previousView : 'home')} aria-label="Back"
             style={{ position: 'absolute', left: 0, width: 36, height: 36, borderRadius: 10, background: 'transparent', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
             <ArrowLeft size={20} color={C.text} />
           </button>
