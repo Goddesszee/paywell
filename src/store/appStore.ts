@@ -364,6 +364,8 @@ export interface AppState {
 
   bridgePrefill: { amount?: string; toChain?: string } | null
   setBridgePrefill: (p: { amount?: string; toChain?: string } | null) => void
+  onrampPrefill: { amount?: number } | null
+  setOnrampPrefill: (p: { amount?: number } | null) => void
   swapPrefill: { fromToken?: string; toToken?: string; amount?: string } | null
   setSwapPrefill: (p: { fromToken?: string; toToken?: string; amount?: string } | null) => void
 
@@ -695,6 +697,8 @@ export const useAppStore = create<AppState>()(
       setCrossChainBalances: (balances) => set({ crossChainBalances: balances }),
 
       bridgePrefill: null,
+      onrampPrefill: null,
+      setOnrampPrefill: (p) => set({ onrampPrefill: p }),
       setBridgePrefill: (p) => set({ bridgePrefill: p }),
       swapPrefill: null,
       setSwapPrefill: (p) => set({ swapPrefill: p }),

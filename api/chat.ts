@@ -95,6 +95,42 @@ function detectDirectAction(message: string): { reply: string; action: Record<st
     }
   }
 
+  // Buy USDC with card/bank (Circle onramp) — amount optional
+  if (!/^(how|what|why|where|when|can|could|is|are|does|do|which)\b/.test(lower) && /\b(buy|purchase|top ?up|onramp|on-ramp)\b/.test(lower) && /\b(usdc|usd|dollars?|crypto|funds|card|bank)\b/.test(lower) && !/\b(service|agent|shop|swap|bridge)\b/.test(lower)) {
+    const amt = lower.match(/\$\s*(\d+(?:\.\d+)?)|(\d+(?:\.\d+)?)\s*(?:usdc|usd|dollars?)\b/)
+    const amount = amt ? Number(amt[1] ?? amt[2]) : undefined
+    return {
+      reply: amount ? `Opening Buy USDC with $${amount} filled in.` : 'Opening Buy USDC — pick an amount to continue.',
+      action: { action: 'buy_usdc', params: amount ? { amount } : {} },
+    }
+  }
+
+  // Testnet faucet
+  if (!/^(how|what|why|where|when|can|could|is|are|does|do|which)\b/.test(lower) && /\bfaucet\b|\bfree (?:test(?:net)? )?usdc\b|\b(?:get|claim|request)\b.*\btest(?:net)?\b.*\b(usdc|funds|tokens?)\b/.test(lower)) {
+    return { reply: 'Requesting testnet USDC for your wallet…', action: { action: 'claim_faucet', params: {} } }
+  }
+
+  // Export activity as CSV
+  if (/\b(export|download)\b.*\b(activity|transactions?|history|csv)\b/.test(lower)) {
+    return { reply: 'Exporting your activity as CSV…', action: { action: 'export_activity', params: {} } }
+  }
+
+  // Plain navigation: "open settings", "go to the bridge page", "show my activity"
+  const nav = lower.match(/^(?:please\s+)?(?:open|go to|take me to|navigate to|show me|show)\s+(?:the\s+|my\s+)?([a-z -]{3,24}?)(?:\s+(?:page|tab|screen))?[.!?]*$/)
+  if (nav) {
+    const target = nav[1].trim().replace(/\s+/g, '-')
+    const pages: Record<string, string> = {
+      home: 'home', dashboard: 'dashboard', wallet: 'wallet', send: 'send', receive: 'receive', agent: 'agent',
+      'agent-wallet': 'agent-wallet', bridge: 'bridge', swap: 'swap', gateway: 'gateway', faucet: 'faucet',
+      activity: 'activity', history: 'activity', transactions: 'activity', settings: 'settings', recurring: 'recurring',
+      notifications: 'notifications', support: 'support', faq: 'faq', about: 'about', feedback: 'feedback',
+      suggestions: 'suggestions', profile: 'profile', favorites: 'favorites', exports: 'exports', invoices: 'exports',
+      'payment-requests': 'payment-requests', requests: 'payment-requests',
+    }
+    const page = pages[target]
+    if (page) return { reply: `Opening ${page.replace('-', ' ')}.`, action: { action: 'navigate', params: { page } } }
+  }
+
   return null
 }
 
@@ -326,7 +362,7 @@ Toggle NAN Agent on/off:
 **── NAVIGATION ──**
 
 Navigate to any page:
-{"action":"navigate","params":{"page":"wallet|shop|bridge|swap|gateway|recurring|activity|profile|settings|faucet|agent|support|payment-requests|exports|about|faq|onramp"}}
+{"action":"navigate","params":{"page":"home|dashboard|wallet|send|receive|bridge|swap|gateway|onramp|faucet|activity|recurring|notifications|payment-requests|exports|agent|agent-wallet|profile|settings|support|feedback|suggestions|favorites|search|faq|about"}}
 
 **── ONRAMP ──**
 
@@ -335,6 +371,23 @@ Open the Circle onramp (buy USDC with card/bank):
 
 Check balance (reports main + agent + cross-chain balances):
 {"action":"check_balance","params":{}}
+
+**── BUY USDC / FAUCET / FEEDBACK / SUPPORT / EXPORT ──**
+
+Buy USDC with a card or bank (Circle onramp). Include the dollar amount if the user gave one:
+{"action":"buy_usdc","params":{"amount":50}}
+
+Claim free testnet USDC to the user's wallet (faucet):
+{"action":"claim_faucet","params":{}}
+
+Submit app feedback (rating 1-5 required; category e.g. general|bug|feature):
+{"action":"submit_feedback","params":{"rating":5,"comment":"<optional>","category":"general"}}
+
+Open a support ticket (both fields required — ask the user for the issue if missing):
+{"action":"create_support_ticket","params":{"subject":"<short subject>","message":"<details>"}}
+
+Download the user's activity/transactions as a CSV file:
+{"action":"export_activity","params":{}}
 
 **── AGENT WALLET ──**
 

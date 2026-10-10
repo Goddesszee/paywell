@@ -33,6 +33,25 @@ const USDC_TRANSFER_ABI = [{
   outputs: [{ name: '', type: 'bool' }],
 }] as const
 
+const API_BASE = (import.meta.env.VITE_RAILWAY_URL as string | undefined) ?? (import.meta.env.VITE_API_URL as string | undefined) ?? ''
+
+/** Map natural page names the model might emit onto real app view ids. */
+const PAGE_ALIASES: Record<string, string> = {
+  home: 'home', dashboard: 'dashboard', wallet: 'wallet', send: 'send', receive: 'receive',
+  agent: 'agent', 'agent-wallet': 'agent-wallet', 'agent wallet': 'agent-wallet',
+  bridge: 'bridge', swap: 'swap', gateway: 'gateway', onramp: 'onramp', buy: 'onramp', 'buy-usdc': 'onramp',
+  faucet: 'faucet', activity: 'activity', history: 'activity', transactions: 'activity',
+  settings: 'settings', help: 'help', recurring: 'recurring', notifications: 'notifications',
+  support: 'support', faq: 'faq', about: 'about', feedback: 'feedback', suggestions: 'suggestions',
+  profile: 'profile', search: 'search', favorites: 'favorites', exports: 'exports', invoices: 'exports',
+  'payment-requests': 'payment-requests', 'payment requests': 'payment-requests', requests: 'payment-requests',
+  name: 'name',
+}
+function normalizePage(page: string): string {
+  const k = page.trim().toLowerCase().replace(/^\//, '').replace(/_/g, '-')
+  return PAGE_ALIASES[k] ?? PAGE_ALIASES[k.replace(/-/g, ' ')] ?? k
+}
+
 // ── Action type union ──────────────────────────────────────────────────────────
 
 export type NanActionType =
@@ -70,6 +89,11 @@ export type NanActionType =
   | 'set_theme'
   | 'mark_notifications_read'
   | 'set_recurring_active'
+  | 'buy_usdc'
+  | 'claim_faucet'
+  | 'submit_feedback'
+  | 'create_support_ticket'
+  | 'export_activity'
 
 // ── Individual action interfaces ───────────────────────────────────────────────
 
@@ -255,6 +279,12 @@ export interface SetRecurringActiveAction {
   params: { name: string; active: boolean }
 }
 
+export interface BuyUsdcAction { action: 'buy_usdc'; params: { amount?: number } }
+export interface ClaimFaucetAction { action: 'claim_faucet'; params: Record<string, never> }
+export interface SubmitFeedbackAction { action: 'submit_feedback'; params: { rating: number; comment?: string; category?: string } }
+export interface CreateSupportTicketAction { action: 'create_support_ticket'; params: { subject: string; message: string } }
+export interface ExportActivityAction { action: 'export_activity'; params: Record<string, never> }
+
 // ── Union ─────────────────────────────────────────────────────────────────────
 
 export type NanAction =
@@ -292,6 +322,11 @@ export type NanAction =
   | SetThemeAction
   | MarkNotificationsReadAction
   | SetRecurringActiveAction
+  | BuyUsdcAction
+  | ClaimFaucetAction
+  | SubmitFeedbackAction
+  | CreateSupportTicketAction
+  | ExportActivityAction
 
 // ── Safe string coercion ───────────────────────────────────────────────────────
 
@@ -411,6 +446,25 @@ export function parseAction(raw: Record<string, unknown>): NanAction | null {
     }
     case 'check_balance':
       return { action: 'check_balance', params: {} }
+    case 'buy_usdc': {
+      const n = Number(params.amount)
+      return { action: 'buy_usdc', params: { amount: Number.isFinite(n) && n > 0 ? n : undefined } }
+    }
+    case 'claim_faucet':
+      return { action: 'claim_faucet', params: {} }
+    case 'submit_feedback': {
+      const rating = Math.round(Number(params.rating))
+      if (!(rating >= 1 && rating <= 5)) return null
+      return { action: 'submit_feedback', params: { rating, comment: s(params.comment) || undefined, category: s(params.category) || undefined } }
+    }
+    case 'create_support_ticket': {
+      const subject = s(params.subject)
+      const message = s(params.message)
+      if (!subject || !message) return null
+      return { action: 'create_support_ticket', params: { subject, message } }
+    }
+    case 'export_activity':
+      return { action: 'export_activity', params: {} }
     case 'generate_receipt':
       return { action: 'generate_receipt', params: { txHash: s(params.txHash) || undefined, index: params.index !== undefined ? Number(params.index) : undefined } }
     case 'show_qr':
@@ -473,6 +527,22 @@ export function parseAction(raw: Record<string, unknown>): NanAction | null {
 
 export function describeAction(action: NanAction): { title: string; lines: Array<{ label: string; value: string }> } {
   switch (action.action) {
+    case 'buy_usdc':
+      return { title: 'Buy USDC', lines: [{ label: 'Amount', value: action.params.amount ? `$${action.params.amount}` : 'Choose in the next screen' }] }
+    case 'claim_faucet':
+      return { title: 'Claim testnet USDC', lines: [{ label: 'Source', value: 'Circle faucet' }] }
+    case 'submit_feedback':
+      return { title: 'Submit Feedback', lines: [
+        { label: 'Rating', value: `${action.params.rating}/5` },
+        ...(action.params.comment ? [{ label: 'Comment', value: action.params.comment }] : []),
+      ]}
+    case 'create_support_ticket':
+      return { title: 'Open Support Ticket', lines: [
+        { label: 'Subject', value: action.params.subject },
+        { label: 'Message', value: action.params.message },
+      ]}
+    case 'export_activity':
+      return { title: 'Export Activity', lines: [{ label: 'Format', value: 'CSV download' }] }
     case 'add_recurring':
       return { title: 'Add Recurring Payment', lines: [
         { label: 'Name',      value: action.params.name },
@@ -667,6 +737,8 @@ export function requiresConfirmation(action: NanAction): boolean {
     case 'set_policy':
     case 'create_payment_request':
     case 'create_invoice':
+    case 'submit_feedback':
+    case 'create_support_ticket':
       return true
     case 'navigate':
     case 'toggle_agent':
@@ -683,6 +755,9 @@ export function requiresConfirmation(action: NanAction): boolean {
     case 'update_profile':
     case 'set_theme':
     case 'mark_notifications_read':
+    case 'buy_usdc':
+    case 'claim_faucet':
+    case 'export_activity':
       return false
     case 'bridge_start':
       return Boolean(action.params.amount && action.params.toChain)
@@ -882,8 +957,9 @@ export async function executeAction(action: NanAction, ctx: ExecutorContext): Pr
     }
 
     case 'navigate': {
-      navigate(action.params.page)
-      return `Navigating to ${action.params.page}.`
+      const page = normalizePage(action.params.page)
+      navigate(page)
+      return `Navigating to ${page}.`
     }
 
     case 'toggle_agent': {
@@ -1084,6 +1160,72 @@ export async function executeAction(action: NanAction, ctx: ExecutorContext): Pr
       if (!found) throw new Error(`No recurring payment named "${name}" found.`)
       store.updateRecurringTask(found.id, { active })
       return `Recurring payment "${found.name.replace(/^agent:/, '')}" ${active ? 'resumed' : 'paused'}.`
+    }
+
+    case 'buy_usdc': {
+      store.setOnrampPrefill(action.params.amount ? { amount: action.params.amount } : null)
+      navigate('onramp')
+      return action.params.amount
+        ? `Opening Buy USDC with $${action.params.amount} filled in — tap "Buy" to continue with Circle.`
+        : 'Opening Buy USDC — pick an amount and continue with Circle.'
+    }
+
+    case 'claim_faucet': {
+      const addr = ctx.connectedAddress ?? store.auth?.walletAddress ?? store.auth?.circleWalletAddress
+      if (!addr) throw new Error('No wallet connected — sign in first.')
+      const r = await fetch('/api/misc?route=faucet', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ address: addr }),
+      })
+      const d = await r.json().catch(() => ({})) as { message?: string; retryAfterMs?: number }
+      if (r.status === 429) {
+        const mins = d.retryAfterMs ? Math.ceil(d.retryAfterMs / 60000) : null
+        return d.message ?? `This address already claimed recently${mins ? ` — try again in ~${mins} min` : ''}.`
+      }
+      if (!r.ok) throw new Error(d.message ?? `Faucet returned HTTP ${r.status}`)
+      return d.message ?? 'Testnet USDC is on its way to your wallet.'
+    }
+
+    case 'submit_feedback': {
+      const { rating, comment, category } = action.params
+      const r = await fetch(`${API_BASE}/api/feedback`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', authorization: `Bearer ${store.auth?.sessionToken ?? ''}` },
+        body: JSON.stringify({ rating, comment: comment ?? '', category: category ?? 'general' }),
+      })
+      const d = await r.json().catch(() => null) as { success?: boolean; error?: string; message?: string } | null
+      if (!d?.success) throw new Error(d?.error ?? d?.message ?? `Server error (${r.status})`)
+      return 'Thanks — your feedback was submitted.'
+    }
+
+    case 'create_support_ticket': {
+      const r = await fetch(`${API_BASE}/api/support/tickets`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', authorization: `Bearer ${store.auth?.sessionToken ?? ''}` },
+        body: JSON.stringify({ subject: action.params.subject, message: action.params.message }),
+      })
+      const d = await r.json().catch(() => null) as { ticket?: { id?: string }; error?: string; message?: string } | null
+      if (!r.ok || !d?.ticket) throw new Error(d?.error ?? d?.message ?? `Server error (${r.status})`)
+      navigate('support')
+      return `Support ticket opened: "${action.params.subject}". Opening Support so you can follow the replies.`
+    }
+
+    case 'export_activity': {
+      const rows = store.activity
+      if (rows.length === 0) return 'No activity to export yet.'
+      const esc = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`
+      const csv = ['Date,Type,Description,Amount,Status,Counterparty,TxHash',
+        ...rows.map(a => [
+          a.timestamp instanceof Date ? a.timestamp.toISOString() : String(a.timestamp),
+          a.type, a.description, `${a.sign}${a.amount}`, a.status, a.counterparty ?? '', a.txHash ?? '',
+        ].map(esc).join(','))].join('\n')
+      const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }))
+      const el = document.createElement('a')
+      el.href = url; el.download = `nan-activity-${new Date().toISOString().slice(0, 10)}.csv`
+      document.body.appendChild(el); el.click(); el.remove()
+      setTimeout(() => URL.revokeObjectURL(url), 5000)
+      return `Exported ${rows.length} transactions to CSV.`
     }
 
     case 'agent_service_search': {

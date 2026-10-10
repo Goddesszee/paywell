@@ -52,7 +52,7 @@ const PRESETS = [20, 50, 100, 200]
 
 export function OnrampPage() {
   const { address: wagmiAddress, isConnected } = useAccount()
-  const { auth } = useAppStore()
+  const { auth, onrampPrefill, setOnrampPrefill } = useAppStore()
   const address = wagmiAddress ?? (auth?.circleWalletAddress as `0x${string}` | undefined)
   const isReady = isConnected || !!address
 
@@ -67,6 +67,15 @@ export function OnrampPage() {
   const iframeRef = useRef<HTMLIFrameElement>(null)
   // Dedupe DEPOSIT_SUBMITTED + DEPOSIT_SETTLED
   const credited = useRef(false)
+
+  // Amount requested via the AI agent ("buy 50 USDC")
+  useEffect(() => {
+    if (onrampPrefill?.amount && onrampPrefill.amount > 0) {
+      setAmount(onrampPrefill.amount)
+      setCustom(String(onrampPrefill.amount))
+      setOnrampPrefill(null)
+    }
+  }, [onrampPrefill, setOnrampPrefill])
 
   const setAmt = (v: number) => { setAmount(v); setCustom(String(v)) }
   const onCustom = (v: string) => {
