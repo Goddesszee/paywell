@@ -132,14 +132,15 @@ function TokenCard({
 }) {
   const isEurc     = symbol === 'EURC'
   const tokenColor = symbol === 'USDC' ? '#2775CA' : '#0099CC'
+  const isInert    = !onClick || onClick.toString() === '() => {}'
   return (
-    <button
+    <div
       onClick={onClick}
       style={{
         width: CARD_W, flexShrink: 0,
         background: C.surf, border: `1px solid ${C.bdr}`,
         borderRadius: 16, padding: '14px 12px 12px',
-        cursor: 'pointer', fontFamily: F,
+        cursor: isInert ? 'default' : 'pointer', fontFamily: F,
         WebkitTapHighlightColor: 'transparent', textAlign: 'left',
       }}
     >
@@ -163,7 +164,7 @@ function TokenCard({
       <div style={{ fontSize: 10, fontWeight: 600, color: tokenColor }}>
         {symbol} · Arc
       </div>
-    </button>
+    </div>
   )
 }
 
@@ -365,7 +366,7 @@ export function HomePage() {
             }}
           >
             <Plus size={11} strokeWidth={2.5} />
-            Add
+            Add Money
           </button>
         </div>
       </div>
@@ -397,21 +398,23 @@ export function HomePage() {
                 <RefreshCw size={12} color={C.t3} />
               </button>
             )}
-            <button
-              onClick={() => setHidden(h => !h)}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, WebkitTapHighlightColor: 'transparent' }}
-              aria-label={hidden ? 'Show balance' : 'Hide balance'}
-            >
-              {hidden ? <EyeOff size={15} color={C.t3} /> : <Eye size={15} color={C.t3} />}
-            </button>
           </div>
         </div>
 
         {isLoadingBalance ? (
           <div style={{ height: 44, width: 180, background: C.surf2, borderRadius: 10, animation: 'nan-shimmer 1.4s ease infinite' }} />
         ) : (
-          <div style={{ fontSize: 38, fontWeight: 800, letterSpacing: '-0.04em', color: C.text, lineHeight: 1.1, fontFamily: F }}>
-            {hidden ? '••••••' : `$${displayTotal}`}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ fontSize: 38, fontWeight: 800, letterSpacing: '-0.04em', color: C.text, lineHeight: 1.1, fontFamily: F }}>
+              {hidden ? '••••••' : `$${displayTotal}`}
+            </div>
+            <button
+              onClick={() => setHidden(h => !h)}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, WebkitTapHighlightColor: 'transparent', flexShrink: 0, marginTop: 4 }}
+              aria-label={hidden ? 'Show balance' : 'Hide balance'}
+            >
+              {hidden ? <EyeOff size={17} color={C.t3} /> : <Eye size={17} color={C.t3} />}
+            </button>
           </div>
         )}
 
@@ -478,14 +481,14 @@ export function HomePage() {
           symbol="USDC"
           quantity={portfolio.byToken.USDC.quantity}
           usdValue={portfolio.byToken.USDC.usdValue}
-          onClick={() => setTokenSheet('USDC')}
+          onClick={() => {}}
           hidden={hidden} C={C} isLoading={portfolio.isLoading}
         />
         <TokenCard
           symbol="EURC"
           quantity={portfolio.byToken.EURC.quantity}
           usdValue={portfolio.byToken.EURC.usdValue}
-          onClick={() => setTokenSheet('EURC')}
+          onClick={() => {}}
           hidden={hidden} C={C} isLoading={portfolio.isLoading}
         />
         <CrossChainCard

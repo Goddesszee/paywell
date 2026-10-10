@@ -252,7 +252,7 @@ export function ProfilePage() {
               </div>
             ) : (
               <div style={{ fontSize: 12, color: C.t3, fontStyle: 'italic' }}>
-                Connect your wallet to generate a referral link
+                Loading your referral link…
               </div>
             )}
             {referral && (
