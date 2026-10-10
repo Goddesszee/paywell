@@ -137,49 +137,63 @@ export function buildReceiptHtml(r: ReceiptData): string {
 </html>`
 }
 
-export function downloadReceipt(data: ReceiptData) {
+// Upload HTML to the backend and get back a real same-origin URL the browser
+// can navigate to directly — works in sandboxed iframes where blob URLs are blocked.
+async function getDownloadUrl(html: string, filename: string): Promise<string> {
+  const res = await fetch('/api/download', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ html, filename }),
+  })
+  if (!res.ok) throw new Error('Download service unavailable')
+  const { url } = await res.json() as { url: string }
+  return url
+}
+
+export async function downloadReceipt(data: ReceiptData) {
   const html = buildReceiptHtml(data)
-  const blob = new Blob([html], { type: 'text/html' })
-  const url  = URL.createObjectURL(blob)
-  const a    = document.createElement('a')
   const ts   = new Date(data.timestamp).toISOString().slice(0, 10)
   const id   = data.id ? data.id.slice(-6) : ts
-  a.href     = url
-  a.download = `nan-receipt-${ts}-${id}.html`
-  a.style.display = 'none'
-  document.body.appendChild(a)
-  a.click()
-  document.body.removeChild(a)
-  setTimeout(() => URL.revokeObjectURL(url), 10000)
+  const filename = `nan-receipt-${ts}-${id}.html`
+  try {
+    const url = await getDownloadUrl(html, filename)
+    window.open(url, '_blank')
+  } catch {
+    // Final fallback: data URI open in new tab
+    const encoded = encodeURIComponent(html)
+    window.open(`data:text/html;charset=utf-8,${encoded}`, '_blank')
+  }
 }
 
 export async function shareReceipt(data: ReceiptData) {
   const html = buildReceiptHtml(data)
-  const blob = new Blob([html], { type: 'text/html' })
   const ts   = new Date(data.timestamp).toISOString().slice(0, 10)
   const id   = data.id ? data.id.slice(-6) : ts
   const filename = `nan-receipt-${ts}-${id}.html`
-  const file = new File([blob], filename, { type: 'text/html' })
 
-  // Try native share (shows OS share sheet on mobile — no tab switch, no logout)
-  if (navigator.share && navigator.canShare?.({ files: [file] })) {
-    try { await navigator.share({ title: 'NAN Receipt', files: [file] }); return } catch { /* fall through */ }
-  }
-  // Try sharing just text + URL if file share isn't supported
-  if (navigator.share) {
-    try {
-      await navigator.share({ title: 'NAN Receipt', text: `NAN payment receipt · ${data.amount} USDC` })
+  // Try native file share first (OS share sheet — stays in app on mobile)
+  try {
+    const blob = new Blob([html], { type: 'text/html' })
+    const file = new File([blob], filename, { type: 'text/html' })
+    if (navigator.share && navigator.canShare?.({ files: [file] })) {
+      await navigator.share({ title: 'NAN Receipt', files: [file] })
       return
-    } catch { /* fall through */ }
+    }
+  } catch { /* fall through */ }
+
+  // Fallback: get a real URL from the backend and open/share it
+  try {
+    const url = await getDownloadUrl(html, filename)
+    const fullUrl = `${window.location.origin}${url}`
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: 'NAN Receipt', url: fullUrl })
+        return
+      } catch { /* fall through */ }
+    }
+    window.open(url, '_blank')
+  } catch {
+    const encoded = encodeURIComponent(html)
+    window.open(`data:text/html;charset=utf-8,${encoded}`, '_blank')
   }
-  // Fallback: trigger a download in-page (no new tab, no navigation away from the app)
-  const url = URL.createObjectURL(blob)
-  const a   = document.createElement('a')
-  a.href     = url
-  a.download = filename
-  a.style.display = 'none'
-  document.body.appendChild(a)
-  a.click()
-  document.body.removeChild(a)
-  setTimeout(() => URL.revokeObjectURL(url), 10000)
 }

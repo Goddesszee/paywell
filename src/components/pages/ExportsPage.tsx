@@ -332,14 +332,29 @@ export function ExportsPage() {
     return `nan-export-${label}-${source}.${ext}`
   }
 
-  function triggerDownload(url: string, filename: string) {
-    const a = document.createElement('a')
-    a.href = url
-    a.download = filename
-    a.style.display = 'none'
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
+  // Upload content to backend and open the real URL — works in sandboxed iframes
+  async function triggerDownload(content: string, filename: string, type: 'text/html' | 'text/csv' | 'application/json' = 'text/html') {
+    if (type === 'text/html') {
+      // Route HTML through backend so the browser gets a real same-origin URL
+      try {
+        const res = await fetch('/api/download', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ html: content, filename }),
+        })
+        if (res.ok) {
+          const { url } = await res.json() as { url: string }
+          window.open(url, '_blank')
+          return
+        }
+      } catch { /* fall through */ }
+    }
+    // CSV / JSON: use a blob download (these are plain text, not blocked as blobs)
+    const blob = new Blob([content], { type })
+    const url  = URL.createObjectURL(blob)
+    const a    = document.createElement('a')
+    a.href = url; a.download = filename; a.style.display = 'none'
+    document.body.appendChild(a); a.click(); document.body.removeChild(a)
     setTimeout(() => URL.revokeObjectURL(url), 10000)
   }
 
@@ -347,41 +362,30 @@ export function ExportsPage() {
     const header = CSV_HEADERS.join(',')
     const rows   = filtered.map(r => CSV_HEADERS.map(k => escCsv(r[k])).join(','))
     const csv    = [header, ...rows].join('\n')
-    const blob   = new Blob([csv], { type: 'text/csv' })
-    triggerDownload(URL.createObjectURL(blob), getFilename('csv'))
+    void triggerDownload(csv, getFilename('csv'), 'text/csv')
     setDownloaded('csv')
     setTimeout(() => setDownloaded(null), 2500)
   }
 
   function downloadJson() {
     const json = JSON.stringify({ exportedAt: new Date().toISOString(), period, source, from: from.toISOString(), to: to.toISOString(), count: filtered.length, records: filtered }, null, 2)
-    const blob = new Blob([json], { type: 'application/json' })
-    triggerDownload(URL.createObjectURL(blob), getFilename('json'))
+    void triggerDownload(json, getFilename('json'), 'application/json')
     setDownloaded('json')
     setTimeout(() => setDownloaded(null), 2500)
   }
 
   async function shareExport() {
-    // Build the branded HTML statement and open it in a new tab so the user
-    // can share, print, or save it — same approach as the receipt Share button.
-    const html = buildStatementHtml()
-    const blob = new Blob([html], { type: 'text/html' })
-    if (
-      navigator.share &&
-      navigator.canShare?.({ files: [new File([blob], 'statement.html', { type: 'text/html' })] })
-    ) {
-      try {
-        const label = period === 'custom' ? `${customFrom}_to_${customTo}` : period
-        await navigator.share({
-          title: 'NAN Statement',
-          files: [new File([blob], `nan-statement-${label}-${source}.html`, { type: 'text/html' })],
-        })
-        return
-      } catch { /* fall through to new-tab */ }
+    const label    = period === 'custom' ? `${customFrom}_to_${customTo}` : period
+    const filename = `nan-statement-${label}-${source}.html`
+    const html     = buildStatementHtml()
+    const blob     = new Blob([html], { type: 'text/html' })
+
+    // Try native file share (OS share sheet — stays in app on mobile)
+    if (navigator.share && navigator.canShare?.({ files: [new File([blob], filename, { type: 'text/html' })] })) {
+      try { await navigator.share({ title: 'NAN Statement', files: [new File([blob], filename, { type: 'text/html' })] }); return } catch { /* fall through */ }
     }
-    // Fallback: trigger in-page download (no new tab, no navigation away)
-    const label = period === 'custom' ? `${customFrom}_to_${customTo}` : period
-    triggerDownload(URL.createObjectURL(blob), `nan-statement-${label}-${source}.html`)
+    // Fallback: real URL from backend
+    await triggerDownload(html, filename, 'text/html')
   }
 
   // ── HTML Statement builder ───────────────────────────────────────────────────
@@ -641,12 +645,9 @@ export function ExportsPage() {
   }
 
   function downloadStatement() {
-    const html = buildStatementHtml()
-    const blob = new Blob([html], { type: 'text/html' })
-    const label = period === 'custom'
-      ? `${customFrom}_to_${customTo}`
-      : period
-    triggerDownload(URL.createObjectURL(blob), `nan-statement-${label}-${source}.html`)
+    const html  = buildStatementHtml()
+    const label = period === 'custom' ? `${customFrom}_to_${customTo}` : period
+    void triggerDownload(html, `nan-statement-${label}-${source}.html`, 'text/html')
     setDownloaded('statement')
     setTimeout(() => setDownloaded(null), 2500)
   }

@@ -122,6 +122,44 @@ app.get('/health', (_req, res) => {
   res.json({ ok: true, service: 'paywell-api', ts: Date.now() })
 })
 
+// ── Download helper ───────────────────────────────────────────────────────────
+// POST /api/download  { html: string, filename: string }
+// Returns { url: '/api/download/<id>' }  — a real HTTP URL the browser can open
+// directly, bypassing blob-URL sandbox restrictions in previews/iframes.
+// The content lives in memory for 5 minutes then is auto-cleaned.
+const downloadStore = new Map<string, { html: string; filename: string; expiresAt: number }>()
+setInterval(() => {
+  const now = Date.now()
+  for (const [id, entry] of downloadStore) {
+    if (entry.expiresAt < now) downloadStore.delete(id)
+  }
+}, 60_000)
+
+app.post('/api/download', (req, res) => {
+  const { html, filename } = req.body as { html?: string; filename?: string }
+  if (!html || typeof html !== 'string') {
+    res.status(400).json({ error: 'html required' }); return
+  }
+  const id = crypto.randomBytes(16).toString('hex')
+  downloadStore.set(id, {
+    html,
+    filename: filename || 'download.html',
+    expiresAt: Date.now() + 5 * 60_000,
+  })
+  res.json({ url: `/api/download/${id}` })
+})
+
+app.get('/api/download/:id', (req, res) => {
+  const entry = downloadStore.get(req.params.id)
+  if (!entry || entry.expiresAt < Date.now()) {
+    res.status(404).send('Download link expired or not found'); return
+  }
+  downloadStore.delete(req.params.id) // one-shot
+  res.setHeader('Content-Type', 'text/html; charset=utf-8')
+  res.setHeader('Content-Disposition', `attachment; filename="${entry.filename}"`)
+  res.send(entry.html)
+})
+
 // ── OTP auth ─────────────────────────────────────────────────────────────────
 app.post('/api/otp', async (req, res) => {
   try {
