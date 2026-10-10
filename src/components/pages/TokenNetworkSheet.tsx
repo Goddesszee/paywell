@@ -5,7 +5,7 @@
  * Shows "Balances by Network" for that specific token: per-chain quantity, USD value,
  * confirmed / pending / unavailable status, and quick actions.
  */
-import React from 'react'
+import React, { useState } from 'react'
 import {
   X, ExternalLink, ArrowUpRight, ArrowDownLeft,
   ArrowLeftRight, CheckCircle2, Clock, AlertCircle,
@@ -14,6 +14,43 @@ import {
 import { useNanTheme } from '../../hooks/useNanTheme'
 import { useAppStore } from '../../store/appStore'
 import type { TokenPosition } from '../../hooks/usePortfolioBalances'
+
+// ── Chain logo map — keyed by chainId ─────────────────────────────────────────
+const CHAIN_LOGOS: Record<number, string> = {
+  5042002:  'https://s2.coinmarketcap.com/static/img/coins/64x64/3408.png', // Arc (USDC)
+  11155111: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/info/logo.png', // Ethereum Sepolia
+  84532:    'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/base/info/logo.png',     // Base Sepolia
+  421614:   'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/arbitrum/info/logo.png', // Arbitrum Sepolia
+  11155420: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/optimism/info/logo.png', // OP Sepolia
+  80002:    'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/polygon/info/logo.png',  // Polygon Amoy
+  43113:    'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/avalanchec/info/logo.png', // Avalanche Fuji
+  1301:     'https://s2.coinmarketcap.com/static/img/coins/64x64/34413.png', // Unichain Sepolia
+  1328:     'https://s2.coinmarketcap.com/static/img/coins/64x64/23149.png', // Sei Testnet
+  4801:     'https://s2.coinmarketcap.com/static/img/coins/64x64/13502.png', // World Chain
+  59141:    'https://s2.coinmarketcap.com/static/img/coins/64x64/27657.png', // Linea Sepolia
+}
+
+function ChainLogo({ chainId, size = 34, hasQty, C }: {
+  chainId: number; size?: number; hasQty: boolean
+  C: { blue: string; blueDim: string; blueBd: string; surf: string; bdr: string; t3: string }
+}) {
+  const [err, setErr] = useState(false)
+  const logo = CHAIN_LOGOS[chainId]
+  return (
+    <div style={{
+      width: size, height: size, borderRadius: 10, flexShrink: 0,
+      background: hasQty ? C.blueDim : C.surf,
+      border: hasQty ? `1px solid ${C.blueBd}` : `1px solid ${C.bdr}`,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      overflow: 'hidden',
+    }}>
+      {logo && !err
+        ? <img src={logo} alt="" onError={() => setErr(true)} style={{ width: size - 8, height: size - 8, objectFit: 'contain', borderRadius: 6 }} />
+        : <Globe size={size * 0.44} color={hasQty ? C.blue : C.t3} />
+      }
+    </div>
+  )
+}
 
 const F    = "'Inter', -apple-system, sans-serif"
 const MONO = "'JetBrains Mono', Menlo, monospace"
@@ -256,14 +293,7 @@ export function TokenNetworkSheet({
                       }}
                     >
                       {/* Network icon */}
-                      <div style={{
-                        width: 34, height: 34, borderRadius: 10, flexShrink: 0,
-                        background: hasQty ? C.blueDim : C.surf,
-                        border: hasQty ? `1px solid ${C.blueBd}` : `1px solid ${C.bdr}`,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      }}>
-                        <Globe size={15} color={hasQty ? C.blue : C.t3} />
-                      </div>
+                      <ChainLogo chainId={pos.chainId} hasQty={hasQty} C={C} />
 
                       {/* Chain name + status */}
                       <div style={{ flex: 1, minWidth: 0 }}>
