@@ -15,10 +15,13 @@ import {
   Search, Loader2, Pencil, Trash2, ExternalLink, Copy, Check,
 } from 'lucide-react'
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
+import { ConnectKitButton } from 'connectkit'
+import { encodeFunctionData } from 'viem'
 import { toast } from 'sonner'
 import { useAppStore } from '../../store/appStore'
 import { useNanName } from '../../hooks/useNanName'
 import { useNanTheme } from '../../hooks/useNanTheme'
+import { useCircleTransaction } from '../../hooks/useCircleTransaction'
 import { buildAddressExplorerUrl } from '../../onchain-facts'
 
 const NAME_REGISTRY = (import.meta.env.VITE_NAME_REGISTRY as string | undefined) ?? ''
@@ -46,26 +49,45 @@ export function NanNamePage() {
   const { address: wagmiAddress } = useAccount()
   const address = wagmiAddress ?? (auth?.circleWalletAddress as `0x${string}` | undefined)
 
+  // Detect auth path
+  const isCircleUser  = !wagmiAddress && !!auth?.circleWalletId && !auth?.isPasskeyUser
+  const isPasskeyUser = !!auth?.isPasskeyUser
+
   const { resolveHandle, resolveName, resolving, registrySet } = useNanName()
+  const circleTx = useCircleTransaction()
 
   // ── state ──────────────────────────────────────────────────────────────────
-  const [pageState, setPageState]         = useState<PageState>('loading')
-  const [myHandle, setMyHandle]           = useState<string>('')       // the handle currently registered to my address
-  const [searchInput, setSearchInput]     = useState('')               // user types a handle to check
-  const [searchResult, setSearchResult]   = useState<'available' | 'taken' | null>(null)
-  const [searchOwner, setSearchOwner]     = useState<string | null>(null)
-  const [searching, setSearching]         = useState(false)
-  const [newHandle, setNewHandle]         = useState('')               // handle being registered / updated
-  const [handleError, setHandleError]     = useState('')
-  const [copied, setCopied]               = useState(false)
+  const [pageState, setPageState]           = useState<PageState>('loading')
+  const [myHandle, setMyHandle]             = useState<string>('')
+  const [searchInput, setSearchInput]       = useState('')
+  const [searchResult, setSearchResult]     = useState<'available' | 'taken' | null>(null)
+  const [searchOwner, setSearchOwner]       = useState<string | null>(null)
+  const [searching, setSearching]           = useState(false)
+  const [newHandle, setNewHandle]           = useState('')
+  const [handleError, setHandleError]       = useState('')
+  const [copied, setCopied]                 = useState(false)
   const [confirmRelease, setConfirmRelease] = useState(false)
+  const [altBusy, setAltBusy]               = useState(false) // Circle/passkey in-flight
 
-  // ── wagmi write ────────────────────────────────────────────────────────────
+  // ── wagmi write (MetaMask / external wallet) ───────────────────────────────
   const { writeContract, data: txHash, isPending, error: writeError, reset } = useWriteContract()
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash: txHash })
-  const isBusy = isPending || isConfirming
+  const isBusy = isPending || isConfirming || altBusy
+
+  // ── shared: run after any successful tx ───────────────────────────────────
+  const onTxSuccess = useCallback((fnName: string, handle: string) => {
+    toast.success(fnName === 'register' ? `@${handle} registered!`
+      : fnName === 'update' ? `Handle updated to @${handle}`
+      : 'Handle released')
+    setNewHandle('')
+    setConfirmRelease(false)
+    reset()
+    void loadMyHandle()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // ── load my current handle on mount ───────────────────────────────────────
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const loadMyHandle = useCallback(async () => {
     if (!address) { setPageState('noWallet'); return }
     if (!registrySet) { setPageState('noRegistry'); return }
@@ -77,16 +99,11 @@ export function NanNamePage() {
 
   useEffect(() => { void loadMyHandle() }, [loadMyHandle])
 
-  // ── after a tx succeeds, reload ────────────────────────────────────────────
+  // ── wagmi success / error effects ─────────────────────────────────────────
   useEffect(() => {
     if (!isSuccess) return
-    toast.success(pageState === 'registering' ? `@${newHandle} registered!`
-      : pageState === 'editing' ? `Handle updated to @${newHandle}`
-      : 'Handle released')
-    setNewHandle('')
-    setConfirmRelease(false)
-    reset()
-    void loadMyHandle()
+    const fnName = myHandle ? (pageState === 'editing' ? 'update' : 'release') : 'register'
+    onTxSuccess(fnName, newHandle)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSuccess])
 
@@ -108,37 +125,90 @@ export function NanNamePage() {
     setSearching(true); setSearchResult(null); setSearchOwner(null)
     const owner = await resolveHandle('@' + h)
     setSearching(false)
-    if (!owner) {
-      setSearchResult('available')
-    } else {
-      setSearchResult('taken')
-      setSearchOwner(owner)
-    }
+    if (!owner) { setSearchResult('available') }
+    else { setSearchResult('taken'); setSearchOwner(owner) }
   }
+
+  // ── encode calldata for Circle / passkey paths ────────────────────────────
+  function encodeRegistryCall(fnName: 'register' | 'update' | 'release', handle?: string): `0x${string}` {
+    if (fnName === 'release') {
+      return encodeFunctionData({ abi: REGISTRY_ABI, functionName: 'release', args: [] })
+    }
+    return encodeFunctionData({ abi: REGISTRY_ABI, functionName: fnName, args: [handle!] })
+  }
+
+  // ── dispatch write across all auth paths ──────────────────────────────────
+  const dispatchWrite = useCallback(async (fnName: 'register' | 'update' | 'release', handle?: string) => {
+    if (isPasskeyUser) {
+      const clientKey = import.meta.env.VITE_CLIENT_KEY as string | undefined
+      if (!clientKey) { toast.error('VITE_CLIENT_KEY is not set'); return }
+      setAltBusy(true)
+      try {
+        // Passkey: sendUserOperation with raw calldata (0 value, no token transfer)
+        const { createPublicClient } = await import('viem')
+        const { arcTestnet } = await import('viem/chains')
+        const {
+          toCircleSmartAccount, toModularTransport,
+        } = await import('@circle-fin/modular-wallets-core')
+        const { createBundlerClient, toWebAuthnAccount } = await import('viem/account-abstraction')
+        const MODULAR_URL = 'https://modular-sdk.circle.com/v1/rpc/w3s/buidl'
+        const stored = localStorage.getItem('nan_passkey_credential')
+        if (!stored) { toast.error('Passkey credential not found — please log in again'); return }
+        const credential = JSON.parse(stored) as Parameters<typeof toWebAuthnAccount>[0]['credential']
+        const modularTransport = toModularTransport(`${MODULAR_URL}/arcTestnet`, clientKey)
+        const publicClient = createPublicClient({ chain: arcTestnet, transport: modularTransport })
+        const account = await toCircleSmartAccount({ client: publicClient, owner: toWebAuthnAccount({ credential }) })
+        const bundlerClient = createBundlerClient({ account, chain: arcTestnet, transport: modularTransport })
+        const callData = encodeRegistryCall(fnName, handle)
+        let userOpHash: `0x${string}`
+        try {
+          userOpHash = await bundlerClient.sendUserOperation({ account, calls: [{ to: NAME_REGISTRY as `0x${string}`, data: callData, value: 0n }], paymaster: true })
+        } catch {
+          userOpHash = await bundlerClient.sendUserOperation({ account, calls: [{ to: NAME_REGISTRY as `0x${string}`, data: callData, value: 0n }] })
+        }
+        await bundlerClient.waitForUserOperationReceipt({ hash: userOpHash })
+        onTxSuccess(fnName, handle ?? '')
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : 'Passkey transaction failed')
+      } finally {
+        setAltBusy(false)
+      }
+      return
+    }
+
+    if (isCircleUser) {
+      setAltBusy(true)
+      const callData = encodeRegistryCall(fnName, handle)
+      const hash = await circleTx.executeContract({
+        contractAddress: NAME_REGISTRY,
+        callData,
+      })
+      setAltBusy(false)
+      if (hash) { onTxSuccess(fnName, handle ?? '') }
+      else { toast.error(circleTx.error ?? 'Transaction failed') }
+      return
+    }
+
+    // wagmi path
+    if (fnName === 'release') {
+      writeContract({ address: NAME_REGISTRY as `0x${string}`, abi: REGISTRY_ABI, functionName: 'release', args: [], chainId: ARC })
+    } else {
+      writeContract({ address: NAME_REGISTRY as `0x${string}`, abi: REGISTRY_ABI, functionName: fnName, args: [handle!], chainId: ARC })
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isCircleUser, isPasskeyUser, circleTx, writeContract, onTxSuccess])
 
   // ── register / update ──────────────────────────────────────────────────────
   const handleSubmit = () => {
     const h = newHandle.trim().replace(/^@/, '')
     if (!isValidHandle(h)) { setHandleError('1–24 chars: letters, numbers, _ or -'); return }
     setHandleError('')
-    writeContract({
-      address: NAME_REGISTRY as `0x${string}`,
-      abi: REGISTRY_ABI,
-      functionName: myHandle ? 'update' : 'register',
-      args: [h],
-      chainId: ARC,
-    })
+    void dispatchWrite(myHandle ? 'update' : 'register', h)
   }
 
   // ── release ────────────────────────────────────────────────────────────────
   const handleRelease = () => {
-    writeContract({
-      address: NAME_REGISTRY as `0x${string}`,
-      abi: REGISTRY_ABI,
-      functionName: 'release',
-      args: [],
-      chainId: ARC,
-    })
+    void dispatchWrite('release')
   }
 
   const copyAddress = (addr: string) => {
@@ -181,7 +251,10 @@ export function NanNamePage() {
             <AtSign size={24} color={C.t3} />
           </div>
           <div style={{ fontSize: 16, fontWeight: 700, color: C.text, marginBottom: 6 }}>Connect a wallet</div>
-          <div style={{ fontSize: 13, color: C.t3 }}>Connect or log in to register your @handle.</div>
+          <div style={{ fontSize: 13, color: C.t3, marginBottom: 20 }}>Connect or log in to register your @handle.</div>
+          <div style={{ display: 'flex', justifyContent: 'center' }}>
+            <ConnectKitButton />
+          </div>
         </div>
       )}
 
@@ -325,7 +398,7 @@ export function NanNamePage() {
                 transition: 'all 0.15s',
               }}>
               {isBusy
-                ? <><Loader2 size={15} style={{ animation: 'nan-spin 0.8s linear infinite' }} /> Confirming…</>
+                ? <><Loader2 size={15} style={{ animation: 'nan-spin 0.8s linear infinite' }} /> {isCircleUser ? 'Approve in popup…' : isPasskeyUser ? 'Confirm with passkey…' : 'Confirming…'}</>
                 : pageState === 'editing' ? 'Update handle' : 'Register @handle'}
             </button>
           </div>
