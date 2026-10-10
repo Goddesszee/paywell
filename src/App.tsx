@@ -34,6 +34,7 @@ import { ExportsPage } from './components/pages/ExportsPage'
 import { PaymentRequestsPage } from './components/pages/PaymentRequestsPage'
 import { ContactsPage } from './components/pages/ContactsPage'
 import { NanNamePage } from './components/pages/NanNamePage'
+import { ReferralPage } from './components/pages/ReferralPage'
 import { WelcomeBalloon } from './components/WelcomeBalloon'
 import { useActivityStream } from './hooks/useActivityStream'
 import { usePresence } from './hooks/usePresence'
@@ -176,6 +177,7 @@ export default function App() {
       {activeView === 'payment-requests' && <PaymentRequestsPage />}
       {activeView === 'contacts' && <ContactsPage />}
       {activeView === 'nan-name' && <NanNamePage />}
+      {activeView === 'referral' && <ReferralPage />}
     </AppShell>
     </>
 

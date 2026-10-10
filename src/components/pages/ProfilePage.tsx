@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
-import { User, Camera, Save, Shield, Bell, Clock, LogOut, ChevronRight, CheckCircle, Sun, Moon, Monitor, ArrowLeft, AtSign, Headphones, Copy, Check as CheckIcon, Gift } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { User, Camera, Save, Shield, Bell, Clock, LogOut, ChevronRight, CheckCircle, Sun, Moon, Monitor, ArrowLeft, AtSign, Headphones, Gift } from 'lucide-react'
 import { useAccount, useDisconnect } from 'wagmi'
 import { useAppStore } from '../../store/appStore'
 import { useNanTheme } from '../../hooks/useNanTheme'
@@ -18,9 +18,6 @@ export function ProfilePage() {
   const { disconnect } = useDisconnect()
   const { auth, profile, setProfile, setActiveView, theme, setTheme, nanHandle, setNanHandle, logout, previousView } = useAppStore()
   const { resolveName, registrySet } = useNanName()
-  const [referralCode, setReferralCode] = useState<string | null>(null)
-  const [referralUses, setReferralUses] = useState(0)
-  const [copied, setCopied] = useState(false)
   const [view, setView] = useState<'main' | 'account'>('main')
   const [tab, setTab] = useState<Tab>('profile')
   const [displayName, setDisplayName] = useState(profile.displayName)
@@ -34,54 +31,6 @@ export function ProfilePage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const token = auth?.sessionToken ?? ''
-
-  // Build a stable identity key from whatever auth path the user used
-  const referralKey = useMemo(() => {
-    if (nanHandle) return `nan:${nanHandle}`
-    if (address) return address
-    const ca = (auth?.circleWalletAddress ?? (auth as unknown as Record<string,string>)?.walletAddress ?? '')
-    if (ca) return ca
-    if (auth?.email) return encodeURIComponent(auth.email)
-    if (auth?.sessionToken) return `tok:${auth.sessionToken.slice(0, 16)}`
-    return null
-  }, [nanHandle, address, auth])
-
-  // Fetch (or create) the referral code whenever key is available
-  useEffect(() => {
-    if (!referralKey || referralCode) return
-    fetch(`/api/referral?wallet=${referralKey}`)
-      .then(r => r.json())
-      .then((d: { success?: boolean; code?: string; uses?: number }) => {
-        if (d.code) { setReferralCode(d.code); setReferralUses(d.uses ?? 0) }
-      })
-      .catch(() => {})
-  }, [referralKey, referralCode])
-
-  const referralLink = referralCode ? `https://nanarc.xyz/join?ref=${referralCode}` : null
-
-  const copyReferral = useCallback(() => {
-    if (!referralLink) return
-    const doFallback = () => {
-      try {
-        const ta = document.createElement('textarea')
-        ta.value = referralLink
-        ta.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0'
-        document.body.appendChild(ta)
-        ta.focus(); ta.select()
-        document.execCommand('copy')
-        document.body.removeChild(ta)
-        setCopied(true)
-        setTimeout(() => setCopied(false), 2500)
-      } catch { /* silent */ }
-    }
-    if (navigator.clipboard?.writeText) {
-      navigator.clipboard.writeText(referralLink)
-        .then(() => { setCopied(true); setTimeout(() => setCopied(false), 2500) })
-        .catch(doFallback)
-    } else {
-      doFallback()
-    }
-  }, [referralLink])
 
   // Load session history when security tab opens
   useEffect(() => {
@@ -246,61 +195,7 @@ export function ProfilePage() {
             : registrySet
               ? listRow({ key: 'nan', icon: <AtSign size={22} color="#fff" />, label: 'NAN Name', sub: 'Get your @handle', onClick: () => setActiveView('nan-name') })
               : null}
-          {/* ── Referral card ── */}
-          <div style={{
-            background: 'linear-gradient(135deg, rgba(0,102,255,0.08) 0%, rgba(80,0,255,0.05) 100%)',
-            border: '1px solid rgba(0,102,255,0.18)',
-            borderRadius: 16, padding: '14px 16px', marginTop: 4, marginBottom: 4,
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-              <div style={{ width: 38, height: 38, borderRadius: 10, background: C.blue, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <Gift size={18} color="#fff" strokeWidth={1.8} />
-              </div>
-              <div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: C.text }}>Refer a Friend</div>
-                <div style={{ fontSize: 12, color: C.t3 }}>Earn USDC when friends join NAN</div>
-              </div>
-            </div>
-            {referralLink ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <div
-                  onClick={copyReferral}
-                  style={{
-                    flex: 1, background: C.surf2, border: `1px solid ${C.bdr}`,
-                    borderRadius: 10, padding: '9px 12px',
-                    fontSize: 12, color: C.t2, fontFamily: MONO,
-                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                    cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
-                  }}
-                >
-                  {referralLink}
-                </div>
-                <button
-                  onClick={copyReferral}
-                  style={{
-                    flexShrink: 0, width: 38, height: 38, borderRadius: 10,
-                    background: copied ? 'rgba(0,200,83,0.12)' : C.blue,
-                    border: copied ? '1px solid rgba(0,200,83,0.3)' : 'none',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    cursor: 'pointer', transition: 'all 0.2s',
-                  }}
-                >
-                  {copied
-                    ? <CheckIcon size={16} color="#00C853" />
-                    : <Copy size={16} color="#fff" />}
-                </button>
-              </div>
-            ) : (
-              <div style={{ fontSize: 12, color: C.t3, fontStyle: 'italic' }}>
-                Loading your referral link…
-              </div>
-            )}
-            {referralCode && (
-              <div style={{ fontSize: 11, color: C.t3, marginTop: 8 }}>
-                {referralUses === 0 ? 'No referrals yet' : `${referralUses} friend${referralUses !== 1 ? 's' : ''} joined`}
-              </div>
-            )}
-          </div>
+          {listRow({ key: 'referral', icon: <Gift size={22} color="#fff" />, label: 'Refer a Friend', sub: 'Earn $1 USDC per friend who joins', onClick: () => setActiveView('referral') })}
 
           {listRow({
             key: 'dark', icon: <Moon size={22} color="#fff" />, label: 'Dark Mode', onClick: () => setTheme(isDark ? 'light' : 'dark'),
