@@ -15,6 +15,27 @@ import { AgentPage } from './components/pages/AgentPage'
 import { ActivityPage } from './components/pages/ActivityPage'
 import { SettingsPage } from './components/pages/SettingsPage'
 import { OnrampPage } from './components/pages/OnrampPage'
+import { FaucetPage } from './components/pages/FaucetPage'
+import { AdminDashboard } from './components/pages/AdminDashboard'
+import { GatewayPage } from './components/pages/GatewayPage'
+import { RecurringPage } from './components/pages/RecurringPage'
+import { NotificationsPage } from './components/pages/NotificationsPage'
+import { SupportPage } from './components/pages/SupportPage'
+import { FAQPage } from './components/pages/FAQPage'
+import { AboutPage } from './components/pages/AboutPage'
+import { FeedbackPage } from './components/pages/FeedbackPage'
+import { SuggestionsPage } from './components/pages/SuggestionsPage'
+import { ProfilePage } from './components/pages/ProfilePage'
+import { SearchPage } from './components/pages/SearchPage'
+import { FavoritesPage } from './components/pages/FavoritesPage'
+import { NamePage } from './components/pages/NamePage'
+import { DashboardPage } from './components/pages/DashboardPage'
+import { ExportsPage } from './components/pages/ExportsPage'
+import { PaymentRequestsPage } from './components/pages/PaymentRequestsPage'
+import { ContactsPage } from './components/pages/ContactsPage'
+import { MerchantQRPage } from './components/pages/MerchantQRPage'
+import { BusinessDashboard } from './components/pages/BusinessDashboard'
+import { useActivityStream } from './hooks/useActivityStream'
 
 // Lazy-load Circle App Kit pages — they import @circle-fin/app-kit which
 // initialises sub-kit module-level code. Loading them lazily ensures React's
@@ -50,27 +71,7 @@ function PageLoading() {
     </div>
   )
 }
-import { FaucetPage } from './components/pages/FaucetPage'
-import { AdminDashboard } from './components/pages/AdminDashboard'
-import { GatewayPage } from './components/pages/GatewayPage'
-import { RecurringPage } from './components/pages/RecurringPage'
-import { NotificationsPage } from './components/pages/NotificationsPage'
-import { SupportPage } from './components/pages/SupportPage'
-import { FAQPage } from './components/pages/FAQPage'
-import { AboutPage } from './components/pages/AboutPage'
-import { FeedbackPage } from './components/pages/FeedbackPage'
-import { SuggestionsPage } from './components/pages/SuggestionsPage'
-import { ProfilePage } from './components/pages/ProfilePage'
-import { SearchPage } from './components/pages/SearchPage'
-import { FavoritesPage } from './components/pages/FavoritesPage'
-import { NamePage } from './components/pages/NamePage'
-import { DashboardPage } from './components/pages/DashboardPage'
-import { ExportsPage } from './components/pages/ExportsPage'
-import { PaymentRequestsPage } from './components/pages/PaymentRequestsPage'
-import { ContactsPage } from './components/pages/ContactsPage'
-import { MerchantQRPage } from './components/pages/MerchantQRPage'
-import { BusinessDashboard } from './components/pages/BusinessDashboard'
-import { useActivityStream } from './hooks/useActivityStream'
+
 
 export default function App() {
   // Email/Google (Circle) users: the signing session key lives in memory/sessionStorage only, so it is
