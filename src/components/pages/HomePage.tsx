@@ -8,7 +8,7 @@ import {
   ArrowUpRight, ArrowDownLeft, ChevronRight,
   ArrowDownToLine, Sparkles, Bot,
   CheckCircle2, Clock, ShoppingBag,
-  RefreshCw, Info,
+  RefreshCw, Info, Gift,
 } from 'lucide-react'
 import { useAppStore, ActivityItem } from '../../store/appStore'
 import { getUsdc } from '../../onchain-facts'
@@ -267,10 +267,10 @@ export function HomePage() {
   useEffect(() => { setHydrated(true) }, [])
   /* eslint-enable react/set-state-in-effect */
 
+  // NAN handle always wins over display name — it's the user's onchain identity
   const firstName = nanHandle
     ? `@${nanHandle}`
-    : profile.displayName?.split(' ')[0]
-    || auth?.email?.split('@')[0]
+    : auth?.email?.split('@')[0]
     || 'there'
   const hasHandle = !!nanHandle
 
@@ -295,26 +295,20 @@ export function HomePage() {
           <button
             onClick={() => setActiveView('profile')}
             style={{
-              height: 40, borderRadius: 12,
-              background: profile.avatarUrl ? C.surf2 : C.surf,
-              border: `1.5px solid ${C.bdr}`,
+              width: 36, height: 36, borderRadius: '50%',
+              background: profile.avatarUrl ? 'transparent' : C.blue,
+              border: profile.avatarUrl ? `2px solid ${C.bdr}` : 'none',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               cursor: 'pointer', overflow: 'hidden', flexShrink: 0,
-              WebkitTapHighlightColor: 'transparent',
-              padding: profile.avatarUrl ? 0 : '0 14px',
-              gap: profile.avatarUrl ? 0 : 6,
-              width: profile.avatarUrl ? 40 : 'auto',
+              WebkitTapHighlightColor: 'transparent', padding: 0,
             }}
           >
             {profile.avatarUrl
-              ? <img src={profile.avatarUrl} alt="avatar" style={{ width: 40, height: 40, objectFit: 'cover' }} />
-              : <>
-                  <svg viewBox="0 0 20 20" width="14" height="14" fill="none" style={{ flexShrink: 0 }}>
-                    <circle cx="10" cy="7" r="3.5" stroke={C.t2} strokeWidth="1.5" />
-                    <path d="M3 17c0-3.314 3.134-6 7-6s7 2.686 7 6" stroke={C.t2} strokeWidth="1.5" strokeLinecap="round" />
-                  </svg>
-                  <span style={{ fontSize: 12, fontWeight: 600, color: C.t2, whiteSpace: 'nowrap' }}>Profile</span>
-                </>
+              ? <img src={profile.avatarUrl} alt="avatar" style={{ width: 36, height: 36, objectFit: 'cover' }} />
+              : <svg viewBox="0 0 20 20" width="16" height="16" fill="none">
+                  <circle cx="10" cy="7" r="3.2" stroke="#fff" strokeWidth="1.6" />
+                  <path d="M3.5 17c0-3.038 2.91-5.5 6.5-5.5s6.5 2.462 6.5 5.5" stroke="#fff" strokeWidth="1.6" strokeLinecap="round" />
+                </svg>
             }
           </button>
           <div style={{ minWidth: 0 }}>
@@ -418,6 +412,38 @@ export function HomePage() {
             <ConnectKitButton />
           </div>
         )}
+      </div>
+
+      {/* ── REWARDS BOX ── */}
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        background: 'linear-gradient(135deg, rgba(0,102,255,0.10) 0%, rgba(80,0,255,0.06) 100%)',
+        border: '1px solid rgba(0,102,255,0.20)',
+        borderRadius: 14, padding: '11px 14px',
+        marginTop: 14, marginBottom: 4,
+        cursor: 'pointer',
+      }}
+        onClick={() => setActiveView('faucet')}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{
+            width: 34, height: 34, borderRadius: 10, flexShrink: 0,
+            background: 'rgba(0,102,255,0.15)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <Gift size={16} color={C.blue} strokeWidth={1.8} />
+          </div>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: C.blue, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Rewards</div>
+            <div style={{ fontSize: 12, color: C.t2, marginTop: 1 }}>Earn USDC for referring friends</div>
+          </div>
+        </div>
+        <div style={{ textAlign: 'right', flexShrink: 0 }}>
+          <div style={{ fontSize: 16, fontWeight: 800, color: C.text, fontFamily: MONO, letterSpacing: '-0.02em' }}>
+            {hidden ? '••••' : '$0.00'}
+          </div>
+          <div style={{ fontSize: 10, fontWeight: 600, color: C.blue }}>USDC</div>
+        </div>
       </div>
 
       {/* ── FX TICKER STRIP ── */}
