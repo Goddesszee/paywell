@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react'
 import {
   Copy, ArrowUpRight, ArrowDownLeft, Check, ExternalLink,
   AlertCircle, X, ChevronRight, Wallet, Share2, Activity, Download,
+  AtSign, CheckCircle2,
 } from 'lucide-react'
 import { ConnectKitButton } from 'connectkit'
 import { QRCodeSVG } from 'qrcode.react'
@@ -774,20 +775,44 @@ function SendFlow({
               borderRadius: 24, padding: '28px',
             }}>
               <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--nan-text3)', letterSpacing: '0.1em', textTransform: 'uppercase', display: 'block', marginBottom: 12 }}>
-                Recipient Address
+                Recipient
               </label>
-              <input
-                type="text"
-                placeholder="0x..."
-                value={recipient}
-                onChange={e => { setRecipient(e.target.value); setRecipientError('') }}
-                style={{
-                  width: '100%', padding: '14px 16px', borderRadius: 12,
-                  background: 'var(--nan-surface2)', border: `1px solid ${recipientError ? '#FF3B3B' : 'var(--nan-bdr)'}`,
-                  color: 'var(--nan-text)', fontSize: 14, fontFamily: 'JetBrains Mono, monospace',
-                  outline: 'none', boxSizing: 'border-box',
-                }}
-              />
+              <div style={{ position: 'relative' }}>
+                <input
+                  type="text"
+                  placeholder="0x… or @nanhandle"
+                  value={recipient}
+                  onChange={e => { setRecipient(e.target.value); setRecipientError(''); setResolvedName(null) }}
+                  style={{
+                    width: '100%', padding: '14px 44px 14px 16px', borderRadius: 12,
+                    background: 'var(--nan-surface2)',
+                    border: `1px solid ${recipientError ? '#FF3B3B' : resolvedName ? 'rgba(0,200,83,0.5)' : recipient.startsWith('@') ? 'rgba(0,102,255,0.4)' : 'var(--nan-bdr)'}`,
+                    color: 'var(--nan-text)', fontSize: 14, fontFamily: 'JetBrains Mono, monospace',
+                    outline: 'none', boxSizing: 'border-box', transition: 'border-color 0.15s',
+                  }}
+                />
+                {nameResolving && (
+                  <div style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)' }}>
+                    <div style={{ width: 16, height: 16, border: '2px solid #0066FF', borderTopColor: 'transparent', borderRadius: '50%', animation: 'nan-spin 0.7s linear infinite' }} />
+                  </div>
+                )}
+                {resolvedName && !nameResolving && (
+                  <div style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)' }}>
+                    <CheckCircle2 size={16} color="#00C853" />
+                  </div>
+                )}
+              </div>
+              {recipient.startsWith('@') && !nameResolving && !resolvedName && !recipientError && (
+                <div style={{ fontSize: 12, color: '#0066FF', marginTop: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <AtSign size={11} /> NAN handle — will be resolved onchain
+                </div>
+              )}
+              {nameResolving && <p style={{ fontSize: 12, color: 'var(--nan-text3)', marginTop: 6 }}>Resolving {recipient}…</p>}
+              {resolvedName && !recipientError && (
+                <div style={{ fontSize: 12, color: '#00C853', marginTop: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <CheckCircle2 size={12} /> {resolvedName} resolved
+                </div>
+              )}
               {recipientError && <p style={{ fontSize: 12, color: '#FF3B3B', marginTop: 6 }}>{recipientError}</p>}
             </div>
 
@@ -938,21 +963,47 @@ function SendFlow({
           </div>
 
           {/* Recipient */}
-          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--nan-text3)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 8 }}>Recipient Address</div>
-          <input
-            type="text"
-            placeholder="0x..."
-            value={recipient}
-            onChange={e => { setRecipient(e.target.value); setRecipientError('') }}
-            autoFocus
-            style={{
-              width: '100%', padding: '14px 16px', borderRadius: 12, boxSizing: 'border-box',
-              background: 'var(--nan-surface2)', border: `1.5px solid ${recipientError ? '#FF3B3B' : 'var(--nan-bdr)'}`,
-              color: 'var(--nan-text)', fontSize: 14, fontFamily: 'JetBrains Mono, monospace', outline: 'none',
-            }}
-          />
-          {nameResolving && <p style={{ fontSize: 12, color: 'var(--nan-t3)', marginTop: 6 }}>Resolving @name…</p>}
-          {resolvedName && !recipientError && <p style={{ fontSize: 12, color: '#00C853', marginTop: 6 }}>{resolvedName} resolved ✓</p>}
+          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--nan-text3)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 8 }}>Recipient</div>
+          <div style={{ position: 'relative' }}>
+            <input
+              type="text"
+              placeholder="0x… or @nanhandle"
+              value={recipient}
+              onChange={e => { setRecipient(e.target.value); setRecipientError(''); setResolvedName(null) }}
+              autoFocus
+              style={{
+                width: '100%', padding: '14px 44px 14px 16px', borderRadius: 12, boxSizing: 'border-box',
+                background: 'var(--nan-surface2)',
+                border: `1.5px solid ${recipientError ? '#FF3B3B' : resolvedName ? 'rgba(0,200,83,0.5)' : recipient.startsWith('@') ? 'rgba(0,102,255,0.4)' : 'var(--nan-bdr)'}`,
+                color: 'var(--nan-text)', fontSize: 14, fontFamily: 'JetBrains Mono, monospace', outline: 'none',
+                transition: 'border-color 0.15s',
+              }}
+            />
+            {nameResolving && (
+              <div style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)' }}>
+                <div style={{ width: 16, height: 16, border: '2px solid #0066FF', borderTopColor: 'transparent', borderRadius: '50%', animation: 'nan-spin 0.7s linear infinite' }} />
+              </div>
+            )}
+            {resolvedName && !nameResolving && (
+              <div style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)' }}>
+                <CheckCircle2 size={16} color="#00C853" />
+              </div>
+            )}
+          </div>
+          {/* NAN name hint */}
+          {recipient.startsWith('@') && !nameResolving && !resolvedName && !recipientError && (
+            <div style={{ fontSize: 12, color: '#0066FF', marginTop: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
+              <AtSign size={11} /> NAN handle — will be resolved onchain
+            </div>
+          )}
+          {nameResolving && (
+            <p style={{ fontSize: 12, color: 'var(--nan-text3)', marginTop: 6 }}>Resolving {recipient}…</p>
+          )}
+          {resolvedName && !recipientError && (
+            <div style={{ fontSize: 12, color: '#00C853', marginTop: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
+              <CheckCircle2 size={12} /> {resolvedName} resolved
+            </div>
+          )}
           {recipientError && <p style={{ fontSize: 12, color: '#FF3B3B', marginTop: 6 }}>{recipientError}</p>}
           <button
             onClick={() => { void (async () => { if (await validateRecipient()) setStep('amount') })() }}

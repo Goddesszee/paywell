@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
-import { User, Camera, Save, Shield, Bell, Clock, LogOut, ChevronRight, CheckCircle, Sun, Moon, Monitor, ArrowLeft } from 'lucide-react'
+import { User, Camera, Save, Shield, Bell, Clock, LogOut, ChevronRight, CheckCircle, Sun, Moon, Monitor, ArrowLeft, AtSign } from 'lucide-react'
 import { useAccount, useDisconnect } from 'wagmi'
 import { useAppStore } from '../../store/appStore'
 import { useNanTheme } from '../../hooks/useNanTheme'
+import { useNanName } from '../../hooks/useNanName'
 import { formatAddress } from '../../utils/format'
 
 const F    = "'Inter', -apple-system, sans-serif"
@@ -17,6 +18,8 @@ export function ProfilePage() {
   const { address, isConnected } = useAccount()
   const { disconnect } = useDisconnect()
   const { auth, profile, setProfile, setActiveView, theme, setTheme, favorites, activity } = useAppStore()
+  const { resolveName, registrySet } = useNanName()
+  const [nanHandle, setNanHandle] = useState<string>('')
   const [tab, setTab] = useState<Tab>('profile')
   const [displayName, setDisplayName] = useState(profile.displayName)
   const [bio, setBio]                 = useState(profile.bio)
@@ -105,6 +108,14 @@ export function ProfilePage() {
     e.target.value = ''
   }
 
+  // Load onchain NAN handle for connected wallet
+  useEffect(() => {
+    const addr = address ?? (auth?.circleWalletAddress)
+    if (!addr || !registrySet) return
+    resolveName(addr).then(h => setNanHandle(h)).catch(() => {})
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [address, auth?.circleWalletAddress, registrySet])
+
   const avatarLetter = (profile.displayName || auth?.email || 'N').slice(0, 1).toUpperCase()
 
   const TABS = [
@@ -145,6 +156,22 @@ export function ProfilePage() {
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 17, fontWeight: 700, color: C.text, marginBottom: 2 }}>{profile.displayName || auth?.email?.split('@')[0] || 'User'}</div>
+          {/* NAN onchain handle */}
+          {nanHandle ? (
+            <button
+              onClick={() => setActiveView('nan-name')}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'rgba(0,102,255,0.10)', border: '1px solid rgba(0,102,255,0.22)', borderRadius: 20, padding: '2px 10px', cursor: 'pointer', marginBottom: 3, marginTop: 1 }}>
+              <AtSign size={10} color="#0066FF" />
+              <span style={{ fontSize: 12, fontWeight: 700, color: '#0066FF', fontFamily: MONO }}>{nanHandle}</span>
+            </button>
+          ) : registrySet ? (
+            <button
+              onClick={() => setActiveView('nan-name')}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: C.surf2, border: `1px solid ${C.bdr}`, borderRadius: 20, padding: '2px 10px', cursor: 'pointer', marginBottom: 3, marginTop: 1 }}>
+              <AtSign size={10} color={C.t3} />
+              <span style={{ fontSize: 11, fontWeight: 600, color: C.t3 }}>Get a handle</span>
+            </button>
+          ) : null}
           <div style={{ fontSize: 12, color: C.t3, fontFamily: MONO, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{auth?.email ?? ''}</div>
           {isConnected && (
             <div style={{ fontSize: 11, color: C.t3, fontFamily: MONO, marginTop: 2 }}>{formatAddress(address!)}</div>
@@ -194,17 +221,21 @@ export function ProfilePage() {
           {/* Quick links */}
           <div style={{ background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 16, overflow: 'hidden' }}>
             {[
+              { label: 'NAN Name', sub: nanHandle ? `@${nanHandle}` : 'Register your @handle', view: 'nan-name', accent: !nanHandle },
               { label: 'Saved Items', sub: `${favorites.length} items`, view: 'favorites' },
               { label: 'Support history', sub: 'View your conversations', view: 'support' },
               { label: 'Activity history', sub: `${activity.length} transactions`, view: 'activity' },
-            ].map(({ label, sub, view }, i, arr) => (
+            ].map(({ label, sub, view, accent }, i, arr) => (
               <button key={view} onClick={() => setActiveView(view)}
-                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '13px 16px', borderTop: 'none', borderLeft: 'none', borderRight: 'none', borderBottom: i < arr.length - 1 ? `1px solid ${C.bdr}` : 'none', background: 'transparent', cursor: 'pointer', fontFamily: F, textAlign: 'left' }}>
+                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '13px 16px', borderTop: 'none', borderLeft: 'none', borderRight: 'none', borderBottom: i < arr.length - 1 ? `1px solid ${C.bdr}` : 'none', background: accent ? 'rgba(0,102,255,0.04)' : 'transparent', cursor: 'pointer', fontFamily: F, textAlign: 'left' }}>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: C.text }}>{label}</div>
-                  <div style={{ fontSize: 12, color: C.t3, marginTop: 1 }}>{sub}</div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: accent ? '#0066FF' : C.text, display: 'flex', alignItems: 'center', gap: 5 }}>
+                    {label === 'NAN Name' && <AtSign size={13} color={accent ? '#0066FF' : C.t2} />}
+                    {label}
+                  </div>
+                  <div style={{ fontSize: 12, color: accent ? '#0066FF' : C.t3, marginTop: 1, fontWeight: accent ? 600 : 400 }}>{sub}</div>
                 </div>
-                <ChevronRight size={14} color={C.t3} />
+                <ChevronRight size={14} color={accent ? '#0066FF' : C.t3} />
               </button>
             ))}
           </div>

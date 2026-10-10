@@ -194,7 +194,7 @@ export function AdminOverviewPanel({ goTo }: { goTo: (tab: string) => void }) {
 
 interface Detail { user: UserRow; transactions: Tx[]; tickets: Ticket[]; feedback: { id: string; rating: number; comment: string; createdAt: string }[]; suggestions: { id: string; title: string; status: string }[] }
 
-function csvEscape(v: unknown) { const s = String(v ?? ''); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s }
+function csvEscape(v: unknown) { const s = v == null ? '' : typeof v === 'object' ? JSON.stringify(v) : `${v as string | number | boolean}`; return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s }
 
 export function AdminUsersPanel() {
   const [users, setUsers] = useState<UserRow[]>([])
