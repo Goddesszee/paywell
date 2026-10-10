@@ -95,6 +95,25 @@ interface TxRecord {
 }
 const txLedger: TxRecord[] = loadStore<TxRecord[]>('tx-ledger', [])
 
+// Seed activityStore from persisted txLedger on startup so activity-feed
+// returns real history on a fresh browser / new device.
+for (const tx of [...txLedger].reverse()) {
+  if (!tx.walletAddress || tx.walletAddress === 'unknown') continue
+  const list = activityStore.get(tx.walletAddress) ?? []
+  list.unshift({
+    id: tx.id,
+    type: tx.type,
+    description: tx.description,
+    amount: String(tx.amount),
+    sign: (tx.type === 'received' || tx.type === 'bridge') ? '+' : '-',
+    status: 'confirmed',
+    counterparty: tx.counterparty,
+    txHash: tx.txHash,
+    timestamp: tx.timestamp,
+  })
+  activityStore.set(tx.walletAddress, list)
+}
+
 // ── helpers ───────────────────────────────────────────────────────────────────
 
 function genToken(len = 32) {
@@ -1317,6 +1336,22 @@ app.post('/api/tx-track', (req, res) => {
   txLedger.unshift(record)
   if (txLedger.length > 2000) txLedger.splice(2000)
   debouncedSave('tx-ledger', txLedger)
+
+  // Keep activityStore in sync so /api/activity-feed returns it immediately
+  const actList = activityStore.get(record.walletAddress) ?? []
+  actList.unshift({
+    id: record.id,
+    type: record.type,
+    description: record.description,
+    amount: String(record.amount),
+    sign: (record.type === 'received' || record.type === 'bridge') ? '+' : '-',
+    status: 'confirmed',
+    counterparty: record.counterparty,
+    txHash: record.txHash,
+    timestamp: record.timestamp,
+  })
+  activityStore.set(record.walletAddress, actList.slice(0, 200))
+
   res.json({ success: true, id: record.id })
 })
 

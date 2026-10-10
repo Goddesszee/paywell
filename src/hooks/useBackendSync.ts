@@ -143,6 +143,43 @@ export function useBackendSync() {
       })
       .catch(() => {})
 
+    // Pull activity history from backend — restores sent tx's on a fresh browser
+    fetch(`/api/activity-feed?wallet=${encodeURIComponent(address.toLowerCase())}`)
+      .then(r => r.ok ? r.json() : null)
+      .then((data: { success: boolean; activities?: Array<{
+        id: string; type: string; description: string; amount: string
+        sign: string; status: string; counterparty?: string; txHash?: string
+        timestamp: string; agentInitiated?: boolean; chain?: string
+      }> } | null) => {
+        if (!data?.success || !data.activities?.length) return
+        const store = useAppStore.getState()
+        const existingKeys = new Set(
+          store.activity.map(a => a.txHash ?? a.id).filter(Boolean)
+        )
+        // Merge server items not already in local store (oldest-first so newest ends up on top)
+        const toAdd = data.activities
+          .filter(a => !existingKeys.has(a.txHash ?? a.id))
+          .reverse()
+        toAdd.forEach(a => {
+          useAppStore.setState(s => ({
+            activity: [{
+              id: a.id,
+              type: a.type as import('../store/appStore').ActivityType,
+              description: a.description,
+              amount: parseFloat(a.amount),
+              sign: a.sign as '+' | '-',
+              status: a.status as 'confirmed' | 'pending' | 'failed',
+              counterparty: a.counterparty,
+              txHash: a.txHash,
+              timestamp: new Date(a.timestamp),
+              agentInitiated: a.agentInitiated,
+              chain: a.chain,
+            }, ...s.activity],
+          }))
+        })
+      })
+      .catch(() => {})
+
   }, [address]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Re-sync the pull cursor when the wallet changes
