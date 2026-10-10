@@ -3,10 +3,11 @@
  * Shows claimable balance, a Claim button, and balloon confetti on success.
  */
 import { useState, useEffect } from 'react'
-import { X, Gift, CheckCircle2, ExternalLink } from 'lucide-react'
+import { X, Gift, CheckCircle2, ExternalLink, Share2, Copy, Check as CheckIcon } from 'lucide-react'
 import { useNanTheme } from '../../hooks/useNanTheme'
 import { useAccount } from 'wagmi'
 import { useAppStore } from '../../store/appStore'
+import { useReferral } from '../../hooks/useReferral'
 
 const F    = "'Inter', -apple-system, sans-serif"
 const MONO = "'JetBrains Mono', Menlo, monospace"
@@ -95,12 +96,32 @@ export function RewardsSheet({ onClose }: { onClose: () => void }) {
   const { auth } = useAppStore()
   const address = wagmiAddress ?? auth?.circleWalletAddress
 
+  const { data: referral } = useReferral()
+  const referralLink = referral?.code
+    ? `https://nanarc.xyz/join?ref=${referral.code}`
+    : `https://nanarc.xyz`
+
   const [data, setData] = useState<RewardsData | null>(null)
   const [loading, setLoading] = useState(true)
   const [claiming, setClaiming] = useState(false)
   const [claimed, setClaimed] = useState<{ amount: string; txHash: string } | null>(null)
   const [error, setError] = useState('')
   const [showBalloons, setShowBalloons] = useState(false)
+  const [linkCopied, setLinkCopied] = useState(false)
+
+  const shareLink = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: 'Join me on NAN', text: 'Send and receive USDC instantly — earn $1 USDC for signing up!', url: referralLink })
+        return
+      } catch { /* dismissed */ }
+    }
+    // fallback: copy
+    navigator.clipboard.writeText(referralLink).then(() => {
+      setLinkCopied(true)
+      setTimeout(() => setLinkCopied(false), 2500)
+    }).catch(() => {})
+  }
 
   useEffect(() => {
     if (!address) {
@@ -272,13 +293,51 @@ export function RewardsSheet({ onClose }: { onClose: () => void }) {
                 {claiming ? 'Claiming…' : `Claim $${data?.claimable} USDC`}
               </button>
             ) : (
-              <div style={{ textAlign: 'center', padding: '12px 0 4px' }}>
-                <div style={{ fontSize: 32, marginBottom: 10 }}>😔</div>
-                <div style={{ fontSize: 15, fontWeight: 600, color: C.text, marginBottom: 6 }}>No rewards yet</div>
-                <div style={{ fontSize: 13, color: C.t3, lineHeight: 1.5 }}>
-                  Share your referral link from your Profile page.<br />
-                  You earn $1 USDC for every friend who joins.
+              <div style={{ textAlign: 'center', padding: '8px 0 4px' }}>
+                <div style={{ fontSize: 36, marginBottom: 10 }}>😔</div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: C.text, marginBottom: 6 }}>No rewards yet</div>
+                <div style={{ fontSize: 13, color: C.t3, lineHeight: 1.6, marginBottom: 24 }}>
+                  Share your referral link with friends.<br />
+                  You earn <strong style={{ color: C.blue }}>$1 USDC</strong> for every friend who joins NAN.
                 </div>
+
+                {/* Referral link box */}
+                {referral?.code && (
+                  <div style={{
+                    background: C.surf2, border: `1px dashed rgba(0,102,255,0.30)`,
+                    borderRadius: 12, padding: '10px 14px', marginBottom: 14,
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
+                  }}>
+                    <div style={{ textAlign: 'left', minWidth: 0 }}>
+                      <div style={{ fontSize: 10, color: C.t3, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 3 }}>Your code</div>
+                      <div style={{ fontSize: 18, fontWeight: 900, color: C.blue, letterSpacing: '0.1em', fontFamily: MONO }}>{referral.code}</div>
+                    </div>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(referralLink).then(() => {
+                          setLinkCopied(true)
+                          setTimeout(() => setLinkCopied(false), 2500)
+                        }).catch(() => {})
+                      }}
+                      style={{ width: 36, height: 36, borderRadius: 9, background: C.surf, border: `1px solid ${C.bdr}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}
+                    >
+                      {linkCopied ? <CheckIcon size={14} color="#00C853" /> : <Copy size={14} color={C.t3} />}
+                    </button>
+                  </div>
+                )}
+
+                <button
+                  onClick={() => { void shareLink() }}
+                  style={{
+                    width: '100%', padding: '14px', borderRadius: 13,
+                    background: C.blue, border: 'none', color: '#fff',
+                    fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: F,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                    boxShadow: '0 5px 18px rgba(0,102,255,0.38)',
+                  }}
+                >
+                  <Share2 size={16} /> Share my referral link
+                </button>
               </div>
             )}
           </>
