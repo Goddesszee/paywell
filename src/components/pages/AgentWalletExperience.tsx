@@ -25,6 +25,7 @@ import {
   Settings, Info, ExternalLink,
 } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
+import { executeWithGuard } from '../../lib/circle-execute'
 import { useNanTheme } from '../../hooks/useNanTheme'
 import { AgentRecurringTab } from './AgentRecurringTab'
 
@@ -941,7 +942,7 @@ function ActionDrawer({ view, agentAddress, onClose, C }: {
       // Open Circle PIN popup to sign the transaction
       if (!_agentSdk) throw new Error('SDK not initialised — please reload')
       _agentSdk.setAuthentication({ userToken, encryptionKey: agentWallet.encryptionKey })
-      _agentSdk.execute(d.challengeId, (execErr, execResult) => {
+      executeWithGuard(_agentSdk, d.challengeId, (execErr, execResult) => {
         setSending(false)
         if (execErr) {
           const msg = (execErr as { message?: string } | null)?.message ?? String(execErr)
@@ -1720,7 +1721,7 @@ export function AgentWalletExperience() {
       setStatusMsg('Complete wallet setup in the popup…')
       if (!_agentSdk) throw new Error('SDK not initialised')
       _agentSdk.setAuthentication({ userToken: loginRes.userToken, encryptionKey: loginRes.encryptionKey })
-      _agentSdk.execute(data.challengeId, async (execErr) => {
+      executeWithGuard(_agentSdk, data.challengeId, async (execErr) => {
         if (execErr) {
           const msg = execErr instanceof Error ? execErr.message : String(execErr)
           if (msg.toLowerCase().includes('already') || msg.toLowerCase().includes('155106')) {

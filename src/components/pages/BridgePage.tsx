@@ -7,6 +7,7 @@ import type { EIP1193Provider } from 'viem'
 import { ArrowLeftRight, ArrowDownUp, CheckCircle, ExternalLink, Loader, Info } from 'lucide-react'
 import { ConnectKitButton } from 'connectkit'
 import { useAppStore } from '../../store/appStore'
+import { executeWithGuard } from '../../lib/circle-execute'
 import { getPasskeyAdapter } from '../CirclePasskeyLogin'
 import { bridgeFee, BRIDGE_FEE_BPS, bpsToPercent, BRIDGE_FEE_MIN_USDC } from '../../lib/fees'
 
@@ -225,7 +226,7 @@ export function BridgePage() {
         }
 
         const txId = await new Promise<string>((resolve, reject) => {
-          sdk.execute(startData.challengeId!, (err, result) => {
+          executeWithGuard(sdk, startData.challengeId!, (err, result) => {
             if (err) { reject(new Error(err instanceof Error ? err.message : 'PIN approval failed')); return }
             const r = result as { data?: { transactionHash?: string; transactionId?: string } }
             resolve(r?.data?.transactionHash ?? r?.data?.transactionId ?? '')

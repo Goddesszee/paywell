@@ -20,6 +20,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { W3SSdk } from '@circle-fin/w3s-pw-web-sdk'
 import { useAppStore } from '../store/appStore'
+import { executeWithGuard } from '../lib/circle-execute'
 import { ArrowLeft, ArrowRight, Loader, Mail } from 'lucide-react'
 
 const F     = "'Inter', -apple-system, sans-serif"
@@ -125,7 +126,7 @@ export function CircleEmailLogin({ onBack, onSuccess }: Props) {
     if (!sdk) { setError('SDK not ready — please refresh.'); setStep('error'); return }
     setStatusMsg('Complete wallet setup in the popup…')
     sdk.setAuthentication({ userToken: loginRes.userToken, encryptionKey: loginRes.encryptionKey })
-    sdk.execute(challengeId, (execErr) => {
+    executeWithGuard(sdk, challengeId, (execErr) => {
       if (execErr) {
         const msg = execErr instanceof Error ? execErr.message : String(execErr)
         if (msg.toLowerCase().includes('already') || msg.toLowerCase().includes('155106')) {

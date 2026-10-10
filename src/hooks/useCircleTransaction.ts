@@ -15,6 +15,7 @@
 import { useState, useCallback, useRef } from 'react'
 import { W3SSdk } from '@circle-fin/w3s-pw-web-sdk'
 import { useAppStore } from '../store/appStore'
+import { executeWithGuard } from '../lib/circle-execute'
 import { ensureCircleCreds, SESSION_EXPIRED_MSG } from '../lib/circle-session'
 
 export type CircleTxStatus =
@@ -139,7 +140,7 @@ export function useCircleTransaction() {
       // it only carries { type, status }. We must fetch the transactionId
       // via get-challenge after the SDK reports success.
       const sdkOk = await new Promise<boolean>(resolve => {
-        sdk.execute(challengeId, (err, result) => {
+        executeWithGuard(sdk, challengeId, (err, result) => {
           if (err) {
             setError(err.message ?? 'Challenge failed')
             setStatus('error')
@@ -329,7 +330,7 @@ export function useCircleTransaction() {
       const sdk = new W3SSdk({ appSettings: { appId } })
       sdk.setAuthentication({ userToken, encryptionKey: encryptionKey ?? '' })
       return new Promise<string | undefined>(resolve => {
-        sdk.execute(data.challengeId!, (err, result) => {
+        executeWithGuard(sdk, data.challengeId!, (err, result) => {
           if (err) {
             setError(err.message ?? 'Sign typed data challenge failed')
             setStatus('error')
@@ -406,7 +407,7 @@ export function useCircleTransaction() {
       // even mid-session. When present, pass it so the SDK can sign immediately.
       sdk.setAuthentication({ userToken, encryptionKey: encryptionKey ?? '' })
       return new Promise<string | undefined>(resolve => {
-        sdk.execute(data.challengeId!, (err, result) => {
+        executeWithGuard(sdk, data.challengeId!, (err, result) => {
           if (err) {
             setError(err.message ?? 'Sign challenge failed')
             setStatus('error')

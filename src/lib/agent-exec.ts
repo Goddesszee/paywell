@@ -16,6 +16,7 @@ import { W3SSdk } from '@circle-fin/w3s-pw-web-sdk'
 import type { EIP1193Provider } from 'viem'
 import { getPasskeyAdapter } from '../components/CirclePasskeyLogin'
 import { useAppStore } from '../store/appStore'
+import { executeWithGuard } from './circle-execute'
 import { ensureCircleCreds, getChallengeTransactionId, SESSION_EXPIRED_MSG } from './circle-session'
 
 const ARC_CHAIN_ID = 5042002
@@ -87,7 +88,7 @@ async function executeCircleChallenge(challengeId: string, userToken: string, _e
   const sdk = new W3SSdk({ appSettings: { appId } })
   sdk.setAuthentication({ userToken: creds.userToken ?? userToken, encryptionKey: creds.encryptionKey })
   return new Promise<string>((resolve, reject) => {
-    sdk.execute(challengeId, (err, result) => {
+    executeWithGuard(sdk, challengeId, (err, result) => {
       if (err) { reject(new Error(err instanceof Error ? err.message : 'PIN approval failed')); return }
       const r = result as { data?: { transactionHash?: string; transactionId?: string } }
       const direct = r?.data?.transactionHash ?? r?.data?.transactionId

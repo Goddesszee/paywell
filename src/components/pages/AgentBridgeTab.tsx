@@ -12,6 +12,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { ArrowRight, ArrowLeftRight, CheckCircle2, ExternalLink, Loader2, AlertCircle, Info, RefreshCw } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
+import { executeWithGuard } from '../../lib/circle-execute'
 
 const F    = "'Inter', -apple-system, sans-serif"
 const MONO = "'JetBrains Mono', 'SF Mono', Menlo, monospace"
@@ -109,7 +110,7 @@ export function AgentBridgeTab({ C }: Props) {
       agentSdk = {
         execute: (challengeId: string) =>
           new Promise<{ txHash?: string }>((resolve, reject) => {
-            sdk.execute(challengeId, (err) => {
+            executeWithGuard(sdk, challengeId, (err) => {
               if (err) return reject(new Error(err.message ?? 'SDK execute failed'))
               resolve({})
             })

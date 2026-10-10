@@ -15,6 +15,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { W3SSdk } from '@circle-fin/w3s-pw-web-sdk'
 import { SocialLoginProvider } from '@circle-fin/w3s-pw-web-sdk/dist/src/types'
 import { useAppStore } from '../store/appStore'
+import { executeWithGuard } from '../lib/circle-execute'
 import { ArrowLeft, Loader } from 'lucide-react'
 
 const F     = "'Inter', -apple-system, sans-serif"
@@ -106,7 +107,7 @@ export function CircleGoogleLogin({ onBack, onSuccess }: Props) {
           const sdk = sdkRef.current
           if (!sdk) return
           sdk.setAuthentication({ userToken: r.userToken, encryptionKey: r.encryptionKey })
-          sdk.execute(data.challengeId, async (execErr) => {
+          executeWithGuard(sdk, data.challengeId, async (execErr) => {
             if (execErr) {
               setError('Wallet creation failed — please try again.')
               setStep('error')

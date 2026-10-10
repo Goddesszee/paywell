@@ -5,6 +5,7 @@ import { createViemAdapterFromProvider } from '@circle-fin/adapter-viem-v2'
 import { erc20Abi, type EIP1193Provider } from 'viem'
 import { ArrowDown, Settings, CheckCircle, ExternalLink, RefreshCw, AlertCircle, X, Search } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
+import { executeWithGuard } from '../../lib/circle-execute'
 import { getPasskeyAdapter } from '../CirclePasskeyLogin'
 import { swapFee, SWAP_FEE_BPS, bpsToPercent } from '../../lib/fees'
 import { W3SSdk } from '@circle-fin/w3s-pw-web-sdk'
@@ -383,7 +384,7 @@ export function SwapPage() {
       }
 
       const txId = await new Promise<string>((resolve, reject) => {
-        sdk.execute(data.challengeId!, (err, result) => {
+        executeWithGuard(sdk, data.challengeId!, (err, result) => {
           if (err) { reject(new Error(err instanceof Error ? err.message : 'PIN approval failed')); return }
           const r = result as { data?: { signature?: string; transactionHash?: string; transactionId?: string } }
           const txHash = r?.data?.transactionHash ?? r?.data?.transactionId ?? ''

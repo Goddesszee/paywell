@@ -46,6 +46,7 @@ import {
   type NanAction,
 } from '../../lib/agent-actions'
 import { runAgentBridge, runAgentSwap } from '../../lib/agent-exec'
+import { executeWithGuard } from '../../lib/circle-execute'
 import { AgentWalletExperience } from './AgentWalletExperience'
 
 const F       = "'Inter', -apple-system, sans-serif"
@@ -1125,7 +1126,7 @@ function AgentChat({ onNavigate }: { onNavigate?: (page: string, query?: string)
         const sdk = (window as unknown as Record<string, unknown>)._nanAgentSdk as { setAuthentication: (a: { userToken: string; encryptionKey: string }) => void; execute: (id: string, cb: (err: unknown, res: unknown) => void) => void } | undefined
         if (sdk && aw.userToken && aw.encryptionKey) {
           sdk.setAuthentication({ userToken: aw.userToken, encryptionKey: aw.encryptionKey })
-          sdk.execute(challengeId, (err, res) => {
+          executeWithGuard(sdk, challengeId, (err, res) => {
             if (err) {
               addAgentMessage({ role: 'agent', content: `Transaction signing failed: ${(err as { message?: string })?.message ?? 'Unknown error'}`, action: 'info' })
             } else {
