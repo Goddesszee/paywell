@@ -21,6 +21,12 @@ const SLIDES = [
     headline: ' handled by AI, controlled by you.',
     sub:      'Set limits, approve services and watch NAN Agent handle the rest — on Arc, Base, and beyond.',
   },
+  {
+    img:      '/travel-girl.jpg',
+    accent:   'Send money anywhere,',
+    headline: ' instantly.',
+    sub:      'Whether you\'re crossing borders or sending funds home, NAN moves your USDC in seconds — no bank, no delays, no excuses.',
+  },
 ]
 
 /* ── Slide dot bar ─────────────────────────────────────────────────────────── */
