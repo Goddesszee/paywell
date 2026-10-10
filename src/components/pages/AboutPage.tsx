@@ -1,37 +1,11 @@
-import { useEffect, useState } from 'react'
 import { Info, MessageSquare, HelpCircle } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
+import { ABOUT as about, ABOUT_FEATURES } from '../../lib/about-faq-content'
 
 const SANS = "var(--nan-font, 'Inter', sans-serif)"
 
-interface AboutContent {
-  headline: string
-  tagline: string
-  body: string
-  mission: string
-  contact: string
-  updatedAt: string
-}
-
 export function AboutPage() {
   const { setActiveView } = useAppStore()
-  const [about, setAbout] = useState<AboutContent | null>(null)
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    fetch('/api/about')
-      .then(r => r.json())
-      .then((d: { about: AboutContent }) => { if (d.about) setAbout(d.about) })
-      .catch(() => {})
-      .finally(() => setLoading(false))
-  }, [])
-
-  if (loading) return (
-    <div style={{ fontFamily: SANS, textAlign: 'center', padding: 48, color: 'var(--nan-text2)', fontSize: 13 }}>Loading…</div>
-  )
-
-  if (!about) return null
-
   return (
     <div style={{ width: '100%', minHeight: '100%', fontFamily: SANS }}>
       {/* Header */}
@@ -40,7 +14,7 @@ export function AboutPage() {
           <Info size={18} color="var(--nan-blue)" />
           <span style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.03em', color: 'var(--nan-text)' }}>About NAN</span>
         </div>
-        <div style={{ fontSize: 12, color: 'var(--nan-text2)' }}>The agent-first financial platform</div>
+        <div style={{ fontSize: 12, color: 'var(--nan-text2)' }}>Your AI-powered money app on Arc</div>
       </div>
 
       {/* Hero card */}
@@ -78,13 +52,7 @@ export function AboutPage() {
       <div style={{ background: 'var(--nan-surface)', border: '1px solid var(--nan-bdr)', borderRadius: 16, padding: '20px 22px', marginBottom: 16 }}>
         <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--nan-text3)', textTransform: 'uppercase', letterSpacing: '0.09em', marginBottom: 14 }}>Platform capabilities</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {[
-            { icon: '🤖', title: 'AI Agents', desc: 'Create agents with USDC budgets, spending rules, and category permissions.' },
-            { icon: '💸', title: 'USDC-native payments', desc: 'Send, receive, and manage USDC with stable, predictable fees on Arc.' },
-            { icon: '🌉', title: 'Cross-chain bridge', desc: 'Move USDC between Arc, Ethereum, Base, and Arbitrum with CCTP v2.' },
-            { icon: '🔄', title: 'Token swap', desc: 'Exchange tokens using Circle\'s swap routes directly within the app.' },
-            { icon: '🔒', title: 'Secure escrow', desc: 'Protected marketplace purchases with onchain escrow and dispute resolution.' },
-          ].map(f => (
+          {ABOUT_FEATURES.map(f => (
             <div key={f.title} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
               <div style={{ fontSize: 20, flexShrink: 0, lineHeight: 1 }}>{f.icon}</div>
               <div>
@@ -114,10 +82,6 @@ export function AboutPage() {
         </button>
       </div>
 
-      {/* Last updated */}
-      <div style={{ textAlign: 'center', fontSize: 11, color: 'var(--nan-text3)', paddingBottom: 8 }}>
-        Last updated: {new Date(about.updatedAt).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}
-      </div>
     </div>
   )
 }

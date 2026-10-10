@@ -1,29 +1,12 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import { HelpCircle, Search, ChevronDown, ChevronUp } from 'lucide-react'
+import { FAQS as faqs } from '../../lib/about-faq-content'
 
 const SANS = "var(--nan-font, 'Inter', sans-serif)"
 
-interface FaqItem {
-  id: string
-  category: string
-  question: string
-  answer: string
-  order: number
-}
-
 export function FAQPage() {
-  const [faqs, setFaqs] = useState<FaqItem[]>([])
-  const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
-
-  useEffect(() => {
-    fetch('/api/faqs')
-      .then(r => r.json())
-      .then((d: { faqs: FaqItem[] }) => { if (d.faqs) setFaqs(d.faqs) })
-      .catch(() => {})
-      .finally(() => setLoading(false))
-  }, [])
 
   const toggle = (id: string) => {
     setExpanded(prev => {
@@ -38,7 +21,7 @@ export function FAQPage() {
     if (!search.trim()) return faqs
     const q = search.toLowerCase()
     return faqs.filter(f => f.question.toLowerCase().includes(q) || f.answer.toLowerCase().includes(q) || f.category.toLowerCase().includes(q))
-  }, [faqs, search])
+  }, [search])
 
   const categories = useMemo(() => {
     const cats = [...new Set(filtered.map(f => f.category))]
@@ -67,14 +50,12 @@ export function FAQPage() {
         />
       </div>
 
-      {loading ? (
-        <div style={{ textAlign: 'center', padding: 40, color: 'var(--nan-text2)', fontSize: 13 }}>Loading…</div>
-      ) : filtered.length === 0 ? (
+      {filtered.length === 0 ? (
         <div style={{ background: 'var(--nan-surface)', border: '1px solid var(--nan-bdr)', borderRadius: 14, padding: '40px 20px', textAlign: 'center' }}>
           <HelpCircle size={28} style={{ margin: '0 auto 12px', color: 'var(--nan-text3)' }} />
           <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--nan-text)', marginBottom: 6 }}>No results found</div>
           <div style={{ fontSize: 13, color: 'var(--nan-text2)' }}>
-            {search ? `No FAQs match "${search}"` : 'No FAQs available yet.'}
+            {`No FAQs match "${search}". Try different words, or open Support from the menu.`}
           </div>
         </div>
       ) : (
