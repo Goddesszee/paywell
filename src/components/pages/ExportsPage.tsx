@@ -379,10 +379,9 @@ export function ExportsPage() {
         return
       } catch { /* fall through to new-tab */ }
     }
-    // Fallback: open the branded statement in a new tab
-    const url = URL.createObjectURL(blob)
-    window.open(url, '_blank')
-    setTimeout(() => URL.revokeObjectURL(url), 30000)
+    // Fallback: trigger in-page download (no new tab, no navigation away)
+    const label = period === 'custom' ? `${customFrom}_to_${customTo}` : period
+    triggerDownload(URL.createObjectURL(blob), `nan-statement-${label}-${source}.html`)
   }
 
   // ── HTML Statement builder ───────────────────────────────────────────────────

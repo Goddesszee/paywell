@@ -144,9 +144,12 @@ export function downloadReceipt(data: ReceiptData) {
   const a    = document.createElement('a')
   const ts   = new Date(data.timestamp).toISOString().slice(0, 10)
   const id   = data.id ? data.id.slice(-6) : ts
-  a.href = url
+  a.href     = url
   a.download = `nan-receipt-${ts}-${id}.html`
+  a.style.display = 'none'
+  document.body.appendChild(a)
   a.click()
+  document.body.removeChild(a)
   setTimeout(() => URL.revokeObjectURL(url), 10000)
 }
 
@@ -174,6 +177,9 @@ export async function shareReceipt(data: ReceiptData) {
   const a   = document.createElement('a')
   a.href     = url
   a.download = filename
+  a.style.display = 'none'
+  document.body.appendChild(a)
   a.click()
+  document.body.removeChild(a)
   setTimeout(() => URL.revokeObjectURL(url), 10000)
 }
