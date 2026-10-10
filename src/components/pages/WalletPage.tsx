@@ -19,6 +19,9 @@ import { TokenLogo } from '../ui/TokenLogo'
 import { getUsdc, requireChain, buildTxExplorerUrl } from '@/onchain-facts'
 import { Amount, usdcDecimalsFor } from '@/onchain-money'
 import { downloadReceipt, shareReceipt } from '../../lib/receipt'
+import { AnimatedNumber } from '../ui/AnimatedNumber'
+import { haptic } from '../../hooks/useHaptics'
+import { useNanName } from '../../hooks/useNanName'
 
 const ARC_TESTNET_ID = 5042002
 const SANS = 'Inter, -apple-system, sans-serif'
@@ -67,7 +70,7 @@ type WalletSubView = 'main' | 'send' | 'send_confirm' | 'send_success' | 'receiv
 
 export function WalletPage({ initialSubView = 'main' }: { initialSubView?: WalletSubView }) {
   const [subView, setSubView] = useState<WalletSubView>(initialSubView)
-  const { agentPermissions, addActivity, activity, auth, setMainWalletBalance, setActiveView } = useAppStore()
+  const { agentPermissions, addActivity, activity, auth, setMainWalletBalance, setActiveView, touchContact } = useAppStore()
   // When opened directly as 'send' or 'receive' from another page (e.g. Home),
   // pressing Back should return to the previous page instead of the wallet main view.
   const launchedAsSendOrReceive = initialSubView === 'send' || initialSubView === 'receive'
@@ -154,6 +157,7 @@ export function WalletPage({ initialSubView = 'main' }: { initialSubView?: Walle
         onBack={handleBack}
         onSuccess={() => { void refetch(); handleBack() }}
         addActivity={addActivity}
+        touchContact={touchContact}
       />
     )
   }
@@ -185,7 +189,8 @@ export function WalletPage({ initialSubView = 'main' }: { initialSubView?: Walle
           <div style={{ height: 48, width: 160, background: 'rgba(255,255,255,0.08)', borderRadius: 10, marginBottom: 16 }} />
         ) : (
           <div style={{ fontSize: 40, fontWeight: 700, color: '#FFFFFF', letterSpacing: '-1.5px', fontFamily: 'JetBrains Mono, Menlo, monospace', marginBottom: 16 }}>
-            {balance ?? '0.00'} <span style={{ fontSize: 18, color: 'rgba(255,255,255,0.5)' }}>USDC</span>
+            <AnimatedNumber value={parseFloat(balance ?? '0')} decimals={2} duration={800} />{' '}
+            <span style={{ fontSize: 18, color: 'rgba(255,255,255,0.5)' }}>USDC</span>
           </div>
         )}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
@@ -356,6 +361,7 @@ function SendFlow({
   onBack,
   onSuccess,
   addActivity,
+  touchContact,
 }: {
   address: string
   chainId?: number
@@ -364,6 +370,7 @@ function SendFlow({
   onBack: () => void
   onSuccess: () => void
   addActivity: (item: Omit<ActivityItem, 'id' | 'timestamp'>) => void
+  touchContact: (address: string, amount: number) => void
 }) {
   const isDesktop = useIsDesktop()
   const [step, setStep] = useState<SendStep>('recipient')
@@ -373,6 +380,8 @@ function SendFlow({
   const [note, setNote] = useState('')
   const [recipientError, setRecipientError] = useState('')
   const [amountError, setAmountError] = useState('')
+  const [resolvedName, setResolvedName] = useState<string | null>(null)
+  const { resolveHandle, resolving: nameResolving } = useNanName()
   const recipientRef = React.useRef(recipient)
   const amountRef = React.useRef(amount)
   const noteRef = React.useRef(note)
@@ -396,7 +405,9 @@ function SendFlow({
 
   React.useEffect(() => {
     if (isSuccess && txHash) {
+      haptic('success')
       setStep('success')
+      touchContact(recipientRef.current, parseFloat(amountRef.current))
       addActivity({
         type: 'sent',
         description: noteRef.current || `Sent ${selectedToken.symbol}`,
@@ -435,9 +446,16 @@ function SendFlow({
   }, [circleStatus])
   const displayStep: SendStep = (isPending || isConfirming || isCirclePending) ? 'submitting' : step
 
-  const validateRecipient = () => {
+  const validateRecipient = async (): Promise<boolean> => {
     if (!recipient) { setRecipientError('Recipient address is required'); return false }
-    if (!isAddress(recipient)) { setRecipientError('Enter a valid Ethereum address (0x...)'); return false }
+    // NAN handle resolution: @name → address
+    if (recipient.startsWith('@')) {
+      const resolved = await resolveHandle(recipient)
+      if (!resolved) { setRecipientError(`"${recipient}" is not registered on NAN`); return false }
+      setRecipient(resolved); setResolvedName(recipient)
+      setRecipientError(''); return true
+    }
+    if (!isAddress(recipient)) { setRecipientError('Enter a valid 0x address or @nanname'); return false }
     setRecipientError('')
     return true
   }
@@ -466,6 +484,7 @@ function SendFlow({
         to: recipient as `0x${string}`,
         amount: rawAmount,
       }).then(hash => {
+        haptic('success')
         setStep('success')
         addActivity({
           type: 'sent',
@@ -478,6 +497,7 @@ function SendFlow({
         })
         toast.success(`Sent ${amountRef.current} ${selectedToken.symbol} successfully`)
       }).catch(err => {
+        haptic('error')
         setStep('error')
         toast.error(err instanceof Error ? err.message : 'Transaction failed')
       })
@@ -494,6 +514,7 @@ function SendFlow({
         blockchain: 'ARC-TESTNET',
       }).then(hash => {
         if (hash) {
+          haptic('success')
           setStep('success')
           addActivity({
             type: 'sent',
@@ -603,7 +624,7 @@ function SendFlow({
           {/* Receipt actions */}
           <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
             <button
-              onClick={() => downloadReceipt(successReceiptData)}
+              onClick={() => { void downloadReceipt(successReceiptData) }}
               style={{
                 flex: 1, height: 46, borderRadius: 12,
                 background: '#0066FF', border: 'none', color: '#fff',
@@ -824,8 +845,7 @@ function SendFlow({
             <button
               disabled={!canProceedAmount || !recipient}
               onClick={() => {
-                if (!validateAmount() || !validateRecipient()) return
-                handleSend()
+                void (async () => { if (!validateAmount() || !await validateRecipient()) return; handleSend() })()
               }}
               style={{
                 width: '100%', height: 56, borderRadius: 16,
@@ -931,9 +951,11 @@ function SendFlow({
               color: 'var(--nan-text)', fontSize: 14, fontFamily: 'JetBrains Mono, monospace', outline: 'none',
             }}
           />
+          {nameResolving && <p style={{ fontSize: 12, color: 'var(--nan-t3)', marginTop: 6 }}>Resolving @name…</p>}
+          {resolvedName && !recipientError && <p style={{ fontSize: 12, color: '#00C853', marginTop: 6 }}>{resolvedName} resolved ✓</p>}
           {recipientError && <p style={{ fontSize: 12, color: '#FF3B3B', marginTop: 6 }}>{recipientError}</p>}
           <button
-            onClick={() => { if (validateRecipient()) setStep('amount') }}
+            onClick={() => { void (async () => { if (await validateRecipient()) setStep('amount') })() }}
             style={{
               width: '100%', height: 50, borderRadius: 12, marginTop: 16,
               background: '#0066FF', border: 'none', color: '#fff',

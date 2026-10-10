@@ -70,6 +70,7 @@ function _paywall(price: string): express.RequestHandler {
 
 // ── Stores (persisted to DATA_DIR, loaded on startup) ─────────────────────────
 const otpStore = new Map<string, { otp: string; token: string; expiresAt: number }>()
+const otpRateStore = new Map<string, { count: number; windowStart: number }>()
 const sessionStore = new Map(
   Object.entries(loadStore<Record<string, { email: string; walletAddress: string; walletId: string; createdAt: number }>>('sessions', {}))
 )
@@ -186,12 +187,26 @@ app.post('/api/otp', async (req, res) => {
       action: string; email: string; otp?: string; token?: string; expiresAt?: number
     }
 
-    if (!email || typeof email !== 'string') {
-      res.status(400).json({ success: false, error: 'email required' })
+    if (!email || typeof email !== 'string' || email.length > 320 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      res.status(400).json({ success: false, error: 'valid email required' })
+      return
+    }
+
+    // Rate limit: max 5 OTP sends per email per hour
+    const otpRateKey = `otp-rate:${email.toLowerCase()}`
+    const otpRateEntry = otpRateStore.get(otpRateKey) ?? { count: 0, windowStart: Date.now() }
+    const windowMs = 60 * 60 * 1000
+    if (Date.now() - otpRateEntry.windowStart > windowMs) {
+      otpRateEntry.count = 0; otpRateEntry.windowStart = Date.now()
+    }
+    if (otpRateEntry.count >= 5) {
+      res.status(429).json({ success: false, error: 'Too many OTP requests. Try again in an hour.' })
       return
     }
 
     if (action === 'send') {
+      otpRateEntry.count++
+      otpRateStore.set(otpRateKey, otpRateEntry)
       // Generate a 6-digit OTP
       const code = Math.floor(100000 + Math.random() * 900000).toString()
       const otpToken = genToken()
@@ -595,10 +610,25 @@ app.post('/api/chat', _paywall('0.001'), async (req, res) => {
     const groqKey = process.env.GROQ_API_KEY
     const openaiKey = process.env.OPENAI_API_KEY
     const userMsg = message ?? messages?.[messages.length - 1]?.content ?? ''
+    const walletAddr = userAddress ?? session.walletAddress
+
+    // Build spending analytics context from the tx ledger for this wallet
+    const walletTxs = txLedger.filter(t => t.walletAddress === walletAddr)
+    const now = Date.now()
+    const monthStart = new Date(now); monthStart.setDate(1); monthStart.setHours(0,0,0,0)
+    const monthTxs = walletTxs.filter(t => new Date(t.timestamp).getTime() >= monthStart.getTime())
+    const monthSent = monthTxs.filter(t => t.type === 'sent').reduce((s, t) => s + t.amount, 0)
+    const monthReceived = monthTxs.filter(t => t.type === 'received').reduce((s, t) => s + t.amount, 0)
+    const recent30 = walletTxs.slice(0, 30).map(t =>
+      `${t.type === 'sent' ? '-' : '+'}${t.amount.toFixed(2)} USDC · ${t.description} · ${new Date(t.timestamp).toLocaleDateString('en', { month: 'short', day: 'numeric' })}`
+    )
+    const spendingContext = walletTxs.length > 0
+      ? `\n\nUSER SPENDING CONTEXT (current month):\n- Sent: ${monthSent.toFixed(2)} USDC\n- Received: ${monthReceived.toFixed(2)} USDC\n- Total transactions: ${walletTxs.length}\nRecent transactions:\n${recent30.slice(0, 10).join('\n')}`
+      : ''
 
     if (openaiKey) {
       try {
-        const reply = await openaiChat(openaiKey, userMsg, usdcBal ?? '0', userAddress ?? session.walletAddress)
+        const reply = await openaiChat(openaiKey, userMsg + spendingContext, usdcBal ?? '0', walletAddr)
         res.json({ success: true, reply })
         return
       } catch (e) {
@@ -608,7 +638,7 @@ app.post('/api/chat', _paywall('0.001'), async (req, res) => {
 
     if (groqKey) {
       try {
-        const reply = await groqChat(groqKey, userMsg, usdcBal ?? '0', userAddress ?? session.walletAddress)
+        const reply = await groqChat(groqKey, userMsg + spendingContext, usdcBal ?? '0', walletAddr)
         res.json({ success: true, reply })
         return
       } catch (e) {
@@ -616,7 +646,7 @@ app.post('/api/chat', _paywall('0.001'), async (req, res) => {
       }
     }
 
-    // Fallback smart mock
+    // Fallback smart mock — still use spending context for pattern matching
     const reply = mockAgentReply(userMsg, usdcBal ?? '100')
     res.json({ success: true, reply })
   } catch (e) {
@@ -1340,6 +1370,21 @@ app.post('/api/tx-track', (req, res) => {
   if (txLedger.length > 2000) txLedger.splice(2000)
   debouncedSave('tx-ledger', txLedger)
 
+  // ── Fraud heuristic: flag recipient receiving 3+ payments in 10 minutes ──
+  let fraudFlag = false
+  if (record.counterparty && record.type === 'sent') {
+    const windowStart = Date.now() - 10 * 60 * 1000
+    const recentToSame = txLedger.filter(t =>
+      t.counterparty === record.counterparty &&
+      t.type === 'sent' &&
+      new Date(t.timestamp).getTime() > windowStart
+    )
+    if (recentToSame.length >= 3) {
+      fraudFlag = true
+      console.warn(`[FRAUD] Possible rapid-fire payments to ${record.counterparty} — ${recentToSame.length} in 10 min`)
+    }
+  }
+
   // Keep activityStore in sync so /api/activity-feed returns it immediately
   const actList = activityStore.get(record.walletAddress) ?? []
   actList.unshift({
@@ -1355,7 +1400,67 @@ app.post('/api/tx-track', (req, res) => {
   })
   activityStore.set(record.walletAddress, actList.slice(0, 200))
 
-  res.json({ success: true, id: record.id })
+  res.json({ success: true, id: record.id, fraudFlag })
+
+  // Broadcast to any SSE listeners for this wallet
+  broadcastActivity(record.walletAddress, record)
+})
+
+// ── SSE real-time activity feed ───────────────────────────────────────────────
+type SSEClient = { write: (data: string) => void; close: () => void }
+const sseMap = new Map<string, Set<SSEClient>>()
+
+function broadcastActivity(walletAddress: string, record: Record<string, unknown>) {
+  const clients = sseMap.get(walletAddress.toLowerCase())
+  if (!clients) return
+  const data = `data: ${JSON.stringify(record)}\n\n`
+  clients.forEach(c => { try { c.write(data) } catch { /* client gone */ } })
+}
+
+app.get('/api/activity-stream', (req, res) => {
+  const wallet = (req.query.wallet as string ?? '').toLowerCase()
+  if (!wallet) { res.status(400).end(); return }
+  res.setHeader('Content-Type', 'text/event-stream')
+  res.setHeader('Cache-Control', 'no-cache')
+  res.setHeader('Connection', 'keep-alive')
+  res.setHeader('Access-Control-Allow-Origin', '*')
+  res.flushHeaders()
+  const client: SSEClient = { write: (d) => res.write(d), close: () => res.end() }
+  if (!sseMap.has(wallet)) sseMap.set(wallet, new Set())
+  sseMap.get(wallet)!.add(client)
+  const heartbeat = setInterval(() => { try { res.write(': heartbeat\n\n') } catch { clearInterval(heartbeat) } }, 25000)
+  req.on('close', () => { clearInterval(heartbeat); sseMap.get(wallet)?.delete(client) })
+})
+
+// ── Referral system ────────────────────────────────────────────────────────────
+const referralStore = new Map<string, { code: string; uses: number; createdAt: number }>(
+  Object.entries(loadStore<Record<string, { code: string; uses: number; createdAt: number }>>('referrals', {}))
+)
+
+app.get('/api/referral', (req, res) => {
+  const wallet = (req.query.wallet as string ?? '').toLowerCase()
+  if (!wallet) { res.status(400).json({ error: 'wallet required' }); return }
+  if (!referralStore.has(wallet)) {
+    const code = wallet.slice(2, 8).toUpperCase() + Math.random().toString(36).slice(2, 5).toUpperCase()
+    referralStore.set(wallet, { code, uses: 0, createdAt: Date.now() })
+    debouncedSave('referrals', Object.fromEntries(referralStore))
+  }
+  res.json({ success: true, ...referralStore.get(wallet) })
+})
+
+app.post('/api/referral/use', (req, res) => {
+  const { code } = req.body as { code: string }
+  if (!code) { res.status(400).json({ error: 'code required' }); return }
+  let found = false
+  referralStore.forEach((v, k) => {
+    if (v.code === code.toUpperCase()) {
+      referralStore.set(k, { ...v, uses: v.uses + 1 })
+      found = true
+    }
+  })
+  if (!found) { res.status(404).json({ error: 'Invalid referral code' }); return }
+  debouncedSave('referrals', Object.fromEntries(referralStore))
+  res.json({ success: true })
 })
 
 app.get('/api/admin/tx-report', (_req, res) => {

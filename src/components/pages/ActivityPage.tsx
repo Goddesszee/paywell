@@ -102,7 +102,7 @@ function ReceiptModal({ item, onClose, ownAddress }: { item: ActivityItem; onClo
     sender: item.sign === '-' ? ownAddress : item.counterparty,
     txHash: item.txHash, id: item.id,
   }
-  function handleDownload() { downloadReceipt(receiptData) }
+  function handleDownload() { void downloadReceipt(receiptData) }
   async function handleShare() { await shareReceipt(receiptData) }
 
 

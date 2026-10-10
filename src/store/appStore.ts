@@ -136,6 +136,19 @@ export interface FavoriteItem {
   savedAt: string
 }
 
+// ── Contact book ─────────────────────────────────────────────────────────────
+export interface Contact {
+  id: string
+  address: string           // 0x…
+  name: string
+  avatarUrl?: string
+  note?: string
+  txCount: number           // derived from activity — updated on each send
+  lastTxAt?: string         // ISO
+  totalSent: number         // USDC
+  savedAt: string
+}
+
 // ── User profile ─────────────────────────────────────────────────────────────
 export interface UserProfile {
   displayName: string
@@ -265,6 +278,7 @@ const USER_DEFAULTS = {
   unreadCount:      0,
   profile:          { displayName: '', bio: '', avatarUrl: '', notifPrefs: { supportReplies: true, systemUpdates: true, payments: true } } as UserProfile,
   favorites:        [] as FavoriteItem[],
+  contacts:         [] as Contact[],
   recentSearches:   [] as string[],
   selectedServiceIds: [] as string[],
   invoices:           [] as Invoice[],
@@ -315,6 +329,12 @@ export interface AppState {
   addFavorite: (item: Omit<FavoriteItem, 'id' | 'savedAt'>) => void
   removeFavorite: (id: string) => void
   isFavorite: (refId: string) => boolean
+
+  contacts: Contact[]
+  addContact: (c: Omit<Contact, 'id' | 'savedAt' | 'txCount' | 'totalSent'>) => void
+  updateContact: (id: string, patch: Partial<Contact>) => void
+  removeContact: (id: string) => void
+  touchContact: (address: string, amount: number) => void   // called on each send
 
   recentSearches: string[]
   addSearch: (query: string) => void
@@ -579,6 +599,33 @@ export const useAppStore = create<AppState>()(
       removeFavorite: (id) => set((s) => ({ favorites: s.favorites.filter(f => f.id !== id) })),
       isFavorite: (refId) => get().favorites.some(f => f.refId === refId),
 
+      contacts: [],
+      addContact: (c) =>
+        set((s) => {
+          if (s.contacts.some(x => x.address.toLowerCase() === c.address.toLowerCase())) return s
+          return {
+            contacts: [{
+              ...c,
+              id: `con-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+              txCount: 0,
+              totalSent: 0,
+              savedAt: new Date().toISOString(),
+            }, ...s.contacts],
+          }
+        }),
+      updateContact: (id, patch) =>
+        set((s) => ({ contacts: s.contacts.map(c => c.id === id ? { ...c, ...patch } : c) })),
+      removeContact: (id) =>
+        set((s) => ({ contacts: s.contacts.filter(c => c.id !== id) })),
+      touchContact: (address, amount) =>
+        set((s) => ({
+          contacts: s.contacts.map(c =>
+            c.address.toLowerCase() === address.toLowerCase()
+              ? { ...c, txCount: c.txCount + 1, totalSent: c.totalSent + amount, lastTxAt: new Date().toISOString() }
+              : c
+          ),
+        })),
+
       recentSearches: [],
       addSearch: (query) => {
         const q = query.trim()
@@ -783,6 +830,7 @@ export const useAppStore = create<AppState>()(
         agentExecutionLog: s.agentExecutionLog,
         activity: s.activity,
         favorites: s.favorites,
+        contacts: s.contacts,
         recentSearches: s.recentSearches,
         profile: s.profile,
         recurringTasks: s.recurringTasks,
@@ -812,6 +860,7 @@ export const useAppStore = create<AppState>()(
           agentMessages: (p.agentMessages ?? current.agentMessages).map((m) => ({ ...m, timestamp: new Date(m.timestamp) })),
           agentExecutionLog: (p.agentExecutionLog ?? current.agentExecutionLog ?? []).map((e) => ({ ...e, timestamp: new Date(e.timestamp) })),
           favorites: p.favorites ?? current.favorites ?? [],
+          contacts: p.contacts ?? current.contacts ?? [],
           recentSearches: p.recentSearches ?? current.recentSearches ?? [],
           profile: p.profile ?? current.profile,
           recurringTasks: p.recurringTasks ?? current.recurringTasks ?? [],

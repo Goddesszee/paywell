@@ -920,6 +920,19 @@ export async function executeAction(action: NanAction, ctx: ExecutorContext): Pr
       const toAddress = getAddress(rawTo2)
       const userToken = ctx.agentWalletUserToken
       if (!userToken) throw new Error('Agent Wallet session not active. Authenticate in the Agent Wallet tab first.')
+
+      // ── Daily limit enforcement ────────────────────────────────────────────
+      const perms = store.agentPermissions
+      const txAmt = parseFloat(amount)
+      if (perms.perTxLimit && txAmt > perms.perTxLimit)
+        throw new Error(`This transaction (${txAmt} USDC) exceeds your per-transaction agent limit of ${perms.perTxLimit} USDC. Raise the limit in Agent Wallet settings or approve manually.`)
+      const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0)
+      const spentToday = store.agentSpendLog
+        .filter(s => new Date(s.timestamp).getTime() >= todayStart.getTime())
+        .reduce((sum, s) => sum + s.amount_usdc, 0)
+      if (perms.dailyLimit && spentToday + txAmt > perms.dailyLimit)
+        throw new Error(`Daily agent spend limit reached (${spentToday.toFixed(2)}/${perms.dailyLimit} USDC used today). Raise the limit in Agent Wallet settings or wait until tomorrow.`)
+      // ──────────────────────────────────────────────────────────────────────
       const r = await fetch('/api/agent-wallet', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-user-token': userToken },
@@ -1232,7 +1245,7 @@ export async function executeAction(action: NanAction, ctx: ExecutorContext): Pr
     case 'export_activity': {
       const rows = store.activity
       if (rows.length === 0) return 'No activity to export yet.'
-      const esc = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`
+      const esc = (v: unknown) => { const s = v === null || v === undefined ? '' : typeof v === 'object' ? JSON.stringify(v) : `${v as string | number | boolean}`; return `"${s.replace(/"/g, '""')}"` }
       const csv = ['Date,Type,Description,Amount,Status,Counterparty,TxHash',
         ...rows.map(a => [
           a.timestamp instanceof Date ? a.timestamp.toISOString() : String(a.timestamp),

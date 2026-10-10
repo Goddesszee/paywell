@@ -56,8 +56,9 @@ export function OnrampPage() {
   const address = wagmiAddress ?? (auth?.circleWalletAddress as `0x${string}` | undefined)
   const isReady = isConnected || !!address
 
-  const [amount, setAmount] = useState(100)
-  const [custom, setCustom] = useState('100')
+  const prefillAmount = onrampPrefill?.amount && onrampPrefill.amount > 0 ? onrampPrefill.amount : null
+  const [amount, setAmount] = useState(prefillAmount ?? 100)
+  const [custom, setCustom] = useState(String(prefillAmount ?? 100))
   const [state, setState] = useState<OnrampState>('idle')
   const [error, setError] = useState<string | null>(null)
   const [session, setSession] = useState<OnrampSession | null>(null)
@@ -68,14 +69,11 @@ export function OnrampPage() {
   // Dedupe DEPOSIT_SUBMITTED + DEPOSIT_SETTLED
   const credited = useRef(false)
 
-  // Amount requested via the AI agent ("buy 50 USDC")
+  // Clear prefill after first render so it doesn't persist if the user reopens this page
   useEffect(() => {
-    if (onrampPrefill?.amount && onrampPrefill.amount > 0) {
-      setAmount(onrampPrefill.amount)
-      setCustom(String(onrampPrefill.amount))
-      setOnrampPrefill(null)
-    }
-  }, [onrampPrefill, setOnrampPrefill])
+    if (prefillAmount !== null) setOnrampPrefill(null)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const setAmt = (v: number) => { setAmount(v); setCustom(String(v)) }
   const onCustom = (v: string) => {

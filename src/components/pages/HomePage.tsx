@@ -19,6 +19,7 @@ import { useSyncMultiChainBalances } from '../../hooks/useMultiChainBalances'
 import { usePortfolioBalances } from '../../hooks/usePortfolioBalances'
 import { useFxRates } from '../../hooks/useFxRates'
 import { TokenNetworkSheet } from './TokenNetworkSheet'
+import { ReferralCard } from '../ReferralCard'
 
 const F    = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif"
 const MONO = "'JetBrains Mono', 'SF Mono', Menlo, monospace"
@@ -549,6 +550,24 @@ export function HomePage() {
             ))
           )}
         </div>
+      </div>
+
+      {/* ── 7. CONTACTS + BUSINESS SHORTCUTS ── */}
+      <div style={{ display: 'flex', gap: 10, marginTop: 16, marginBottom: 4 }}>
+        <button onClick={() => setActiveView('contacts')} style={{ flex: 1, padding: '13px 10px', borderRadius: 14, background: C.surf, border: `1px solid ${C.bdr}`, color: C.text, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}>
+          👥 Contacts
+        </button>
+        <button onClick={() => setActiveView('business')} style={{ flex: 1, padding: '13px 10px', borderRadius: 14, background: C.surf, border: `1px solid ${C.bdr}`, color: C.text, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}>
+          💼 Business
+        </button>
+        <button onClick={() => setActiveView('merchant-qr')} style={{ flex: 1, padding: '13px 10px', borderRadius: 14, background: C.surf, border: `1px solid ${C.bdr}`, color: C.text, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}>
+          🔲 Pay QR
+        </button>
+      </div>
+
+      {/* ── 8. REFERRAL ── */}
+      <div style={{ marginTop: 16 }}>
+        <ReferralCard />
       </div>
 
       {/* ── Token network sheet (slide-up, opens on card tap) ── */}

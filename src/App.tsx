@@ -67,6 +67,10 @@ import { NamePage } from './components/pages/NamePage'
 import { DashboardPage } from './components/pages/DashboardPage'
 import { ExportsPage } from './components/pages/ExportsPage'
 import { PaymentRequestsPage } from './components/pages/PaymentRequestsPage'
+import { ContactsPage } from './components/pages/ContactsPage'
+import { MerchantQRPage } from './components/pages/MerchantQRPage'
+import { BusinessDashboard } from './components/pages/BusinessDashboard'
+import { useActivityStream } from './hooks/useActivityStream'
 
 export default function App() {
   // Email/Google (Circle) users: the signing session key lives in memory/sessionStorage only, so it is
@@ -87,6 +91,7 @@ export default function App() {
   }, [])
 
   const { activeView } = useAppStore()
+  useActivityStream() // real-time SSE feed — connects when wallet is present
   const [splashDone, setSplashDone] = useState(() => {
     // only show splash on first ever visit per session
     if (sessionStorage.getItem('nan_splash_shown')) return true
@@ -158,6 +163,9 @@ export default function App() {
       {activeView === 'favorites' && <FavoritesPage />}
       {activeView === 'exports' && <ExportsPage />}
       {activeView === 'payment-requests' && <PaymentRequestsPage />}
+      {activeView === 'contacts' && <ContactsPage />}
+      {activeView === 'merchant-qr' && <MerchantQRPage />}
+      {activeView === 'business' && <BusinessDashboard />}
     </AppShell>
   )
 }
