@@ -4,7 +4,7 @@
  */
 import React, { useState, useMemo } from 'react'
 import {
-  Plus, Search, Filter, ChevronRight, Copy, Share2,
+  Plus, Search, ChevronRight, Copy, Share2,
   X, Check, Clock, CheckCircle2, XCircle, Eye,
   Link2, FileText,
   AlertCircle, CalendarDays, DollarSign, User,
@@ -185,19 +185,19 @@ function ListView({
 
       {/* Summary cards */}
       {paymentRequests.length > 0 && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10, margin: '16px 0' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8, margin: '16px 0' }}>
           {[
-            { label: 'Pending', value: totals.count + ' request' + (totals.count !== 1 ? 's' : ''), sub: `${totals.pending.toFixed(2)} USDC`, color: GOLD },
-            { label: 'Paid',    value: paymentRequests.filter(r => r.status === 'paid').length + ' paid', sub: `${totals.paid.toFixed(2)} USDC`, color: GREEN },
-            { label: 'Total',   value: paymentRequests.length + ' total', sub: `${totals.total.toFixed(2)} USDC`, color: BLUE },
+            { label: 'Pending', count: totals.count, sub: `${totals.pending.toFixed(2)}`, color: GOLD },
+            { label: 'Paid',    count: paymentRequests.filter(r => r.status === 'paid').length, sub: `${totals.paid.toFixed(2)}`, color: GREEN },
+            { label: 'Total',   count: paymentRequests.length, sub: `${totals.total.toFixed(2)}`, color: BLUE },
           ].map(s => (
             <div key={s.label} style={{
               background: C.surf, border: `1px solid ${C.bdr}`,
-              borderRadius: 12, padding: '12px 14px',
+              borderRadius: 14, padding: '12px 10px', minWidth: 0,
             }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: C.t3, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>{s.label}</div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 2 }}>{s.value}</div>
-              <div style={{ fontSize: 11, fontWeight: 600, color: s.color, fontFamily: MONO }}>{s.sub}</div>
+              <div style={{ fontSize: 10, fontWeight: 700, color: C.t3, textTransform: 'uppercase' as const, letterSpacing: '0.07em', marginBottom: 6 }}>{s.label}</div>
+              <div style={{ fontSize: 20, fontWeight: 800, color: s.color, fontFamily: MONO, lineHeight: 1, marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.count}</div>
+              <div style={{ fontSize: 11, fontWeight: 600, color: C.t2, fontFamily: MONO, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.sub} USDC</div>
             </div>
           ))}
         </div>
@@ -205,58 +205,60 @@ function ListView({
 
       {/* Search */}
       <div style={{ position: 'relative', marginBottom: 10 }}>
-        <Search size={14} color={C.t3} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+        <Search size={14} color={C.t3} style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
         <input
           value={search}
           onChange={e => setSearch(e.target.value)}
           placeholder="Search requests…"
           style={{
-            width: '100%', padding: '9px 12px 9px 34px', boxSizing: 'border-box',
-            background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 10,
-            fontSize: 13, fontFamily: F, color: C.text, outline: 'none',
+            width: '100%', padding: '11px 12px 11px 36px', boxSizing: 'border-box',
+            background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 12,
+            fontSize: 14, fontFamily: F, color: C.text, outline: 'none',
           }}
         />
       </div>
 
       {/* Status filter chips */}
-      <div style={{ display: 'flex', gap: 6, marginBottom: 16, overflowX: 'auto', paddingBottom: 2, scrollbarWidth: 'none' }}>
+      <div style={{ display: 'flex', gap: 6, marginBottom: 16, overflowX: 'auto', paddingBottom: 4, scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' }}>
         {statuses.map(s => (
           <button key={s.id} onClick={() => setStatusFilter(s.id)} style={{
-            padding: '5px 12px', borderRadius: 20, cursor: 'pointer', fontFamily: F,
-            fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap', flexShrink: 0,
+            padding: '6px 14px', borderRadius: 20, cursor: 'pointer', fontFamily: F,
+            fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap', flexShrink: 0,
             background: statusFilter === s.id ? BLUE : C.surf,
             color: statusFilter === s.id ? '#fff' : C.t2,
             border: `1px solid ${statusFilter === s.id ? BLUE : C.bdr}`,
+            transition: 'all 0.15s',
           }}>{s.label}</button>
         ))}
       </div>
 
       {/* Empty state */}
       {filtered.length === 0 && (
-        <div style={{ textAlign: 'center', padding: '52px 20px' }}>
+        <div style={{ textAlign: 'center', padding: '56px 20px' }}>
           <div style={{
-            width: 52, height: 52, borderRadius: 14,
+            width: 56, height: 56, borderRadius: 16,
             background: C.surf, border: `1px solid ${C.bdr}`,
-            display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px',
           }}>
-            {search || statusFilter !== 'all' ? <Filter size={20} color={C.t3} /> : <FileText size={20} color={C.t3} />}
+            {search || statusFilter !== 'all' ? <Search size={22} color={C.t3} /> : <FileText size={22} color={C.t3} />}
           </div>
-          <div style={{ fontSize: 15, fontWeight: 600, color: C.text, marginBottom: 5 }}>
+          <div style={{ fontSize: 16, fontWeight: 700, color: C.text, marginBottom: 6 }}>
             {search || statusFilter !== 'all' ? 'No matching requests' : 'No payment requests yet'}
           </div>
-          <div style={{ fontSize: 13, color: C.t3, marginBottom: 20 }}>
+          <div style={{ fontSize: 13, color: C.t3, marginBottom: 24, lineHeight: 1.6 }}>
             {search || statusFilter !== 'all'
               ? 'Try different search terms or clear the filter'
               : 'Create your first request and share the payment link'}
           </div>
           {!search && statusFilter === 'all' && (
             <button onClick={onNew} style={{
-              display: 'inline-flex', alignItems: 'center', gap: 6,
-              padding: '11px 20px', borderRadius: 12,
+              display: 'inline-flex', alignItems: 'center', gap: 7,
+              padding: '12px 22px', borderRadius: 12,
               background: BLUE, border: 'none', color: '#fff',
-              fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: F,
+              fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: F,
+              boxShadow: '0 4px 16px rgba(0,102,255,0.28)',
             }}>
-              <Plus size={14} /> New Request
+              <Plus size={15} /> New Request
             </button>
           )}
         </div>
@@ -264,46 +266,47 @@ function ListView({
 
       {/* Request list */}
       {filtered.length > 0 && (
-        <div style={{ background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 14, overflow: 'hidden' }}>
+        <div style={{ background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 16, overflow: 'hidden' }}>
           {filtered.map((req, idx) => (
             <div
               key={req.id}
               onClick={() => onOpen(req)}
               style={{
-                display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px',
+                display: 'flex', alignItems: 'center', gap: 12, padding: '15px 16px',
                 borderBottom: idx < filtered.length - 1 ? `1px solid ${C.bdr}` : 'none',
-                cursor: 'pointer',
+                cursor: 'pointer', transition: 'background 0.1s',
               }}
             >
               {/* Icon */}
               <div style={{
-                width: 38, height: 38, borderRadius: 10, flexShrink: 0,
+                width: 40, height: 40, borderRadius: 12, flexShrink: 0,
                 background: STATUS_META[req.status].bg,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}>
-                <FileText size={16} color={STATUS_META[req.status].color} />
+                <FileText size={17} color={STATUS_META[req.status].color} />
               </div>
 
               {/* Info */}
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {req.title}
                 </div>
-                <div style={{ fontSize: 11, color: C.t3, marginTop: 2 }}>
-                  {req.refNumber} · {req.recipientName}
-                  {req.dueDate && ` · Due ${new Date(req.dueDate).toLocaleDateString('en', { month: 'short', day: 'numeric' })}`}
+                <div style={{ fontSize: 11, color: C.t3, marginTop: 3, display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
+                  <span style={{ fontFamily: MONO }}>{req.refNumber}</span>
+                  {req.recipientName && <><span>·</span><span>{req.recipientName}</span></>}
+                  {req.dueDate && <><span>·</span><span>Due {new Date(req.dueDate).toLocaleDateString('en', { month: 'short', day: 'numeric' })}</span></>}
                 </div>
               </div>
 
               {/* Amount + status */}
-              <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                <div style={{ fontSize: 14, fontWeight: 700, color: req.status === 'paid' ? GREEN : C.text, fontFamily: MONO, marginBottom: 3 }}>
-                  {req.amount.toFixed(2)} {req.currency}
+              <div style={{ textAlign: 'right', flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+                <div style={{ fontSize: 15, fontWeight: 700, color: req.status === 'paid' ? GREEN : C.text, fontFamily: MONO }}>
+                  {req.amount.toFixed(2)} <span style={{ fontSize: 11, color: C.t3, fontWeight: 600 }}>{req.currency}</span>
                 </div>
                 <StatusBadge status={req.status} />
               </div>
 
-              <ChevronRight size={14} color={C.t3} />
+              <ChevronRight size={14} color={C.t3} style={{ flexShrink: 0 }} />
             </div>
           ))}
         </div>
@@ -596,19 +599,24 @@ function DetailView({
 
       {/* Amount hero */}
       <div style={{
-        background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 14,
-        padding: '20px', marginBottom: 14, textAlign: 'center',
+        background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 16,
+        padding: '24px 20px', marginBottom: 14, textAlign: 'center',
       }}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: C.t3, textTransform: 'uppercase', letterSpacing: '0.09em', marginBottom: 6 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: C.t3, textTransform: 'uppercase' as const, letterSpacing: '0.09em', marginBottom: 8 }}>
           Amount Requested
         </div>
-        <div style={{ fontSize: 40, fontWeight: 800, color: req.status === 'paid' ? GREEN : C.text, fontFamily: MONO, letterSpacing: '-0.03em', marginBottom: 4 }}>
+        <div style={{ fontSize: 44, fontWeight: 800, color: req.status === 'paid' ? GREEN : C.text, fontFamily: MONO, letterSpacing: '-0.03em', lineHeight: 1, marginBottom: 6 }}>
           {req.amount.toFixed(2)}
-          <span style={{ fontSize: 18, fontWeight: 600, color: C.t3, marginLeft: 8 }}>{req.currency}</span>
+          <span style={{ fontSize: 20, fontWeight: 600, color: C.t3, marginLeft: 10 }}>{req.currency}</span>
         </div>
         {req.status === 'paid' && req.paidAt && (
-          <div style={{ fontSize: 12, color: GREEN, fontWeight: 600 }}>
-            Paid on {new Date(req.paidAt).toLocaleDateString('en', { month: 'short', day: 'numeric', year: 'numeric' })}
+          <div style={{ fontSize: 12, color: GREEN, fontWeight: 600, marginTop: 4 }}>
+            Paid {new Date(req.paidAt).toLocaleDateString('en', { month: 'short', day: 'numeric', year: 'numeric' })}
+          </div>
+        )}
+        {req.status === 'pending' && req.dueDate && (
+          <div style={{ fontSize: 12, color: GOLD, fontWeight: 600, marginTop: 4 }}>
+            Due {new Date(req.dueDate).toLocaleDateString('en', { month: 'short', day: 'numeric', year: 'numeric' })}
           </div>
         )}
       </div>
@@ -618,20 +626,21 @@ function DetailView({
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
           <button onClick={copyLink} style={{
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
-            padding: '12px', borderRadius: 12,
+            padding: '14px', borderRadius: 12,
             background: BLUE, border: 'none', color: '#fff',
-            fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: F,
+            fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: F,
+            boxShadow: '0 4px 14px rgba(0,102,255,0.28)',
           }}>
-            {copied ? <Check size={14} /> : <Copy size={14} />}
+            {copied ? <Check size={15} /> : <Copy size={15} />}
             {copied ? 'Copied!' : 'Copy Link'}
           </button>
           <button onClick={shareLink} style={{
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
-            padding: '12px', borderRadius: 12,
+            padding: '14px', borderRadius: 12,
             background: C.surf, border: `1px solid ${C.bdr}`, color: C.text,
-            fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: F,
+            fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: F,
           }}>
-            <Share2 size={14} /> Share
+            <Share2 size={15} /> Share
           </button>
         </div>
       )}
