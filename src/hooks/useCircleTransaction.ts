@@ -45,6 +45,31 @@ export interface ContractExecParams {
   walletAddress?: string
 }
 
+
+const SESSION_EXPIRED_MSG =
+  'Your secure Circle session has expired (this happens after closing or reloading the tab). Please sign out and sign back in, then try again.'
+
+/**
+ * The W3S SDK needs the session encryptionKey to sign/execute challenges. It is kept in memory /
+ * sessionStorage only, so after a reload it is gone — and passing '' to the SDK makes Circle's popup
+ * fail with "encryptedUserSecret, storageKey, and pinCodeUserShare must be provided".
+ * Try to refresh the session to get a fresh key; if that is impossible the caller shows a clear error.
+ */
+async function resolveCircleSession(): Promise<{ userToken?: string; encryptionKey?: string }> {
+  const read = () => {
+    const a = useAppStore.getState().auth
+    let ek = a?.encryptionKey
+    if (!ek) { try { ek = sessionStorage.getItem('circle_ek') ?? undefined } catch { /* ignore */ } }
+    return { userToken: a?.userToken, encryptionKey: ek }
+  }
+  let creds = read()
+  if (creds.userToken && !creds.encryptionKey) {
+    try { await useAppStore.getState().refreshCircleToken() } catch { /* fall through */ }
+    creds = read()
+  }
+  return creds
+}
+
 const TERMINAL = new Set(['COMPLETE', 'FAILED', 'DENIED', 'CANCELLED'])
 const POLL_INTERVAL_MS = 2000
 const POLL_TIMEOUT_MS  = 120_000
@@ -67,11 +92,11 @@ export function useCircleTransaction() {
   /** Calls the backend to create a challenge, then executes it via the SDK */
   const _execute = useCallback(
     async (action: string, extraBody: Record<string, string>): Promise<string | undefined> => {
-      const userToken     = auth?.userToken
+      let userToken     = auth?.userToken
       // encryptionKey is wiped from the persisted store on reload for security.
       // Restore it from sessionStorage (same-tab only, cleared on tab close).
       const storedEk = (() => { try { return sessionStorage.getItem('circle_ek') ?? undefined } catch { return undefined } })()
-      const encryptionKey = auth?.encryptionKey ?? storedEk
+      let encryptionKey = auth?.encryptionKey ?? storedEk
       const walletId      = auth?.circleWalletId
       const appId         = import.meta.env.VITE_CIRCLE_APP_ID as string | undefined
 
@@ -82,6 +107,16 @@ export function useCircleTransaction() {
         setError('Circle session expired — please log in again')
         setStatus('error')
         return undefined
+      }
+      {
+        const fresh = await resolveCircleSession()
+        if (!fresh.encryptionKey) {
+          setError(SESSION_EXPIRED_MSG)
+          setStatus('error')
+          return undefined
+        }
+        userToken = fresh.userToken ?? userToken
+        encryptionKey = fresh.encryptionKey
       }
       if (!appId) {
         setError('VITE_CIRCLE_APP_ID is not set — add it to .env and restart the dev server')
@@ -270,15 +305,25 @@ export function useCircleTransaction() {
   const signTypedData = useCallback(
     async (typedDataJson: string): Promise<string | undefined> => {
       setError(undefined); setStatus('idle')
-      const userToken     = auth?.userToken
+      let userToken     = auth?.userToken
       const storedEk2 = (() => { try { return sessionStorage.getItem('circle_ek') ?? undefined } catch { return undefined } })()
-      const encryptionKey = auth?.encryptionKey ?? storedEk2
+      let encryptionKey = auth?.encryptionKey ?? storedEk2
       const walletId      = auth?.circleWalletId
       const appId         = import.meta.env.VITE_CIRCLE_APP_ID as string | undefined
       if (!userToken || !walletId) {
         setError('Circle session expired — please log in again')
         setStatus('error')
         return undefined
+      }
+      {
+        const fresh = await resolveCircleSession()
+        if (!fresh.encryptionKey) {
+          setError(SESSION_EXPIRED_MSG)
+          setStatus('error')
+          return undefined
+        }
+        userToken = fresh.userToken ?? userToken
+        encryptionKey = fresh.encryptionKey
       }
       if (!appId) {
         setError('VITE_CIRCLE_APP_ID is not set')
@@ -335,15 +380,25 @@ export function useCircleTransaction() {
   const signMessage = useCallback(
     async (message: string): Promise<string | undefined> => {
       setError(undefined); setStatus('idle')
-      const userToken     = auth?.userToken
+      let userToken     = auth?.userToken
       const storedEk3 = (() => { try { return sessionStorage.getItem('circle_ek') ?? undefined } catch { return undefined } })()
-      const encryptionKey = auth?.encryptionKey ?? storedEk3
+      let encryptionKey = auth?.encryptionKey ?? storedEk3
       const walletId      = auth?.circleWalletId
       const appId         = import.meta.env.VITE_CIRCLE_APP_ID as string | undefined
       if (!userToken || !walletId) {
         setError('Circle session expired — please log in again')
         setStatus('error')
         return undefined
+      }
+      {
+        const fresh = await resolveCircleSession()
+        if (!fresh.encryptionKey) {
+          setError(SESSION_EXPIRED_MSG)
+          setStatus('error')
+          return undefined
+        }
+        userToken = fresh.userToken ?? userToken
+        encryptionKey = fresh.encryptionKey
       }
       if (!appId) {
         setError('VITE_CIRCLE_APP_ID is not set')
