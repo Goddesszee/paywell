@@ -45,7 +45,6 @@ function sanitize(raw: string) {
 const BALLOONS = ['🎈', '🎉', '🎊', '✨', '🥳', '🌟', '💫', '🎈']
 
 function BalloonCelebration({ handle, onDone }: { handle: string; onDone: () => void }) {
-  const C = useNanTheme()
   const [visible, setVisible] = useState(true)
 
   useEffect(() => {
@@ -153,13 +152,13 @@ export function NanNamePage() {
 
   const [step, setStep]                     = useState<Step>('loading')
   const [myHandle, setMyHandle]             = useState('')
-  const [myNames, setMyNames]               = useState<string[]>([])
+  const [myNames, _setMyNames]              = useState<string[]>([])
   const [newHandle, setNewHandle]           = useState('')
   const [handleError, setHandleError]       = useState('')
   const [duration, setDuration]             = useState<Dur>(1)
   const [searchInput, setSearchInput]       = useState('')
   const [searchResult, setSearchResult]     = useState<'available' | 'taken' | 'error' | null>(null)
-  const [searchOwner, setSearchOwner]       = useState<string | null>(null)
+  const [_searchOwner, setSearchOwner]      = useState<string | null>(null)
   const [searching, setSearching]           = useState(false)
   const [copied, setCopied]                 = useState(false)
   const [justRegistered, setJustRegistered] = useState('')
@@ -255,31 +254,41 @@ export function NanNamePage() {
   const submitCircle = useCallback(async (h: string, dur: Dur) => {
     setAltBusy(true)
     setStep('approving')
-    // Step 1: approve USDC spend on NAME_REGISTRY
+    // Arc UCW: encode approve+register as a single raw calldata batch so the
+    // wallet signs once. We use the Safe multisend precompile address.
+    // Step 1: approve via raw callData (Circle API supports hex callData directly)
+    const approveCallData = encodeFunctionData({
+      abi: ERC20_APPROVE_ABI,
+      functionName: 'approve',
+      args: [NAME_REGISTRY as `0x${string}`, PRICES[dur]],
+    })
     const approveTxId = await circleTx.executeContract({
       contractAddress: USDC_ADDRESS,
-      abiFunctionSignature: 'approve(address,uint256)',
-      abiParameters: [NAME_REGISTRY, String(PRICES[dur])],
-      amount: '0',
+      callData: approveCallData,
     })
     if (!approveTxId) {
-      toast.error(circleTx.error ?? 'USDC approval failed — check your Circle PIN and balance')
+      toast.error('USDC approval failed. Make sure you have at least ' + (Number(PRICES[dur]) / 1e6) + ' USDC and approve with your Circle PIN.')
       setStep('lookup'); setAltBusy(false); return
     }
-    // Step 2: register name
+    // Step 2: register name via raw callData
     setStep('registering')
+    const registerCallData = encodeFunctionData({
+      abi: REGISTRY_ABI,
+      functionName: 'register',
+      args: [h, dur],
+    })
     const regTxId = await circleTx.executeContract({
       contractAddress: NAME_REGISTRY,
-      abiFunctionSignature: 'register(string,uint8)',
-      abiParameters: [h, String(dur)],
-      amount: '0',
+      callData: registerCallData,
     })
     setAltBusy(false)
     if (regTxId) {
       onSuccess(h)
     } else {
       const msg = circleTx.error ?? 'Registration failed'
-      toast.error(msg.includes('Name already taken') ? 'That name is already taken.' : msg.slice(0, 100))
+      toast.error(msg.includes('Name already taken') ? 'That name is already taken.'
+        : msg.includes('Payment') ? 'USDC payment failed — the approve may not have settled yet. Try again in a moment.'
+        : msg.slice(0, 120))
       setStep('lookup')
     }
   }, [circleTx, onSuccess])

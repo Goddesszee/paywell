@@ -647,6 +647,7 @@ function AdminAuditPanel() {
 
 type Metric = { label: string; value: string; sub: string; icon: React.ReactNode; trend?: string }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function MetricCard({ label, value, sub, icon, trend }: Metric) {
   return (
     <div style={{ background: 'var(--nan-surface)', border: '1px solid var(--nan-bdr)', borderRadius: 14, padding: '18px 20px' }}>

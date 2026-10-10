@@ -42,13 +42,18 @@ export const PRICES: Record<1 | 2 | 5, bigint> = {
 // ── Fallback RPC client (no wagmi dependency) ──────────────────────────────
 // Used when wagmi's usePublicClient returns undefined (Circle UCW / passkey users
 // who have no injected wallet connected).
+const ARC_CHAIN = {
+  id: ARC_CHAIN_ID,
+  name: 'Arc Testnet',
+  nativeCurrency: { name: 'USDC', symbol: 'USDC', decimals: 18 },
+  rpcUrls: { default: { http: [ARC_RPC] }, public: { http: [ARC_RPC] } },
+  blockExplorers: { default: { name: 'Arc Explorer', url: 'https://explorer.testnet.arc.io' } },
+} as const
+
 let _fallbackClient: ReturnType<typeof createPublicClient> | null = null
 function getFallbackClient() {
   if (!_fallbackClient) {
-    _fallbackClient = createPublicClient({
-      transport: http(ARC_RPC),
-      chain: { id: ARC_CHAIN_ID, name: 'Arc Testnet', nativeCurrency: { name: 'USDC', symbol: 'USDC', decimals: 18 }, rpcUrls: { default: { http: [ARC_RPC] } } },
-    })
+    _fallbackClient = createPublicClient({ transport: http(ARC_RPC), chain: ARC_CHAIN })
   }
   return _fallbackClient
 }
@@ -61,12 +66,28 @@ async function readRegistry<
   args: unknown[],
 ): Promise<unknown> {
   const c = client ?? getFallbackClient()
-  return c.readContract({
-    address: NAME_REGISTRY as `0x${string}`,
-    abi: REGISTRY_ABI as never,
-    functionName: functionName,
-    args: args,
-  })
+  // Arc Testnet RPC requires gas in eth_call — pass it via stateOverride workaround.
+  // We do this by wrapping in a try/catch: if the wagmi client throws (Arc RPC quirk),
+  // fall back to the fallback client with explicit gas in the call object.
+  try {
+    return await c.readContract({
+      address: NAME_REGISTRY as `0x${string}`,
+      abi: REGISTRY_ABI as never,
+      functionName: functionName,
+      args: args,
+      gas: 500_000n,
+    } as Parameters<typeof c.readContract>[0])
+  } catch {
+    // Final fallback: use getFallbackClient with gas
+    const fb = getFallbackClient()
+    return fb.readContract({
+      address: NAME_REGISTRY as `0x${string}`,
+      abi: REGISTRY_ABI as never,
+      functionName: functionName,
+      args: args,
+      gas: 500_000n,
+    } as Parameters<typeof fb.readContract>[0])
+  }
 }
 
 export function useNanName() {

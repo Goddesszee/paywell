@@ -317,6 +317,9 @@ export interface AppState {
   nanHandle: string
   setNanHandle: (h: string) => void
 
+  showWelcome: boolean
+  setShowWelcome: (v: boolean) => void
+
   theme: 'dark' | 'light'
   setTheme: (t: 'dark' | 'light') => void
 
@@ -526,6 +529,8 @@ export const useAppStore = create<AppState>()(
       setActiveView: (view) => set((s) => ({ previousView: s.activeView, activeView: view })),
       nanHandle: '',
       setNanHandle: (h) => set({ nanHandle: h }),
+      showWelcome: false,
+      setShowWelcome: (v) => set({ showWelcome: v }),
       previousView: null,
 
       theme: 'dark',

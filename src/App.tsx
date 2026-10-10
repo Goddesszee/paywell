@@ -34,6 +34,7 @@ import { ExportsPage } from './components/pages/ExportsPage'
 import { PaymentRequestsPage } from './components/pages/PaymentRequestsPage'
 import { ContactsPage } from './components/pages/ContactsPage'
 import { NanNamePage } from './components/pages/NanNamePage'
+import { WelcomeBalloon } from './components/WelcomeBalloon'
 import { useActivityStream } from './hooks/useActivityStream'
 import { usePresence } from './hooks/usePresence'
 
@@ -132,11 +133,13 @@ export default function App() {
   if (activeView === 'landing') return <LandingPage />
   if (activeView === 'login') return <LoginPage />
   if (activeView === 'onboarding') return <OnboardingPage />
-  if (activeView === 'name') return <NamePage />
+  if (activeView === 'name') return <><WelcomeBalloon /><NamePage /></>
   if (activeView === 'admin') return <AdminDashboard />
 
   // App pages — inside the shell
   return (
+    <>
+    <WelcomeBalloon />
     <AppShell>
       {activeView === 'home' && <HomePage />}
       {activeView === 'dashboard' && <DashboardPage />}
@@ -168,5 +171,7 @@ export default function App() {
       {activeView === 'contacts' && <ContactsPage />}
       {activeView === 'nan-name' && <NanNamePage />}
     </AppShell>
+    </>
+
   )
 }

@@ -21,7 +21,7 @@ type LoginMode = 'choose' | 'email' | 'google' | 'wallet' | 'passkey'
 
 export function LoginPage() {
   const { address, isConnected } = useAccount()
-  const { setAuth, setActiveView, profile } = useAppStore()
+  const { setAuth, setActiveView, profile, setShowWelcome } = useAppStore()
   const [mode, setMode] = useState<LoginMode>('choose')
 
   // ── wallet connect effect — ONLY fires when user chose 'wallet' mode ──────
@@ -33,9 +33,10 @@ export function LoginPage() {
     if (isConnected && address) {
       const token = btoa(`${address}:${Date.now()}`)
       setAuth({ email: address, sessionToken: token, walletAddress: address, walletId: address })
+      setShowWelcome(true)
       setActiveView(profile.displayName ? 'home' : 'name')
     }
-  }, [mode, isConnected, address, profile.displayName, setAuth, setActiveView])
+  }, [mode, isConnected, address, profile.displayName, setAuth, setActiveView, setShowWelcome])
 
   // ── Circle email auth success ─────────────────────────────────────────────
   // CircleEmailLogin.handleFinishAuth already called setAuth with the real
@@ -52,9 +53,9 @@ export function LoginPage() {
       walletAddress,
       walletId: existing?.walletId ?? walletAddress,
       circleWalletAddress: walletAddress,
-      // Preserve the real Circle wallet UUID set by handleFinishAuth — do NOT overwrite with address
       circleWalletId: existing?.circleWalletId ?? walletAddress,
     })
+    setShowWelcome(true)
     setActiveView(profile.displayName ? 'home' : 'name')
   }
   void currentAuth // suppress unused warning
@@ -73,6 +74,7 @@ export function LoginPage() {
       circleWalletId: walletAddress,
       isPasskeyUser: true,
     })
+    setShowWelcome(true)
     setActiveView(profile.displayName ? 'home' : 'name')
   }
 
