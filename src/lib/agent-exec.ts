@@ -16,6 +16,7 @@ import { W3SSdk } from '@circle-fin/w3s-pw-web-sdk'
 import type { EIP1193Provider } from 'viem'
 import { getPasskeyAdapter } from '../components/CirclePasskeyLogin'
 import { useAppStore } from '../store/appStore'
+import { getCircleCreds, getChallengeTransactionId, SESSION_EXPIRED_MSG } from './circle-session'
 
 const ARC_CHAIN_ID = 5042002
 const ARC_KIT_NAME = 'Arc_Testnet'
@@ -75,17 +76,25 @@ function requireAmount(amount: string): number {
 }
 
 // ── Shared Circle PIN popup ───────────────────────────────────────────────────
-function executeCircleChallenge(challengeId: string, userToken: string, encryptionKey?: string): Promise<string> {
+function executeCircleChallenge(challengeId: string, userToken: string, _encryptionKey?: string): Promise<string> {
   const appId = (import.meta.env.VITE_CIRCLE_APP_ID as string | undefined) ?? ''
   if (!appId) return Promise.reject(new Error('VITE_CIRCLE_APP_ID is not set.'))
+  // The session key is memory/sessionStorage only. Without it Circle's popup fails with a cryptic
+  // "encryptedUserSecret, storageKey, and pinCodeUserShare must be provided" — so say it plainly.
+  const creds = getCircleCreds()
+  if (!creds.encryptionKey) return Promise.reject(new Error(SESSION_EXPIRED_MSG))
   const sdk = new W3SSdk({ appSettings: { appId } })
-  // Empty key makes the SDK ask for the PIN again (key is never persisted across reloads)
-  sdk.setAuthentication({ userToken, encryptionKey: encryptionKey ?? '' })
+  sdk.setAuthentication({ userToken: creds.userToken ?? userToken, encryptionKey: creds.encryptionKey })
   return new Promise<string>((resolve, reject) => {
     sdk.execute(challengeId, (err, result) => {
       if (err) { reject(new Error(err instanceof Error ? err.message : 'PIN approval failed')); return }
       const r = result as { data?: { transactionHash?: string; transactionId?: string } }
-      resolve(r?.data?.transactionHash ?? r?.data?.transactionId ?? '')
+      const direct = r?.data?.transactionHash ?? r?.data?.transactionId
+      if (direct) { resolve(direct); return }
+      // Result carried no id — Circle exposes it as challenge.correlationIds[0]
+      void getChallengeTransactionId(creds.userToken ?? userToken, challengeId)
+        .then(c => resolve(c.transactionId ?? ''))
+        .catch(() => resolve(''))
     })
   })
 }

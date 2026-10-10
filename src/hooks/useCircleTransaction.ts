@@ -15,6 +15,7 @@
 import { useState, useCallback, useRef } from 'react'
 import { W3SSdk } from '@circle-fin/w3s-pw-web-sdk'
 import { useAppStore } from '../store/appStore'
+import { getCircleCreds, SESSION_EXPIRED_MSG } from '../lib/circle-session'
 
 export type CircleTxStatus =
   | 'idle'
@@ -46,23 +47,9 @@ export interface ContractExecParams {
 }
 
 
-const SESSION_EXPIRED_MSG =
-  'Your secure Circle session has expired (this happens after closing or reloading the tab). Please sign out and sign back in, then try again.'
-
-/**
- * The W3S SDK needs the session encryptionKey to sign/execute challenges. It is kept in memory /
- * sessionStorage only, so after a reload it is gone — and passing '' to the SDK makes Circle's popup
- * fail with "encryptedUserSecret, storageKey, and pinCodeUserShare must be provided".
- * If the key is missing the caller shows a clear 'sign in again' error.
- */
 async function resolveCircleSession(): Promise<{ userToken?: string; encryptionKey?: string }> {
-  const a = useAppStore.getState().auth
-  let ek = a?.encryptionKey
-  if (!ek) { try { ek = sessionStorage.getItem('circle_ek') ?? undefined } catch { /* ignore */ } }
-  // NOTE: for email/social users Circle only refreshes a session with the login refreshToken +
-  // deviceId (POST /users/token/refresh), which we don't persist yet — so a missing key means a
-  // fresh login is required. We say so clearly instead of opening Circle's popup with an empty key.
-  return { userToken: a?.userToken, encryptionKey: ek }
+  // A missing key means a fresh login is required (see circle-session.ts).
+  return getCircleCreds()
 }
 
 const TERMINAL = new Set(['COMPLETE', 'FAILED', 'DENIED', 'CANCELLED'])

@@ -218,8 +218,33 @@ async function submitBurnIntent(
 
 type Tab = 'balance' | 'deposit' | 'transfer'
 
+/**
+ * Applies an amount / destination chain requested by the NAN Agent ("deposit 20 USDC to Gateway",
+ * "transfer 5 USDC to Base") when a tab mounts, then clears it. The user still confirms with the
+ * button — nothing is sent without their approval.
+ */
+function useGatewayPrefill(
+  mode: 'deposit' | 'transfer',
+  setAmount: (v: string) => void,
+  setDestChainId?: (id: number) => void,
+) {
+  useEffect(() => {
+    const gp = useAppStore.getState().gatewayPrefill
+    if (!gp || gp.mode !== mode) return
+    if (gp.amount) setAmount(gp.amount)
+    if (gp.toChain && setDestChainId) {
+      const q = gp.toChain.toLowerCase().replace(/[^a-z ]/g, ' ').trim()
+      const hit = GATEWAY_CHAINS.find(c => c.chainId !== ARC && q && (
+        c.name.toLowerCase().includes(q) || q.includes(c.name.toLowerCase().split(' ')[0])))
+      if (hit) setDestChainId(hit.chainId)
+    }
+    useAppStore.getState().setGatewayPrefill(null)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+}
+
 export function GatewayPage() {
-  const [tab, setTab] = useState<Tab>('balance')
+  const [tab, setTab] = useState<Tab>(() => useAppStore.getState().gatewayPrefill?.mode ?? 'balance')
   const [infoOpen, setInfoOpen] = useState(false)
   const { address: wagmiAddress } = useAccount()
   const { auth } = useAppStore()
@@ -403,6 +428,7 @@ function DepositTab({ address, walletBalance, usdcFact, onSuccess }: {
 }) {
   const { chainId } = useAccount()
   const [amount, setAmount] = useState('')
+  useGatewayPrefill('deposit', setAmount)
   const [phase, setPhase] = useState<'idle'|'approving'|'depositing'|'done'|'error'>('idle')
   const [errMsg, setErrMsg] = useState('')
   const decimals = usdcFact?.decimals ?? 6
@@ -584,6 +610,7 @@ function PasskeyDepositTab({ address, walletBalance, usdcFact, onSuccess }: {
   usdcFact: { address: string } | undefined; onSuccess: () => void
 }) {
   const [amount, setAmount] = useState('')
+  useGatewayPrefill('deposit', setAmount)
   const [phase, setPhase] = useState<'idle'|'busy'|'done'|'error'>('idle')
   const [errMsg, setErrMsg] = useState('')
 
@@ -758,6 +785,7 @@ function W3SDepositTab({ address, walletBalance, usdcFact, onSuccess }: {
   usdcFact: { address: string } | undefined; onSuccess: () => void
 }) {
   const [amount, setAmount] = useState('')
+  useGatewayPrefill('deposit', setAmount)
   const circleTx = useCircleTransaction()
   const { status, error } = circleTx
   const busy = status === 'creating' || status === 'approving' || status === 'polling'
@@ -886,6 +914,7 @@ function TransferTab({ address, gatewayBalance, onSuccess }: {
 }) {
   const [amount, setAmount] = useState('')
   const [destChainId, setDestChainId] = useState<number>(84532)
+  useGatewayPrefill('transfer', setAmount, setDestChainId)
   const [phase, setPhase] = useState<TransferPhase>('idle')
   const [errMsg, setErrMsg] = useState('')
   const [transferId, setTransferId] = useState<string | undefined>()
@@ -1175,6 +1204,7 @@ function CircleTransferTab({ address, gatewayBalance, onSuccess }: {
   const isPasskey = !!auth?.isPasskeyUser
   const [amount, setAmount]           = useState('')
   const [destChainId, setDestChainId] = useState<number>(84532)
+  useGatewayPrefill('transfer', setAmount, setDestChainId)
   const [phase, setPhase]             = useState<TransferPhase>('idle')
   const [errMsg, setErrMsg]           = useState('')
   const [mintTxHash, setMintTxHash]   = useState<string | undefined>() // 'forwarded' for forwarder path

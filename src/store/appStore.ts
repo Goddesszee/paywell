@@ -363,6 +363,8 @@ export interface AppState {
   setCrossChainBalances: (balances: Record<string, string>) => void
 
   bridgePrefill: { amount?: string; toChain?: string } | null
+  gatewayPrefill: { mode: 'deposit' | 'transfer'; amount?: string; toChain?: string } | null
+  setGatewayPrefill: (p: { mode: 'deposit' | 'transfer'; amount?: string; toChain?: string } | null) => void
   setBridgePrefill: (p: { amount?: string; toChain?: string } | null) => void
   onrampPrefill: { amount?: number } | null
   setOnrampPrefill: (p: { amount?: number } | null) => void
@@ -697,6 +699,8 @@ export const useAppStore = create<AppState>()(
       setCrossChainBalances: (balances) => set({ crossChainBalances: balances }),
 
       bridgePrefill: null,
+      gatewayPrefill: null,
+      setGatewayPrefill: (p) => set({ gatewayPrefill: p }),
       onrampPrefill: null,
       setOnrampPrefill: (p) => set({ onrampPrefill: p }),
       setBridgePrefill: (p) => set({ bridgePrefill: p }),

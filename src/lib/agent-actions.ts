@@ -878,7 +878,7 @@ export async function executeAction(action: NanAction, ctx: ExecutorContext): Pr
       const owner = ctx.connectedAddress ?? store.auth?.walletAddress ?? store.auth?.circleWalletAddress ?? ''
       if (created && owner) void syncRtCreate(owner, created)
       navigate('recurring')
-      return `Recurring payment "${name}" created — ${amount} USDC ${frequency} to ${recipient.slice(0, 10)}… You can see it in your Recurring dashboard.`
+      return `Recurring payment "${name}" created — ${amount} USDC ${frequency} to ${recipient.slice(0, 10)}… You can see it in your Recurring dashboard.${ctx.connectedAddress ? '' : ' With a Circle (email) wallet each payment needs your approval, so tap "Run now" on it when it is due.'}`
     }
 
     case 'add_agent_recurring': {
@@ -893,7 +893,7 @@ export async function executeAction(action: NanAction, ctx: ExecutorContext): Pr
       const owner = ctx.connectedAddress ?? store.auth?.walletAddress ?? store.auth?.circleWalletAddress ?? ''
       if (created && owner) void syncRtCreate(owner, created)
       navigate('recurring')
-      return `Recurring payment "${name}" created — ${amount} USDC ${frequency} to ${recipient.slice(0, 10)}… You can see it in your Recurring dashboard.`
+      return `Recurring payment "${name}" created — ${amount} USDC ${frequency} to ${recipient.slice(0, 10)}… You can see it in your Recurring dashboard.${ctx.connectedAddress ? '' : ' With a Circle (email) wallet each payment needs your approval, so tap "Run now" on it when it is due.'}`
     }
 
     case 'cancel_recurring': {
@@ -953,15 +953,15 @@ export async function executeAction(action: NanAction, ctx: ExecutorContext): Pr
     }
 
     case 'ucw_gateway_deposit': {
-      store.setBridgePrefill({ amount: action.params.amount, toChain: 'gateway' })
+      store.setGatewayPrefill({ mode: 'deposit', amount: action.params.amount })
       navigate('gateway')
-      return `Opening Gateway tab — deposit ${action.params.amount} USDC into your unified cross-chain balance. Complete the deposit there.`
+      return `Opening Gateway with a ${action.params.amount} USDC deposit filled in — tap Deposit to confirm.`
     }
 
     case 'ucw_gateway_transfer': {
-      store.setBridgePrefill({ amount: action.params.amount, toChain: action.params.toChain })
+      store.setGatewayPrefill({ mode: 'transfer', amount: action.params.amount, toChain: action.params.toChain })
       navigate('gateway')
-      return `Opening Gateway tab — transfer ${action.params.amount} USDC to ${action.params.toChain} via Circle Gateway (~500ms). Complete the transfer there.`
+      return `Opening Gateway with a ${action.params.amount} USDC transfer to ${action.params.toChain} filled in — tap Transfer to confirm.`
     }
 
     case 'navigate': {
@@ -1147,11 +1147,11 @@ export async function executeAction(action: NanAction, ctx: ExecutorContext): Pr
 
     case 'gateway_start': {
       const { mode, amount, toChain } = action.params
-      store.setBridgePrefill({ amount, toChain: mode === 'deposit' ? 'gateway' : toChain })
+      store.setGatewayPrefill({ mode, amount, toChain })
       navigate('gateway')
       return mode === 'deposit'
-        ? `Opening Gateway${amount ? ` — deposit ${amount} USDC` : ''}. Confirm the deposit there.`
-        : `Opening Gateway${amount ? ` — transfer ${amount} USDC` : ''}${toChain ? ` to ${toChain}` : ''}. Confirm the transfer there.`
+        ? `Opening Gateway${amount ? ` with a ${amount} USDC deposit filled in` : ''} — tap Deposit to confirm.`
+        : `Opening Gateway${amount ? ` with a ${amount} USDC transfer` : ''}${toChain ? ` to ${toChain}` : ''} filled in — tap Transfer to confirm.`
     }
 
     case 'update_profile': {
