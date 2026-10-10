@@ -33,8 +33,6 @@ import { DashboardPage } from './components/pages/DashboardPage'
 import { ExportsPage } from './components/pages/ExportsPage'
 import { PaymentRequestsPage } from './components/pages/PaymentRequestsPage'
 import { ContactsPage } from './components/pages/ContactsPage'
-import { MerchantQRPage } from './components/pages/MerchantQRPage'
-import { BusinessDashboard } from './components/pages/BusinessDashboard'
 import { useActivityStream } from './hooks/useActivityStream'
 import { usePresence } from './hooks/usePresence'
 
@@ -167,8 +165,6 @@ export default function App() {
       {activeView === 'exports' && <ExportsPage />}
       {activeView === 'payment-requests' && <PaymentRequestsPage />}
       {activeView === 'contacts' && <ContactsPage />}
-      {activeView === 'merchant-qr' && <MerchantQRPage />}
-      {activeView === 'business' && <BusinessDashboard />}
     </AppShell>
   )
 }

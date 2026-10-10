@@ -5,7 +5,7 @@ import {
   Droplet, Layers, Repeat, Bot, Wallet,
   MessageSquare, HelpCircle, Info, User, Search, Bookmark,
   Star, Lightbulb, ArrowRight, Clock, ShoppingBag, FileDown,
-  FileText, QrCode,
+  FileText,
 } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
 import { useAccount } from 'wagmi'
@@ -32,6 +32,7 @@ const ALL_RESULTS: SearchResult[] = [
   { id:'bridge',      title:'Bridge USDC',          subtitle:'Move USDC across chains',            category:'Finance',     Icon:ArrowLeftRight, iconColor:BLUE,      action:'bridge' },
   { id:'buy',         title:'Buy USDC',             subtitle:'Purchase with card or bank',         category:'Finance',     Icon:ShoppingBag,    iconColor:BLUE,      action:'onramp' },
   { id:'gateway',     title:'Gateway',              subtitle:'Unified cross-chain balance',        category:'Finance',     Icon:Layers,         iconColor:BLUE,      action:'gateway' },
+
   { id:'recurring',   title:'Recurring Payments',   subtitle:'Schedule automatic transfers',       category:'Finance',     Icon:Repeat,         iconColor:'#8B5CF6', action:'recurring' },
   { id:'faucet',      title:'Faucet',               subtitle:'Free testnet USDC',                  category:'Finance',     Icon:Droplet,        iconColor:'#00C853', action:'faucet' },
   { id:'agent',        title:'AI Agents',            subtitle:'Autonomous service & payment agent', category:'Agents',      Icon:Bot,            iconColor:BLUE,      action:'agent' },
@@ -241,9 +242,7 @@ const SIDEBAR_SECTIONS = [
     { id: 'recurring',    label: 'Recurring',     Icon: Repeat, desc: 'Scheduled payments' },
   ]},
   { title: 'Business', items: [
-    { id: 'business',     label: 'Business',      Icon: LayoutDashboard, desc: 'Revenue, invoices & QR payments' },
-    { id: 'merchant-qr',  label: 'Payment QR',    Icon: QrCode,          desc: 'Printable QR for in-person payments' },
-    { id: 'contacts',     label: 'Contacts',       Icon: User,            desc: 'People you have paid' },
+    { id: 'contacts', label: 'Contacts', Icon: User, desc: 'People you have paid' },
   ]},
   { title: 'Account', items: [
     { id: 'exports',   label: 'Statement',   Icon: FileDown, desc: 'Download your account statement' },

@@ -2,7 +2,7 @@
 const TOKEN_KEY = 'nan_admin_token'
 
 export const getAdminToken = (): string => { try { return sessionStorage.getItem(TOKEN_KEY) ?? '' } catch { return '' } }
-export const setAdminToken = (t: string) => { try { t ? sessionStorage.setItem(TOKEN_KEY, t) : sessionStorage.removeItem(TOKEN_KEY) } catch { /* ignore */ } }
+export const setAdminToken = (t: string) => { try { if (t) { sessionStorage.setItem(TOKEN_KEY, t) } else { sessionStorage.removeItem(TOKEN_KEY) } } catch { /* ignore */ } }
 
 export async function adminLogin(password: string): Promise<{ ok: true } | { ok: false; error: string }> {
   try {
