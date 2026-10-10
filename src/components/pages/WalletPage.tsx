@@ -67,7 +67,17 @@ type WalletSubView = 'main' | 'send' | 'send_confirm' | 'send_success' | 'receiv
 
 export function WalletPage({ initialSubView = 'main' }: { initialSubView?: WalletSubView }) {
   const [subView, setSubView] = useState<WalletSubView>(initialSubView)
-  const { agentPermissions, addActivity, activity, auth, setMainWalletBalance } = useAppStore()
+  const { agentPermissions, addActivity, activity, auth, setMainWalletBalance, setActiveView } = useAppStore()
+  // When opened directly as 'send' or 'receive' from another page (e.g. Home),
+  // pressing Back should return to the previous page instead of the wallet main view.
+  const launchedAsSendOrReceive = initialSubView === 'send' || initialSubView === 'receive'
+  const handleBack = () => {
+    if (launchedAsSendOrReceive) {
+      setActiveView('home')
+    } else {
+      setSubView('main')
+    }
+  }
   const { address: wagmiAddress, chainId } = useAccount()
   // Circle wallet users don't connect via wagmi — fall back to circleWalletAddress
   const address = wagmiAddress ?? (auth?.circleWalletAddress as `0x${string}` | undefined)
@@ -141,15 +151,15 @@ export function WalletPage({ initialSubView = 'main' }: { initialSubView?: Walle
         chainId={chainId}
         isCircleUser={isCircleUser}
         isPasskeyUser={!!auth?.isPasskeyUser}
-        onBack={() => setSubView('main')}
-        onSuccess={() => { void refetch(); setSubView('main') }}
+        onBack={handleBack}
+        onSuccess={() => { void refetch(); handleBack() }}
         addActivity={addActivity}
       />
     )
   }
 
   if (subView === 'receive') {
-    return <ReceiveView address={address} onBack={() => setSubView('main')} />
+    return <ReceiveView address={address} onBack={handleBack} />
   }
 
   const agentReserved = agentPermissions.dailyLimit
