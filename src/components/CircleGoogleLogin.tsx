@@ -28,7 +28,7 @@ const BORDER  = 'var(--nan-bdr2)'
 const CIRCLE_APP_ID    = import.meta.env.VITE_CIRCLE_APP_ID     as string | undefined
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID  as string | undefined
 
-interface LoginResult { userToken: string; encryptionKey: string }
+interface LoginResult { userToken: string; encryptionKey: string; refreshToken?: string }
 
 type Step = 'idle' | 'waiting' | 'creating' | 'done' | 'error'
 
@@ -49,13 +49,15 @@ export function CircleGoogleLogin({ onBack, onSuccess }: Props) {
   const [loading, setLoading] = useState(false)
 
   // ── load wallets and finish auth ────────────────────────────────────────────
-  const finishAuth = useCallback(async (userToken: string) => {
+  const finishAuth = useCallback(async (userToken: string, encryptionKey?: string, refreshToken?: string) => {
     try {
       const res  = await fetch('/api/wallet', { headers: { 'x-user-token': userToken } })
       const data = await res.json() as { wallets?: { address: string; id: string }[] }
       const wallet = data.wallets?.[0]
       const addr   = wallet?.address ?? ''
-      setAuth({ email: '', sessionToken: userToken, userToken, circleWalletAddress: addr, walletAddress: addr, walletId: wallet?.id ?? '' })
+      let deviceId: string | undefined
+      try { deviceId = await sdkRef.current?.getDeviceId() } catch { /* optional */ }
+      setAuth({ email: '', sessionToken: userToken, userToken, encryptionKey, refreshToken, deviceId, circleWalletAddress: addr, walletAddress: addr, walletId: wallet?.id ?? '' })
       setStep('done')
       onSuccess(addr, userToken, '')
     } catch {
@@ -92,7 +94,7 @@ export function CircleGoogleLogin({ onBack, onSuccess }: Props) {
           const data = await res.json() as { challengeId?: string; code?: number; error?: string }
 
           if (data.code === 155106) {
-            await finishAuth(r.userToken)
+            await finishAuth(r.userToken, r.encryptionKey, r.refreshToken)
             return
           }
           if (data.error || !data.challengeId) {
@@ -110,7 +112,7 @@ export function CircleGoogleLogin({ onBack, onSuccess }: Props) {
               setStep('error')
               return
             }
-            await finishAuth(r.userToken)
+            await finishAuth(r.userToken, r.encryptionKey, r.refreshToken)
           })
         } catch {
           setError('Network error — please try again.')

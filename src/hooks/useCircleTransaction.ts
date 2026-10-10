@@ -15,7 +15,7 @@
 import { useState, useCallback, useRef } from 'react'
 import { W3SSdk } from '@circle-fin/w3s-pw-web-sdk'
 import { useAppStore } from '../store/appStore'
-import { getCircleCreds, SESSION_EXPIRED_MSG } from '../lib/circle-session'
+import { ensureCircleCreds, SESSION_EXPIRED_MSG } from '../lib/circle-session'
 
 export type CircleTxStatus =
   | 'idle'
@@ -48,8 +48,8 @@ export interface ContractExecParams {
 
 
 async function resolveCircleSession(): Promise<{ userToken?: string; encryptionKey?: string }> {
-  // A missing key means a fresh login is required (see circle-session.ts).
-  return getCircleCreds()
+  // Restores the key via the login refreshToken when possible; otherwise a fresh login is required.
+  return ensureCircleCreds()
 }
 
 const TERMINAL = new Set(['COMPLETE', 'FAILED', 'DENIED', 'CANCELLED'])

@@ -12,6 +12,10 @@ export interface PaywellAuth {
   pendingOtpExpiry?: number
   userToken?: string
   encryptionKey?: string
+  /** Circle email/social login refresh token — lets us restore the session key after a reload */
+  refreshToken?: string
+  /** Circle SDK device id the refresh token is bound to */
+  deviceId?: string
   circleWalletAddress?: string
   circleWalletId?: string
   /** Set when the user logged in via Circle Modular Wallet (passkey/WebAuthn) */
@@ -674,19 +678,35 @@ export const useAppStore = create<AppState>()(
       refreshCircleToken: async () => {
         const auth = get().auth
         const oldToken = auth?.userToken
-        if (!oldToken) return undefined
+        const refreshToken = auth?.refreshToken
+        if (!oldToken || !refreshToken) return undefined
         try {
+          // Circle requires the login refreshToken + the SDK deviceId it is bound to.
+          let deviceId = auth?.deviceId
+          if (!deviceId) {
+            const appId = (import.meta.env.VITE_CIRCLE_APP_ID as string | undefined) ?? ''
+            const { W3SSdk } = await import('@circle-fin/w3s-pw-web-sdk')
+            deviceId = await new W3SSdk({ appSettings: { appId } }).getDeviceId()
+          }
           const resp = await fetch('/api/wallet', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'refresh-session', userToken: oldToken }),
+            body: JSON.stringify({ action: 'refresh-session', userToken: oldToken, refreshToken, deviceId }),
           })
-          const data = await resp.json() as { userToken?: string; encryptionKey?: string; error?: string }
+          const data = await resp.json() as { userToken?: string; encryptionKey?: string; refreshToken?: string; error?: string }
           if (!resp.ok || !data.userToken) return undefined
-          // Update the store with the fresh token (keep encryptionKey if the server returns one)
+          // The refresh response carries a fresh session key and a rotated refreshToken.
+          if (data.encryptionKey) { try { sessionStorage.setItem('circle_ek', data.encryptionKey) } catch { /* ignore */ } }
           set((s) => ({
             auth: s.auth
-              ? { ...s.auth, userToken: data.userToken!, sessionToken: data.userToken!, ...(data.encryptionKey ? { encryptionKey: data.encryptionKey } : {}) }
+              ? {
+                  ...s.auth,
+                  userToken: data.userToken!,
+                  sessionToken: data.userToken!,
+                  deviceId,
+                  ...(data.encryptionKey ? { encryptionKey: data.encryptionKey } : {}),
+                  ...(data.refreshToken ? { refreshToken: data.refreshToken } : {}),
+                }
               : s.auth,
           }))
           return data.userToken

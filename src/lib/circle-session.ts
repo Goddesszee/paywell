@@ -46,3 +46,16 @@ export async function getChallengeTransactionId(
   }
   return { status: last?.status, errorMessage: last?.errorMessage }
 }
+
+/**
+ * Like getCircleCreds(), but if the session key is missing and we hold a login refreshToken,
+ * silently refresh the session first (Circle returns a fresh key). Falls back to "needs login".
+ */
+export async function ensureCircleCreds(): Promise<{ userToken?: string; encryptionKey?: string }> {
+  let creds = getCircleCreds()
+  if (creds.userToken && !creds.encryptionKey && useAppStore.getState().auth?.refreshToken) {
+    try { await useAppStore.getState().refreshCircleToken() } catch { /* fall through */ }
+    creds = getCircleCreds()
+  }
+  return creds
+}

@@ -16,7 +16,7 @@ import { W3SSdk } from '@circle-fin/w3s-pw-web-sdk'
 import type { EIP1193Provider } from 'viem'
 import { getPasskeyAdapter } from '../components/CirclePasskeyLogin'
 import { useAppStore } from '../store/appStore'
-import { getCircleCreds, getChallengeTransactionId, SESSION_EXPIRED_MSG } from './circle-session'
+import { ensureCircleCreds, getChallengeTransactionId, SESSION_EXPIRED_MSG } from './circle-session'
 
 const ARC_CHAIN_ID = 5042002
 const ARC_KIT_NAME = 'Arc_Testnet'
@@ -76,13 +76,14 @@ function requireAmount(amount: string): number {
 }
 
 // ── Shared Circle PIN popup ───────────────────────────────────────────────────
-function executeCircleChallenge(challengeId: string, userToken: string, _encryptionKey?: string): Promise<string> {
+async function executeCircleChallenge(challengeId: string, userToken: string, _encryptionKey?: string): Promise<string> {
   const appId = (import.meta.env.VITE_CIRCLE_APP_ID as string | undefined) ?? ''
-  if (!appId) return Promise.reject(new Error('VITE_CIRCLE_APP_ID is not set.'))
-  // The session key is memory/sessionStorage only. Without it Circle's popup fails with a cryptic
-  // "encryptedUserSecret, storageKey, and pinCodeUserShare must be provided" — so say it plainly.
-  const creds = getCircleCreds()
-  if (!creds.encryptionKey) return Promise.reject(new Error(SESSION_EXPIRED_MSG))
+  if (!appId) throw new Error('VITE_CIRCLE_APP_ID is not set.')
+  // The session key is memory/sessionStorage only; ensureCircleCreds restores it with the login
+  // refreshToken when possible. Without a key Circle's popup fails with a cryptic
+  // "encryptedUserSecret, storageKey, and pinCodeUserShare must be provided".
+  const creds = await ensureCircleCreds()
+  if (!creds.encryptionKey) throw new Error(SESSION_EXPIRED_MSG)
   const sdk = new W3SSdk({ appSettings: { appId } })
   sdk.setAuthentication({ userToken: creds.userToken ?? userToken, encryptionKey: creds.encryptionKey })
   return new Promise<string>((resolve, reject) => {

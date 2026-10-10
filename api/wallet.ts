@@ -476,23 +476,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   }
 
-  // ── refresh-session — silently refresh an expired userToken ─────────────────
-  // Circle UCW userTokens expire (~12h). The client can call this with the old
-  // userToken to get a fresh one without requiring the user to log in again.
-  // Uses client.refreshUserToken() which takes the current (possibly expired)
-  // userToken and returns a new one valid for another session window.
+  // ── refresh-session — restore an expired/lost session (email & social login) ─
+  // Circle: POST /users/token/refresh needs the live userToken (X-User-Token) plus the
+  // refreshToken from login and the SDK deviceId it is bound to. The response carries a fresh
+  // userToken, a fresh encryptionKey and a ROTATED refreshToken — the client must store all three.
   if (action === 'refresh-session') {
-    const { userToken } = body
-    if (!userToken) return err(res, 400, 'userToken required')
+    const { userToken, refreshToken, deviceId } = body
+    if (!userToken || !refreshToken || !deviceId) return err(res, 400, 'userToken, refreshToken and deviceId required')
     try {
       const client = ucwClient()
-      const response = await client.refreshUserToken({ userToken })
-      const { userToken: newToken, encryptionKey } = response.data ?? {}
-      if (!newToken) return err(res, 500, 'Circle returned no userToken on refresh')
-      return res.json({ userToken: newToken, encryptionKey })
+      const response = await client.refreshUserToken({ userToken, refreshToken, deviceId })
+      const data = response.data as { userToken?: string; encryptionKey?: string; refreshToken?: string } | undefined
+      if (!data?.userToken) return err(res, 500, 'Circle returned no userToken on refresh')
+      return res.json({ userToken: data.userToken, encryptionKey: data.encryptionKey, refreshToken: data.refreshToken })
     } catch (e) {
-      // If refresh fails (token too old / revoked), return 401 so the client
-      // can force a full re-login instead of retrying indefinitely.
+      // Token too old / revoked: 401 tells the client to force a full re-login.
       const status = (e as { response?: { status?: number } })?.response?.status ?? 500
       const msg = e instanceof Error ? e.message : 'Token refresh failed'
       return res.status(status === 401 || status === 403 ? 401 : 500).json({ error: msg })

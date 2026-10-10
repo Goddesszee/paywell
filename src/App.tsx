@@ -1,6 +1,7 @@
-import { lazy, Suspense, useState, useMemo, type ComponentType } from 'react'
+import { lazy, Suspense, useState, useMemo, useEffect, type ComponentType } from 'react'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { useAppStore } from './store/appStore'
+import { getCircleCreds } from './lib/circle-session'
 import { PaymentRequestPayPage } from './components/pages/PaymentRequestPayPage'
 import { SplashScreen } from './components/SplashScreen'
 import { AppShell } from './components/layout/AppShell'
@@ -68,6 +69,23 @@ import { ExportsPage } from './components/pages/ExportsPage'
 import { PaymentRequestsPage } from './components/pages/PaymentRequestsPage'
 
 export default function App() {
+  // Email/Google (Circle) users: the signing session key lives in memory/sessionStorage only, so it is
+  // gone after the tab is closed. Restore it silently with the login refreshToken (Circle returns a
+  // fresh key), on startup and whenever the tab becomes visible again. If this isn't possible the
+  // actions themselves tell the user to sign in again.
+  useEffect(() => {
+    const restore = () => {
+      const a = useAppStore.getState().auth
+      if (!a?.userToken || !a.refreshToken) return
+      if (getCircleCreds().encryptionKey) return
+      void useAppStore.getState().refreshCircleToken()
+    }
+    restore()
+    const onVisible = () => { if (document.visibilityState === 'visible') restore() }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  }, [])
+
   const { activeView } = useAppStore()
   const [splashDone, setSplashDone] = useState(() => {
     // only show splash on first ever visit per session

@@ -34,7 +34,7 @@ const CIRCLE_APP_ID = import.meta.env.VITE_CIRCLE_APP_ID as string | undefined
 
 type Step = 'email' | 'otp_sent' | 'verifying' | 'wallet_setup' | 'done' | 'error'
 
-interface LoginResult { userToken: string; encryptionKey: string }
+interface LoginResult { userToken: string; encryptionKey: string; refreshToken?: string }
 interface OtpTokens   { deviceToken: string; deviceEncryptionKey: string; otpToken: string }
 
 interface Props {
@@ -96,11 +96,16 @@ export function CircleEmailLogin({ onBack, onSuccess }: Props) {
       const wid    = wallet?.id      ?? ''
       const ek     = encKeyRef.current
       const em     = emailRef.current
+      const refreshToken = loginResultRef.current?.refreshToken
+      let deviceId: string | undefined
+      try { deviceId = await sdkRef.current?.getDeviceId() } catch { /* optional */ }
       setAuthRef.current({
         email:               em,
         sessionToken:        userToken,
         userToken,
         encryptionKey:       ek,
+        refreshToken,
+        deviceId,
         circleWalletAddress: addr,
         circleWalletId:      wid,
         walletAddress:       addr,
