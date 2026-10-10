@@ -1463,6 +1463,45 @@ app.post('/api/referral/use', (req, res) => {
   res.json({ success: true })
 })
 
+// ── Rewards system ─────────────────────────────────────────────────────────────
+// Each referred user earns the referrer 1 USDC (mock — server records it).
+// Claimable balance = unclaimed_uses * 1.00 USDC.
+// On claim, balance is zeroed and a mock txHash is returned.
+// A real implementation would trigger a Circle developer-controlled wallet transfer here.
+
+const rewardClaimedStore = new Map<string, { claimed: number; lastClaimedAt: number }>(
+  Object.entries(loadStore<Record<string, { claimed: number; lastClaimedAt: number }>>('rewards-claimed', {}))
+)
+
+const REWARD_PER_REFERRAL = 1.00 // USDC per successful referral
+
+app.get('/api/rewards/balance', (req, res) => {
+  const wallet = (req.query.wallet as string ?? '').toLowerCase()
+  if (!wallet) { res.status(400).json({ error: 'wallet required' }); return }
+  const ref = referralStore.get(wallet)
+  const claimed = rewardClaimedStore.get(wallet)?.claimed ?? 0
+  const totalEarned = (ref?.uses ?? 0) * REWARD_PER_REFERRAL
+  const claimable = Math.max(0, totalEarned - claimed)
+  res.json({ success: true, claimable: claimable.toFixed(2), totalEarned: totalEarned.toFixed(2), claimed: claimed.toFixed(2), referralCount: ref?.uses ?? 0 })
+})
+
+app.post('/api/rewards/claim', (req, res) => {
+  const { wallet } = req.body as { wallet: string }
+  if (!wallet) { res.status(400).json({ error: 'wallet required' }); return }
+  const key = wallet.toLowerCase()
+  const ref = referralStore.get(key)
+  const prev = rewardClaimedStore.get(key)?.claimed ?? 0
+  const totalEarned = (ref?.uses ?? 0) * REWARD_PER_REFERRAL
+  const claimable = Math.max(0, totalEarned - prev)
+  if (claimable <= 0) { res.status(400).json({ error: 'No rewards to claim' }); return }
+  const newClaimed = prev + claimable
+  rewardClaimedStore.set(key, { claimed: newClaimed, lastClaimedAt: Date.now() })
+  debouncedSave('rewards-claimed', Object.fromEntries(rewardClaimedStore))
+  // Mock txHash — in production this would be a real Circle wallet transfer
+  const txHash = '0x' + crypto.randomBytes(32).toString('hex')
+  res.json({ success: true, amount: claimable.toFixed(2), txHash })
+})
+
 app.get('/api/admin/tx-report', (_req, res) => {
   const totalVolume = txLedger.reduce((s, t) => s + t.amount, 0)
   const mainVolume  = txLedger.filter(t => t.walletType === 'main').reduce((s, t) => s + t.amount, 0)

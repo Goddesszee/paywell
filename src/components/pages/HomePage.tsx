@@ -20,6 +20,7 @@ import { usePortfolioBalances } from '../../hooks/usePortfolioBalances'
 import { useFxRates } from '../../hooks/useFxRates'
 import { TokenNetworkSheet } from './TokenNetworkSheet'
 import { useNanName } from '../../hooks/useNanName'
+import { RewardsSheet } from './RewardsSheet'
 
 const F    = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif"
 const MONO = "'JetBrains Mono', 'SF Mono', Menlo, monospace"
@@ -268,9 +269,10 @@ export function HomePage() {
   useSyncMultiChainBalances(address, setCrossChainBalances)
 
   // ── UI state ─────────────────────────────────────────────────────────────
-  const [hidden,   setHidden]   = useState(false)
-  const [hydrated, setHydrated] = useState(false)
-  const [tokenSheet, setTokenSheet] = useState<'USDC' | 'EURC' | 'USDT' | null>(null)
+  const [hidden,       setHidden]       = useState(false)
+  const [hydrated,     setHydrated]     = useState(false)
+  const [tokenSheet,   setTokenSheet]   = useState<'USDC' | 'EURC' | 'USDT' | null>(null)
+  const [rewardsOpen,  setRewardsOpen]  = useState(false)
 
   /* eslint-disable react/set-state-in-effect */
   useEffect(() => { setHydrated(true) }, [])
@@ -495,7 +497,7 @@ export function HomePage() {
         />
         {/* ── Rewards card — same size as token cards ── */}
         <button
-          onClick={() => setActiveView('faucet')}
+          onClick={() => setRewardsOpen(true)}
           style={{
             width: CARD_W, flexShrink: 0,
             background: 'linear-gradient(145deg, rgba(0,102,255,0.14) 0%, rgba(80,0,255,0.08) 100%)',
@@ -613,6 +615,9 @@ export function HomePage() {
         </div>
       </div>
 
+
+      {/* ── Rewards sheet ── */}
+      {rewardsOpen && <RewardsSheet onClose={() => setRewardsOpen(false)} />}
 
       {/* ── Token network sheet (slide-up, opens on card tap) ── */}
       {tokenSheet && (
