@@ -158,7 +158,7 @@ export function NanNamePage() {
   const [handleError, setHandleError]       = useState('')
   const [duration, setDuration]             = useState<Dur>(1)
   const [searchInput, setSearchInput]       = useState('')
-  const [searchResult, setSearchResult]     = useState<'available' | 'taken' | null>(null)
+  const [searchResult, setSearchResult]     = useState<'available' | 'taken' | 'error' | null>(null)
   const [searchOwner, setSearchOwner]       = useState<string | null>(null)
   const [searching, setSearching]           = useState(false)
   const [copied, setCopied]                 = useState(false)
@@ -365,13 +365,15 @@ export function NanNamePage() {
     setSearching(true); setSearchResult(null); setSearchOwner(null)
     try {
       const available = await checkAvailable(h)
-      if (available) {
+      if (available === null) {
+        setSearchResult('error')
+      } else if (available) {
         setSearchResult('available')
       } else {
         setSearchResult('taken')
         setSearchOwner(null)
       }
-    } catch { setSearchResult(null) }
+    } catch { setSearchResult('error') }
     setSearching(false)
   }
 
@@ -625,7 +627,13 @@ export function NanNamePage() {
           {searchResult === 'taken' && (
             <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(255,59,59,0.06)', border: '1px solid rgba(255,59,59,0.18)', borderRadius: 10, padding: '10px 14px' }}>
               <AlertCircle size={15} color="#FF3B3B" />
-              <span style={{ fontSize: 13, color: '#FF3B3B', fontWeight: 600 }}>@{searchInput} is taken</span>
+              <span style={{ fontSize: 13, color: '#FF3B3B', fontWeight: 600 }}>@{searchInput} is already taken</span>
+            </div>
+          )}
+          {searchResult === 'error' && (
+            <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(240,165,0,0.06)', border: '1px solid rgba(240,165,0,0.2)', borderRadius: 10, padding: '10px 14px' }}>
+              <AlertCircle size={15} color="#F0A500" />
+              <span style={{ fontSize: 13, color: '#F0A500', fontWeight: 600 }}>Couldn't check — try again in a moment</span>
             </div>
           )}
         </div>
