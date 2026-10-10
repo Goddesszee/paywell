@@ -41,10 +41,28 @@ export function ProfilePage() {
 
   const copyReferral = useCallback(() => {
     if (!referralLink) return
-    navigator.clipboard.writeText(referralLink).then(() => {
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    }).catch(() => {})
+    // Try modern clipboard API first, fall back to execCommand for mobile browsers
+    const doFallback = () => {
+      try {
+        const ta = document.createElement('textarea')
+        ta.value = referralLink
+        ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0;pointer-events:none'
+        document.body.appendChild(ta)
+        ta.focus(); ta.select()
+        document.execCommand('copy')
+        document.body.removeChild(ta)
+        setCopied(true)
+        setTimeout(() => setCopied(false), 2000)
+      } catch { /* silent */ }
+    }
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(referralLink).then(() => {
+        setCopied(true)
+        setTimeout(() => setCopied(false), 2000)
+      }).catch(doFallback)
+    } else {
+      doFallback()
+    }
   }, [referralLink])
 
   // Load session history when security tab opens
@@ -227,12 +245,16 @@ export function ProfilePage() {
             </div>
             {referralLink ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <div style={{
-                  flex: 1, background: C.surf2, border: `1px solid ${C.bdr}`,
-                  borderRadius: 10, padding: '9px 12px',
-                  fontSize: 12, color: C.t2, fontFamily: MONO,
-                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                }}>
+                <div
+                  onClick={copyReferral}
+                  style={{
+                    flex: 1, background: C.surf2, border: `1px solid ${C.bdr}`,
+                    borderRadius: 10, padding: '9px 12px',
+                    fontSize: 12, color: C.t2, fontFamily: MONO,
+                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                    cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
+                  }}
+                >
                   {referralLink}
                 </div>
                 <button

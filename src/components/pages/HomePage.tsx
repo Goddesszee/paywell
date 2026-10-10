@@ -377,15 +377,15 @@ export function HomePage() {
           display: 'flex', alignItems: 'center',
           justifyContent: 'space-between', marginBottom: 5,
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ fontSize: 11, color: C.t3, fontWeight: 500, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-              Total Portfolio Balance
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+            <span style={{ fontSize: 13, color: C.t2, fontWeight: 500 }}>
+              Total balance
             </span>
             <button
-              title="Sum of USDC, EURC and USDT across all supported networks. Gateway balance is shown separately inside each token card to avoid double-counting."
+              title="Sum of USDC, EURC and USDT across all supported networks."
               style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', lineHeight: 1 }}
             >
-              <Info size={12} color={C.t3} />
+              <Info size={13} color={C.t3} />
             </button>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -404,16 +404,17 @@ export function HomePage() {
         {isLoadingBalance ? (
           <div style={{ height: 44, width: 180, background: C.surf2, borderRadius: 10, animation: 'nan-shimmer 1.4s ease infinite' }} />
         ) : (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <div style={{ fontSize: 38, fontWeight: 800, letterSpacing: '-0.04em', color: C.text, lineHeight: 1.1, fontFamily: F }}>
-              {hidden ? '••••••' : `$${displayTotal}`}
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+            <div style={{ fontSize: 28, fontWeight: 700, letterSpacing: '-0.02em', color: C.text, lineHeight: 1.15, fontFamily: F }}>
+              {hidden ? '••••••' : displayTotal}
             </div>
+            <span style={{ fontSize: 16, fontWeight: 600, color: C.t2 }}>USD</span>
             <button
               onClick={() => setHidden(h => !h)}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, WebkitTapHighlightColor: 'transparent', flexShrink: 0, marginTop: 4 }}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, WebkitTapHighlightColor: 'transparent', flexShrink: 0 }}
               aria-label={hidden ? 'Show balance' : 'Hide balance'}
             >
-              {hidden ? <EyeOff size={17} color={C.t3} /> : <Eye size={17} color={C.t3} />}
+              {hidden ? <EyeOff size={15} color={C.t3} /> : <Eye size={15} color={C.t3} />}
             </button>
           </div>
         )}
