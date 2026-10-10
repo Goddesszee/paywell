@@ -80,6 +80,12 @@ export default function App() {
   // fresh key), on startup and whenever the tab becomes visible again. If this isn't possible the
   // actions themselves tell the user to sign in again.
   useEffect(() => {
+    // Sessions created by Google login before the fix stored the wallet id only as `walletId`;
+    // every Circle transaction path reads `circleWalletId`, so copy it across once.
+    const a0 = useAppStore.getState().auth
+    if (a0?.userToken && !a0.isPasskeyUser && !a0.circleWalletId && a0.walletId) {
+      useAppStore.getState().setAuth({ ...a0, circleWalletId: a0.walletId })
+    }
     const restore = () => {
       const a = useAppStore.getState().auth
       if (!a?.userToken || !a.refreshToken) return

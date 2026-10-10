@@ -149,6 +149,9 @@ export function NanNamePage() {
 
   const { resolveName, checkAvailable, registrySet } = useNanName()
   const circleTx = useCircleTransaction()
+  // Latest circleTx.error — the closure value is stale right after an awaited call
+  const circleErrRef = useRef<string | null>(null)
+  circleErrRef.current = circleTx.error ?? null
 
   const [step, setStep]                     = useState<Step>('loading')
   const [myHandle, setMyHandle]             = useState('')
@@ -267,7 +270,11 @@ export function NanNamePage() {
       callData: approveCallData,
     })
     if (!approveTxId) {
-      toast.error('USDC approval failed. Make sure you have at least ' + (Number(PRICES[dur]) / 1e6) + ' USDC and approve with your Circle PIN.')
+      await new Promise(r => setTimeout(r, 60))   // let the hook's error state settle
+      const why = circleErrRef.current
+      toast.error(why
+        ? why.slice(0, 140)
+        : 'USDC approval failed. Make sure you have at least ' + (Number(PRICES[dur]) / 1e6) + ' USDC and approve with your Circle PIN.')
       setStep('lookup'); setAltBusy(false); return
     }
     // Step 2: register name via raw callData
@@ -285,7 +292,8 @@ export function NanNamePage() {
     if (regTxId) {
       onSuccess(h)
     } else {
-      const msg = circleTx.error ?? 'Registration failed'
+      await new Promise(r => setTimeout(r, 60))
+      const msg = circleErrRef.current ?? 'Registration failed'
       toast.error(msg.includes('Name already taken') ? 'That name is already taken.'
         : msg.includes('Payment') ? 'USDC payment failed — the approve may not have settled yet. Try again in a moment.'
         : msg.slice(0, 120))
@@ -302,41 +310,50 @@ export function NanNamePage() {
     try {
       const { createPublicClient } = await import('viem')
       const { arcTestnet } = await import('viem/chains')
-      const { toCircleSmartAccount, toModularTransport } = await import('@circle-fin/modular-wallets-core')
+      const { toCircleSmartAccount, toModularTransport, toPasskeyTransport, toWebAuthnCredential, WebAuthnMode } = await import('@circle-fin/modular-wallets-core')
       const { createBundlerClient, toWebAuthnAccount } = await import('viem/account-abstraction')
       const MODULAR_URL = 'https://modular-sdk.circle.com/v1/rpc/w3s/buidl'
-      const stored = localStorage.getItem('nan_passkey_credential')
-      if (!stored) { toast.error('Passkey credential not found — please log in again'); setAltBusy(false); return }
-      const credential = JSON.parse(stored) as Parameters<typeof toWebAuthnAccount>[0]['credential']
       const modularTransport = toModularTransport(`${MODULAR_URL}/arcTestnet`, clientKey)
       const publicClient = createPublicClient({ chain: arcTestnet, transport: modularTransport })
+
+      // Fresh passkey assertion (same approach as Gateway deposit) — does not depend on a credential
+      // that may be missing/stale in localStorage.
+      const passkeyTransport = toPasskeyTransport(MODULAR_URL, clientKey)
+      const credential = await toWebAuthnCredential({ transport: passkeyTransport, mode: WebAuthnMode.Login })
       const account = await toCircleSmartAccount({ client: publicClient, owner: toWebAuthnAccount({ credential }) })
       const bundler = createBundlerClient({ account, chain: arcTestnet, transport: modularTransport })
 
-      // Arc Testnet bundler requires explicit gas params — auto-estimation fails
-      const gasOverrides = {
-        callGasLimit: 300_000n,
-        verificationGasLimit: 500_000n,
-        preVerificationGas: 100_000n,
-        maxFeePerGas: 100_000_000n,
-        maxPriorityFeePerGas: 10_000_000n,
-      }
-
-      // Step 1: approve USDC
-      const approveData = encodeFunctionData({ abi: ERC20_APPROVE_ABI, functionName: 'approve', args: [NAME_REGISTRY as `0x${string}`, PRICES[dur]] })
-      const approveOp = await bundler.sendUserOperation({ account, calls: [{ to: USDC_ADDRESS, data: approveData, value: 0n }], ...gasOverrides })
-      await bundler.waitForUserOperationReceipt({ hash: approveOp })
-
-      // Step 2: register
-      setStep('registering')
+      // approve + register as ONE user operation (one passkey prompt). For a smart account the batched
+      // calls all execute with the account as msg.sender, so the approval is valid for the register call.
+      // Do NOT hard-code gas: the old overrides set maxFeePerGas to 0.1 gwei, far below Arc's base fee,
+      // so the bundler rejected the operation. Let the bundler estimate, try gas sponsorship first and
+      // retry unsponsored on a paymaster internal error (Arc gas is USDC, so the account can pay).
+      const approveData  = encodeFunctionData({ abi: ERC20_APPROVE_ABI, functionName: 'approve', args: [NAME_REGISTRY as `0x${string}`, PRICES[dur]] })
       const registerData = encodeFunctionData({ abi: REGISTRY_ABI, functionName: 'register', args: [h, dur] })
-      const registerOp = await bundler.sendUserOperation({ account, calls: [{ to: NAME_REGISTRY as `0x${string}`, data: registerData, value: 0n }], ...gasOverrides })
-      await bundler.waitForUserOperationReceipt({ hash: registerOp })
+      const calls = [
+        { to: USDC_ADDRESS as `0x${string}`, data: approveData, value: 0n },
+        { to: NAME_REGISTRY as `0x${string}`, data: registerData, value: 0n },
+      ]
+      setStep('registering')
+      let userOpHash: `0x${string}`
+      try {
+        userOpHash = await bundler.sendUserOperation({ account, calls, paymaster: true })
+      } catch (paymasterErr: unknown) {
+        const e = paymasterErr as { code?: number; name?: string; shortMessage?: string; message?: string } | undefined
+        const internal = e?.code === -32603 || e?.name === 'InternalRpcError' || /internal error/i.test(e?.shortMessage ?? e?.message ?? '')
+        if (!internal) throw paymasterErr
+        userOpHash = await bundler.sendUserOperation({ account, calls })
+      }
+      await bundler.waitForUserOperationReceipt({ hash: userOpHash })
 
       onSuccess(h)
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Passkey transaction failed'
-      toast.error(msg.includes('Name already taken') ? 'That name is already taken.' : msg.slice(0, 100))
+      const lower = msg.toLowerCase()
+      toast.error(msg.includes('Name already taken') ? 'That name is already taken.'
+        : lower.includes('cancel') || lower.includes('notallowed') || lower.includes('not allowed') ? 'Passkey approval was cancelled.'
+        : lower.includes('insufficient') || lower.includes('transfer amount exceeds') ? 'Not enough USDC — you need the name price plus a little for gas.'
+        : msg.slice(0, 120))
       setStep('lookup')
     } finally {
       setAltBusy(false)

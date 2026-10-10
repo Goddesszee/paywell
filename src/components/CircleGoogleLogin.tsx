@@ -58,7 +58,7 @@ export function CircleGoogleLogin({ onBack, onSuccess }: Props) {
       const addr   = wallet?.address ?? ''
       let deviceId: string | undefined
       try { deviceId = await sdkRef.current?.getDeviceId() } catch { /* optional */ }
-      setAuth({ email: '', sessionToken: userToken, userToken, encryptionKey, refreshToken, deviceId, circleWalletAddress: addr, walletAddress: addr, walletId: wallet?.id ?? '' })
+      setAuth({ email: '', sessionToken: userToken, userToken, encryptionKey, refreshToken, deviceId, circleWalletAddress: addr, circleWalletId: wallet?.id ?? '', walletAddress: addr, walletId: wallet?.id ?? '' })
       setStep('done')
       onSuccess(addr, userToken, '')
     } catch {
