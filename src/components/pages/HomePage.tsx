@@ -295,20 +295,26 @@ export function HomePage() {
           <button
             onClick={() => setActiveView('profile')}
             style={{
-              width: 40, height: 40, borderRadius: 12,
-              background: profile.avatarUrl ? C.surf2 : C.blue,
-              border: profile.avatarUrl ? `1.5px solid ${C.bdr}` : 'none',
+              height: 40, borderRadius: 12,
+              background: profile.avatarUrl ? C.surf2 : C.surf,
+              border: `1.5px solid ${C.bdr}`,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               cursor: 'pointer', overflow: 'hidden', flexShrink: 0,
               WebkitTapHighlightColor: 'transparent',
+              padding: profile.avatarUrl ? 0 : '0 14px',
+              gap: profile.avatarUrl ? 0 : 6,
+              width: profile.avatarUrl ? 40 : 'auto',
             }}
           >
             {profile.avatarUrl
               ? <img src={profile.avatarUrl} alt="avatar" style={{ width: 40, height: 40, objectFit: 'cover' }} />
-              : <svg viewBox="0 0 324 480" width="16" height="22" fill="none">
-                  <path d="M255,0 L84,167 L71,163 L0,97 L0,378 L246,132 L255,110 Z" fill="#fff"/>
-                  <path d="M69,480 L240,313 L253,317 L324,383 L324,102 L78,348 L69,370 Z" fill="#fff"/>
-                </svg>
+              : <>
+                  <svg viewBox="0 0 20 20" width="14" height="14" fill="none" style={{ flexShrink: 0 }}>
+                    <circle cx="10" cy="7" r="3.5" stroke={C.t2} strokeWidth="1.5" />
+                    <path d="M3 17c0-3.314 3.134-6 7-6s7 2.686 7 6" stroke={C.t2} strokeWidth="1.5" strokeLinecap="round" />
+                  </svg>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: C.t2, whiteSpace: 'nowrap' }}>Profile</span>
+                </>
             }
           </button>
           <div style={{ minWidth: 0 }}>
@@ -327,7 +333,7 @@ export function HomePage() {
                   WebkitTapHighlightColor: 'transparent',
                 }}
               >
-                ✦ Get an Arc name
+                ✦ Get your NAN name
               </button>
             )}
           </div>
