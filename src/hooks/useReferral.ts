@@ -14,12 +14,23 @@ interface ReferralData {
 
 export function useReferral() {
   const { address: wagmiAddress } = useAccount()
-  const { auth } = useAppStore()
-  // Use wagmi address if available, then Circle wallet address, then email as key
-  const address = wagmiAddress
-    ?? (auth?.circleWalletAddress as `0x${string}` | undefined)
-  // key used to identify the user in referral store
-  const key = address ?? (auth?.email ? encodeURIComponent(auth.email) : null)
+  const { auth, nanHandle } = useAppStore()
+  // Resolve a stable identity key from any login path:
+  // 1. NAN handle (most stable, always unique)
+  // 2. wagmi connected address
+  // 3. Circle wallet address (email/passkey login)
+  // 4. auth.walletAddress (older store field)
+  // 5. email
+  // 6. sessionToken prefix (passkey users with no other identity yet)
+  const key: string | null = (() => {
+    if (nanHandle) return `nan:${nanHandle}`
+    if (wagmiAddress) return wagmiAddress
+    const circleAddr = (auth?.circleWalletAddress ?? auth?.walletAddress ?? '')
+    if (circleAddr) return circleAddr
+    if (auth?.email) return encodeURIComponent(auth.email)
+    if (auth?.sessionToken) return `tok:${auth.sessionToken.slice(0, 16)}`
+    return null
+  })()
 
   const [data, setData] = useState<ReferralData | null>(null)
   const [fetched, setFetched] = useState(false)
