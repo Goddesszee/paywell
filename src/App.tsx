@@ -36,6 +36,7 @@ import { ContactsPage } from './components/pages/ContactsPage'
 import { MerchantQRPage } from './components/pages/MerchantQRPage'
 import { BusinessDashboard } from './components/pages/BusinessDashboard'
 import { useActivityStream } from './hooks/useActivityStream'
+import { usePresence } from './hooks/usePresence'
 
 // Lazy-load Circle App Kit pages — they import @circle-fin/app-kit which
 // initialises sub-kit module-level code. Loading them lazily ensures React's
@@ -93,6 +94,7 @@ export default function App() {
 
   const { activeView } = useAppStore()
   useActivityStream() // real-time SSE feed — connects when wallet is present
+  usePresence() // registers the user + wallets for the admin dashboard
   const [splashDone, setSplashDone] = useState(() => {
     // only show splash on first ever visit per session
     if (sessionStorage.getItem('nan_splash_shown')) return true

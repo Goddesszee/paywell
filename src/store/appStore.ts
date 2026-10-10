@@ -453,6 +453,7 @@ export const useAppStore = create<AppState>()(
           headers: { 'content-type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}) },
           body: JSON.stringify({
             walletType: 'main',
+            userEmail: state.auth?.email ?? '',
             walletAddress: state.auth?.walletAddress ?? state.mainWalletAddress ?? '',
             type: item.type,
             amount: item.amount,

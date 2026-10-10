@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useAppStore } from '../../store/appStore'
+import { adminFetch, adminLogin, adminLogout, getAdminToken } from '../../lib/admin-api'
+import { AdminOverviewPanel, AdminUsersPanel } from './AdminInsights'
 import { BarChart3, Users, Zap, ArrowUpRight, ArrowDownLeft, RefreshCw, Shield, Globe, Cpu, CheckCircle, XCircle, Activity, ArrowLeft, Send, Plus, Trash2, Edit3, Save, X, Info, ChevronRight, ChevronLeft } from 'lucide-react'
 
 // ── Admin Password Gate ────────────────────────────────────────────────────────
-// Railway: set VITE_ADMIN_PASSWORD (must have VITE_ prefix for Vite to expose it to the browser)
-const ADMIN_PW = (import.meta.env.VITE_ADMIN_PASSWORD as string | undefined) || 'admin123'
-const SESSION_KEY = 'nan_admin_unlocked'
+// The password is checked on the server (ADMIN_PASSWORD env var in Vercel). The server returns a signed, expiring token.
 
 function AdminPasswordGate({ onUnlock }: { onUnlock: () => void }) {
   const { setActiveView } = useAppStore()
@@ -13,12 +13,16 @@ function AdminPasswordGate({ onUnlock }: { onUnlock: () => void }) {
   const [error, setError] = useState('')
   const [shaking, setShaking] = useState(false)
 
-  const attempt = () => {
-    if (pw === ADMIN_PW) {
-      sessionStorage.setItem(SESSION_KEY, '1')
+  const [busy, setBusy] = useState(false)
+  const attempt = async () => {
+    if (busy || !pw) return
+    setBusy(true)
+    const r = await adminLogin(pw)
+    setBusy(false)
+    if (r.ok) {
       onUnlock()
     } else {
-      setError('Incorrect password.')
+      setError(r.error)
       setShaking(true)
       setPw('')
       setTimeout(() => setShaking(false), 400)
@@ -49,7 +53,7 @@ function AdminPasswordGate({ onUnlock }: { onUnlock: () => void }) {
           type="password"
           value={pw}
           onChange={e => { setPw(e.target.value); setError('') }}
-          onKeyDown={e => e.key === 'Enter' && attempt()}
+          onKeyDown={e => e.key === 'Enter' && void attempt()}
           placeholder="Password"
           autoFocus
           style={{
@@ -61,10 +65,10 @@ function AdminPasswordGate({ onUnlock }: { onUnlock: () => void }) {
         />
         {error && <div style={{ fontSize: 12, color: '#FF3B3B', marginBottom: 12, fontWeight: 500 }}>{error}</div>}
         <button
-          onClick={attempt}
+          onClick={() => void attempt()} disabled={busy}
           style={{ width: '100%', padding: '12px', borderRadius: 11, background: '#0066FF', color: '#fff', fontSize: 14, fontWeight: 600, border: 'none', cursor: 'pointer', fontFamily: "'Inter', sans-serif", marginBottom: 10 }}
         >
-          Unlock Dashboard
+          {busy ? 'Checking…' : 'Unlock Dashboard'}
         </button>
         <button
           onClick={() => setActiveView('home')}
@@ -159,7 +163,7 @@ function AdminSupportPanel() {
   const fetchAll = async () => {
     setLoading(true)
     try {
-      const res = await fetch('/api/admin/support/tickets')
+      const res = await adminFetch('/api/admin/support/tickets')
       const data = await res.json() as { tickets: SupportTicket[] }
       if (data.tickets) setTickets(data.tickets)
     } finally {
@@ -173,7 +177,7 @@ function AdminSupportPanel() {
   const openTicket = async (t: SupportTicket) => {
     setSelected(t)
     // Mark as read
-    await fetch(`/api/admin/support/tickets/${t.id}/read`, { method: 'POST' })
+    await adminFetch(`/api/admin/support/tickets/${t.id}/read`, { method: 'POST' })
     setTickets(prev => prev.map(x => x.id === t.id ? { ...x, hasUnreadCustomer: false } : x))
     setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100)
   }
@@ -182,7 +186,7 @@ function AdminSupportPanel() {
     if (!selected) return
     setReplyLoading(true)
     try {
-      const res = await fetch(`/api/admin/support/tickets/${selected.id}/reply`, {
+      const res = await adminFetch(`/api/admin/support/tickets/${selected.id}/reply`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ message: replyText.trim() || undefined, status }),
@@ -360,238 +364,6 @@ function AdminSupportPanel() {
   )
 }
 
-// ── Admin FAQ Panel ────────────────────────────────────────────────────────────
-function AdminFAQPanel() {
-  const [faqs, setFaqs] = useState<FaqItem[]>([])
-  const [loading, setLoading] = useState(true)
-  const [editing, setEditing] = useState<FaqItem | null>(null)
-  const [creating, setCreating] = useState(false)
-  const [form, setForm] = useState({ category: 'General', question: '', answer: '' })
-  const [saving, setSaving] = useState(false)
-
-  const fetchFaqs = () => {
-    setLoading(true)
-    void fetch('/api/faqs')
-      .then(r => r.json())
-      .then((d: { faqs: FaqItem[] }) => { if (d.faqs) setFaqs(d.faqs.sort((a, b) => a.order - b.order)) })
-      .finally(() => setLoading(false))
-  }
-
-  // eslint-disable-next-line react/set-state-in-effect
-  useEffect(() => { fetchFaqs() }, [])
-
-  const save = async (action: 'create' | 'update', id?: string) => {
-    setSaving(true)
-    try {
-      const res = await fetch('/api/admin/faqs', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ action, faq: form, id }),
-      })
-      const data = await res.json() as { faqs: FaqItem[] }
-      if (data.faqs) setFaqs(data.faqs.sort((a, b) => a.order - b.order))
-    } finally {
-      setSaving(false)
-      setEditing(null)
-      setCreating(false)
-      setForm({ category: 'General', question: '', answer: '' })
-    }
-  }
-
-  const del = async (id: string) => {
-    if (!confirm('Delete this FAQ?')) return
-    const res = await fetch('/api/admin/faqs', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ action: 'delete', id }),
-    })
-    const data = await res.json() as { faqs: FaqItem[] }
-    if (data.faqs) setFaqs(data.faqs.sort((a, b) => a.order - b.order))
-  }
-
-  const categories = [...new Set(faqs.map(f => f.category))]
-
-  const faqFormFields = (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <div>
-        <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--nan-text2)', display: 'block', marginBottom: 5 }}>Category</label>
-        <input value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} placeholder="e.g. Getting Started"
-          style={{ width: '100%', padding: '9px 12px', borderRadius: 9, background: S, border: `1px solid ${B}`, color: 'var(--nan-text)', fontSize: 13, fontFamily: SANS, boxSizing: 'border-box', outline: 'none' }} />
-      </div>
-      <div>
-        <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--nan-text2)', display: 'block', marginBottom: 5 }}>Question</label>
-        <input value={form.question} onChange={e => setForm(f => ({ ...f, question: e.target.value }))} placeholder="What is…?"
-          style={{ width: '100%', padding: '9px 12px', borderRadius: 9, background: S, border: `1px solid ${B}`, color: 'var(--nan-text)', fontSize: 13, fontFamily: SANS, boxSizing: 'border-box', outline: 'none' }} />
-      </div>
-      <div>
-        <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--nan-text2)', display: 'block', marginBottom: 5 }}>Answer</label>
-        <textarea value={form.answer} onChange={e => setForm(f => ({ ...f, answer: e.target.value }))} placeholder="Answer…" rows={4}
-          style={{ width: '100%', padding: '9px 12px', borderRadius: 9, background: S, border: `1px solid ${B}`, color: 'var(--nan-text)', fontSize: 13, fontFamily: SANS, boxSizing: 'border-box', outline: 'none', resize: 'vertical', lineHeight: 1.5 }} />
-      </div>
-      <div style={{ display: 'flex', gap: 8 }}>
-        <button onClick={() => { void save(editing ? 'update' : 'create', editing?.id) }} disabled={saving || !form.question || !form.answer}
-          style={{ flex: 1, padding: '10px', borderRadius: 9, background: 'var(--nan-blue)', color: '#fff', fontSize: 13, fontWeight: 600, border: 'none', cursor: 'pointer', fontFamily: SANS, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-          <Save size={14} /> {saving ? 'Saving…' : editing ? 'Update FAQ' : 'Add FAQ'}
-        </button>
-        <button onClick={() => { setEditing(null); setCreating(false); setForm({ category: 'General', question: '', answer: '' }) }}
-          style={{ padding: '10px 14px', borderRadius: 9, background: S, border: `1px solid ${B}`, color: 'var(--nan-text2)', cursor: 'pointer', fontFamily: SANS }}>
-          <X size={15} />
-        </button>
-      </div>
-    </div>
-  )
-
-  return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-        <div>
-          <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: '-0.02em' }}>FAQ Management</div>
-          <div style={{ fontSize: 13, color: 'var(--nan-text2)' }}>{faqs.length} questions across {categories.length} categories</div>
-        </div>
-        {!creating && !editing && (
-          <button onClick={() => { setCreating(true); setForm({ category: 'General', question: '', answer: '' }) }}
-            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 9, background: 'var(--nan-blue)', color: '#fff', fontSize: 13, fontWeight: 600, border: 'none', cursor: 'pointer', fontFamily: SANS }}>
-            <Plus size={14} /> Add FAQ
-          </button>
-        )}
-      </div>
-
-      {(creating || editing) && (
-        <div style={{ background: S, border: `1px solid ${B}`, borderRadius: 14, padding: '18px', marginBottom: 20 }}>
-          <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 14 }}>{editing ? 'Edit FAQ' : 'New FAQ'}</div>
-          {faqFormFields}
-        </div>
-      )}
-
-      {loading ? (
-        <div style={{ textAlign: 'center', padding: 40, color: 'var(--nan-text2)', fontSize: 13 }}>Loading…</div>
-      ) : faqs.length === 0 ? (
-        <div style={{ background: S, border: `1px solid ${B}`, borderRadius: 14, padding: '40px 20px', textAlign: 'center', color: 'var(--nan-text2)', fontSize: 13 }}>
-          No FAQs yet. Add some to help your customers.
-        </div>
-      ) : (
-        categories.length === 0 ? null : [...new Set(faqs.map(f => f.category))].map(cat => (
-          <div key={cat} style={{ marginBottom: 20 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--nan-text3)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>{cat}</div>
-            <div style={{ background: S, border: `1px solid ${B}`, borderRadius: 14, overflow: 'hidden' }}>
-              {faqs.filter(f => f.category === cat).map((f, i, arr) => (
-                <div key={f.id} style={{ padding: '13px 16px', borderBottom: i < arr.length - 1 ? `1px solid ${B}` : 'none', display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--nan-text)', marginBottom: 3 }}>{f.question}</div>
-                    <div style={{ fontSize: 12, color: 'var(--nan-text2)', lineHeight: 1.5, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{f.answer}</div>
-                  </div>
-                  <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-                    <button onClick={() => { setEditing(f); setCreating(false); setForm({ category: f.category, question: f.question, answer: f.answer }) }}
-                      style={{ width: 30, height: 30, borderRadius: 7, background: 'var(--nan-blue-dim)', border: `1px solid var(--nan-blue-bd)`, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--nan-blue)' }}>
-                      <Edit3 size={12} />
-                    </button>
-                    <button onClick={() => { void del(f.id) }}
-                      style={{ width: 30, height: 30, borderRadius: 7, background: 'var(--nan-red-dim)', border: `1px solid rgba(255,68,68,0.2)`, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <Trash2 size={12} color="var(--nan-red)" />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        ))
-      )}
-    </div>
-  )
-}
-
-// ── Admin About Panel ──────────────────────────────────────────────────────────
-function AdminAboutPanel() {
-  const [about, setAbout] = useState<AboutContent | null>(null)
-  const [form, setForm] = useState<AboutContent | null>(null)
-  const [saving, setSaving] = useState(false)
-  const [saved, setSaved] = useState(false)
-  const [loading, setLoading] = useState(true)
-  const [preview, setPreview] = useState(false)
-
-  useEffect(() => {
-    void fetch('/api/about')
-      .then(r => r.json())
-      .then((d: { about: AboutContent }) => {
-        if (d.about) { setAbout(d.about); setForm(d.about) }
-      })
-      .finally(() => setLoading(false))
-  }, [])
-
-  const save = async () => {
-    if (!form) return
-    setSaving(true)
-    try {
-      const res = await fetch('/api/admin/about', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(form),
-      })
-      const data = await res.json() as { about: AboutContent }
-      if (data.about) { setAbout(data.about); setForm(data.about) }
-      setSaved(true)
-      setTimeout(() => setSaved(false), 3000)
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  if (loading || !form) return <div style={{ textAlign: 'center', padding: 40, color: 'var(--nan-text2)', fontSize: 13 }}>Loading…</div>
-
-  const field = (label: string, key: keyof AboutContent, rows?: number) => (
-    <div style={{ marginBottom: 16 }}>
-      <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--nan-text2)', display: 'block', marginBottom: 6 }}>{label}</label>
-      {rows ? (
-        <textarea value={form[key]} onChange={e => setForm(f => f ? { ...f, [key]: e.target.value } : f)} rows={rows}
-          style={{ width: '100%', padding: '11px 14px', borderRadius: 10, background: S, border: `1px solid ${B}`, color: 'var(--nan-text)', fontSize: 13, fontFamily: SANS, boxSizing: 'border-box', outline: 'none', resize: 'vertical', lineHeight: 1.6 }} />
-      ) : (
-        <input value={form[key]} onChange={e => setForm(f => f ? { ...f, [key]: e.target.value } : f)}
-          style={{ width: '100%', padding: '11px 14px', borderRadius: 10, background: S, border: `1px solid ${B}`, color: 'var(--nan-text)', fontSize: 13, fontFamily: SANS, boxSizing: 'border-box', outline: 'none' }} />
-      )}
-    </div>
-  )
-
-  return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 10 }}>
-        <div>
-          <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: '-0.02em' }}>About NAN</div>
-          <div style={{ fontSize: 13, color: 'var(--nan-text2)' }}>Edit what customers see on the About page</div>
-        </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button onClick={() => setPreview(v => !v)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 9, background: S, border: `1px solid ${B}`, color: 'var(--nan-text2)', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: SANS }}>
-            {preview ? <Edit3 size={13} /> : <Info size={13} />}
-            {preview ? 'Edit' : 'Preview'}
-          </button>
-          <button onClick={() => { void save() }} disabled={saving} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 9, background: saved ? 'var(--nan-green)' : 'var(--nan-blue)', color: '#fff', fontSize: 12, fontWeight: 600, border: 'none', cursor: 'pointer', fontFamily: SANS, transition: 'background 0.3s' }}>
-            <Save size={13} /> {saving ? 'Saving…' : saved ? 'Saved!' : 'Save & Publish'}
-          </button>
-        </div>
-      </div>
-
-      {preview && about ? (
-        <div style={{ background: S, border: `1px solid ${B}`, borderRadius: 14, padding: '24px' }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--nan-text3)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 16 }}>Preview (what customers see)</div>
-          <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--nan-text)', marginBottom: 6 }}>{form.headline}</div>
-          <div style={{ fontSize: 14, color: 'var(--nan-blue)', fontWeight: 600, marginBottom: 14 }}>{form.tagline}</div>
-          <div style={{ fontSize: 13, color: 'var(--nan-text2)', lineHeight: 1.75, marginBottom: 14, whiteSpace: 'pre-wrap' }}>{form.body}</div>
-          <div style={{ fontSize: 13, color: 'var(--nan-text)', lineHeight: 1.7, borderLeft: '3px solid var(--nan-blue)', paddingLeft: 14, fontStyle: 'italic', marginBottom: 14 }}>{form.mission}</div>
-          <div style={{ fontSize: 13, color: 'var(--nan-text2)', lineHeight: 1.7 }}>{form.contact}</div>
-        </div>
-      ) : (
-        <div style={{ background: S, border: `1px solid ${B}`, borderRadius: 14, padding: '20px' }}>
-          {field('Headline', 'headline')}
-          {field('Tagline', 'tagline')}
-          {field('Body text (Markdown-style, use blank lines for paragraphs)', 'body', 8)}
-          {field('Mission statement', 'mission', 3)}
-          {field('Contact information', 'contact', 3)}
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ── AdminFeedbackPanel ─────────────────────────────────────────────────────────
 
 interface FeedbackEntry { id: string; userEmail: string; rating: number; comment: string; category: string; reviewed: boolean; createdAt: string }
 
@@ -614,7 +386,7 @@ function AdminFeedbackPanel() {
 
   // eslint-disable-next-line react/set-state-in-effect
   useEffect(() => {
-    fetch('/api/admin/feedback')
+    adminFetch('/api/admin/feedback')
       .then(r => r.json())
       .then((d: { success: boolean; feedback: FeedbackEntry[]; averageRating: number }) => {
         if (d.success) { setFeedback(d.feedback); setAvg(d.averageRating) }
@@ -624,7 +396,7 @@ function AdminFeedbackPanel() {
   }, [])
 
   const markReviewed = async (id: string) => {
-    await fetch(`/api/admin/feedback/${id}/review`, { method: 'POST' })
+    await adminFetch(`/api/admin/feedback/${id}/review`, { method: 'POST' })
     setFeedback(prev => prev.map(f => f.id === id ? { ...f, reviewed: true } : f))
   }
 
@@ -712,7 +484,7 @@ function AdminSuggestionsPanel() {
 
   // eslint-disable-next-line react/set-state-in-effect
   useEffect(() => {
-    fetch('/api/admin/suggestions')
+    adminFetch('/api/admin/suggestions')
       .then(r => r.json())
       .then((d: { success: boolean; suggestions: SuggestionEntry[] }) => { if (d.success) setSuggestions(d.suggestions) })
       .catch(() => {})
@@ -721,7 +493,7 @@ function AdminSuggestionsPanel() {
 
   const update = async (id: string, status?: SuggestionStatus, adminNote?: string) => {
     setSaving(true)
-    const res = await fetch(`/api/admin/suggestions/${id}`, {
+    const res = await adminFetch(`/api/admin/suggestions/${id}`, {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ ...(status ? { status } : {}), ...(adminNote !== undefined ? { adminNote } : {}) }),
@@ -825,7 +597,7 @@ function AdminAuditPanel() {
 
   // eslint-disable-next-line react/set-state-in-effect
   useEffect(() => {
-    fetch('/api/admin/audit')
+    adminFetch('/api/admin/audit')
       .then(r => r.json())
       .then((d: { success: boolean; log: AuditEntry[] }) => { if (d.success) setLog(d.log) })
       .catch(() => {})
@@ -918,27 +690,18 @@ function InfraCard({ name, status, desc, icon }: InfraItem) {
 }
 
 export function AdminDashboard() {
-  const [unlocked, setUnlocked] = useState(() => sessionStorage.getItem(SESSION_KEY) === '1')
+  const [unlocked, setUnlocked] = useState(() => Boolean(getAdminToken()))
+  useEffect(() => {
+    const lock = () => setUnlocked(false)
+    window.addEventListener('nan-admin-expired', lock)
+    return () => window.removeEventListener('nan-admin-expired', lock)
+  }, [])
 
   if (!unlocked) return <AdminPasswordGate onUnlock={() => setUnlocked(true)} />
 
   return <AdminDashboardInner />
 }
 
-interface AdminAnalytics {
-  totalUsers: number
-  totalFeedback: number
-  avgRating: number
-  totalSuggestions: number
-  openSuggestions: number
-  auditEntries: number
-  totalTickets?: number
-  openTickets?: number
-  totalTxCount?: number
-  totalVolume?: number
-  mainVolume?: number
-  agentVolume?: number
-}
 
 interface TxRecord {
   id: string
@@ -972,7 +735,7 @@ function AdminTxPanel() {
 
   const load = useCallback(() => {
     setLoading(true)
-    fetch('/api/admin/tx-report')
+    adminFetch('/api/admin/tx-report')
       .then(r => r.json())
       .then((d: TxReport & { success: boolean }) => { if (d.success !== false) setReport(d) })
       .catch(() => {})
@@ -1089,34 +852,8 @@ function AdminTxPanel() {
 
 function AdminDashboardInner() {
   const { activity, setActiveView } = useAppStore()
-  const [tab, setTab] = useState<'overview' | 'transactions' | 'support' | 'faqs' | 'about' | 'activity' | 'circle' | 'users' | 'feedback' | 'suggestions' | 'audit'>('overview')
-  const [now] = useState(new Date())
-  const [analytics, setAnalytics] = useState<AdminAnalytics | null>(null)
-
-  // Fetch server-side analytics on mount and when switching to overview
-  useEffect(() => {
-    const load = () => {
-      Promise.all([
-        fetch('/api/admin/analytics').then(r => r.json()) as Promise<AdminAnalytics & { success: boolean }>,
-        fetch('/api/admin/support/tickets').then(r => r.json()) as Promise<{ tickets: { status: string }[] }>,
-      ]).then(([analytics, support]) => {
-        const tickets = support.tickets ?? []
-        setAnalytics({
-          ...analytics,
-          totalTickets: tickets.length,
-          openTickets: tickets.filter((t: { status: string }) => t.status === 'open' || t.status === 'in_progress').length,
-        })
-      }).catch(() => {})
-    }
-    load()
-  }, [])
-
-  // Computed stats from real activity store
-  const totalVol = activity.reduce((s, a) => s + (a.amount || 0), 0)
-  const sends = activity.filter(a => a.type === 'sent').length
-  const shops = activity.filter(a => a.type === 'purchase').length
-  void now
-
+  const [tab, setTab] = useState<'overview' | 'transactions' | 'support' | 'activity' | 'circle' | 'users' | 'feedback' | 'suggestions' | 'audit'>('overview')
+  // 'My Activity' tab shows only this browser's own activity store
   // Env var check (Vite exposes VITE_ vars)
   const hasGroq = Boolean(import.meta.env.VITE_GROQ_API_KEY)
   const hasX402 = Boolean(import.meta.env.VITE_X402_SELLER_ADDRESS)
@@ -1135,15 +872,13 @@ function AdminDashboardInner() {
 
   const tabs = [
     { id: 'overview',     label: 'Overview' },
+    { id: 'users',        label: 'Users & Wallets' },
     { id: 'transactions', label: 'Transactions' },
     { id: 'support',      label: 'Support' },
     { id: 'feedback',     label: 'Feedback' },
     { id: 'suggestions',  label: 'Suggestions' },
-    { id: 'faqs',         label: 'FAQs' },
-    { id: 'about',        label: 'About' },
-    { id: 'activity',     label: 'Activity' },
+    { id: 'activity',     label: 'My Activity' },
     { id: 'circle',       label: 'Circle Infra' },
-    { id: 'users',        label: 'Users' },
     { id: 'audit',        label: 'Audit Log' },
   ] as const
 
@@ -1164,7 +899,7 @@ function AdminDashboardInner() {
           <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--nan-text2)' }}>Admin Dashboard</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: 11, color: 'var(--nan-text2)' }}>{now.toLocaleTimeString()}</span>
+          <button onClick={adminLogout} style={{ fontSize: 11, fontWeight: 600, color: 'var(--nan-text2)', background: S, border: `1px solid ${B}`, borderRadius: 8, padding: '4px 10px', cursor: 'pointer', fontFamily: SANS }}>Sign out</button>
           <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--nan-text)', background: 'var(--nan-surface2)', padding: '2px 8px', borderRadius: 20 }}>● Live</span>
         </div>
       </div>
@@ -1185,84 +920,7 @@ function AdminDashboardInner() {
       <div style={{ padding: '20px', maxWidth: 900, margin: '0 auto' }}>
 
         {/* ── OVERVIEW ── */}
-        {tab === 'overview' && (
-          <div>
-            <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: '-0.02em', marginBottom: 16 }}>Platform Overview</div>
-
-            {/* Volume stats */}
-            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--nan-text3)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>Transaction Volume</div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 24 }}>
-              <MetricCard label="Total Volume" value={analytics?.totalVolume != null ? `$${analytics.totalVolume.toFixed(2)}` : '—'} sub={`${analytics?.totalTxCount ?? 0} tracked txs`} icon={<BarChart3 size={16} />} />
-              <MetricCard label="Main Wallet" value={analytics?.mainVolume != null ? `$${analytics.mainVolume.toFixed(2)}` : '—'} sub="User transfers" icon={<ArrowUpRight size={16} />} />
-              <MetricCard label="Agent Wallet" value={analytics?.agentVolume != null ? `$${analytics.agentVolume.toFixed(2)}` : '—'} sub="Agent spend" icon={<Zap size={16} />} />
-            </div>
-
-            {/* User & engagement stats */}
-            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--nan-text3)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>Users & Engagement</div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12, marginBottom: 24 }}>
-              <MetricCard label="Email Sessions" value={analytics ? String(analytics.totalUsers) : '—'} sub="Signed-in users (server)" icon={<Users size={16} />} />
-              <MetricCard label="Support Tickets" value={analytics ? String(analytics.totalTickets ?? 0) : '—'} sub={analytics ? `${analytics.openTickets ?? 0} open` : 'loading…'} icon={<Activity size={16} />} trend={analytics && (analytics.openTickets ?? 0) > 0 ? `${analytics.openTickets} open` : undefined} />
-              <MetricCard label="Feedback" value={analytics ? String(analytics.totalFeedback) : '—'} sub={analytics ? `avg ${analytics.avgRating}/5 ★` : 'loading…'} icon={<BarChart3 size={16} />} />
-              <MetricCard label="Suggestions" value={analytics ? String(analytics.totalSuggestions) : '—'} sub={analytics ? `${analytics.openSuggestions} open` : 'loading…'} icon={<Zap size={16} />} />
-            </div>
-
-            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--nan-text3)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>On-chain Activity</div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12, marginBottom: 24 }}>
-              <MetricCard label="Total Volume" value={`$${totalVol.toFixed(2)}`} sub="USDC on Arc Testnet" icon={<BarChart3 size={16} />} trend={activity.length > 0 ? '+active' : '—'} />
-              <MetricCard label="Transactions" value={String(activity.length)} sub="All time" icon={<Activity size={16} />} />
-              <MetricCard label="Sends" value={String(sends)} sub="Outgoing transfers" icon={<ArrowUpRight size={16} />} />
-              <MetricCard label="Purchases" value={String(shops)} sub="Transactions" icon={<Activity size={16} />} />
-            </div>
-
-            {/* Circle infra summary */}
-            <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 12 }}>Circle Infrastructure</div>
-            <div style={{ background: 'var(--nan-surface)', border: '1px solid var(--nan-bdr)', borderRadius: 14, padding: '16px 20px', marginBottom: 24 }}>
-              {[
-                { label: 'Arc Testnet', live: true },
-                { label: 'USDC Contract', live: true },
-                { label: 'CCTP Bridge', live: true },
-                { label: 'AppKit Swap', live: true },
-                { label: 'x402 Micropayments', live: hasX402 },
-                { label: 'Onramp Kit', live: hasOnramp },
-              ].map(({ label, live }) => (
-                <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: `1px solid ${B}` }}>
-                  <span style={{ fontSize: 13 }}>{label}</span>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                    {live ? <CheckCircle size={14} color="#ffffff" /> : <XCircle size={14} color="var(--nan-text3)" />}
-                    <span style={{ fontSize: 12, fontWeight: 600, color: live ? '#ffffff' : 'var(--nan-text3)' }}>{live ? 'Live' : 'Needs key'}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Recent activity */}
-            <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 12 }}>Recent Activity</div>
-            {activity.length === 0 ? (
-              <div style={{ background: 'var(--nan-surface)', border: '1px solid var(--nan-bdr)', borderRadius: 14, padding: '32px 20px', textAlign: 'center', color: 'var(--nan-text2)', fontSize: 13 }}>
-                No activity yet — transactions appear here in real time
-              </div>
-            ) : (
-              <div style={{ background: 'var(--nan-surface)', border: '1px solid var(--nan-bdr)', borderRadius: 14, overflow: 'hidden' }}>
-                {activity.slice(0, 5).map((a, i) => (
-                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', borderBottom: i < 4 ? `1px solid ${B}` : 'none' }}>
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 600, textTransform: 'capitalize' }}>{a.type}</div>
-                      <div style={{ fontSize: 11, color: 'var(--nan-text2)' }}>{a.description || a.counterparty || '—'}</div>
-                    </div>
-                    <div style={{ textAlign: 'right' }}>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: '#ffffff' }}>
-                        {a.type === 'received' ? '+' : '-'}{a.amount?.toFixed(2) ?? '—'} USDC
-                      </div>
-                      <div style={{ fontSize: 11, color: 'var(--nan-text2)' }}>
-                        {a.status === 'confirmed' ? '✓ Confirmed' : a.status}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
+        {tab === 'overview' && <AdminOverviewPanel goTo={(t) => setTab(t as typeof tab)} />}
 
         {/* ── TRANSACTIONS ── */}
         {tab === 'transactions' && <AdminTxPanel />}
@@ -1276,11 +934,6 @@ function AdminDashboardInner() {
         {/* ── SUGGESTIONS ── */}
         {tab === 'suggestions' && <AdminSuggestionsPanel />}
 
-        {/* ── FAQS ── */}
-        {tab === 'faqs' && <AdminFAQPanel />}
-
-        {/* ── ABOUT ── */}
-        {tab === 'about' && <AdminAboutPanel />}
 
 
 
@@ -1361,18 +1014,7 @@ function AdminDashboardInner() {
         {tab === 'audit' && <AdminAuditPanel />}
 
         {/* ── USERS ── */}
-        {tab === 'users' && (
-          <div>
-            <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: '-0.02em', marginBottom: 16 }}>Users</div>
-            <div style={{ background: 'var(--nan-surface)', border: '1px solid var(--nan-bdr)', borderRadius: 14, padding: '48px 20px', textAlign: 'center' }}>
-              <Users size={32} style={{ margin: '0 auto 16px', color: '#D0D0D0' }} />
-              <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 6 }}>User tracking coming soon</div>
-              <div style={{ fontSize: 13, color: 'var(--nan-text2)', maxWidth: 280, margin: '0 auto', lineHeight: 1.6 }}>
-                Connect a database (Supabase) to track registered users, wallet addresses, and usage patterns.
-              </div>
-            </div>
-          </div>
-        )}
+        {tab === 'users' && <AdminUsersPanel />}
       </div>
       </div>
     </div>
