@@ -382,12 +382,12 @@ export function BridgePage() {
   const canBridge = !!amount && parseFloat(amount) > 0 && status !== 'bridging'
 
   if (!isConnected && !isCircleUser && !isPasskeyUser) return (
-    <div style={{ maxWidth: 480, margin: '0 auto', padding: '48px 20px', textAlign: 'center', fontFamily: SANS }}>
-      <div style={{ width: 56, height: 56, borderRadius: 18, background: S, border: `1px solid ${B}`, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 18px' }}>
-        <ArrowLeftRight size={22} color={T2} />
+    <div style={{ maxWidth: 480, margin: '0 auto', padding: '64px 20px', textAlign: 'center', fontFamily: SANS }}>
+      <div style={{ width: 64, height: 64, borderRadius: 20, background: S, border: `1px solid ${B}`, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+        <ArrowLeftRight size={26} color={T2} />
       </div>
-      <div style={{ fontSize: 18, fontWeight: 800, color: T, marginBottom: 8, letterSpacing: '-0.02em' }}>Connect your wallet</div>
-      <div style={{ fontSize: 13, color: T2, marginBottom: 28, lineHeight: 1.6, maxWidth: 300, margin: '0 auto 28px' }}>
+      <div style={{ fontSize: 20, fontWeight: 800, color: T, marginBottom: 8, letterSpacing: '-0.02em' }}>Connect your wallet</div>
+      <div style={{ fontSize: 13, color: T2, marginBottom: 32, lineHeight: 1.65, maxWidth: 300, margin: '0 auto 32px' }}>
         Connect a browser wallet or log in with your NAN account to bridge USDC across chains via CCTP V2.
       </div>
       <ConnectKitButton />
@@ -399,46 +399,46 @@ export function BridgePage() {
 
       {/* ── Header ── */}
       <div style={{ padding: '20px 0 18px' }}>
-        <div style={{ fontSize: 20, fontWeight: 800, color: T, letterSpacing: '-0.03em', lineHeight: 1.1 }}>Bridge USDC</div>
+        <div style={{ fontSize: 22, fontWeight: 800, color: T, letterSpacing: '-0.03em', lineHeight: 1.1 }}>Bridge USDC</div>
         <div style={{ fontSize: 12, color: T2, marginTop: 3 }}>Circle CCTP V2 · cross-chain in seconds</div>
       </div>
 
       {/* ── From / To ── */}
-      <div style={{ background: S, border: `1px solid ${B}`, borderRadius: 18, overflow: 'visible', marginBottom: 12 }}>
+      <div style={{ background: S, border: `1px solid ${B}`, borderRadius: 20, overflow: 'visible', marginBottom: 14 }}>
         {/* From */}
-        <div style={{ padding: '14px 16px 12px' }}>
-          <div style={{ fontSize: 10, fontWeight: 700, color: T3, textTransform: 'uppercase' as const, letterSpacing: '0.07em', marginBottom: 8 }}>From</div>
+        <div style={{ padding: '16px 18px 14px' }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: T3, textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 10 }}>From</div>
           <ChainSelect value={fromIdx} onChange={v => { setFromIdx(v); if (v === toIdx) setToIdx(v === 0 ? 1 : 0) }} exclude={-1} />
         </div>
 
         {/* Swap direction */}
         <div style={{ display: 'flex', justifyContent: 'center', margin: '-2px 0', position: 'relative', zIndex: 2 }}>
           <button onClick={() => { const f = fromIdx, t = toIdx; setFromIdx(t); setToIdx(f) }}
-            style={{ width: 36, height: 36, borderRadius: 12, background: WH, border: `1px solid ${B}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', WebkitTapHighlightColor: 'transparent', boxShadow: '0 2px 8px rgba(0,0,0,0.15)' }}>
-            <ArrowDownUp size={15} color={BK} strokeWidth={2.5} />
+            style={{ width: 40, height: 40, borderRadius: 13, background: WH, border: `1px solid ${B}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', WebkitTapHighlightColor: 'transparent', boxShadow: '0 2px 12px rgba(0,0,0,0.18)' }}>
+            <ArrowDownUp size={16} color={BK} strokeWidth={2.5} />
           </button>
         </div>
 
         {/* To */}
-        <div style={{ padding: '12px 16px 14px', borderTop: `1px solid ${B}` }}>
-          <div style={{ fontSize: 10, fontWeight: 700, color: T3, textTransform: 'uppercase' as const, letterSpacing: '0.07em', marginBottom: 8 }}>To</div>
+        <div style={{ padding: '14px 18px 16px', borderTop: `1px solid ${B}` }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: T3, textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 10 }}>To</div>
           <ChainSelect value={toIdx} onChange={v => { setToIdx(v); if (v === fromIdx) setFromIdx(v === 0 ? 1 : 0) }} exclude={fromIdx} />
         </div>
       </div>
 
       {/* ── Amount ── */}
-      <div style={{ background: S, border: `1px solid ${B}`, borderRadius: 18, padding: '14px 16px', marginBottom: 12 }}>
-        <div style={{ fontSize: 10, fontWeight: 700, color: T3, textTransform: 'uppercase' as const, letterSpacing: '0.07em', marginBottom: 10 }}>Amount</div>
+      <div style={{ background: S, border: `1px solid ${B}`, borderRadius: 20, padding: '16px 18px', marginBottom: 14 }}>
+        <div style={{ fontSize: 10, fontWeight: 700, color: T3, textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 12 }}>Amount</div>
         <div style={{ position: 'relative' as const }}>
           <input type="number" min="0" step="0.01" placeholder="0.00" value={amount}
             onChange={e => setAmount(e.target.value)} disabled={status === 'bridging'}
-            style={{ width: '100%', padding: '10px 60px 10px 0', border: 'none', background: 'transparent', color: T, fontSize: 32, fontWeight: 800, fontFamily: 'var(--nan-mono, monospace)', boxSizing: 'border-box' as const, outline: 'none', letterSpacing: '-0.02em' }} />
+            style={{ width: '100%', padding: '10px 64px 10px 0', border: 'none', background: 'transparent', color: T, fontSize: 36, fontWeight: 800, fontFamily: 'var(--nan-mono, monospace)', boxSizing: 'border-box' as const, outline: 'none', letterSpacing: '-0.02em' }} />
           <span style={{ position: 'absolute' as const, right: 0, top: '50%', transform: 'translateY(-50%)', fontSize: 14, fontWeight: 700, color: T2 }}>USDC</span>
         </div>
-        <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
+        <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
           {['1', '5', '10', '25'].map(v => (
             <button key={v} onClick={() => setAmount(v)}
-              style={{ flex: 1, padding: '7px 0', border: `1px solid ${amount === v ? BK : B}`, borderRadius: 8, background: amount === v ? 'rgba(0,102,255,0.10)' : WH, color: amount === v ? BK : T, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: SANS, transition: 'all 0.12s', WebkitTapHighlightColor: 'transparent' }}>
+              style={{ flex: 1, padding: '9px 0', border: `1px solid ${amount === v ? BK : B}`, borderRadius: 10, background: amount === v ? 'rgba(0,102,255,0.10)' : WH, color: amount === v ? BK : T, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: SANS, transition: 'all 0.12s', WebkitTapHighlightColor: 'transparent' }}>
               {v}
             </button>
           ))}
@@ -446,9 +446,9 @@ export function BridgePage() {
       </div>
 
       {/* ── Transfer summary ── */}
-      <div style={{ background: S, border: `1px solid ${B}`, borderRadius: 14, padding: '4px 16px', marginBottom: 12 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: `1px solid ${B}` }}>
-          <span style={{ fontSize: 11, fontWeight: 700, color: T3, textTransform: 'uppercase' as const, letterSpacing: '0.06em' }}>Transfer Summary</span>
+      <div style={{ background: S, border: `1px solid ${B}`, borderRadius: 16, padding: '4px 18px', marginBottom: 14 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderBottom: `1px solid ${B}` }}>
+          <span style={{ fontSize: 11, fontWeight: 700, color: T3, textTransform: 'uppercase' as const, letterSpacing: '0.07em' }}>Transfer Summary</span>
           <span style={{ fontSize: 11, color: T3 }}>CCTP V2 · 8–20s</span>
         </div>
         {[
@@ -457,7 +457,7 @@ export function BridgePage() {
           { label: `Platform fee (${bpsToPercent(BRIDGE_FEE_BPS)})`, value: platformFee > 0 ? `${platformFee.toFixed(4)} USDC` : '—', bold: false },
           { label: 'You receive (est.)', value: netReceived > 0 ? `${netReceived.toFixed(4)} USDC` : '0.00 USDC', bold: true },
         ].map(({ label, value, bold }, i, arr) => (
-          <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '9px 0', borderBottom: i < arr.length - 1 ? `1px solid ${B}` : 'none' }}>
+          <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: i < arr.length - 1 ? `1px solid ${B}` : 'none' }}>
             <span style={{ fontSize: 12, color: T2 }}>{label}</span>
             <span style={{ fontSize: 12, fontWeight: bold ? 800 : 700, color: bold ? T : T2 }}>{value}</span>
           </div>
@@ -471,9 +471,9 @@ export function BridgePage() {
 
       {/* ── Gas notice ── */}
       {!fromChain.gasIsUsdc && (
-        <div style={{ background: WH, border: `1px solid ${B}`, borderRadius: 12, padding: '10px 14px', marginBottom: 10, display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+        <div style={{ background: WH, border: `1px solid ${B}`, borderRadius: 14, padding: '12px 16px', marginBottom: 10, display: 'flex', gap: 10, alignItems: 'flex-start' }}>
           <Info size={13} color={T2} style={{ flexShrink: 0, marginTop: 1 }} />
-          <div style={{ fontSize: 12, color: T2, lineHeight: 1.5 }}>
+          <div style={{ fontSize: 12, color: T2, lineHeight: 1.55 }}>
             Bridging from <strong style={{ color: T }}>{fromChain.label}</strong> requires <strong style={{ color: T }}>{fromChain.gasToken}</strong> for gas — not USDC.
           </div>
         </div>
@@ -481,9 +481,9 @@ export function BridgePage() {
 
       {/* ── Paymaster notice ── */}
       {!fromChain.gasIsUsdc && fromChain.paymasterSupported && (
-        <div style={{ background: WH, border: `1px solid ${B}`, borderRadius: 12, padding: '10px 14px', marginBottom: 10, display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+        <div style={{ background: WH, border: `1px solid ${B}`, borderRadius: 14, padding: '12px 16px', marginBottom: 10, display: 'flex', gap: 10, alignItems: 'flex-start' }}>
           <Info size={13} color={BK} style={{ flexShrink: 0, marginTop: 1 }} />
-          <div style={{ fontSize: 12, color: T2, lineHeight: 1.5 }}>
+          <div style={{ fontSize: 12, color: T2, lineHeight: 1.55 }}>
             <strong style={{ color: T }}>Circle Paymaster available</strong> — pay gas in USDC with an ERC-4337 wallet.{' '}
             <a href="https://developers.circle.com/paymaster" target="_blank" rel="noreferrer" style={{ color: BK, fontWeight: 600, textDecoration: 'none' }}>Learn more</a>
           </div>
@@ -492,16 +492,16 @@ export function BridgePage() {
 
       {/* ── Steps ── */}
       {status !== 'idle' && (
-        <div style={{ background: S, border: `1px solid ${B}`, borderRadius: 14, overflow: 'hidden', marginBottom: 12 }}>
+        <div style={{ background: S, border: `1px solid ${B}`, borderRadius: 16, overflow: 'hidden', marginBottom: 14 }}>
           {steps.map((step, i) => (
-            <div key={step.name} style={{ padding: '12px 16px', borderBottom: i < steps.length - 1 ? `1px solid ${B}` : 'none', display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div style={{ width: 30, height: 30, borderRadius: 10, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            <div key={step.name} style={{ padding: '13px 18px', borderBottom: i < steps.length - 1 ? `1px solid ${B}` : 'none', display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ width: 32, height: 32, borderRadius: 10, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
                 background: step.status === 'done' ? 'rgba(0,200,83,0.12)' : step.status === 'active' ? 'rgba(0,102,255,0.12)' : WH,
                 border: `1.5px solid ${step.status === 'done' ? 'rgba(0,200,83,0.3)' : step.status === 'error' ? 'rgba(255,59,59,0.4)' : step.status === 'active' ? BK : B}` }}>
-                {step.status === 'done'   && <CheckCircle size={13} color="#00C853" strokeWidth={2.5} />}
-                {step.status === 'active' && <Loader size={13} color={BK} style={{ animation: 'spin 1s linear infinite' }} />}
+                {step.status === 'done'   && <CheckCircle size={14} color="#00C853" strokeWidth={2.5} />}
+                {step.status === 'active' && <Loader size={14} color={BK} style={{ animation: 'spin 1s linear infinite' }} />}
                 {step.status === 'idle'   && <span style={{ fontSize: 11, color: T2, fontWeight: 700 }}>{i + 1}</span>}
-                {step.status === 'error'  && <span style={{ fontSize: 12, color: '#FF3B3B', fontWeight: 800 }}>!</span>}
+                {step.status === 'error'  && <span style={{ fontSize: 13, color: '#FF3B3B', fontWeight: 800 }}>!</span>}
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 13, fontWeight: step.status === 'active' ? 700 : 500, color: step.status === 'done' ? T2 : T }}>{step.label}</div>
@@ -520,16 +520,16 @@ export function BridgePage() {
       {/* ── Error ── */}
       {status === 'error' && errMsg && (
         errMsg === 'SESSION_EXPIRED' ? (
-          <div style={{ padding: '12px 14px', background: 'rgba(255,59,59,0.06)', border: '1px solid rgba(255,59,59,0.22)', borderRadius: 12, marginBottom: 12 }}>
+          <div style={{ padding: '14px 16px', background: 'rgba(255,59,59,0.06)', border: '1px solid rgba(255,59,59,0.20)', borderRadius: 14, marginBottom: 14 }}>
             <div style={{ fontSize: 13, fontWeight: 700, color: T, marginBottom: 4 }}>PIN required</div>
             <div style={{ fontSize: 12, color: T2, marginBottom: 10, lineHeight: 1.5 }}>Enter your amount again and confirm with your Circle PIN. Your wallet and balance are safe.</div>
             <button onClick={() => { setStatus('idle'); setErrMsg(''); setSteps(INITIAL_STEPS) }}
-              style={{ padding: '7px 16px', background: BK, border: 'none', borderRadius: 8, color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: SANS }}>
+              style={{ padding: '8px 18px', background: BK, border: 'none', borderRadius: 10, color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: SANS }}>
               Try again
             </button>
           </div>
         ) : (
-          <div style={{ padding: '10px 14px', background: 'rgba(255,59,59,0.06)', border: '1px solid rgba(255,59,59,0.22)', borderRadius: 12, marginBottom: 12, fontSize: 13, color: T2, lineHeight: 1.5 }}>
+          <div style={{ padding: '12px 16px', background: 'rgba(255,59,59,0.06)', border: '1px solid rgba(255,59,59,0.20)', borderRadius: 14, marginBottom: 14, fontSize: 13, color: T2, lineHeight: 1.5 }}>
             <strong style={{ color: T }}>Bridge failed:</strong> {errMsg}
           </div>
         )
@@ -538,19 +538,19 @@ export function BridgePage() {
       {/* ── CTA ── */}
       {status === 'done' ? (
         <button onClick={reset}
-          style={{ width: '100%', height: 52, background: S, border: `1px solid ${B}`, borderRadius: 14, fontSize: 15, fontWeight: 700, color: T, cursor: 'pointer', fontFamily: SANS }}>
+          style={{ width: '100%', height: 54, background: S, border: `1px solid ${B}`, borderRadius: 16, fontSize: 15, fontWeight: 700, color: T, cursor: 'pointer', fontFamily: SANS }}>
           Bridge again
         </button>
       ) : (
         <button onClick={() => void handleBridge()} disabled={!canBridge}
-          style={{ width: '100%', height: 52, background: canBridge ? BK : WH, border: `1px solid ${canBridge ? BK : B}`, borderRadius: 14, fontSize: 15, fontWeight: 800, color: canBridge ? '#fff' : T2, cursor: canBridge ? 'pointer' : 'not-allowed', fontFamily: SANS, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, transition: 'all 0.15s', boxShadow: canBridge ? '0 4px 16px rgba(0,102,255,0.28)' : 'none', WebkitTapHighlightColor: 'transparent' }}>
+          style={{ width: '100%', height: 54, background: canBridge ? BK : WH, border: `1px solid ${canBridge ? BK : B}`, borderRadius: 16, fontSize: 15, fontWeight: 800, color: canBridge ? '#fff' : T2, cursor: canBridge ? 'pointer' : 'not-allowed', fontFamily: SANS, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, transition: 'all 0.15s', boxShadow: canBridge ? '0 6px 24px rgba(0,102,255,0.30)' : 'none', WebkitTapHighlightColor: 'transparent' }}>
           {status === 'bridging'
             ? <><Loader size={16} style={{ animation: 'spin 1s linear infinite' }} /> Bridging…</>
             : `Bridge ${amount || '0.00'} USDC`}
         </button>
       )}
 
-      <div style={{ marginTop: 12, fontSize: 11, color: T2, textAlign: 'center' }}>
+      <div style={{ marginTop: 14, fontSize: 11, color: T2, textAlign: 'center' }}>
         Powered by Circle CCTP V2 · Transactions are irreversible
       </div>
     </div>
