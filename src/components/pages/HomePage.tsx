@@ -19,6 +19,7 @@ import { useSyncMultiChainBalances } from '../../hooks/useMultiChainBalances'
 import { usePortfolioBalances } from '../../hooks/usePortfolioBalances'
 import { useFxRates } from '../../hooks/useFxRates'
 import { TokenNetworkSheet } from './TokenNetworkSheet'
+import { useNanName } from '../../hooks/useNanName'
 
 const F    = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif"
 const MONO = "'JetBrains Mono', 'SF Mono', Menlo, monospace"
@@ -221,12 +222,20 @@ export function HomePage() {
   const C = useNanTheme()
   const { address: wagmiAddress, isConnected } = useAccount()
   const {
-    activity, setActiveView, auth, profile, nanHandle,
+    activity, setActiveView, auth, profile, nanHandle, setNanHandle,
     setMainWalletBalance, setCrossChainBalances,
   } = useAppStore()
 
   const address   = wagmiAddress ?? (auth?.circleWalletAddress as `0x${string}` | undefined)
   const hasWallet = isConnected || !!auth?.circleWalletAddress
+
+  // Resolve NAN handle on home page so the nudge hides immediately when a handle exists
+  const { resolveName, registrySet } = useNanName()
+  useEffect(() => {
+    if (!address || !registrySet || nanHandle) return
+    resolveName(address).then(h => { if (h) setNanHandle(h) }).catch(() => {})
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [address, registrySet])
 
   // ── Store sync: single-chain Arc USDC read for setMainWalletBalance ──────────
   // The portfolio hook covers all chains, but the store setter expects the Arc balance
@@ -267,12 +276,17 @@ export function HomePage() {
   useEffect(() => { setHydrated(true) }, [])
   /* eslint-enable react/set-state-in-effect */
 
-  // NAN handle always wins over display name — it's the user's onchain identity
+  // NAN handle always wins. Fall back to email prefix only if it looks like
+  // an actual email (contains @), not a raw wallet address (0x…).
+  const emailPrefix = auth?.email && auth.email.includes('@') && !auth.email.startsWith('0x')
+    ? auth.email.split('@')[0]
+    : null
   const firstName = nanHandle
     ? `@${nanHandle}`
-    : auth?.email?.split('@')[0]
-    || 'there'
-  const hasHandle = !!nanHandle
+    : emailPrefix || profile.displayName?.split(' ')[0] || 'there'
+  // Only show the NAN name nudge once the page has hydrated AND we have confirmed
+  // the user has no handle (nanHandle === '' not just undefined/loading).
+  const hasHandle = !!nanHandle || !hydrated
 
   const recent = [...activity]
     .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
@@ -414,38 +428,6 @@ export function HomePage() {
         )}
       </div>
 
-      {/* ── REWARDS BOX ── */}
-      <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        background: 'linear-gradient(135deg, rgba(0,102,255,0.10) 0%, rgba(80,0,255,0.06) 100%)',
-        border: '1px solid rgba(0,102,255,0.20)',
-        borderRadius: 14, padding: '11px 14px',
-        marginTop: 14, marginBottom: 4,
-        cursor: 'pointer',
-      }}
-        onClick={() => setActiveView('faucet')}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{
-            width: 34, height: 34, borderRadius: 10, flexShrink: 0,
-            background: 'rgba(0,102,255,0.15)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            <Gift size={16} color={C.blue} strokeWidth={1.8} />
-          </div>
-          <div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: C.blue, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Rewards</div>
-            <div style={{ fontSize: 12, color: C.t2, marginTop: 1 }}>Earn USDC for referring friends</div>
-          </div>
-        </div>
-        <div style={{ textAlign: 'right', flexShrink: 0 }}>
-          <div style={{ fontSize: 16, fontWeight: 800, color: C.text, fontFamily: MONO, letterSpacing: '-0.02em' }}>
-            {hidden ? '••••' : '$0.00'}
-          </div>
-          <div style={{ fontSize: 10, fontWeight: 600, color: C.blue }}>USDC</div>
-        </div>
-      </div>
-
       {/* ── FX TICKER STRIP ── */}
       {!fxLoading && Object.keys(rates).length > 0 && (
         <div style={{
@@ -513,6 +495,38 @@ export function HomePage() {
         />
         {/* trailing spacer so last card doesn't hug the right edge */}
         <div style={{ width: 6, flexShrink: 0 }} />
+      </div>
+
+      {/* ── REWARDS BOX ── */}
+      <div
+        onClick={() => setActiveView('faucet')}
+        style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          background: 'linear-gradient(135deg, rgba(0,102,255,0.10) 0%, rgba(80,0,255,0.06) 100%)',
+          border: '1px solid rgba(0,102,255,0.20)',
+          borderRadius: 14, padding: '11px 14px',
+          marginBottom: 20, cursor: 'pointer',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{
+            width: 34, height: 34, borderRadius: 10, flexShrink: 0,
+            background: 'rgba(0,102,255,0.15)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <Gift size={16} color={C.blue} strokeWidth={1.8} />
+          </div>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: C.blue, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Rewards</div>
+            <div style={{ fontSize: 12, color: C.t2, marginTop: 1 }}>Earn USDC for referring friends</div>
+          </div>
+        </div>
+        <div style={{ textAlign: 'right', flexShrink: 0 }}>
+          <div style={{ fontSize: 16, fontWeight: 800, color: C.text, fontFamily: MONO, letterSpacing: '-0.02em' }}>
+            {hidden ? '••••' : '$0.00'}
+          </div>
+          <div style={{ fontSize: 10, fontWeight: 600, color: C.blue }}>USDC</div>
+        </div>
       </div>
 
       {/* ── 4. ACTION BUTTONS ── */}
