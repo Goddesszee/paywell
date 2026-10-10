@@ -53,21 +53,16 @@ const SESSION_EXPIRED_MSG =
  * The W3S SDK needs the session encryptionKey to sign/execute challenges. It is kept in memory /
  * sessionStorage only, so after a reload it is gone — and passing '' to the SDK makes Circle's popup
  * fail with "encryptedUserSecret, storageKey, and pinCodeUserShare must be provided".
- * Try to refresh the session to get a fresh key; if that is impossible the caller shows a clear error.
+ * If the key is missing the caller shows a clear 'sign in again' error.
  */
 async function resolveCircleSession(): Promise<{ userToken?: string; encryptionKey?: string }> {
-  const read = () => {
-    const a = useAppStore.getState().auth
-    let ek = a?.encryptionKey
-    if (!ek) { try { ek = sessionStorage.getItem('circle_ek') ?? undefined } catch { /* ignore */ } }
-    return { userToken: a?.userToken, encryptionKey: ek }
-  }
-  let creds = read()
-  if (creds.userToken && !creds.encryptionKey) {
-    try { await useAppStore.getState().refreshCircleToken() } catch { /* fall through */ }
-    creds = read()
-  }
-  return creds
+  const a = useAppStore.getState().auth
+  let ek = a?.encryptionKey
+  if (!ek) { try { ek = sessionStorage.getItem('circle_ek') ?? undefined } catch { /* ignore */ } }
+  // NOTE: for email/social users Circle only refreshes a session with the login refreshToken +
+  // deviceId (POST /users/token/refresh), which we don't persist yet — so a missing key means a
+  // fresh login is required. We say so clearly instead of opening Circle's popup with an empty key.
+  return { userToken: a?.userToken, encryptionKey: ek }
 }
 
 const TERMINAL = new Set(['COMPLETE', 'FAILED', 'DENIED', 'CANCELLED'])

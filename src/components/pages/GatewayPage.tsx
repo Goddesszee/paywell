@@ -1220,13 +1220,12 @@ function CircleTransferTab({ address, gatewayBalance, onSuccess }: {
         },
       }
 
-      // JSON string for Circle UCW signTypedData SDK — bigints become decimal strings.
-      // EIP712Domain must NOT appear in the types object: it is derived automatically
-      // from the domain field. Including it causes the Circle SDK to reject with a
-      // schema validation error.
-      const { EIP712Domain: _drop, ...typesWithoutDomain } = BURN_INTENT_TYPED_DATA.types
+      // JSON string for Circle UCW signTypedData — bigints become decimal strings.
+      // Per Circle's sign-typed-data docs and the Gateway ERC-1271 how-to, `types` MUST include
+      // EIP712Domain alongside TransferSpec and BurnIntent. Stripping it (as before) leaves Circle's
+      // signer unable to build the domain separator, and the challenge fails.
       const typedDataStr = JSON.stringify(
-        { domain: BURN_INTENT_TYPED_DATA.domain, types: typesWithoutDomain, primaryType: BURN_INTENT_TYPED_DATA.primaryType, message: burnIntent },
+        { types: BURN_INTENT_TYPED_DATA.types, domain: BURN_INTENT_TYPED_DATA.domain, primaryType: BURN_INTENT_TYPED_DATA.primaryType, message: burnIntent },
         (_k, v: unknown) => typeof v === 'bigint' ? v.toString() : v,
       )
 
