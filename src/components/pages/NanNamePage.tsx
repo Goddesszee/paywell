@@ -9,7 +9,7 @@
  *
  * The hook useNanName already handles reads. This page handles writes + UX.
  */
-import { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import {
   AtSign, CheckCircle2, AlertCircle, ArrowLeft,
   Search, Loader2, Pencil, Trash2, ExternalLink, Copy, Check,
@@ -68,25 +68,15 @@ export function NanNamePage() {
   const [copied, setCopied]                 = useState(false)
   const [confirmRelease, setConfirmRelease] = useState(false)
   const [altBusy, setAltBusy]               = useState(false) // Circle/passkey in-flight
+  // Track what fn was last dispatched so success effects can show the right message
+  const pendingFnRef = React.useRef<{ fn: string; handle: string }>({ fn: '', handle: '' })
 
   // ── wagmi write (MetaMask / external wallet) ───────────────────────────────
   const { writeContract, data: txHash, isPending, error: writeError, reset } = useWriteContract()
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash: txHash })
   const isBusy = isPending || isConfirming || altBusy
 
-  // ── shared: run after any successful tx ───────────────────────────────────
-  const onTxSuccess = useCallback((fnName: string, handle: string) => {
-    toast.success(fnName === 'register' ? `@${handle} registered!`
-      : fnName === 'update' ? `Handle updated to @${handle}`
-      : 'Handle released')
-    setNewHandle('')
-    setConfirmRelease(false)
-    reset()
-    void loadMyHandle()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  // ── load my current handle on mount ───────────────────────────────────────
+  // ── load my current handle ─────────────────────────────────────────────────
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const loadMyHandle = useCallback(async () => {
     if (!address) { setPageState('noWallet'); return }
@@ -99,11 +89,24 @@ export function NanNamePage() {
 
   useEffect(() => { void loadMyHandle() }, [loadMyHandle])
 
+  // ── shared: run after any successful tx ───────────────────────────────────
+  const onTxSuccess = useCallback((fnName: string, handle: string) => {
+    toast.success(fnName === 'register' ? `@${handle} registered!`
+      : fnName === 'update' ? `Handle updated to @${handle}`
+      : 'Handle released')
+    setNewHandle('')
+    setConfirmRelease(false)
+    reset()
+    // Small delay so the chain state has propagated before re-reading
+    setTimeout(() => { void loadMyHandle() }, 1500)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loadMyHandle])
+
   // ── wagmi success / error effects ─────────────────────────────────────────
   useEffect(() => {
     if (!isSuccess) return
-    const fnName = myHandle ? (pageState === 'editing' ? 'update' : 'release') : 'register'
-    onTxSuccess(fnName, newHandle)
+    const { fn, handle } = pendingFnRef.current
+    onTxSuccess(fn || 'register', handle)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSuccess])
 
@@ -129,27 +132,19 @@ export function NanNamePage() {
     else { setSearchResult('taken'); setSearchOwner(owner) }
   }
 
-  // ── encode calldata for Circle / passkey paths ────────────────────────────
-  function encodeRegistryCall(fnName: 'register' | 'update' | 'release', handle?: string): `0x${string}` {
-    if (fnName === 'release') {
-      return encodeFunctionData({ abi: REGISTRY_ABI, functionName: 'release', args: [] })
-    }
-    return encodeFunctionData({ abi: REGISTRY_ABI, functionName: fnName, args: [handle!] })
-  }
-
   // ── dispatch write across all auth paths ──────────────────────────────────
   const dispatchWrite = useCallback(async (fnName: 'register' | 'update' | 'release', handle?: string) => {
+    // Record what we're doing so success effects can show the right toast
+    pendingFnRef.current = { fn: fnName, handle: handle ?? '' }
+
     if (isPasskeyUser) {
       const clientKey = import.meta.env.VITE_CLIENT_KEY as string | undefined
       if (!clientKey) { toast.error('VITE_CLIENT_KEY is not set'); return }
       setAltBusy(true)
       try {
-        // Passkey: sendUserOperation with raw calldata (0 value, no token transfer)
         const { createPublicClient } = await import('viem')
         const { arcTestnet } = await import('viem/chains')
-        const {
-          toCircleSmartAccount, toModularTransport,
-        } = await import('@circle-fin/modular-wallets-core')
+        const { toCircleSmartAccount, toModularTransport } = await import('@circle-fin/modular-wallets-core')
         const { createBundlerClient, toWebAuthnAccount } = await import('viem/account-abstraction')
         const MODULAR_URL = 'https://modular-sdk.circle.com/v1/rpc/w3s/buidl'
         const stored = localStorage.getItem('nan_passkey_credential')
@@ -159,17 +154,18 @@ export function NanNamePage() {
         const publicClient = createPublicClient({ chain: arcTestnet, transport: modularTransport })
         const account = await toCircleSmartAccount({ client: publicClient, owner: toWebAuthnAccount({ credential }) })
         const bundlerClient = createBundlerClient({ account, chain: arcTestnet, transport: modularTransport })
-        const callData = encodeRegistryCall(fnName, handle)
-        let userOpHash: `0x${string}`
-        try {
-          userOpHash = await bundlerClient.sendUserOperation({ account, calls: [{ to: NAME_REGISTRY as `0x${string}`, data: callData, value: 0n }], paymaster: true })
-        } catch {
-          userOpHash = await bundlerClient.sendUserOperation({ account, calls: [{ to: NAME_REGISTRY as `0x${string}`, data: callData, value: 0n }] })
-        }
+        // Use encodeFunctionData so the calldata targets the NAME_REGISTRY, not the account itself
+        const callData = fnName === 'release'
+          ? encodeFunctionData({ abi: REGISTRY_ABI, functionName: 'release', args: [] })
+          : encodeFunctionData({ abi: REGISTRY_ABI, functionName: fnName, args: [handle!] })
+        const userOpHash = await bundlerClient.sendUserOperation({
+          account,
+          calls: [{ to: NAME_REGISTRY as `0x${string}`, data: callData, value: 0n }],
+        })
         await bundlerClient.waitForUserOperationReceipt({ hash: userOpHash })
         onTxSuccess(fnName, handle ?? '')
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : 'Passkey transaction failed')
+        toast.error(e instanceof Error ? e.message.slice(0, 120) : 'Passkey transaction failed')
       } finally {
         setAltBusy(false)
       }
@@ -178,10 +174,13 @@ export function NanNamePage() {
 
     if (isCircleUser) {
       setAltBusy(true)
-      const callData = encodeRegistryCall(fnName, handle)
+      // Circle UCW: use abiFunctionSignature so the backend can encode the call correctly
+      const sig = fnName === 'release' ? 'release()' : fnName === 'register' ? 'register(string)' : 'update(string)'
+      const params = fnName === 'release' ? [] : [handle!]
       const hash = await circleTx.executeContract({
         contractAddress: NAME_REGISTRY,
-        callData,
+        abiFunctionSignature: sig,
+        abiParameters: params,
       })
       setAltBusy(false)
       if (hash) { onTxSuccess(fnName, handle ?? '') }
@@ -189,7 +188,7 @@ export function NanNamePage() {
       return
     }
 
-    // wagmi path
+    // wagmi path — show submitting state via isPending/isConfirming
     if (fnName === 'release') {
       writeContract({ address: NAME_REGISTRY as `0x${string}`, abi: REGISTRY_ABI, functionName: 'release', args: [], chainId: ARC })
     } else {
