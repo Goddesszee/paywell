@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react'
 import { useAccount } from 'wagmi'
-import { ShoppingCart, AlertCircle, Check, X, RefreshCw, Loader2 } from 'lucide-react'
+import { ShoppingCart, AlertCircle, Check, X, RefreshCw, Loader2, ArrowLeft } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
 
 // NAN design tokens
@@ -341,6 +341,23 @@ export function OnrampPage() {
 
       {/* ── WIDGET (iframe) ── */}
       {state === 'widget' && session?.widgetUrl && (
+        <div>
+          {/* Back navigation bar */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, padding: '10px 14px', background: SURF, borderRadius: 14, border: `1px solid ${BDR}` }}>
+            <button
+              onClick={reset}
+              style={{ display: 'flex', alignItems: 'center', gap: 7, background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: F, WebkitTapHighlightColor: 'transparent' }}
+            >
+              <ArrowLeft size={16} color={BLUE} strokeWidth={2.2} />
+              <span style={{ fontSize: 14, fontWeight: 600, color: BLUE }}>Back</span>
+            </button>
+            <span style={{ fontSize: 13, color: T2, flex: 1, textAlign: 'center' }}>Circle Onramp</span>
+            <button
+              onClick={reset}
+              style={{ width: 28, height: 28, borderRadius: 8, background: SURF2, border: `1px solid ${BDR}`, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitTapHighlightColor: 'transparent' }}>
+              <X size={13} color={T2} />
+            </button>
+          </div>
         <div style={{ position: 'relative', borderRadius: 18, overflow: 'hidden', border: `1px solid ${BDR}`, background: SURF }}>
           <button
             onClick={reset}
@@ -364,6 +381,7 @@ export function OnrampPage() {
             referrerPolicy="strict-origin-when-cross-origin"
             style={{ width: '100%', height: 720, border: 'none', display: 'block' }}
           />
+        </div>
         </div>
       )}
 

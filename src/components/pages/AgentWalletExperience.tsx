@@ -1207,59 +1207,71 @@ function DashboardScreen({ C, onDisconnect }: { C: ReturnType<typeof useNanTheme
         boxSizing: 'border-box',
       }}>
 
-      {/* ── Balance card ──────────────────────────────────────────────────── */}
-      <div style={{ background: '#0e1117', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 20, padding: '20px 18px 16px', marginBottom: 12, position: 'relative', overflow: 'hidden', boxSizing: 'border-box' }}>
-        <div style={{ position: 'absolute', top: -50, right: -50, width: 160, height: 160, borderRadius: '50%', background: 'rgba(0,102,255,0.08)', filter: 'blur(50px)', pointerEvents: 'none' }} />
+      {/* ── Balance card — always dark for contrast regardless of theme ──── */}
+      {(() => {
+        const isDark = C.bg === '#0a0a0f' || C.bg === '#0d0d14' || (C.text === '#ffffff' || C.text === '#fff')
+        const cardBg  = isDark ? '#0e1117' : '#111827'
+        const cardBdr = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.10)'
+        const lbl     = 'rgba(255,255,255,0.35)'
+        const val     = '#fff'
+        const sub     = 'rgba(255,255,255,0.35)'
+        const addrBg  = 'rgba(255,255,255,0.06)'
+        const addrClr = 'rgba(255,255,255,0.45)'
+        return (
+          <div style={{ background: cardBg, border: `1px solid ${cardBdr}`, borderRadius: 20, padding: '20px 18px 16px', marginBottom: 12, position: 'relative', overflow: 'hidden', boxSizing: 'border-box' }}>
+            <div style={{ position: 'absolute', top: -50, right: -50, width: 160, height: 160, borderRadius: '50%', background: 'rgba(0,102,255,0.08)', filter: 'blur(50px)', pointerEvents: 'none' }} />
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
-          <div>
-            <div style={{ fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 8 }}>
-              Available Balance
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
+              <div>
+                <div style={{ fontSize: 10, fontWeight: 700, color: lbl, textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 8 }}>
+                  Available Balance
+                </div>
+                {refreshing ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, height: 40 }}>
+                    <svg width="16" height="16" viewBox="0 0 16 16" style={{ animation: 'aw-spin 0.9s linear infinite' }}>
+                      <circle cx="8" cy="8" r="6" fill="none" stroke="rgba(0,102,255,0.3)" strokeWidth="2" />
+                      <path d="M8 2 A6 6 0 0 1 14 8" fill="none" stroke={BLUE} strokeWidth="2" strokeLinecap="round" />
+                    </svg>
+                    <span style={{ fontSize: 13, color: sub }}>Refreshing…</span>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                    <span style={{ fontSize: 36, fontWeight: 800, color: val, fontFamily: MONO, letterSpacing: '-0.03em', lineHeight: 1 }}>
+                      {balance.toFixed(2)}
+                    </span>
+                    <span style={{ fontSize: 13, color: sub, fontWeight: 600 }}>USDC</span>
+                  </div>
+                )}
+              </div>
+              <div style={{ background: isActive ? 'rgba(0,200,83,0.12)' : 'rgba(255,149,0,0.10)', border: `1px solid ${isActive ? 'rgba(0,200,83,0.25)' : 'rgba(255,149,0,0.25)'}`, borderRadius: 8, padding: '4px 10px', display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
+                <div style={{ width: 5, height: 5, borderRadius: '50%', background: isActive ? GREEN : AMBER }} />
+                <span style={{ fontSize: 10, fontWeight: 700, color: isActive ? GREEN : AMBER }}>{isActive ? 'Active' : 'Inactive'}</span>
+              </div>
             </div>
-            {refreshing ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, height: 40 }}>
-                <svg width="16" height="16" viewBox="0 0 16 16" style={{ animation: 'aw-spin 0.9s linear infinite' }}>
-                  <circle cx="8" cy="8" r="6" fill="none" stroke="rgba(0,102,255,0.3)" strokeWidth="2" />
-                  <path d="M8 2 A6 6 0 0 1 14 8" fill="none" stroke={BLUE} strokeWidth="2" strokeLinecap="round" />
-                </svg>
-                <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.3)' }}>Refreshing…</span>
-              </div>
-            ) : (
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-                <span style={{ fontSize: 36, fontWeight: 800, color: '#fff', fontFamily: MONO, letterSpacing: '-0.03em', lineHeight: 1 }}>
-                  {balance.toFixed(2)}
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+              <span style={{ fontSize: 10, color: sub }}>{chainLabel}</span>
+              <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.15)' }}>·</span>
+              <span style={{ fontSize: 10, color: sub }}>USDC</span>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ flex: 1, background: addrBg, borderRadius: 8, padding: '7px 10px', overflow: 'hidden' }}>
+                <span style={{ fontSize: 11, color: addrClr, fontFamily: MONO, display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
+                  {agentWallet.address ? shortenAddress(agentWallet.address) : '—'}
                 </span>
-                <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)', fontWeight: 600 }}>USDC</span>
               </div>
+              <button onClick={copyAddress} aria-label="Copy address" style={{ width: 32, height: 32, borderRadius: 8, flexShrink: 0, background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitTapHighlightColor: 'transparent' }}>
+                {copied ? <Check size={12} color={GREEN} /> : <Copy size={12} color="rgba(255,255,255,0.5)" />}
+              </button>
+            </div>
+
+            {lastRefreshedLabel && (
+              <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.18)', marginTop: 8 }}>Updated {lastRefreshedLabel}</div>
             )}
           </div>
-          <div style={{ background: isActive ? 'rgba(0,200,83,0.12)' : 'rgba(255,149,0,0.10)', border: `1px solid ${isActive ? 'rgba(0,200,83,0.25)' : 'rgba(255,149,0,0.25)'}`, borderRadius: 8, padding: '4px 10px', display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
-            <div style={{ width: 5, height: 5, borderRadius: '50%', background: isActive ? GREEN : AMBER }} />
-            <span style={{ fontSize: 10, fontWeight: 700, color: isActive ? GREEN : AMBER }}>{isActive ? 'Active' : 'Inactive'}</span>
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
-          <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)' }}>{chainLabel}</span>
-          <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.15)' }}>·</span>
-          <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)' }}>USDC</span>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{ flex: 1, background: 'rgba(255,255,255,0.05)', borderRadius: 8, padding: '7px 10px', overflow: 'hidden' }}>
-            <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', fontFamily: MONO, display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
-              {agentWallet.address ? shortenAddress(agentWallet.address) : '—'}
-            </span>
-          </div>
-          <button onClick={copyAddress} aria-label="Copy address" style={{ width: 32, height: 32, borderRadius: 8, flexShrink: 0, background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitTapHighlightColor: 'transparent' }}>
-            {copied ? <Check size={12} color={GREEN} /> : <Copy size={12} color="rgba(255,255,255,0.5)" />}
-          </button>
-        </div>
-
-        {lastRefreshedLabel && (
-          <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.18)', marginTop: 8 }}>Updated {lastRefreshedLabel}</div>
-        )}
-      </div>
+        )
+      })()}
 
       {/* ── Action buttons ────────────────────────────────────────────────── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8, marginBottom: 16 }}>
