@@ -1,10 +1,9 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { User, Camera, Save, Shield, Bell, Clock, LogOut, ChevronRight, CheckCircle, Sun, Moon, Monitor, ArrowLeft, AtSign, Headphones, Copy, Check as CheckIcon, Gift } from 'lucide-react'
 import { useAccount, useDisconnect } from 'wagmi'
 import { useAppStore } from '../../store/appStore'
 import { useNanTheme } from '../../hooks/useNanTheme'
 import { useNanName } from '../../hooks/useNanName'
-import { useReferral } from '../../hooks/useReferral'
 
 const F    = "'Inter', -apple-system, sans-serif"
 const MONO = "'JetBrains Mono', Menlo, monospace"
@@ -19,7 +18,8 @@ export function ProfilePage() {
   const { disconnect } = useDisconnect()
   const { auth, profile, setProfile, setActiveView, theme, setTheme, nanHandle, setNanHandle, logout, previousView } = useAppStore()
   const { resolveName, registrySet } = useNanName()
-  const { data: referral } = useReferral()
+  const [referralCode, setReferralCode] = useState<string | null>(null)
+  const [referralUses, setReferralUses] = useState(0)
   const [copied, setCopied] = useState(false)
   const [view, setView] = useState<'main' | 'account'>('main')
   const [tab, setTab] = useState<Tab>('profile')
@@ -35,31 +35,49 @@ export function ProfilePage() {
 
   const token = auth?.sessionToken ?? ''
 
-  const referralLink = referral?.code
-    ? `https://nanarc.xyz/join?ref=${referral.code}`
-    : null
+  // Build a stable identity key from whatever auth path the user used
+  const referralKey = useMemo(() => {
+    if (nanHandle) return `nan:${nanHandle}`
+    if (address) return address
+    const ca = (auth?.circleWalletAddress ?? (auth as unknown as Record<string,string>)?.walletAddress ?? '')
+    if (ca) return ca
+    if (auth?.email) return encodeURIComponent(auth.email)
+    if (auth?.sessionToken) return `tok:${auth.sessionToken.slice(0, 16)}`
+    return null
+  }, [nanHandle, address, auth])
+
+  // Fetch (or create) the referral code whenever key is available
+  useEffect(() => {
+    if (!referralKey || referralCode) return
+    fetch(`/api/referral?wallet=${referralKey}`)
+      .then(r => r.json())
+      .then((d: { success?: boolean; code?: string; uses?: number }) => {
+        if (d.code) { setReferralCode(d.code); setReferralUses(d.uses ?? 0) }
+      })
+      .catch(() => {})
+  }, [referralKey, referralCode])
+
+  const referralLink = referralCode ? `https://nanarc.xyz/join?ref=${referralCode}` : null
 
   const copyReferral = useCallback(() => {
     if (!referralLink) return
-    // Try modern clipboard API first, fall back to execCommand for mobile browsers
     const doFallback = () => {
       try {
         const ta = document.createElement('textarea')
         ta.value = referralLink
-        ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0;pointer-events:none'
+        ta.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0'
         document.body.appendChild(ta)
         ta.focus(); ta.select()
         document.execCommand('copy')
         document.body.removeChild(ta)
         setCopied(true)
-        setTimeout(() => setCopied(false), 2000)
+        setTimeout(() => setCopied(false), 2500)
       } catch { /* silent */ }
     }
     if (navigator.clipboard?.writeText) {
-      navigator.clipboard.writeText(referralLink).then(() => {
-        setCopied(true)
-        setTimeout(() => setCopied(false), 2000)
-      }).catch(doFallback)
+      navigator.clipboard.writeText(referralLink)
+        .then(() => { setCopied(true); setTimeout(() => setCopied(false), 2500) })
+        .catch(doFallback)
     } else {
       doFallback()
     }
@@ -277,9 +295,9 @@ export function ProfilePage() {
                 Loading your referral link…
               </div>
             )}
-            {referral && (
+            {referralCode && (
               <div style={{ fontSize: 11, color: C.t3, marginTop: 8 }}>
-                {referral.uses === 0 ? 'No referrals yet' : `${referral.uses} friend${referral.uses !== 1 ? 's' : ''} joined`}
+                {referralUses === 0 ? 'No referrals yet' : `${referralUses} friend${referralUses !== 1 ? 's' : ''} joined`}
               </div>
             )}
           </div>

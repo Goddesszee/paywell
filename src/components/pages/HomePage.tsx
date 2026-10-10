@@ -8,7 +8,7 @@ import {
   ArrowUpRight, ArrowDownLeft, ChevronRight,
   ArrowDownToLine, Sparkles, Bot,
   CheckCircle2, Clock, ShoppingBag,
-  RefreshCw, Info, Gift,
+  RefreshCw, Gift,
 } from 'lucide-react'
 import { useAppStore, ActivityItem } from '../../store/appStore'
 import { getUsdc } from '../../onchain-facts'
@@ -373,32 +373,17 @@ export function HomePage() {
 
       {/* ── 2. TOTAL PORTFOLIO BALANCE ── */}
       <div style={{ marginBottom: 4 }}>
-        <div style={{
-          display: 'flex', alignItems: 'center',
-          justifyContent: 'space-between', marginBottom: 5,
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-            <span style={{ fontSize: 13, color: C.t2, fontWeight: 500 }}>
-              Total balance
-            </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 2 }}>
+          <span style={{ fontSize: 13, color: C.t2, fontWeight: 500 }}>Total balance</span>
+          {portfolio.lastUpdated && (
             <button
-              title="Sum of USDC, EURC and USDT across all supported networks."
-              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', lineHeight: 1 }}
+              onClick={() => portfolio.refetch()}
+              title={`Updated ${portfolio.lastUpdated.toLocaleTimeString()}`}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', lineHeight: 1, marginLeft: 2 }}
             >
-              <Info size={13} color={C.t3} />
+              <RefreshCw size={11} color={C.t3} />
             </button>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            {portfolio.lastUpdated && (
-              <button
-                onClick={() => portfolio.refetch()}
-                title={`Updated ${portfolio.lastUpdated.toLocaleTimeString()}`}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 3, display: 'flex', lineHeight: 1 }}
-              >
-                <RefreshCw size={12} color={C.t3} />
-              </button>
-            )}
-          </div>
+          )}
         </div>
 
         {isLoadingBalance ? (
