@@ -12,7 +12,9 @@ const MONO = "'JetBrains Mono', Menlo, monospace"
 const SURF = 'var(--nan-surface)'
 const SURF2= 'var(--nan-surface2)'
 const BDR  = 'var(--nan-bdr)'
-const BLUE = '#0066FF'
+const BLUE = '#0866F5'
+const BLUE_DIM = 'rgba(8,102,245,0.10)'
+const BLUE_BD  = 'rgba(8,102,245,0.20)'
 const TEXT = 'var(--nan-text)'
 const T2   = 'var(--nan-text2)'
 const T3   = 'var(--nan-text3)'
@@ -218,12 +220,10 @@ type Tab = 'balance' | 'deposit' | 'transfer'
 
 export function GatewayPage() {
   const [tab, setTab] = useState<Tab>('balance')
+  const [infoOpen, setInfoOpen] = useState(false)
   const { address: wagmiAddress } = useAccount()
   const { auth } = useAppStore()
 
-  // Routing: Circle users (passkey or UCW/W3S) always use CircleTransferTab,
-  // regardless of whether MetaMask is also connected.
-  // isCircleUser is true when any Circle auth state is present.
   const isCircleUser = !!(
     auth?.isPasskeyUser ||
     auth?.userToken ||
@@ -238,7 +238,6 @@ export function GatewayPage() {
   const [gatewayBalance, setGatewayBalance] = useState<{ available: string; pending: string } | null>(null)
   const [balanceLoading, setBalanceLoading] = useState(false)
 
-  // Wallet USDC balance (ERC-20)
   const { data: rawWalletBalance, isLoading: walletLoading, refetch: refetchWallet } = useReadContract({
     address: usdcFact?.address as `0x${string}`,
     abi: erc20Abi,
@@ -270,113 +269,126 @@ export function GatewayPage() {
   const refetchAll = () => { void refetchWallet(); loadGatewayBalance() }
   const isLoading = walletLoading || balanceLoading
 
-  const TABS: { id: Tab; label: string }[] = [
-    { id: 'balance',  label: 'Balance'  },
-    { id: 'deposit',  label: 'Deposit'  },
-    { id: 'transfer', label: 'Transfer' },
-  ]
+  const gwAvail   = gatewayBalance?.available ?? null
+  const gwPending = gatewayBalance?.pending   ?? null
+  const display   = gwAvail   ? parseFloat(gwAvail).toFixed(2)   : '0.00'
+  const pending   = gwPending ? parseFloat(gwPending).toFixed(2) : '0.00'
+  const hasPending = parseFloat(pending) > 0
+  const handleBack = () => { refetchAll(); setTab('balance') }
 
   return (
     <div style={{ fontFamily: F, maxWidth: 520, margin: '0 auto', paddingBottom: 88 }}>
-      {/* Header */}
-      <div style={{ display:'flex', alignItems:'center', gap:10, padding:'20px 0 16px' }}>
-        <div style={{ width:36, height:36, borderRadius:10, background:BLUE, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+
+      {/* ── Header ── */}
+      <div style={{ display:'flex', alignItems:'center', gap:10, padding:'20px 0 18px' }}>
+        <div style={{ width:38, height:38, borderRadius:11, background:BLUE, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, boxShadow:`0 4px 14px rgba(8,102,245,0.35)` }}>
           <Layers size={18} color="#fff" />
         </div>
         <div style={{ flex:1 }}>
-          <div style={{ fontSize:17, fontWeight:700, color:TEXT, letterSpacing:'-0.02em' }}>Gateway</div>
-          <div style={{ fontSize:12, color:T2 }}>Unified USDC · Circle Gateway Testnet</div>
+          <div style={{ fontSize:18, fontWeight:700, color:TEXT, letterSpacing:'-0.025em' }}>Gateway</div>
+          <div style={{ fontSize:12, color:T2, marginTop:1 }}>Circle Gateway · Unified USDC</div>
         </div>
-        <button onClick={refetchAll} style={{ width:36, height:36, borderRadius:10, background:SURF, border:`1px solid ${BDR}`, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer' }}>
-          <RefreshCw size={15} color={T2} />
+        <button onClick={refetchAll} style={{ width:36, height:36, borderRadius:10, background:SURF, border:`1px solid ${BDR}`, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', transition:'background 0.15s' }}>
+          <RefreshCw size={14} color={T2} />
         </button>
       </div>
 
-      {/* Tabs */}
-      <div style={{ display:'flex', background:SURF, borderRadius:12, padding:3, marginBottom:16, gap:2 }}>
-        {TABS.map(t => (
-          <button key={t.id} onClick={() => setTab(t.id)} style={{
-            flex:1, padding:'8px 4px', border:'none', borderRadius:9, cursor:'pointer',
-            fontFamily:F, fontSize:13, fontWeight: tab===t.id ? 700 : 500,
-            background: tab===t.id ? BLUE : 'transparent',
-            color: tab===t.id ? '#fff' : T2, transition:'all 0.15s',
-          }}>{t.label}</button>
-        ))}
-      </div>
+      {/* ── Balance hero card ── */}
+      <div style={{ background:SURF, border:`1px solid ${BDR}`, borderRadius:20, padding:'22px 22px 18px', marginBottom:14 }}>
+        <div style={{ fontSize:10, fontWeight:700, color:T3, letterSpacing:'0.12em', textTransform:'uppercase', marginBottom:12 }}>Gateway Balance</div>
 
-      {tab === 'balance'  && <BalanceTab  address={address} walletBalance={walletBalance} gatewayBalance={gatewayBalance?.available ?? null} pendingBalance={gatewayBalance?.pending ?? null} isLoading={isLoading} />}
-      {tab === 'deposit'  && (!isCircleUser && wagmiAddress
-        ? <DepositTab  address={address} walletBalance={walletBalance} usdcFact={usdcFact} onSuccess={() => { refetchAll(); setTab('balance') }} />
-        : <CircleDepositTab  address={address} walletBalance={walletBalance} usdcFact={usdcFact} onSuccess={() => { refetchAll(); setTab('balance') }} />)}
-      {tab === 'transfer' && (!isCircleUser && wagmiAddress
-        ? <TransferTab address={wagmiAddress} gatewayBalance={gatewayBalance?.available ?? null} onSuccess={() => { refetchAll(); setTab('balance') }} />
-        : <CircleTransferTab address={address} gatewayBalance={gatewayBalance?.available ?? null} onSuccess={() => { refetchAll(); setTab('balance') }} />)}
-    </div>
-  )
-}
-
-// ── Balance tab ───────────────────────────────────────────────────────────────
-function BalanceTab({ address, walletBalance, gatewayBalance, pendingBalance, isLoading }: {
-  address?: string; walletBalance: string|null; gatewayBalance: string|null; pendingBalance: string|null; isLoading: boolean
-}) {
-  const display  = gatewayBalance ? parseFloat(gatewayBalance).toFixed(2) : '0.00'
-  const pending  = pendingBalance  ? parseFloat(pendingBalance).toFixed(2)  : '0.00'
-  const hasPending = parseFloat(pending) > 0
-  return (
-    <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
-      <div style={{ background:'linear-gradient(135deg, #0055e0 0%, #0044bb 100%)', border:`1px solid rgba(0,68,187,0.6)`, borderRadius:20, padding:'28px 24px' }}>
-        <div style={{ fontSize:11, color:'rgba(255,255,255,0.35)', letterSpacing:'0.16em', textTransform:'uppercase', marginBottom:10, fontFamily:MONO }}>Gateway Balance (Unified)</div>
         {!address ? (
-          <div style={{ fontSize:32, fontWeight:700, color:'rgba(255,255,255,0.25)', fontFamily:MONO }}>—</div>
+          <div style={{ padding:'12px 0 8px' }}>
+            <div style={{ fontSize:32, fontWeight:700, color:T3, fontVariantNumeric:'tabular-nums' }}>—</div>
+            <div style={{ fontSize:12, color:T3, marginTop:6 }}>Connect your wallet to view your unified balance</div>
+          </div>
         ) : isLoading ? (
-          <div style={{ height:44, width:140, background:'rgba(255,255,255,0.08)', borderRadius:10, animation:'nan-shimmer 1.4s ease infinite' }} />
+          <div style={{ padding:'8px 0' }}>
+            <div style={{ height:42, width:160, background:'rgba(255,255,255,0.06)', borderRadius:10, animation:'nan-shimmer 1.4s ease infinite', marginBottom:8 }} />
+            <div style={{ height:14, width:100, background:'rgba(255,255,255,0.04)', borderRadius:6, animation:'nan-shimmer 1.4s ease infinite' }} />
+          </div>
         ) : (
           <>
-            <div style={{ fontSize:40, fontWeight:700, color:'#FFFFFF', letterSpacing:'-1.5px', fontFamily:MONO }}>
-              {display} <span style={{ fontSize:18, color:'rgba(255,255,255,0.40)' }}>USDC</span>
+            <div style={{ display:'flex', alignItems:'baseline', gap:8 }}>
+              <span style={{ fontSize:42, fontWeight:800, color:TEXT, letterSpacing:'-0.04em', fontVariantNumeric:'tabular-nums', lineHeight:1 }}>{display}</span>
+              <span style={{ fontSize:16, fontWeight:600, color:T3, letterSpacing:'0.02em' }}>USDC</span>
             </div>
             {hasPending && (
-              <div style={{ marginTop:6, fontSize:12, color:'rgba(255,200,50,0.70)', display:'flex', alignItems:'center', gap:5 }}>
-                <div style={{ width:6, height:6, borderRadius:'50%', background:'rgba(255,200,50,0.70)', flexShrink:0 }} />
-                {pending} USDC pending — deposit finalising onchain
+              <div style={{ marginTop:8, display:'flex', alignItems:'center', gap:6, fontSize:12, color:'#F59E0B' }}>
+                <div style={{ width:6, height:6, borderRadius:'50%', background:'#F59E0B', flexShrink:0 }} />
+                {pending} USDC pending finalization
               </div>
             )}
-            <div style={{ marginTop:8, fontSize:12, color:'rgba(255,255,255,0.30)' }}>
-              {parseFloat(display) > 0 ? 'Summed across all supported chains via Gateway API' : hasPending ? 'Deposit received, awaiting finality — available balance updates shortly' : 'Deposit USDC to build your unified Gateway balance'}
-            </div>
+            {!hasPending && (
+              <div style={{ marginTop:6, fontSize:12, color:T3 }}>
+                {parseFloat(display) > 0 ? 'Available across all supported chains' : 'Deposit USDC to build your unified balance'}
+              </div>
+            )}
           </>
         )}
+
         {address && (
-          <div style={{ marginTop:20, paddingTop:16, borderTop:'1px solid rgba(255,255,255,0.08)', fontSize:12, color:'rgba(255,255,255,0.30)', fontFamily:MONO }}>
-            {address.slice(0,8)}...{address.slice(-6)} · Arc Testnet
+          <div style={{ marginTop:16, paddingTop:14, borderTop:`1px solid ${BDR}`, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+            <span style={{ fontSize:11, color:T3, fontFamily:MONO }}>{address.slice(0,8)}…{address.slice(-6)}</span>
+            <span style={{ fontSize:11, color:T3 }}>Arc Testnet</span>
           </div>
         )}
       </div>
 
-      {address && (
-        <div style={{ background:SURF, border:`1px solid ${BDR}`, borderRadius:14, padding:'14px 16px', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-          <span style={{ fontSize:13, color:T2 }}>Wallet USDC (Arc Testnet)</span>
-          <span style={{ fontSize:15, fontWeight:700, color:TEXT, fontFamily:MONO }}>{isLoading ? '…' : `${walletBalance ? parseFloat(walletBalance).toFixed(2) : '0.00'} USDC`}</span>
+      {/* ── Action buttons ── */}
+      <div style={{ display:'flex', gap:10, marginBottom:16 }}>
+        <button
+          onClick={() => setTab(tab === 'deposit' ? 'balance' : 'deposit')}
+          style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', gap:8, padding:'13px 0', borderRadius:14, border: tab==='deposit' ? 'none' : `1px solid ${BDR}`, background: tab==='deposit' ? BLUE : SURF, color: tab==='deposit' ? '#fff' : TEXT, fontSize:14, fontWeight:600, fontFamily:F, cursor:'pointer', transition:'all 0.15s', boxShadow: tab==='deposit' ? `0 4px 16px rgba(8,102,245,0.28)` : 'none' }}>
+          <ArrowDownToLine size={15} />
+          Deposit
+        </button>
+        <button
+          onClick={() => setTab(tab === 'transfer' ? 'balance' : 'transfer')}
+          style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', gap:8, padding:'13px 0', borderRadius:14, border: tab==='transfer' ? `1px solid ${BLUE}` : `1px solid ${BDR}`, background: tab==='transfer' ? BLUE_DIM : SURF, color: tab==='transfer' ? BLUE : TEXT, fontSize:14, fontWeight:600, fontFamily:F, cursor:'pointer', transition:'all 0.15s' }}>
+          <ArrowLeftRight size={15} />
+          Transfer
+        </button>
+      </div>
+
+      {/* ── Action panels ── */}
+      {tab === 'deposit' && (!isCircleUser && wagmiAddress
+        ? <DepositTab address={address} walletBalance={walletBalance} usdcFact={usdcFact} onSuccess={handleBack} />
+        : <CircleDepositTab address={address} walletBalance={walletBalance} usdcFact={usdcFact} onSuccess={handleBack} />)}
+      {tab === 'transfer' && (!isCircleUser && wagmiAddress
+        ? <TransferTab address={wagmiAddress} gatewayBalance={gwAvail} onSuccess={handleBack} />
+        : <CircleTransferTab address={address} gatewayBalance={gwAvail} onSuccess={handleBack} />)}
+
+      {/* ── Idle state: wallet balance + info panel ── */}
+      {tab === 'balance' && address && (
+        <div style={{ background:SURF, border:`1px solid ${BDR}`, borderRadius:14, padding:'14px 16px', display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
+          <span style={{ fontSize:13, color:T2 }}>Wallet USDC</span>
+          <span style={{ fontSize:14, fontWeight:700, color:TEXT, fontVariantNumeric:'tabular-nums' }}>
+            {isLoading ? '…' : `${walletBalance ? parseFloat(walletBalance).toFixed(2) : '0.00'} USDC`}
+          </span>
         </div>
       )}
 
-      {/* Supported chains */}
-      <div style={{ background:SURF, border:`1px solid ${BDR}`, borderRadius:14, padding:'14px 16px' }}>
-        <div style={{ fontSize:11, fontWeight:700, color:T3, textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:8 }}>What is Gateway?</div>
-        <div style={{ fontSize:12, color:T2, lineHeight:1.6 }}>
-          Circle Gateway holds a unified USDC balance across all supported chains. Deposit on any chain, transfer instantly to any other — no CCTP wait time.
-        </div>
-        <div style={{ marginTop:10, display:'flex', gap:6, flexWrap:'wrap' }}>
-          {['Arc', 'Ethereum', 'Base', 'Arbitrum', 'Polygon', 'OP', 'Avalanche', 'Unichain'].map(c => (
-            <span key={c} style={{ fontSize:10, fontWeight:600, color:BLUE, background:'rgba(0,102,255,0.10)', border:'1px solid rgba(0,102,255,0.20)', borderRadius:20, padding:'2px 8px' }}>{c}</span>
-          ))}
-        </div>
-      </div>
-
-      {!address && (
-        <div style={{ textAlign:'center', padding:'32px 0', color:T3 }}>
-          <div style={{ fontSize:14, fontWeight:600, color:TEXT }}>Connect your wallet</div>
-          <div style={{ fontSize:12, marginTop:4 }}>Connect to view your unified Gateway balance</div>
+      {tab === 'balance' && (
+        <div style={{ background:SURF, border:`1px solid ${BDR}`, borderRadius:14, overflow:'hidden' }}>
+          <button
+            onClick={() => setInfoOpen(o => !o)}
+            style={{ width:'100%', display:'flex', alignItems:'center', justifyContent:'space-between', padding:'13px 16px', background:'transparent', border:'none', cursor:'pointer', fontFamily:F }}>
+            <span style={{ fontSize:13, fontWeight:600, color:TEXT }}>What is Gateway?</span>
+            <ChevronDown size={15} color={T2} style={{ transform: infoOpen ? 'rotate(180deg)' : 'none', transition:'transform 0.2s' }} />
+          </button>
+          {infoOpen && (
+            <div style={{ padding:'0 16px 16px', borderTop:`1px solid ${BDR}` }}>
+              <div style={{ fontSize:13, color:T2, lineHeight:1.65, paddingTop:12 }}>
+                Circle Gateway holds a unified USDC balance across multiple chains. Deposit on any supported chain and transfer instantly to any other — no CCTP wait time, no destination-chain gas required.
+              </div>
+              <div style={{ marginTop:12, display:'flex', gap:6, flexWrap:'wrap' }}>
+                {['Arc', 'Ethereum', 'Base', 'Arbitrum', 'Polygon', 'OP', 'Avalanche', 'Unichain'].map(c => (
+                  <span key={c} style={{ fontSize:11, fontWeight:600, color:BLUE, background:BLUE_DIM, border:`1px solid ${BLUE_BD}`, borderRadius:20, padding:'3px 10px' }}>{c}</span>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -459,61 +471,51 @@ function DepositTab({ address, walletBalance, usdcFact, onSuccess }: {
   const reset = () => { setPhase('idle'); setAmount(''); setErrMsg(''); resetApprove(); resetDeposit() }
 
   if (!address) return (
-    <div style={{ textAlign:'center', padding:'48px 0', color:T3 }}>
+    <div style={{ textAlign:'center', padding:'40px 0', color:T3 }}>
       <div style={{ fontSize:14, fontWeight:600, color:TEXT }}>Connect your wallet to deposit</div>
     </div>
   )
 
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
-      <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-        <div style={{ width:32, height:32, borderRadius:9, background:`rgba(0,102,255,0.12)`, border:`1px solid rgba(0,102,255,0.20)`, display:'flex', alignItems:'center', justifyContent:'center' }}>
-          <ArrowDownToLine size={15} color={BLUE} />
-        </div>
-        <div>
-          <div style={{ fontSize:14, fontWeight:700, color:TEXT }}>Deposit USDC</div>
-          <div style={{ fontSize:11, color:T2 }}>Deposit on Arc Testnet to build your unified balance</div>
-        </div>
-      </div>
-
-      <div style={{ background:`rgba(0,102,255,0.06)`, border:`1px solid rgba(0,102,255,0.15)`, borderRadius:10, padding:'10px 14px', display:'flex', gap:8, alignItems:'flex-start' }}>
+      <div style={{ background:BLUE_DIM, border:`1px solid ${BLUE_BD}`, borderRadius:12, padding:'11px 14px', display:'flex', gap:8, alignItems:'flex-start' }}>
         <Info size={13} color={BLUE} style={{ flexShrink:0, marginTop:1 }} />
-        <div style={{ fontSize:11, color:T2, lineHeight:1.5 }}>
-          Approves USDC spend, then calls <strong>GatewayWallet.deposit(token, amount)</strong> — credits your unified cross-chain balance.
+        <div style={{ fontSize:12, color:T2, lineHeight:1.55 }}>
+          Approves USDC spend then calls <strong style={{ color:TEXT }}>GatewayWallet.deposit</strong> — credits your unified cross-chain balance.
         </div>
       </div>
 
       <div>
-        <div style={{ fontSize:11, fontWeight:600, color:T2, marginBottom:6, textTransform:'uppercase', letterSpacing:'0.05em' }}>Amount (USDC)</div>
+        <div style={{ fontSize:11, fontWeight:600, color:T3, marginBottom:7, textTransform:'uppercase', letterSpacing:'0.07em' }}>Amount</div>
         <div style={{ position:'relative' }}>
           <input type="number" min="0" step="0.01" placeholder="0.00" value={amount}
             onChange={e => setAmount(e.target.value)} disabled={phase !== 'idle'}
-            style={{ width:'100%', padding:'12px 56px 12px 14px', border:`1px solid ${BDR}`, borderRadius:10, background:SURF2, color:TEXT, fontSize:16, fontWeight:600, fontFamily:F, boxSizing:'border-box', outline:'none' }} />
+            style={{ width:'100%', padding:'13px 58px 13px 14px', border:`1px solid ${amount ? BLUE_BD : BDR}`, borderRadius:12, background:SURF2, color:TEXT, fontSize:22, fontWeight:700, fontFamily:F, boxSizing:'border-box', outline:'none', fontVariantNumeric:'tabular-nums', transition:'border-color 0.15s' }} />
           <span style={{ position:'absolute', right:14, top:'50%', transform:'translateY(-50%)', fontSize:13, fontWeight:600, color:T2 }}>USDC</span>
         </div>
-        <div style={{ display:'flex', justifyContent:'space-between', marginTop:6 }}>
-          <span style={{ fontSize:11, color:T2 }}>Available: <strong style={{ color:TEXT }}>{walletBalance ? parseFloat(walletBalance).toFixed(2) : '—'} USDC</strong></span>
-          {walletBalance && <button onClick={() => setAmount(parseFloat(walletBalance).toFixed(6))} style={{ fontSize:11, fontWeight:600, color:BLUE, background:'none', border:'none', cursor:'pointer' }}>Max</button>}
+        <div style={{ display:'flex', justifyContent:'space-between', marginTop:7 }}>
+          <span style={{ fontSize:12, color:T2 }}>Available: <strong style={{ color:TEXT, fontVariantNumeric:'tabular-nums' }}>{walletBalance ? parseFloat(walletBalance).toFixed(2) : '—'} USDC</strong></span>
+          {walletBalance && <button onClick={() => setAmount(parseFloat(walletBalance).toFixed(6))} style={{ fontSize:12, fontWeight:600, color:BLUE, background:'none', border:'none', cursor:'pointer' }}>Max</button>}
         </div>
-        <div style={{ display:'flex', gap:8, marginTop:8 }}>
+        <div style={{ display:'flex', gap:8, marginTop:10 }}>
           {['1','5','10','25'].map(v => (
             <button key={v} onClick={() => setAmount(v)} disabled={phase !== 'idle'}
-              style={{ flex:1, padding:'7px 0', border:`1px solid ${amount===v?BLUE:BDR}`, borderRadius:8, background:amount===v?'rgba(0,102,255,0.12)':SURF, color:amount===v?BLUE:T2, fontSize:13, cursor:'pointer', fontFamily:F, fontWeight:600 }}>{v}</button>
+              style={{ flex:1, padding:'8px 0', border:`1px solid ${amount===v ? BLUE : BDR}`, borderRadius:10, background:amount===v ? BLUE_DIM : SURF, color:amount===v ? BLUE : T2, fontSize:13, cursor:'pointer', fontFamily:F, fontWeight:600, transition:'all 0.12s' }}>{v}</button>
           ))}
         </div>
       </div>
 
       {phase !== 'idle' && (
-        <div style={{ border:`1px solid ${BDR}`, borderRadius:12, overflow:'hidden' }}>
+        <div style={{ background:SURF, border:`1px solid ${BDR}`, borderRadius:12, overflow:'hidden' }}>
           {[
             { label:'Approve USDC spend', done: phase==='depositing'||phase==='done', active: phase==='approving' },
-            { label:'deposit(token, amount) on Gateway', done: phase==='done', active: phase==='depositing' },
+            { label:'Deposit to Gateway', done: phase==='done', active: phase==='depositing' },
           ].map((s,i) => (
-            <div key={i} style={{ padding:'12px 16px', borderBottom: i===0?`1px solid ${BDR}`:'none', display:'flex', alignItems:'center', gap:12 }}>
-              <div style={{ width:28, height:28, borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', background:s.done?BLUE:SURF2, border:`1px solid ${s.done?BLUE:BDR}`, flexShrink:0 }}>
-                {s.done ? <Check size={13} color="#fff" /> : s.active ? <div style={{ width:12, height:12, borderRadius:'50%', border:`2px solid ${BLUE}`, borderTopColor:'transparent', animation:'nan-spin 0.8s linear infinite' }} /> : <span style={{ fontSize:11, color:T3 }}>{i+1}</span>}
+            <div key={i} style={{ padding:'12px 16px', borderBottom: i===0 ? `1px solid ${BDR}` : 'none', display:'flex', alignItems:'center', gap:12 }}>
+              <div style={{ width:26, height:26, borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', background:s.done ? BLUE : SURF2, border:`1px solid ${s.done ? BLUE : BDR}`, flexShrink:0 }}>
+                {s.done ? <Check size={12} color="#fff" /> : s.active ? <div style={{ width:11, height:11, borderRadius:'50%', border:`2px solid ${BLUE}`, borderTopColor:'transparent', animation:'nan-spin 0.8s linear infinite' }} /> : <span style={{ fontSize:11, color:T3 }}>{i+1}</span>}
               </div>
-              <span style={{ fontSize:13, color:TEXT }}>{s.label}</span>
+              <span style={{ fontSize:13, color: s.active ? TEXT : s.done ? TEXT : T2 }}>{s.label}</span>
               {s.done && i===1 && depositTxHash && (
                 <a href={buildTxExplorerUrl(ARC, depositTxHash)} target="_blank" rel="noreferrer" style={{ marginLeft:'auto', fontSize:11, color:T2, display:'flex', alignItems:'center', gap:3 }}>View <ExternalLink size={10} /></a>
               )}
@@ -523,9 +525,9 @@ function DepositTab({ address, walletBalance, usdcFact, onSuccess }: {
       )}
 
       {phase === 'error' && (
-        <div style={{ background:'rgba(255,68,68,0.08)', border:`1px solid rgba(255,68,68,0.20)`, borderRadius:10, padding:'10px 14px', display:'flex', gap:8 }}>
-          <AlertCircle size={14} color="#FF4444" style={{ flexShrink:0, marginTop:1 }} />
-          <span style={{ fontSize:12, color:'#FF4444' }}>{errMsg}</span>
+        <div style={{ background:'rgba(239,68,68,0.08)', border:'1px solid rgba(239,68,68,0.22)', borderRadius:10, padding:'10px 14px', display:'flex', gap:8 }}>
+          <AlertCircle size={14} color="#EF4444" style={{ flexShrink:0, marginTop:1 }} />
+          <span style={{ fontSize:12, color:'#EF4444' }}>{errMsg}</span>
         </div>
       )}
 
@@ -533,11 +535,11 @@ function DepositTab({ address, walletBalance, usdcFact, onSuccess }: {
         <button onClick={reset} style={{ width:'100%', padding:'14px 0', background:SURF, border:`1px solid ${BDR}`, borderRadius:14, fontSize:14, fontWeight:600, color:TEXT, cursor:'pointer', fontFamily:F }}>Deposit again</button>
       ) : (
         <button onClick={() => void handleDeposit()} disabled={!amount || parseFloat(amount)<=0 || phase!=='idle'}
-          style={{ width:'100%', padding:'14px 0', borderRadius:14, fontSize:14, fontWeight:600, border:'none', fontFamily:F, cursor:!amount||phase!=='idle'?'not-allowed':'pointer', background:!amount||phase!=='idle'?SURF:BLUE, color:!amount||phase!=='idle'?T2:'#fff', transition:'all 0.15s' }}>
-          {phase==='approving'?'Approving…':phase==='depositing'?'Depositing…':`Deposit ${amount||'0.00'} USDC`}
+          style={{ width:'100%', padding:'15px 0', borderRadius:14, fontSize:15, fontWeight:700, border:'none', fontFamily:F, cursor:(!amount||phase!=='idle') ? 'not-allowed' : 'pointer', background:(!amount||phase!=='idle') ? SURF : BLUE, color:(!amount||phase!=='idle') ? T2 : '#fff', transition:'all 0.15s', boxShadow:(!amount||phase!=='idle') ? 'none' : `0 4px 16px rgba(8,102,245,0.30)` }}>
+          {phase==='approving' ? 'Approving…' : phase==='depositing' ? 'Depositing…' : `Deposit ${amount||'0.00'} USDC`}
         </button>
       )}
-      <div style={{ fontSize:11, color:T3, textAlign:'center' }}>Powered by Circle Gateway · Funds available cross-chain instantly</div>
+      <div style={{ fontSize:11, color:T3, textAlign:'center' }}>Powered by Circle Gateway</div>
     </div>
   )
 }
@@ -689,30 +691,42 @@ function PasskeyDepositTab({ address, walletBalance, usdcFact, onSuccess }: {
 
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
-      <div style={{ fontSize:13, color:T2, lineHeight:1.6 }}>Deposit USDC into your unified Gateway balance using your passkey wallet.</div>
-      <div style={{ background:`rgba(0,102,255,0.06)`, border:`1px solid rgba(0,102,255,0.15)`, borderRadius:10, padding:'10px 14px', display:'flex', gap:8, alignItems:'flex-start' }}>
+      <div style={{ background:BLUE_DIM, border:`1px solid ${BLUE_BD}`, borderRadius:12, padding:'11px 14px', display:'flex', gap:8, alignItems:'flex-start' }}>
         <Info size={13} color={BLUE} style={{ flexShrink:0, marginTop:1 }} />
-        <div style={{ fontSize:11, color:T2, lineHeight:1.5 }}>
-          Approve + deposit are batched into <strong>one user operation</strong> — a single passkey biometric prompt covers both steps.
+        <div style={{ fontSize:12, color:T2, lineHeight:1.55 }}>
+          Approve + deposit batched into <strong style={{ color:TEXT }}>one user operation</strong> — a single passkey prompt covers both steps.
         </div>
       </div>
       <div>
-        <div style={{ fontSize:11, fontWeight:600, color:T2, marginBottom:6, textTransform:'uppercase', letterSpacing:'0.05em' }}>Amount (USDC)</div>
+        <div style={{ fontSize:11, fontWeight:600, color:T3, marginBottom:7, textTransform:'uppercase', letterSpacing:'0.07em' }}>Amount</div>
         <div style={{ position:'relative' }}>
           <input type="number" min="0" step="0.01" placeholder="0.00" value={amount}
             onChange={e => setAmount(e.target.value)} disabled={busy}
-            style={{ width:'100%', padding:'12px 56px 12px 14px', border:`1px solid ${BDR}`, borderRadius:10, background:SURF2, color:TEXT, fontSize:16, fontWeight:600, fontFamily:F, boxSizing:'border-box', outline:'none' }} />
+            style={{ width:'100%', padding:'13px 58px 13px 14px', border:`1px solid ${amount ? BLUE_BD : BDR}`, borderRadius:12, background:SURF2, color:TEXT, fontSize:22, fontWeight:700, fontFamily:F, boxSizing:'border-box', outline:'none', fontVariantNumeric:'tabular-nums', transition:'border-color 0.15s' }} />
           <span style={{ position:'absolute', right:14, top:'50%', transform:'translateY(-50%)', fontSize:13, fontWeight:600, color:T2 }}>USDC</span>
         </div>
-        <div style={{ fontSize:11, color:T2, marginTop:6 }}>Available: <strong style={{ color:TEXT }}>{walletBalance ? parseFloat(walletBalance).toFixed(2) : '—'} USDC</strong></div>
+        <div style={{ fontSize:12, color:T2, marginTop:7 }}>Available: <strong style={{ color:TEXT, fontVariantNumeric:'tabular-nums' }}>{walletBalance ? parseFloat(walletBalance).toFixed(2) : '—'} USDC</strong></div>
+        <div style={{ display:'flex', gap:8, marginTop:10 }}>
+          {['1','5','10','25'].map(v => (
+            <button key={v} onClick={() => setAmount(v)} disabled={busy}
+              style={{ flex:1, padding:'8px 0', border:`1px solid ${amount===v ? BLUE : BDR}`, borderRadius:10, background:amount===v ? BLUE_DIM : SURF, color:amount===v ? BLUE : T2, fontSize:13, cursor:'pointer', fontFamily:F, fontWeight:600, transition:'all 0.12s' }}>{v}</button>
+          ))}
+        </div>
       </div>
-      {errMsg && <div style={{ background:'rgba(255,68,68,0.08)', border:`1px solid rgba(255,68,68,0.20)`, borderRadius:10, padding:'10px 14px', fontSize:12, color:'#FF4444' }}>{errMsg}</div>}
-      {busy && <div style={{ fontSize:13, color:T2, display:'flex', alignItems:'center', gap:8 }}><div style={{ width:12, height:12, borderRadius:'50%', border:`2px solid ${BLUE}`, borderTopColor:'transparent', animation:'nan-spin 0.8s linear infinite', flexShrink:0 }} />Confirm with your passkey…</div>}
+      {errMsg && (
+        <div style={{ background:'rgba(239,68,68,0.08)', border:'1px solid rgba(239,68,68,0.22)', borderRadius:10, padding:'10px 14px', fontSize:12, color:'#EF4444' }}>{errMsg}</div>
+      )}
+      {busy && (
+        <div style={{ fontSize:13, color:T2, display:'flex', alignItems:'center', gap:8 }}>
+          <div style={{ width:12, height:12, borderRadius:'50%', border:`2px solid ${BLUE}`, borderTopColor:'transparent', animation:'nan-spin 0.8s linear infinite', flexShrink:0 }} />
+          Confirm with your passkey…
+        </div>
+      )}
       {phase === 'done' ? (
         <button onClick={reset} style={{ width:'100%', padding:'14px 0', background:SURF, border:`1px solid ${BDR}`, borderRadius:14, fontSize:14, fontWeight:600, color:TEXT, cursor:'pointer', fontFamily:F }}>Deposit again</button>
       ) : (
         <button onClick={() => void handleDeposit()} disabled={!amount || parseFloat(amount)<=0 || busy}
-          style={{ width:'100%', padding:'14px 0', borderRadius:14, fontSize:14, fontWeight:600, border:'none', fontFamily:F, cursor:(!amount||busy)?'not-allowed':'pointer', background:(!amount||busy)?SURF:BLUE, color:(!amount||busy)?T2:'#fff', transition:'all 0.15s' }}>
+          style={{ width:'100%', padding:'15px 0', borderRadius:14, fontSize:15, fontWeight:700, border:'none', fontFamily:F, cursor:(!amount||busy) ? 'not-allowed' : 'pointer', background:(!amount||busy) ? SURF : BLUE, color:(!amount||busy) ? T2 : '#fff', transition:'all 0.15s', boxShadow:(!amount||busy) ? 'none' : `0 4px 16px rgba(8,102,245,0.30)` }}>
           {busy ? 'Processing…' : `Deposit ${amount||'0.00'} USDC`}
         </button>
       )}
@@ -720,9 +734,10 @@ function PasskeyDepositTab({ address, walletBalance, usdcFact, onSuccess }: {
   )
 }
 
-// Multicall3 on Arc Testnet — batches approve + deposit into a single tx / one Circle popup
-const MULTICALL3 = '0xcA11bde05977b3631167028862bE2a173976CA11' as const
-const MULTICALL3_ABI = [{
+// Multicall3 on Arc Testnet — kept for reference
+const _MULTICALL3 = '0xcA11bde05977b3631167028862bE2a173976CA11' as const
+void _MULTICALL3
+const _MULTICALL3_ABI = [{
   type: 'function',
   name: 'aggregate3',
   inputs: [{
@@ -771,21 +786,30 @@ function W3SDepositTab({ address, walletBalance, usdcFact, onSuccess }: {
 
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
-      <div style={{ fontSize:13, color:T2, lineHeight:1.6 }}>Deposit USDC into your unified Gateway balance using your Circle wallet. You'll approve twice: first USDC spending, then the deposit.</div>
+      <div style={{ background:BLUE_DIM, border:`1px solid ${BLUE_BD}`, borderRadius:12, padding:'11px 14px', display:'flex', gap:8, alignItems:'flex-start' }}>
+        <Info size={13} color={BLUE} style={{ flexShrink:0, marginTop:1 }} />
+        <div style={{ fontSize:12, color:T2, lineHeight:1.55 }}>Two Circle approvals required: first USDC spending, then the deposit.</div>
+      </div>
       <div>
-        <div style={{ fontSize:11, fontWeight:600, color:T2, marginBottom:6, textTransform:'uppercase', letterSpacing:'0.05em' }}>Amount (USDC)</div>
+        <div style={{ fontSize:11, fontWeight:600, color:T3, marginBottom:7, textTransform:'uppercase', letterSpacing:'0.07em' }}>Amount</div>
         <div style={{ position:'relative' }}>
           <input type="number" min="0" step="0.01" placeholder="0.00" value={amount}
             onChange={e => setAmount(e.target.value)} disabled={busy}
-            style={{ width:'100%', padding:'12px 56px 12px 14px', border:`1px solid ${BDR}`, borderRadius:10, background:SURF2, color:TEXT, fontSize:16, fontWeight:600, fontFamily:F, boxSizing:'border-box', outline:'none' }} />
+            style={{ width:'100%', padding:'13px 58px 13px 14px', border:`1px solid ${amount ? BLUE_BD : BDR}`, borderRadius:12, background:SURF2, color:TEXT, fontSize:22, fontWeight:700, fontFamily:F, boxSizing:'border-box', outline:'none', fontVariantNumeric:'tabular-nums', transition:'border-color 0.15s' }} />
           <span style={{ position:'absolute', right:14, top:'50%', transform:'translateY(-50%)', fontSize:13, fontWeight:600, color:T2 }}>USDC</span>
         </div>
-        <div style={{ fontSize:11, color:T2, marginTop:6 }}>Available: <strong style={{ color:TEXT }}>{walletBalance ? parseFloat(walletBalance).toFixed(2) : '—'} USDC</strong></div>
+        <div style={{ fontSize:12, color:T2, marginTop:7 }}>Available: <strong style={{ color:TEXT, fontVariantNumeric:'tabular-nums' }}>{walletBalance ? parseFloat(walletBalance).toFixed(2) : '—'} USDC</strong></div>
+        <div style={{ display:'flex', gap:8, marginTop:10 }}>
+          {['1','5','10','25'].map(v => (
+            <button key={v} onClick={() => setAmount(v)} disabled={busy}
+              style={{ flex:1, padding:'8px 0', border:`1px solid ${amount===v ? BLUE : BDR}`, borderRadius:10, background:amount===v ? BLUE_DIM : SURF, color:amount===v ? BLUE : T2, fontSize:13, cursor:'pointer', fontFamily:F, fontWeight:600, transition:'all 0.12s' }}>{v}</button>
+          ))}
+        </div>
       </div>
-      {error && <div style={{ background:'rgba(255,68,68,0.08)', border:`1px solid rgba(255,68,68,0.20)`, borderRadius:10, padding:'10px 14px', fontSize:12, color:'#FF4444' }}>{error}</div>}
-      {busy && <div style={{ fontSize:13, color:T2 }}>{status === 'approving' ? 'Approve in Circle popup…' : status === 'polling' ? 'Confirming on-chain…' : 'Preparing…'}</div>}
+      {error && <div style={{ background:'rgba(239,68,68,0.08)', border:'1px solid rgba(239,68,68,0.22)', borderRadius:10, padding:'10px 14px', fontSize:12, color:'#EF4444' }}>{error}</div>}
+      {busy && <div style={{ fontSize:13, color:T2, display:'flex', alignItems:'center', gap:7 }}><div style={{ width:11, height:11, borderRadius:'50%', border:`2px solid ${BLUE}`, borderTopColor:'transparent', animation:'nan-spin 0.8s linear infinite', flexShrink:0 }} />{status === 'approving' ? 'Approve in Circle popup…' : status === 'polling' ? 'Confirming on-chain…' : 'Preparing…'}</div>}
       <button onClick={() => void handleDeposit()} disabled={!amount || parseFloat(amount)<=0 || busy}
-        style={{ width:'100%', padding:'14px 0', borderRadius:14, fontSize:14, fontWeight:600, border:'none', fontFamily:F, cursor:(!amount||busy)?'not-allowed':'pointer', background:(!amount||busy)?SURF:BLUE, color:(!amount||busy)?T2:'#fff', transition:'all 0.15s' }}>
+        style={{ width:'100%', padding:'15px 0', borderRadius:14, fontSize:15, fontWeight:700, border:'none', fontFamily:F, cursor:(!amount||busy) ? 'not-allowed' : 'pointer', background:(!amount||busy) ? SURF : BLUE, color:(!amount||busy) ? T2 : '#fff', transition:'all 0.15s', boxShadow:(!amount||busy) ? 'none' : `0 4px 16px rgba(8,102,245,0.30)` }}>
         {busy ? 'Processing…' : `Deposit ${amount||'0.00'} USDC`}
       </button>
     </div>
@@ -801,29 +825,29 @@ function DestChainSelector({ chains, value, onChange, disabled }: {
 
   return (
     <div>
-      <div style={{ fontSize:11, fontWeight:600, color:T2, marginBottom:6, textTransform:'uppercase', letterSpacing:'0.05em' }}>To</div>
+      <div style={{ fontSize:11, fontWeight:600, color:T3, marginBottom:7, textTransform:'uppercase', letterSpacing:'0.07em' }}>Destination</div>
       <div style={{ position:'relative' }}>
         <button
           type="button"
           onClick={() => { if (!disabled) setOpen(o => !o) }}
           disabled={disabled}
           style={{
-            width:'100%', padding:'12px 40px 12px 14px',
-            border:`1px solid ${open ? BLUE : BDR}`, borderRadius:10,
+            width:'100%', padding:'13px 40px 13px 14px',
+            border:`1px solid ${open ? BLUE : BDR}`, borderRadius:12,
             background:SURF2, color:TEXT, fontSize:14, fontWeight:600,
             fontFamily:F, textAlign:'left', cursor: disabled ? 'not-allowed' : 'pointer',
             outline:'none', display:'flex', alignItems:'center', justifyContent:'space-between',
-            boxSizing:'border-box',
+            boxSizing:'border-box', transition:'border-color 0.15s',
           }}
         >
           <span>{selected?.name ?? 'Select chain'}</span>
-          <ChevronDown size={14} color={T2} style={{ flexShrink:0, transform: open ? 'rotate(180deg)' : 'none', transition:'transform 0.15s' }} />
+          <ChevronDown size={14} color={T2} style={{ flexShrink:0, transform: open ? 'rotate(180deg)' : 'none', transition:'transform 0.2s' }} />
         </button>
         {open && (
           <div style={{
             position:'absolute', top:'calc(100% + 4px)', left:0, right:0, zIndex:50,
-            background:SURF2, border:`1px solid ${BDR}`, borderRadius:10,
-            overflow:'hidden', boxShadow:'0 8px 24px rgba(0,0,0,0.4)',
+            background:SURF2, border:`1px solid ${BDR}`, borderRadius:12,
+            overflow:'hidden', boxShadow:'0 12px 32px rgba(0,0,0,0.5)',
           }}>
             {chains.map(c => (
               <button
@@ -831,13 +855,17 @@ function DestChainSelector({ chains, value, onChange, disabled }: {
                 type="button"
                 onClick={() => { onChange(c.chainId); setOpen(false) }}
                 style={{
-                  width:'100%', padding:'12px 14px', border:'none', background: c.chainId === value ? `rgba(0,102,255,0.12)` : 'transparent',
-                  color: c.chainId === value ? BLUE : TEXT, fontSize:14, fontWeight: c.chainId === value ? 700 : 500,
-                  fontFamily:F, textAlign:'left', cursor:'pointer', display:'block',
+                  width:'100%', padding:'12px 14px', border:'none',
+                  background: c.chainId === value ? BLUE_DIM : 'transparent',
+                  color: c.chainId === value ? BLUE : TEXT,
+                  fontSize:14, fontWeight: c.chainId === value ? 700 : 400,
+                  fontFamily:F, textAlign:'left', cursor:'pointer', display:'flex',
+                  alignItems:'center', justifyContent:'space-between',
                   borderBottom: chains[chains.length-1]?.chainId === c.chainId ? 'none' : `1px solid ${BDR}`,
                 }}
               >
-                {c.name}
+                <span>{c.name}</span>
+                {c.chainId === value && <Check size={14} color={BLUE} />}
               </button>
             ))}
           </div>
@@ -1029,70 +1057,64 @@ function TransferTab({ address, gatewayBalance, onSuccess }: {
 
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
-      <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-        <div style={{ width:32, height:32, borderRadius:9, background:`rgba(0,102,255,0.12)`, border:`1px solid rgba(0,102,255,0.20)`, display:'flex', alignItems:'center', justifyContent:'center' }}>
-          <ArrowLeftRight size={15} color={BLUE} />
-        </div>
-        <div>
-          <div style={{ fontSize:14, fontWeight:700, color:TEXT }}>Transfer USDC</div>
-          <div style={{ fontSize:11, color:T2 }}>Burn on Arc, mint on destination — instant via Gateway</div>
-        </div>
-      </div>
-
-      <div style={{ background:`rgba(0,102,255,0.06)`, border:`1px solid rgba(0,102,255,0.15)`, borderRadius:10, padding:'10px 14px', display:'flex', gap:8, alignItems:'flex-start' }}>
+      <div style={{ background:BLUE_DIM, border:`1px solid ${BLUE_BD}`, borderRadius:12, padding:'11px 14px', display:'flex', gap:8, alignItems:'flex-start' }}>
         <Info size={13} color={BLUE} style={{ flexShrink:0, marginTop:1 }} />
-        <div style={{ fontSize:11, color:T2, lineHeight:1.5 }}>
-          Signs a <strong>Gateway BurnIntent</strong> (EIP-712) on Arc. Circle's <strong>Forwarding Service</strong> mints on the destination — <strong>no dest-chain gas needed</strong>.
+        <div style={{ fontSize:12, color:T2, lineHeight:1.55 }}>
+          Signs a <strong style={{ color:TEXT }}>Gateway BurnIntent</strong> on Arc. Circle's Forwarding Service mints on the destination — <strong style={{ color:TEXT }}>no dest-chain gas needed</strong>.
         </div>
       </div>
 
-      {/* Source (always Arc Testnet) */}
-      <div style={{ background:SURF, border:`1px solid ${BDR}`, borderRadius:12, padding:'12px 14px' }}>
-        <div style={{ fontSize:11, color:T3, marginBottom:4, fontWeight:600, textTransform:'uppercase', letterSpacing:'0.05em' }}>From</div>
-        <div style={{ fontSize:14, fontWeight:700, color:TEXT }}>Arc Testnet</div>
-        <div style={{ fontSize:12, color:T2, marginTop:2 }}>
-          Gateway balance: <strong style={{ color:TEXT }}>{gwBal.toFixed(2)} USDC</strong>
+      {/* From / To route card */}
+      <div style={{ background:SURF, border:`1px solid ${BDR}`, borderRadius:14, overflow:'hidden' }}>
+        <div style={{ padding:'12px 16px', borderBottom:`1px solid ${BDR}`, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+          <div>
+            <div style={{ fontSize:10, fontWeight:700, color:T3, letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:3 }}>From</div>
+            <div style={{ fontSize:14, fontWeight:600, color:TEXT }}>Arc Testnet</div>
+          </div>
+          <div style={{ textAlign:'right' }}>
+            <div style={{ fontSize:10, fontWeight:700, color:T3, letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:3 }}>Gateway Balance</div>
+            <div style={{ fontSize:14, fontWeight:700, color:TEXT, fontVariantNumeric:'tabular-nums' }}>{gwBal.toFixed(2)} USDC</div>
+          </div>
+        </div>
+        <div style={{ padding:'12px 16px' }}>
+          <DestChainSelector chains={DEST_CHAINS} value={destChainId} onChange={setDestChainId} disabled={phase !== 'idle'} />
         </div>
       </div>
-
-      {/* Destination chain selector */}
-      <DestChainSelector chains={DEST_CHAINS} value={destChainId} onChange={setDestChainId} disabled={phase !== 'idle'} />
 
       {/* Amount */}
       <div>
-        <div style={{ fontSize:11, fontWeight:600, color:T2, marginBottom:6, textTransform:'uppercase', letterSpacing:'0.05em' }}>Amount (USDC)</div>
+        <div style={{ fontSize:11, fontWeight:600, color:T3, marginBottom:7, textTransform:'uppercase', letterSpacing:'0.07em' }}>Amount</div>
         <div style={{ position:'relative' }}>
           <input type="number" min="0" step="0.01" placeholder="0.00" value={amount}
             onChange={e => setAmount(e.target.value)} disabled={phase !== 'idle'}
-            style={{ width:'100%', padding:'12px 56px 12px 14px', border:`1px solid ${BDR}`, borderRadius:10, background:SURF2, color:TEXT, fontSize:16, fontWeight:600, fontFamily:F, boxSizing:'border-box', outline:'none' }} />
+            style={{ width:'100%', padding:'13px 58px 13px 14px', border:`1px solid ${amount ? BLUE_BD : BDR}`, borderRadius:12, background:SURF2, color:TEXT, fontSize:22, fontWeight:700, fontFamily:F, boxSizing:'border-box', outline:'none', fontVariantNumeric:'tabular-nums', transition:'border-color 0.15s' }} />
           <span style={{ position:'absolute', right:14, top:'50%', transform:'translateY(-50%)', fontSize:13, fontWeight:600, color:T2 }}>USDC</span>
         </div>
-        <div style={{ display:'flex', justifyContent:'space-between', marginTop:6 }}>
-          <span style={{ fontSize:11, color:T2 }}>Gateway balance: <strong style={{ color:TEXT }}>{gwBal.toFixed(2)} USDC</strong></span>
-          {gwBal > 0 && <button onClick={() => setAmount(gwBal.toFixed(6))} style={{ fontSize:11, fontWeight:600, color:BLUE, background:'none', border:'none', cursor:'pointer' }}>Max</button>}
+        <div style={{ display:'flex', justifyContent:'space-between', marginTop:7 }}>
+          <span style={{ fontSize:12, color:T2 }}>Available: <strong style={{ color:TEXT, fontVariantNumeric:'tabular-nums' }}>{gwBal.toFixed(2)} USDC</strong></span>
+          {gwBal > 0 && <button onClick={() => setAmount(gwBal.toFixed(6))} style={{ fontSize:12, fontWeight:600, color:BLUE, background:'none', border:'none', cursor:'pointer' }}>Max</button>}
         </div>
-        <div style={{ display:'flex', gap:8, marginTop:8 }}>
+        <div style={{ display:'flex', gap:8, marginTop:10 }}>
           {['1','5','10','25'].map(v => (
             <button key={v} onClick={() => setAmount(v)} disabled={phase !== 'idle'}
-              style={{ flex:1, padding:'7px 0', border:`1px solid ${amount===v?BLUE:BDR}`, borderRadius:8, background:amount===v?'rgba(0,102,255,0.12)':SURF, color:amount===v?BLUE:T2, fontSize:13, cursor:'pointer', fontFamily:F, fontWeight:600 }}>{v}</button>
+              style={{ flex:1, padding:'8px 0', border:`1px solid ${amount===v ? BLUE : BDR}`, borderRadius:10, background:amount===v ? BLUE_DIM : SURF, color:amount===v ? BLUE : T2, fontSize:13, cursor:'pointer', fontFamily:F, fontWeight:600, transition:'all 0.12s' }}>{v}</button>
           ))}
         </div>
       </div>
 
-      {/* Progress steps */}
       {phase !== 'idle' && (
-        <div style={{ border:`1px solid ${BDR}`, borderRadius:12, overflow:'hidden' }}>
+        <div style={{ background:SURF, border:`1px solid ${BDR}`, borderRadius:12, overflow:'hidden' }}>
           {[
-            { label:'Estimate fees',                                        done: ['signing','submitting','forwarding','done'].includes(phase), active: phase==='estimating'  },
-            { label:'Sign BurnIntent (EIP-712)',                            done: ['submitting','forwarding','done'].includes(phase),           active: phase==='signing'     },
-            { label:'Submit to Gateway API',                                done: ['forwarding','done'].includes(phase),                       active: phase==='submitting'  },
-            { label:`Forwarding Service minting on ${destChain?.name}…`,   done: phase==='done',                                              active: phase==='forwarding'  },
+            { label:'Estimate fees',                                      done: ['signing','submitting','forwarding','done'].includes(phase), active: phase==='estimating' },
+            { label:'Sign BurnIntent',                                    done: ['submitting','forwarding','done'].includes(phase),           active: phase==='signing'    },
+            { label:'Submit to Gateway API',                              done: ['forwarding','done'].includes(phase),                       active: phase==='submitting' },
+            { label:`Minting on ${destChain?.name ?? 'destination'}`,    done: phase==='done',                                              active: phase==='forwarding' },
           ].map((s, i) => (
-            <div key={i} style={{ padding:'12px 16px', borderBottom: i<3?`1px solid ${BDR}`:'none', display:'flex', alignItems:'center', gap:12 }}>
-              <div style={{ width:28, height:28, borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', background:s.done?BLUE:SURF2, border:`1px solid ${s.done?BLUE:BDR}`, flexShrink:0 }}>
-                {s.done ? <Check size={13} color="#fff" /> : s.active ? <div style={{ width:12, height:12, borderRadius:'50%', border:`2px solid ${BLUE}`, borderTopColor:'transparent', animation:'nan-spin 0.8s linear infinite' }} /> : <span style={{ fontSize:11, color:T3 }}>{i+1}</span>}
+            <div key={i} style={{ padding:'11px 16px', borderBottom: i<3 ? `1px solid ${BDR}` : 'none', display:'flex', alignItems:'center', gap:12 }}>
+              <div style={{ width:26, height:26, borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', background:s.done ? BLUE : SURF2, border:`1px solid ${s.done ? BLUE : BDR}`, flexShrink:0 }}>
+                {s.done ? <Check size={12} color="#fff" /> : s.active ? <div style={{ width:11, height:11, borderRadius:'50%', border:`2px solid ${BLUE}`, borderTopColor:'transparent', animation:'nan-spin 0.8s linear infinite' }} /> : <span style={{ fontSize:11, color:T3 }}>{i+1}</span>}
               </div>
-              <span style={{ fontSize:13, color:TEXT }}>{s.label}</span>
+              <span style={{ fontSize:13, color: s.active ? TEXT : s.done ? TEXT : T2 }}>{s.label}</span>
               {s.done && i===3 && transferId && (
                 <a href={`https://gateway-api-testnet.circle.com/v1/transfer/${transferId}`} target="_blank" rel="noreferrer" style={{ marginLeft:'auto', fontSize:11, color:T2, display:'flex', alignItems:'center', gap:3 }}>Details <ExternalLink size={10} /></a>
               )}
@@ -1102,15 +1124,15 @@ function TransferTab({ address, gatewayBalance, onSuccess }: {
       )}
 
       {phase === 'error' && (
-        <div style={{ background:'rgba(255,68,68,0.08)', border:`1px solid rgba(255,68,68,0.20)`, borderRadius:10, padding:'10px 14px', display:'flex', gap:8 }}>
-          <AlertCircle size={14} color="#FF4444" style={{ flexShrink:0, marginTop:1 }} />
-          <span style={{ fontSize:12, color:'#FF4444' }}>{errMsg}</span>
+        <div style={{ background:'rgba(239,68,68,0.08)', border:'1px solid rgba(239,68,68,0.22)', borderRadius:10, padding:'10px 14px', display:'flex', gap:8 }}>
+          <AlertCircle size={14} color="#EF4444" style={{ flexShrink:0, marginTop:1 }} />
+          <span style={{ fontSize:12, color:'#EF4444' }}>{errMsg}</span>
         </div>
       )}
 
       {gwBal <= 0 && phase === 'idle' && (
-        <div style={{ background:`rgba(0,102,255,0.06)`, border:`1px solid rgba(0,102,255,0.15)`, borderRadius:10, padding:'10px 14px', fontSize:12, color:T2 }}>
-          Your Gateway balance is 0. Deposit USDC first to transfer cross-chain.
+        <div style={{ background:BLUE_DIM, border:`1px solid ${BLUE_BD}`, borderRadius:10, padding:'11px 14px', fontSize:12, color:T2 }}>
+          Gateway balance is 0. Deposit USDC first.
         </div>
       )}
 
@@ -1118,22 +1140,21 @@ function TransferTab({ address, gatewayBalance, onSuccess }: {
         <button onClick={reset} style={{ width:'100%', padding:'14px 0', background:SURF, border:`1px solid ${BDR}`, borderRadius:14, fontSize:14, fontWeight:600, color:TEXT, cursor:'pointer', fontFamily:F }}>Transfer again</button>
       ) : (
         <button onClick={() => void handleTransfer()} disabled={!amount || parseFloat(amount)<=0 || phase!=='idle' || gwBal<=0}
-          style={{ width:'100%', padding:'14px 0', borderRadius:14, fontSize:14, fontWeight:600, border:'none', fontFamily:F, cursor:(!amount||phase!=='idle'||gwBal<=0)?'not-allowed':'pointer', background:(!amount||phase!=='idle'||gwBal<=0)?SURF:BLUE, color:(!amount||phase!=='idle'||gwBal<=0)?T2:'#fff', transition:'all 0.15s' }}>
-          {phase==='estimating'?'Estimating fees…':phase==='signing'?'Sign in wallet…':phase==='submitting'?'Submitting to Gateway…':phase==='forwarding'?'Forwarding Service working…':`Transfer ${amount||'0.00'} USDC to ${destChain?.name ?? '…'}`}
+          style={{ width:'100%', padding:'15px 0', borderRadius:14, fontSize:15, fontWeight:700, border:'none', fontFamily:F, cursor:(!amount||phase!=='idle'||gwBal<=0) ? 'not-allowed' : 'pointer', background:(!amount||phase!=='idle'||gwBal<=0) ? SURF : BLUE, color:(!amount||phase!=='idle'||gwBal<=0) ? T2 : '#fff', transition:'all 0.15s', boxShadow:(!amount||phase!=='idle'||gwBal<=0) ? 'none' : `0 4px 16px rgba(8,102,245,0.30)` }}>
+          {phase==='estimating' ? 'Estimating fees…' : phase==='signing' ? 'Sign in wallet…' : phase==='submitting' ? 'Submitting…' : phase==='forwarding' ? 'Forwarding…' : `Transfer ${amount||'0.00'} USDC to ${destChain?.name ?? '…'}`}
         </button>
       )}
 
-      {/* Contract addresses */}
       <div style={{ background:SURF, border:`1px solid ${BDR}`, borderRadius:12, padding:'12px 14px' }}>
-        <div style={{ fontSize:11, color:T3, marginBottom:6, fontWeight:600, textTransform:'uppercase', letterSpacing:'0.05em' }}>Contracts (Arc Testnet)</div>
+        <div style={{ fontSize:10, fontWeight:700, color:T3, marginBottom:8, textTransform:'uppercase', letterSpacing:'0.1em' }}>Contracts</div>
         {[
           { label:'GatewayWallet', addr: GATEWAY_WALLET },
           { label:'GatewayMinter', addr: GATEWAY_MINTER },
         ].map(({ label, addr }) => (
-          <div key={addr} style={{ display:'flex', alignItems:'center', gap:8, marginBottom:4 }}>
-            <span style={{ fontSize:11, color:T3, width:100 }}>{label}</span>
-            <span style={{ fontSize:11, fontFamily:MONO, color:T2 }}>{addr.slice(0,10)}…{addr.slice(-6)}</span>
-            <button onClick={() => { void navigator.clipboard.writeText(addr); toast.success('Copied') }} style={{ background:'none', border:'none', cursor:'pointer', color:T3, padding:2 }}>
+          <div key={addr} style={{ display:'flex', alignItems:'center', gap:8, marginBottom:5 }}>
+            <span style={{ fontSize:11, color:T3, minWidth:90 }}>{label}</span>
+            <span style={{ fontSize:11, fontFamily:MONO, color:T2, flex:1 }}>{addr.slice(0,10)}…{addr.slice(-6)}</span>
+            <button onClick={() => { void navigator.clipboard.writeText(addr); toast.success('Copied') }} style={{ background:'none', border:'none', cursor:'pointer', color:T3, padding:2, marginLeft:'auto' }}>
               <Copy size={11} />
             </button>
           </div>
@@ -1358,66 +1379,61 @@ function CircleTransferTab({ address, gatewayBalance, onSuccess }: {
 
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
-      <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-        <div style={{ width:32, height:32, borderRadius:9, background:`rgba(0,102,255,0.12)`, border:`1px solid rgba(0,102,255,0.20)`, display:'flex', alignItems:'center', justifyContent:'center' }}>
-          <ArrowLeftRight size={15} color={BLUE} />
-        </div>
-        <div>
-          <div style={{ fontSize:14, fontWeight:700, color:TEXT }}>Transfer USDC</div>
-          <div style={{ fontSize:11, color:T2 }}>Burn on Arc, mint on destination — instant via Gateway</div>
-        </div>
-      </div>
-
-      <div style={{ background:`rgba(0,102,255,0.06)`, border:`1px solid rgba(0,102,255,0.15)`, borderRadius:10, padding:'10px 14px', display:'flex', gap:8, alignItems:'flex-start' }}>
+      <div style={{ background:BLUE_DIM, border:`1px solid ${BLUE_BD}`, borderRadius:12, padding:'11px 14px', display:'flex', gap:8, alignItems:'flex-start' }}>
         <Info size={13} color={BLUE} style={{ flexShrink:0, marginTop:1 }} />
-        <div style={{ fontSize:11, color:T2, lineHeight:1.5 }}>
-          Signs a <strong>Gateway BurnIntent</strong> using your {isPasskey ? 'passkey' : 'Circle wallet'}, submits to the Gateway API, then mints on the destination chain. Instant — no CCTP wait.
+        <div style={{ fontSize:12, color:T2, lineHeight:1.55 }}>
+          Signs a <strong style={{ color:TEXT }}>Gateway BurnIntent</strong> using your {isPasskey ? 'passkey' : 'Circle wallet'}. Circle mints on the destination — <strong style={{ color:TEXT }}>no dest-chain gas needed</strong>.
         </div>
       </div>
 
-      {/* Source */}
-      <div style={{ background:SURF, border:`1px solid ${BDR}`, borderRadius:12, padding:'12px 14px' }}>
-        <div style={{ fontSize:11, color:T3, marginBottom:4, fontWeight:600, textTransform:'uppercase', letterSpacing:'0.05em' }}>From</div>
-        <div style={{ fontSize:14, fontWeight:700, color:TEXT }}>Arc Testnet</div>
-        <div style={{ fontSize:12, color:T2, marginTop:2 }}>Gateway balance: <strong style={{ color:TEXT }}>{gwBal.toFixed(2)} USDC</strong></div>
+      <div style={{ background:SURF, border:`1px solid ${BDR}`, borderRadius:14, overflow:'hidden' }}>
+        <div style={{ padding:'12px 16px', borderBottom:`1px solid ${BDR}`, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+          <div>
+            <div style={{ fontSize:10, fontWeight:700, color:T3, letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:3 }}>From</div>
+            <div style={{ fontSize:14, fontWeight:600, color:TEXT }}>Arc Testnet</div>
+          </div>
+          <div style={{ textAlign:'right' }}>
+            <div style={{ fontSize:10, fontWeight:700, color:T3, letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:3 }}>Gateway Balance</div>
+            <div style={{ fontSize:14, fontWeight:700, color:TEXT, fontVariantNumeric:'tabular-nums' }}>{gwBal.toFixed(2)} USDC</div>
+          </div>
+        </div>
+        <div style={{ padding:'12px 16px' }}>
+          <DestChainSelector chains={DEST_CHAINS} value={destChainId} onChange={setDestChainId} disabled={phase !== 'idle'} />
+        </div>
       </div>
 
-      <DestChainSelector chains={DEST_CHAINS} value={destChainId} onChange={setDestChainId} disabled={phase !== 'idle'} />
-
-      {/* Amount */}
       <div>
-        <div style={{ fontSize:11, fontWeight:600, color:T2, marginBottom:6, textTransform:'uppercase', letterSpacing:'0.05em' }}>Amount (USDC)</div>
+        <div style={{ fontSize:11, fontWeight:600, color:T3, marginBottom:7, textTransform:'uppercase', letterSpacing:'0.07em' }}>Amount</div>
         <div style={{ position:'relative' }}>
           <input type="number" min="0" step="0.01" placeholder="0.00" value={amount}
             onChange={e => setAmount(e.target.value)} disabled={phase !== 'idle'}
-            style={{ width:'100%', padding:'12px 56px 12px 14px', border:`1px solid ${BDR}`, borderRadius:10, background:SURF2, color:TEXT, fontSize:16, fontWeight:600, fontFamily:F, boxSizing:'border-box', outline:'none' }} />
+            style={{ width:'100%', padding:'13px 58px 13px 14px', border:`1px solid ${amount ? BLUE_BD : BDR}`, borderRadius:12, background:SURF2, color:TEXT, fontSize:22, fontWeight:700, fontFamily:F, boxSizing:'border-box', outline:'none', fontVariantNumeric:'tabular-nums', transition:'border-color 0.15s' }} />
           <span style={{ position:'absolute', right:14, top:'50%', transform:'translateY(-50%)', fontSize:13, fontWeight:600, color:T2 }}>USDC</span>
         </div>
-        <div style={{ display:'flex', justifyContent:'space-between', marginTop:6 }}>
-          <span style={{ fontSize:11, color:T2 }}>Gateway balance: <strong style={{ color:TEXT }}>{gwBal.toFixed(2)} USDC</strong></span>
-          {gwBal > 0 && <button onClick={() => setAmount(gwBal.toFixed(6))} style={{ fontSize:11, fontWeight:600, color:BLUE, background:'none', border:'none', cursor:'pointer' }}>Max</button>}
+        <div style={{ display:'flex', justifyContent:'space-between', marginTop:7 }}>
+          <span style={{ fontSize:12, color:T2 }}>Available: <strong style={{ color:TEXT, fontVariantNumeric:'tabular-nums' }}>{gwBal.toFixed(2)} USDC</strong></span>
+          {gwBal > 0 && <button onClick={() => setAmount(gwBal.toFixed(6))} style={{ fontSize:12, fontWeight:600, color:BLUE, background:'none', border:'none', cursor:'pointer' }}>Max</button>}
         </div>
-        <div style={{ display:'flex', gap:8, marginTop:8 }}>
+        <div style={{ display:'flex', gap:8, marginTop:10 }}>
           {['1','5','10','25'].map(v => (
             <button key={v} onClick={() => setAmount(v)} disabled={phase !== 'idle'}
-              style={{ flex:1, padding:'7px 0', border:`1px solid ${amount===v?BLUE:BDR}`, borderRadius:8, background:amount===v?'rgba(0,102,255,0.12)':SURF, color:amount===v?BLUE:T2, fontSize:13, cursor:'pointer', fontFamily:F, fontWeight:600 }}>{v}</button>
+              style={{ flex:1, padding:'8px 0', border:`1px solid ${amount===v ? BLUE : BDR}`, borderRadius:10, background:amount===v ? BLUE_DIM : SURF, color:amount===v ? BLUE : T2, fontSize:13, cursor:'pointer', fontFamily:F, fontWeight:600, transition:'all 0.12s' }}>{v}</button>
           ))}
         </div>
       </div>
 
-      {/* Progress */}
       {phase !== 'idle' && (
-        <div style={{ border:`1px solid ${BDR}`, borderRadius:12, overflow:'hidden' }}>
+        <div style={{ background:SURF, border:`1px solid ${BDR}`, borderRadius:12, overflow:'hidden' }}>
           {[
-            { label: isPasskey ? 'Sign BurnIntent (passkey)' : 'Sign BurnIntent (Circle wallet)', done: ['submitting','minting','done'].includes(phase), active: phase==='signing'    },
-            { label:'Submit to Gateway API',                                                        done: ['minting','done'].includes(phase),             active: phase==='submitting' },
-            { label:`gatewayMint on ${destChain?.name}`,                                           done: phase==='done',                                 active: phase==='minting'   },
+            { label: isPasskey ? 'Sign BurnIntent (passkey)' : 'Sign BurnIntent', done: ['submitting','minting','done'].includes(phase), active: phase==='signing'    },
+            { label: 'Submit to Gateway API',                                       done: ['minting','done'].includes(phase),             active: phase==='submitting' },
+            { label: `Mint on ${destChain?.name ?? 'destination'}`,                done: phase==='done',                                 active: phase==='minting'   },
           ].map((s, i) => (
-            <div key={i} style={{ padding:'12px 16px', borderBottom: i<2?`1px solid ${BDR}`:'none', display:'flex', alignItems:'center', gap:12 }}>
-              <div style={{ width:28, height:28, borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', background:s.done?BLUE:SURF2, border:`1px solid ${s.done?BLUE:BDR}`, flexShrink:0 }}>
-                {s.done ? <Check size={13} color="#fff" /> : s.active ? <div style={{ width:12, height:12, borderRadius:'50%', border:`2px solid ${BLUE}`, borderTopColor:'transparent', animation:'nan-spin 0.8s linear infinite' }} /> : <span style={{ fontSize:11, color:T3 }}>{i+1}</span>}
+            <div key={i} style={{ padding:'11px 16px', borderBottom: i<2 ? `1px solid ${BDR}` : 'none', display:'flex', alignItems:'center', gap:12 }}>
+              <div style={{ width:26, height:26, borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', background:s.done ? BLUE : SURF2, border:`1px solid ${s.done ? BLUE : BDR}`, flexShrink:0 }}>
+                {s.done ? <Check size={12} color="#fff" /> : s.active ? <div style={{ width:11, height:11, borderRadius:'50%', border:`2px solid ${BLUE}`, borderTopColor:'transparent', animation:'nan-spin 0.8s linear infinite' }} /> : <span style={{ fontSize:11, color:T3 }}>{i+1}</span>}
               </div>
-              <span style={{ fontSize:13, color:TEXT }}>{s.label}</span>
+              <span style={{ fontSize:13, color: s.active ? TEXT : s.done ? TEXT : T2 }}>{s.label}</span>
               {s.done && i===2 && mintTxHash && destChain && (
                 <a href={`${destChain.explorerBase}/tx/${mintTxHash}`} target="_blank" rel="noreferrer" style={{ marginLeft:'auto', fontSize:11, color:T2, display:'flex', alignItems:'center', gap:3 }}>View <ExternalLink size={10} /></a>
               )}
@@ -1427,15 +1443,15 @@ function CircleTransferTab({ address, gatewayBalance, onSuccess }: {
       )}
 
       {phase === 'error' && (
-        <div style={{ background:'rgba(255,68,68,0.08)', border:`1px solid rgba(255,68,68,0.20)`, borderRadius:10, padding:'10px 14px', display:'flex', gap:8 }}>
-          <AlertCircle size={14} color="#FF4444" style={{ flexShrink:0, marginTop:1 }} />
-          <span style={{ fontSize:12, color:'#FF4444' }}>{errMsg}</span>
+        <div style={{ background:'rgba(239,68,68,0.08)', border:'1px solid rgba(239,68,68,0.22)', borderRadius:10, padding:'10px 14px', display:'flex', gap:8 }}>
+          <AlertCircle size={14} color="#EF4444" style={{ flexShrink:0, marginTop:1 }} />
+          <span style={{ fontSize:12, color:'#EF4444' }}>{errMsg}</span>
         </div>
       )}
 
       {gwBal <= 0 && phase === 'idle' && (
-        <div style={{ background:`rgba(0,102,255,0.06)`, border:`1px solid rgba(0,102,255,0.15)`, borderRadius:10, padding:'10px 14px', fontSize:12, color:T2 }}>
-          Your Gateway balance is 0. Deposit USDC first to transfer cross-chain.
+        <div style={{ background:BLUE_DIM, border:`1px solid ${BLUE_BD}`, borderRadius:10, padding:'11px 14px', fontSize:12, color:T2 }}>
+          Gateway balance is 0. Deposit USDC first.
         </div>
       )}
 
@@ -1443,8 +1459,8 @@ function CircleTransferTab({ address, gatewayBalance, onSuccess }: {
         <button onClick={reset} style={{ width:'100%', padding:'14px 0', background:SURF, border:`1px solid ${BDR}`, borderRadius:14, fontSize:14, fontWeight:600, color:TEXT, cursor:'pointer', fontFamily:F }}>Transfer again</button>
       ) : (
         <button onClick={() => void handleTransfer()} disabled={!amount || parseFloat(amount)<=0 || phase!=='idle' || gwBal<=0}
-          style={{ width:'100%', padding:'14px 0', borderRadius:14, fontSize:14, fontWeight:600, border:'none', fontFamily:F, cursor:(!amount||phase!=='idle'||gwBal<=0)?'not-allowed':'pointer', background:(!amount||phase!=='idle'||gwBal<=0)?SURF:BLUE, color:(!amount||phase!=='idle'||gwBal<=0)?T2:'#fff', transition:'all 0.15s' }}>
-          {phase==='signing'?'Sign in wallet…':phase==='submitting'?'Submitting to Gateway…':phase==='minting'?'Minting on destination…':`Transfer ${amount||'0.00'} USDC to ${destChain?.name ?? '…'}`}
+          style={{ width:'100%', padding:'15px 0', borderRadius:14, fontSize:15, fontWeight:700, border:'none', fontFamily:F, cursor:(!amount||phase!=='idle'||gwBal<=0) ? 'not-allowed' : 'pointer', background:(!amount||phase!=='idle'||gwBal<=0) ? SURF : BLUE, color:(!amount||phase!=='idle'||gwBal<=0) ? T2 : '#fff', transition:'all 0.15s', boxShadow:(!amount||phase!=='idle'||gwBal<=0) ? 'none' : `0 4px 16px rgba(8,102,245,0.30)` }}>
+          {phase==='signing' ? 'Sign in wallet…' : phase==='submitting' ? 'Submitting…' : phase==='minting' ? 'Minting on destination…' : `Transfer ${amount||'0.00'} USDC to ${destChain?.name ?? '…'}`}
         </button>
       )}
     </div>
