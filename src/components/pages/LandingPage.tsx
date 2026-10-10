@@ -14,18 +14,24 @@ const SLIDES = [
     accent:   'Your money,',
     headline: ' your agent, your rules.',
     sub:      'NAN gives your AI agent a real wallet — funded by you, limited by you, working for you.',
+    imgPosition: 'center 10%',
+    imgSize: 'cover',
   },
   {
     img:      '/girl.jpg',
     accent:   'USDC payments',
     headline: ' handled by AI, controlled by you.',
     sub:      'Set limits, approve services and watch NAN Agent handle the rest — on Arc, Base, and beyond.',
+    imgPosition: 'center 10%',
+    imgSize: 'cover',
   },
   {
     img:      '/travel-girl.jpg',
     accent:   'Send money anywhere,',
     headline: ' instantly.',
     sub:      'Whether you\'re crossing borders or sending funds home, NAN moves your USDC in seconds — no bank, no delays, no excuses.',
+    imgPosition: 'center top',
+    imgSize: 'cover',
   },
 ]
 
@@ -141,8 +147,8 @@ export function LandingPage() {
           <div style={{
             position: 'absolute', inset: 0,
             backgroundImage: `url(${cur.img})`,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center 10%',
+            backgroundSize: cur.imgSize ?? 'cover',
+            backgroundPosition: cur.imgPosition ?? 'center 10%',
           }} />
           <div style={{
             position: 'absolute', bottom: 0, left: 0, right: 0, height: '30%',
@@ -269,8 +275,8 @@ export function LandingPage() {
         <div style={{
           position: 'absolute', inset: 0,
           backgroundImage: `url(${cur.img})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center 20%',
+          backgroundSize: cur.imgSize ?? 'cover',
+          backgroundPosition: cur.imgPosition ?? 'center 20%',
         }} />
         <div style={{
           position: 'absolute', inset: 0,
