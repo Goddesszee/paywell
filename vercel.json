@@ -93,6 +93,8 @@
     { "source": "/api/notifications",                            "destination": "/api/community?route=notifications" },
     { "source": "/api/notifications/read",                       "destination": "/api/community?route=notifications/read" },
     { "source": "/api/gateway-proxy",                           "destination": "/api/misc?route=gateway" },
+    { "source": "/api/about",                                    "destination": "/api/misc?route=about" },
+    { "source": "/api/faqs",                                     "destination": "/api/misc?route=faqs" },
     { "source": "/(.*)",                                         "destination": "/index.html" }
   ]
 }

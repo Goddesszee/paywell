@@ -1672,6 +1672,7 @@ function AgentChat({ onNavigate }: { onNavigate?: (page: string, query?: string)
           borderRadius: 24,
           padding: '0 14px',
           height: 44,
+          outline: 'none',
         }}>
           <input
             value={input}

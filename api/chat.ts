@@ -617,7 +617,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const baseUrl = `${proto}://${host}`
 
   // ── optional x402 payment gate ────────────────────────────────────────────
-  const sellerAddr = process.env.SELLER_ADDRESS ?? process.env.VITE_X402_SELLER_ADDRESS
+  // VITE_X402_SELLER_ADDRESS is a browser env var — using it here blocks every
+  // user who hasn't paid. Only gate on the server-side SELLER_ADDRESS.
+  const sellerAddr = process.env.SELLER_ADDRESS
   if (sellerAddr) {
     const paymentHeader = req.headers['x-payment'] as string | undefined
     if (!paymentHeader) {
