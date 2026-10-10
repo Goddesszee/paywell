@@ -30,7 +30,15 @@ export function AboutPage() {
     <div style={{ fontFamily: SANS, textAlign: 'center', padding: 48, color: 'var(--nan-text2)', fontSize: 13 }}>Loading…</div>
   )
 
-  if (!about) return null
+  // Fallback content shown when API is unavailable (e.g. local dev)
+  const content: AboutContent = about ?? {
+    headline: 'NAN — The Intelligent Money Layer',
+    tagline: 'Your AI agent. Your wallet. Your rules.',
+    body: `NAN is an AI-powered financial platform built on Arc — Circle's blockchain where USDC is the native gas token. It gives you a smart USDC wallet with an AI agent that can make payments, automate transfers, bridge across chains, swap tokens, and manage your money — all within limits you control.\n\nWhat makes NAN different is the Agent Wallet: a dedicated wallet your AI agent can use to pay for services and execute transactions on your behalf, within spending limits you set. NAN integrates with Circle Agent Stack, CCTP v2 for cross-chain bridging, Circle Gateway for unified liquidity, and Circle Onramp for buying USDC with fiat.`,
+    mission: 'To make money programmable — giving every person and every AI agent the ability to send, receive, and automate payments anywhere in the world, instantly and transparently, without banks or borders.',
+    contact: 'For support, use the Support page in the app. For business enquiries and partnerships, reach out via the Feedback page.',
+    updatedAt: new Date().toISOString(),
+  }
 
   return (
     <div style={{ width: '100%', minHeight: '100%', fontFamily: SANS }}>
@@ -52,15 +60,15 @@ export function AboutPage() {
             <path d="M69,480 L240,313 L253,317 L324,383 L324,102 L78,348 L69,370 Z" fill="#fff"/>
           </svg>
         </div>
-        <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.04em', color: 'var(--nan-text)', marginBottom: 8, lineHeight: 1.2 }}>{about.headline}</div>
-        <div style={{ fontSize: 15, color: 'var(--nan-blue)', fontWeight: 600, marginBottom: 0 }}>{about.tagline}</div>
+        <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.04em', color: 'var(--nan-text)', marginBottom: 8, lineHeight: 1.2 }}>{content.headline}</div>
+        <div style={{ fontSize: 15, color: 'var(--nan-blue)', fontWeight: 600, marginBottom: 0 }}>{content.tagline}</div>
       </div>
 
       {/* Body */}
       <div style={{ background: 'var(--nan-surface)', border: '1px solid var(--nan-bdr)', borderRadius: 16, padding: '22px 22px', marginBottom: 16 }}>
         <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--nan-text3)', textTransform: 'uppercase', letterSpacing: '0.09em', marginBottom: 12 }}>What is NAN</div>
-        {about.body.split('\n\n').map((para, i) => (
-          <p key={i} style={{ fontSize: 14, color: 'var(--nan-text2)', lineHeight: 1.75, marginBottom: i < about.body.split('\n\n').length - 1 ? 14 : 0, marginTop: 0 }}>
+        {content.body.split('\n\n').map((para, i) => (
+          <p key={i} style={{ fontSize: 14, color: 'var(--nan-text2)', lineHeight: 1.75, marginBottom: i < content.body.split('\n\n').length - 1 ? 14 : 0, marginTop: 0 }}>
             {para}
           </p>
         ))}
@@ -70,7 +78,7 @@ export function AboutPage() {
       <div style={{ background: 'var(--nan-surface)', border: '1px solid var(--nan-bdr)', borderRadius: 16, padding: '20px 22px', marginBottom: 16 }}>
         <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--nan-text3)', textTransform: 'uppercase', letterSpacing: '0.09em', marginBottom: 10 }}>Our mission</div>
         <div style={{ fontSize: 14, color: 'var(--nan-text)', lineHeight: 1.7, fontStyle: 'italic', borderLeft: '3px solid var(--nan-blue)', paddingLeft: 14 }}>
-          {about.mission}
+          {content.mission}
         </div>
       </div>
 
@@ -99,7 +107,7 @@ export function AboutPage() {
       {/* Contact */}
       <div style={{ background: 'var(--nan-surface)', border: '1px solid var(--nan-bdr)', borderRadius: 16, padding: '20px 22px', marginBottom: 20 }}>
         <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--nan-text3)', textTransform: 'uppercase', letterSpacing: '0.09em', marginBottom: 10 }}>Contact</div>
-        <div style={{ fontSize: 13, color: 'var(--nan-text2)', lineHeight: 1.7 }}>{about.contact}</div>
+        <div style={{ fontSize: 13, color: 'var(--nan-text2)', lineHeight: 1.7 }}>{content.contact}</div>
       </div>
 
       {/* CTAs */}
@@ -116,7 +124,7 @@ export function AboutPage() {
 
       {/* Last updated */}
       <div style={{ textAlign: 'center', fontSize: 11, color: 'var(--nan-text3)', paddingBottom: 8 }}>
-        Last updated: {new Date(about.updatedAt).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}
+        Last updated: {new Date(content.updatedAt).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}
       </div>
     </div>
   )
