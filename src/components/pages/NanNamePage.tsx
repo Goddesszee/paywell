@@ -141,7 +141,7 @@ const DUR_OPTS: { val: Dur; label: string; price: string; sub: string }[] = [
 // ── Main component ────────────────────────────────────────────────────────────
 export function NanNamePage() {
   const C = useNanTheme()
-  const { setActiveView, auth } = useAppStore()
+  const { setActiveView, auth, setNanHandle: setStoreHandle } = useAppStore()
   const { address: wagmiAddress } = useAccount()
   const address = wagmiAddress ?? (auth?.circleWalletAddress as `0x${string}` | undefined)
 
@@ -243,33 +243,36 @@ export function NanNamePage() {
   const onSuccess = useCallback((handle: string) => {
     setJustRegistered(handle)
     setMyHandle(handle)
+    setStoreHandle(handle)   // update global store so ProfilePage shows it immediately
     setShowCelebration(true)
     setStep('success')
     approveWrite.reset()
     registerWrite.reset()
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [setStoreHandle])
 
   // ── Circle path: approve then register ────────────────────────────────────
   const submitCircle = useCallback(async (h: string, dur: Dur) => {
     setAltBusy(true)
     setStep('approving')
-    // Step 1: approve USDC
+    // Step 1: approve USDC spend on NAME_REGISTRY
     const approveTxId = await circleTx.executeContract({
       contractAddress: USDC_ADDRESS,
       abiFunctionSignature: 'approve(address,uint256)',
       abiParameters: [NAME_REGISTRY, String(PRICES[dur])],
+      amount: '0',
     })
     if (!approveTxId) {
-      toast.error(circleTx.error ?? 'USDC approval failed')
+      toast.error(circleTx.error ?? 'USDC approval failed — check your Circle PIN and balance')
       setStep('lookup'); setAltBusy(false); return
     }
-    // Step 2: register
+    // Step 2: register name
     setStep('registering')
     const regTxId = await circleTx.executeContract({
       contractAddress: NAME_REGISTRY,
       abiFunctionSignature: 'register(string,uint8)',
       abiParameters: [h, String(dur)],
+      amount: '0',
     })
     setAltBusy(false)
     if (regTxId) {
@@ -301,15 +304,24 @@ export function NanNamePage() {
       const account = await toCircleSmartAccount({ client: publicClient, owner: toWebAuthnAccount({ credential }) })
       const bundler = createBundlerClient({ account, chain: arcTestnet, transport: modularTransport })
 
-      // Step 1: approve
+      // Arc Testnet bundler requires explicit gas params — auto-estimation fails
+      const gasOverrides = {
+        callGasLimit: 300_000n,
+        verificationGasLimit: 500_000n,
+        preVerificationGas: 100_000n,
+        maxFeePerGas: 100_000_000n,
+        maxPriorityFeePerGas: 10_000_000n,
+      }
+
+      // Step 1: approve USDC
       const approveData = encodeFunctionData({ abi: ERC20_APPROVE_ABI, functionName: 'approve', args: [NAME_REGISTRY as `0x${string}`, PRICES[dur]] })
-      const approveOp = await bundler.sendUserOperation({ account, calls: [{ to: USDC_ADDRESS, data: approveData, value: 0n }] })
+      const approveOp = await bundler.sendUserOperation({ account, calls: [{ to: USDC_ADDRESS, data: approveData, value: 0n }], ...gasOverrides })
       await bundler.waitForUserOperationReceipt({ hash: approveOp })
 
       // Step 2: register
       setStep('registering')
       const registerData = encodeFunctionData({ abi: REGISTRY_ABI, functionName: 'register', args: [h, dur] })
-      const registerOp = await bundler.sendUserOperation({ account, calls: [{ to: NAME_REGISTRY as `0x${string}`, data: registerData, value: 0n }] })
+      const registerOp = await bundler.sendUserOperation({ account, calls: [{ to: NAME_REGISTRY as `0x${string}`, data: registerData, value: 0n }], ...gasOverrides })
       await bundler.waitForUserOperationReceipt({ hash: registerOp })
 
       onSuccess(h)

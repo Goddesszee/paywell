@@ -17,9 +17,8 @@ export function ProfilePage() {
   const C = useNanTheme()
   const { address, isConnected } = useAccount()
   const { disconnect } = useDisconnect()
-  const { auth, profile, setProfile, setActiveView, theme, setTheme, favorites, activity } = useAppStore()
+  const { auth, profile, setProfile, setActiveView, theme, setTheme, favorites, activity, nanHandle, setNanHandle } = useAppStore()
   const { resolveName, registrySet } = useNanName()
-  const [nanHandle, setNanHandle] = useState<string>('')
   const [tab, setTab] = useState<Tab>('profile')
   const [displayName, setDisplayName] = useState(profile.displayName)
   const [bio, setBio]                 = useState(profile.bio)
@@ -108,11 +107,11 @@ export function ProfilePage() {
     e.target.value = ''
   }
 
-  // Load onchain NAN handle for connected wallet
+  // Load onchain NAN handle and sync to global store
   useEffect(() => {
     const addr = address ?? (auth?.circleWalletAddress)
     if (!addr || !registrySet) return
-    resolveName(addr).then(h => setNanHandle(h)).catch(() => {})
+    resolveName(addr).then(h => { if (h) setNanHandle(h) }).catch(() => {})
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [address, auth?.circleWalletAddress, registrySet])
 

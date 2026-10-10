@@ -314,6 +314,9 @@ export interface AppState {
   setActiveView: (view: string) => void
   previousView: string | null
 
+  nanHandle: string
+  setNanHandle: (h: string) => void
+
   theme: 'dark' | 'light'
   setTheme: (t: 'dark' | 'light') => void
 
@@ -521,6 +524,8 @@ export const useAppStore = create<AppState>()(
 
       activeView: 'landing',
       setActiveView: (view) => set((s) => ({ previousView: s.activeView, activeView: view })),
+      nanHandle: '',
+      setNanHandle: (h) => set({ nanHandle: h }),
       previousView: null,
 
       theme: 'dark',
