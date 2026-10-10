@@ -354,18 +354,18 @@ export function HomePage() {
           <button
             onClick={() => setActiveView('onramp')}
             style={{
-              display: 'flex', alignItems: 'center', gap: 5,
-              padding: '7px 12px', borderRadius: 12,
+              display: 'flex', alignItems: 'center', gap: 4,
+              padding: '6px 10px', borderRadius: 20,
               background: C.blue, border: 'none',
-              color: '#fff', fontSize: 12, fontWeight: 700,
+              color: '#fff', fontSize: 11, fontWeight: 700,
               cursor: 'pointer', fontFamily: F,
-              boxShadow: '0 3px 12px rgba(0,102,255,0.35)',
+              boxShadow: '0 2px 8px rgba(0,102,255,0.30)',
               WebkitTapHighlightColor: 'transparent',
-              letterSpacing: '-0.01em',
+              letterSpacing: '-0.01em', whiteSpace: 'nowrap',
             }}
           >
-            <Plus size={12} strokeWidth={2.5} />
-            Add Money
+            <Plus size={11} strokeWidth={2.5} />
+            Add
           </button>
         </div>
       </div>

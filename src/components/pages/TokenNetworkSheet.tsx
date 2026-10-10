@@ -7,12 +7,11 @@
  */
 import React, { useState } from 'react'
 import {
-  X, ExternalLink, ArrowUpRight, ArrowDownLeft,
-  ArrowLeftRight, CheckCircle2, Clock, AlertCircle,
-  Zap, Globe, Info,
+  X, ExternalLink,
+  CheckCircle2, Clock, AlertCircle,
+  Globe,
 } from 'lucide-react'
 import { useNanTheme } from '../../hooks/useNanTheme'
-import { useAppStore } from '../../store/appStore'
 import type { TokenPosition } from '../../hooks/usePortfolioBalances'
 
 // ── Chain logo map — keyed by chainId ─────────────────────────────────────────
@@ -100,13 +99,9 @@ export function TokenNetworkSheet({
   hidden, onClose,
 }: Props) {
   const C = useNanTheme()
-  const { setActiveView } = useAppStore()
 
   const color = TOKEN_COLOR[symbol] ?? '#2775CA'
   const isEurc = symbol === 'EURC'
-  const gwAvail = parseFloat(gatewayAvailable)
-  const gwPend  = parseFloat(gatewayPending)
-  const showGateway = symbol === 'USDC' && (gwAvail > 0 || gwPend > 0)
 
   // All chains: positions with balance first, then rest
   const sorted = [...positions].sort((a, b) => {
@@ -190,83 +185,7 @@ export function TokenNetworkSheet({
           </button>
         </div>
 
-        <div style={{ padding: '0 20px 40px', display: 'flex', flexDirection: 'column', gap: 22 }}>
-
-          {/* ── Quick actions ── */}
-          <div style={{ display: 'flex', gap: 8 }}>
-            {[
-              { icon: ArrowUpRight,   label: 'Send',    view: 'send',    ok: parseFloat(totalQuantity) > 0 },
-              { icon: ArrowDownLeft,  label: 'Receive', view: 'receive', ok: true },
-              { icon: ArrowLeftRight, label: 'Bridge',  view: 'bridge',  ok: true },
-              { icon: Zap,            label: 'Gateway', view: 'gateway', ok: true },
-            ].map(({ icon: Icon, label, view, ok }) => (
-              <button
-                key={label}
-                onClick={() => { if (ok) { setActiveView(view); onClose() } }}
-                disabled={!ok}
-                style={{
-                  flex: 1, padding: '10px 4px',
-                  borderRadius: 12, border: `1px solid ${C.bdr}`,
-                  background: C.surf2,
-                  cursor: ok ? 'pointer' : 'not-allowed',
-                  display: 'flex', flexDirection: 'column',
-                  alignItems: 'center', gap: 5,
-                  fontFamily: F, opacity: ok ? 1 : 0.4,
-                  WebkitTapHighlightColor: 'transparent',
-                }}
-              >
-                <Icon size={16} color={ok ? C.blue : C.t3} />
-                <span style={{ fontSize: 11, fontWeight: 600, color: ok ? C.t2 : C.t3 }}>{label}</span>
-              </button>
-            ))}
-          </div>
-
-          {/* ── Gateway row (USDC only) ── */}
-          {showGateway && (
-            <div style={{
-              padding: '14px 16px', borderRadius: 16,
-              background: 'linear-gradient(135deg, rgba(0,102,255,0.08) 0%, rgba(0,102,255,0.03) 100%)',
-              border: '1px solid rgba(0,102,255,0.18)',
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                  <Zap size={13} color={C.blue} />
-                  <span style={{ fontSize: 12, fontWeight: 700, color: C.text }}>Gateway Liquidity</span>
-                  <button
-                    title="USDC deposited into Circle Gateway for instant cross-chain transfers. Excluded from portfolio total — same underlying funds."
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, lineHeight: 1 }}
-                  >
-                    <Info size={11} color={C.t3} />
-                  </button>
-                </div>
-                <button
-                  onClick={() => { setActiveView('gateway'); onClose() }}
-                  style={{ fontSize: 11, fontWeight: 700, color: C.blue, background: 'none', border: 'none', cursor: 'pointer', fontFamily: F }}
-                >
-                  Manage
-                </button>
-              </div>
-              <div style={{ display: 'flex', gap: 20 }}>
-                <div>
-                  <div style={{ fontSize: 10, color: C.t3, marginBottom: 3 }}>Available</div>
-                  <div style={{ fontFamily: MONO, fontSize: 15, fontWeight: 800, color: C.text }}>
-                    {hidden ? '••••' : `$${gwAvail.toFixed(2)}`}
-                  </div>
-                </div>
-                {gwPend > 0 && (
-                  <div>
-                    <div style={{ fontSize: 10, color: C.t3, marginBottom: 3 }}>Pending</div>
-                    <div style={{ fontFamily: MONO, fontSize: 15, fontWeight: 800, color: C.gold }}>
-                      {hidden ? '••••' : `$${gwPend.toFixed(2)}`}
-                    </div>
-                  </div>
-                )}
-              </div>
-              <div style={{ fontSize: 10, color: C.t3, marginTop: 6 }}>
-                Excluded from portfolio total — same underlying USDC
-              </div>
-            </div>
-          )}
+        <div style={{ padding: '0 20px 40px', display: 'flex', flexDirection: 'column', gap: 16 }}>
 
           {/* ── Balances by Network ── */}
           <section>
