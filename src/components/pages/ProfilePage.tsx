@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { User, Camera, Save, Shield, Bell, Clock, LogOut, ChevronRight, CheckCircle, Sun, Moon, Monitor, ArrowLeft } from 'lucide-react'
 import { useAccount, useDisconnect } from 'wagmi'
 import { useAppStore } from '../../store/appStore'
@@ -25,6 +25,8 @@ export function ProfilePage() {
   const [saveError, setSaveError]     = useState('')
   const [sessions, setSessions]       = useState<SessionEntry[]>([])
   const [loadingSessions, setLoadingSessions] = useState(false)
+  const [avatarUploading, setAvatarUploading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const token = auth?.sessionToken ?? ''
 
@@ -70,6 +72,30 @@ export function ProfilePage() {
     } catch { /* silent */ }
   }
 
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (file.size > 4 * 1024 * 1024) { setSaveError('Image too large (max 4 MB)'); return }
+    setAvatarUploading(true)
+    const reader = new FileReader()
+    reader.onload = () => {
+      const dataUrl = reader.result as string
+      setProfile({ avatarUrl: dataUrl })
+      fetch('/api/account/profile', {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
+        body: JSON.stringify({ avatarUrl: dataUrl }),
+      })
+        .then(r => r.json())
+        .then((d: { success: boolean }) => { if (!d.success) setSaveError('Avatar upload failed') })
+        .catch(() => setSaveError('Avatar upload failed'))
+        .finally(() => setAvatarUploading(false))
+    }
+    reader.readAsDataURL(file)
+    // reset so re-picking same file fires change event
+    e.target.value = ''
+  }
+
   const avatarLetter = (profile.displayName || auth?.email || 'N').slice(0, 1).toUpperCase()
 
   const TABS = [
@@ -102,14 +128,9 @@ export function ProfilePage() {
               {avatarLetter}
             </div>
           )}
-          <button onClick={() => {
-            const url = window.prompt('Paste an image URL for your avatar:')
-            if (url) {
-              setProfile({ avatarUrl: url })
-              fetch('/api/account/profile', { method: 'PATCH', headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` }, body: JSON.stringify({ avatarUrl: url }) }).catch(() => {})
-            }
-          }}
-            style={{ position: 'absolute', bottom: -4, right: -4, width: 22, height: 22, borderRadius: 6, background: '#0066FF', border: '2px solid ' + C.surf, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+          <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleAvatarChange} />
+          <button onClick={() => fileInputRef.current?.click()} disabled={avatarUploading}
+            style={{ position: 'absolute', bottom: -4, right: -4, width: 22, height: 22, borderRadius: 6, background: avatarUploading ? '#555' : '#0066FF', border: '2px solid ' + C.surf, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
             <Camera size={10} color="#fff" />
           </button>
         </div>

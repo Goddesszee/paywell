@@ -45,7 +45,7 @@ const app = express()
 const PORT = Number(process.env.PORT ?? 3001)
 
 app.use(cors({ origin: '*', credentials: true }))
-app.use(express.json())
+app.use(express.json({ limit: '5mb' }))
 
 // ── x402 Circle Gateway Nanopayments ──────────────────────────────────────────
 // SELLER_ADDRESS: replace with your real EVM address to receive USDC payments.
@@ -1258,7 +1258,9 @@ app.get('/api/account/sessions', (req, res) => {
 
 // ── Profile update ────────────────────────────────────────────────────────────
 
-const profileStore = new Map<string, { displayName: string; bio: string; avatarUrl: string; notifPrefs: { supportReplies: boolean; systemUpdates: boolean; payments: boolean } }>()
+const profileStore = new Map<string, { displayName: string; bio: string; avatarUrl: string; notifPrefs: { supportReplies: boolean; systemUpdates: boolean; payments: boolean } }>(
+  Object.entries(loadStore<Record<string, { displayName: string; bio: string; avatarUrl: string; notifPrefs: { supportReplies: boolean; systemUpdates: boolean; payments: boolean } }>>('profiles', {}))
+)
 
 app.get('/api/account/profile', (req, res) => {
   const session = requireSession(req, res)
@@ -1276,10 +1278,11 @@ app.patch('/api/account/profile', (req, res) => {
     ...existing,
     ...(displayName !== undefined ? { displayName: String(displayName).slice(0, 60) } : {}),
     ...(bio !== undefined ? { bio: String(bio).slice(0, 300) } : {}),
-    ...(avatarUrl !== undefined ? { avatarUrl: String(avatarUrl).slice(0, 500) } : {}),
+    ...(avatarUrl !== undefined ? { avatarUrl: String(avatarUrl).slice(0, 200000) } : {}),
     ...(notifPrefs ? { notifPrefs: { ...existing.notifPrefs, ...notifPrefs } } : {}),
   }
   profileStore.set(session.email, updated)
+  debouncedSave('profiles', Object.fromEntries(profileStore))
   res.json({ success: true, profile: updated })
 })
 
