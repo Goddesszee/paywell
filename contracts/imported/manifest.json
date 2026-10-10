@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "files": {
+    "/home/user/app/contracts/imported/0x043d072b12cbe488dba3d2975c42db3055f2836f/NANNameRegistry.sol": {
+      "sha256": "fa4b545b0c5d10fa81499cd375e0e12915ab2709f8be82761b11daa675e99b5a",
+      "address": "0x043d072b12cbe488dba3d2975c42db3055f2836f",
+      "chain": "Arc_Testnet",
+      "fetchedAt": "2026-10-10T20:21:29.800Z"
+    }
+  }
+}

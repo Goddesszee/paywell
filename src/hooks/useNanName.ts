@@ -1,30 +1,45 @@
 /**
- * useNanName — resolve a NAN handle (@name) to a wallet address using the
- * existing name registry contract, or return null if not found.
- * Also provides resolveAddress to reverse-lookup a name from an address.
+ * useNanName — read the NANNameRegistry contract.
+ * Real ABI: register(string,uint8), renew(string,uint8), resolve(string),
+ *           primaryName(address), isAvailable(string), getNamesForAddress(address)
  */
-import { useState, useCallback } from 'react'
+import { useCallback } from 'react'
 import { usePublicClient } from 'wagmi'
 
-// NAN Name Registry address on Arc Testnet (set in .env as VITE_NAME_REGISTRY)
 const NAME_REGISTRY = (import.meta.env.VITE_NAME_REGISTRY as string | undefined) ?? ''
 
-// ABI subset we need: resolve(string) → address, nameOf(address) → string
-const REGISTRY_ABI = [
-  { name: 'resolve',  type: 'function', stateMutability: 'view', inputs: [{ name: 'name', type: 'string' }],   outputs: [{ type: 'address' }] },
-  { name: 'nameOf',   type: 'function', stateMutability: 'view', inputs: [{ name: 'owner', type: 'address' }], outputs: [{ type: 'string'  }] },
+export const REGISTRY_ABI = [
+  { name: 'register',           type: 'function', stateMutability: 'nonpayable', inputs: [{ name: 'name', type: 'string' }, { name: 'duration', type: 'uint8' }], outputs: [] },
+  { name: 'renew',              type: 'function', stateMutability: 'nonpayable', inputs: [{ name: 'name', type: 'string' }, { name: 'duration', type: 'uint8' }], outputs: [] },
+  { name: 'resolve',            type: 'function', stateMutability: 'view',       inputs: [{ name: 'name', type: 'string' }],   outputs: [{ type: 'address' }] },
+  { name: 'primaryName',        type: 'function', stateMutability: 'view',       inputs: [{ name: 'addr', type: 'address' }],  outputs: [{ type: 'string'  }] },
+  { name: 'isAvailable',        type: 'function', stateMutability: 'view',       inputs: [{ name: 'name', type: 'string' }],   outputs: [{ type: 'bool'   }] },
+  { name: 'getNamesForAddress', type: 'function', stateMutability: 'view',       inputs: [{ name: 'addr', type: 'address' }],  outputs: [{ type: 'string[]' }] },
+  { name: 'price1Yr',           type: 'function', stateMutability: 'view',       inputs: [],                                   outputs: [{ type: 'uint256' }] },
+  { name: 'price2Yr',           type: 'function', stateMutability: 'view',       inputs: [],                                   outputs: [{ type: 'uint256' }] },
+  { name: 'price5Yr',           type: 'function', stateMutability: 'view',       inputs: [],                                   outputs: [{ type: 'uint256' }] },
 ] as const
+
+export const ERC20_APPROVE_ABI = [
+  { name: 'approve',   type: 'function', stateMutability: 'nonpayable', inputs: [{ name: 'spender', type: 'address' }, { name: 'amount', type: 'uint256' }], outputs: [{ type: 'bool' }] },
+  { name: 'allowance', type: 'function', stateMutability: 'view',       inputs: [{ name: 'owner', type: 'address' }, { name: 'spender', type: 'address' }], outputs: [{ type: 'uint256' }] },
+] as const
+
+// Prices in USDC (6 decimals)
+export const PRICES: Record<1 | 2 | 5, bigint> = {
+  1: 2_000_000n,
+  2: 3_000_000n,
+  5: 8_000_000n,
+}
 
 export function useNanName() {
   const client = usePublicClient()
-  const [resolving, setResolving] = useState(false)
 
-  /** Resolve @handle → address. Returns null if not found or registry not set. */
+  /** Resolve @handle → address. Returns null if not found or expired. */
   const resolveHandle = useCallback(async (handle: string): Promise<string | null> => {
     if (!NAME_REGISTRY || !client) return null
     const name = handle.startsWith('@') ? handle.slice(1) : handle
     if (!name) return null
-    setResolving(true)
     try {
       const address = await client.readContract({
         address: NAME_REGISTRY as `0x${string}`,
@@ -32,31 +47,58 @@ export function useNanName() {
         functionName: 'resolve',
         args: [name],
       })
-      // Zero address means not registered
       if (address === '0x0000000000000000000000000000000000000000') return null
       return address
-    } catch {
-      return null
-    } finally {
-      setResolving(false)
-    }
+    } catch { return null }
   }, [client])
 
-  /** Reverse: address → @handle. Returns empty string if not registered. */
+  /** address → primary @handle. Returns empty string if none. */
   const resolveName = useCallback(async (address: string): Promise<string> => {
     if (!NAME_REGISTRY || !client) return ''
     try {
       const name = await client.readContract({
         address: NAME_REGISTRY as `0x${string}`,
         abi: REGISTRY_ABI,
-        functionName: 'nameOf',
+        functionName: 'primaryName',
         args: [address as `0x${string}`],
       })
       return name ?? ''
-    } catch {
-      return ''
-    }
+    } catch { return '' }
   }, [client])
 
-  return { resolveHandle, resolveName, resolving, registrySet: !!NAME_REGISTRY }
+  /** Check if a handle is available (not taken or expired). */
+  const checkAvailable = useCallback(async (name: string): Promise<boolean> => {
+    if (!NAME_REGISTRY || !client) return false
+    try {
+      return await client.readContract({
+        address: NAME_REGISTRY as `0x${string}`,
+        abi: REGISTRY_ABI,
+        functionName: 'isAvailable',
+        args: [name],
+      })
+    } catch { return false }
+  }, [client])
+
+  /** Get all names owned by an address. */
+  const getNames = useCallback(async (address: string): Promise<string[]> => {
+    if (!NAME_REGISTRY || !client) return []
+    try {
+      const names = await client.readContract({
+        address: NAME_REGISTRY as `0x${string}`,
+        abi: REGISTRY_ABI,
+        functionName: 'getNamesForAddress',
+        args: [address as `0x${string}`],
+      })
+      return [...names]
+    } catch { return [] }
+  }, [client])
+
+  return {
+    resolveHandle,
+    resolveName,
+    checkAvailable,
+    getNames,
+    resolving: false,
+    registrySet: !!NAME_REGISTRY,
+  }
 }
