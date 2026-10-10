@@ -1433,32 +1433,51 @@ app.get('/api/activity-stream', (req, res) => {
 })
 
 // ── Referral system ────────────────────────────────────────────────────────────
-const referralStore = new Map<string, { code: string; uses: number; createdAt: number }>(
-  Object.entries(loadStore<Record<string, { code: string; uses: number; createdAt: number }>>('referrals', {}))
+interface ReferralEntry {
+  code: string
+  uses: number
+  createdAt: number
+  referrals: Array<{ handle: string; joinedAt: number; firstTransfer: boolean }>
+}
+
+const referralStore = new Map<string, ReferralEntry>(
+  Object.entries(loadStore<Record<string, ReferralEntry>>('referrals', {}))
+    .map(([k, v]) => [k, { referrals: [], ...v }])
 )
 
 app.get('/api/referral', (req, res) => {
   const wallet = (req.query.wallet as string ?? '').toLowerCase()
   if (!wallet) { res.status(400).json({ error: 'wallet required' }); return }
   if (!referralStore.has(wallet)) {
-    // For 0x addresses take chars 2-8, for email/other keys take first 6 non-special chars
     const prefix = wallet.startsWith('0x')
       ? wallet.slice(2, 8)
       : wallet.replace(/[^a-z0-9]/gi, '').slice(0, 6)
-    const code = prefix.toUpperCase() + Math.random().toString(36).slice(2, 5).toUpperCase()
-    referralStore.set(wallet, { code, uses: 0, createdAt: Date.now() })
+    // Deterministic suffix from key hash so code is stable across restarts
+    let h = 0; for (const c of wallet) { h = (h * 31 + c.charCodeAt(0)) >>> 0 }
+    const suffix = h.toString(36).slice(0, 3).toUpperCase()
+    const code = (prefix.slice(0, 4) + suffix).toUpperCase()
+    referralStore.set(wallet, { code, uses: 0, createdAt: Date.now(), referrals: [] })
     debouncedSave('referrals', Object.fromEntries(referralStore))
   }
   res.json({ success: true, ...referralStore.get(wallet) })
 })
 
 app.post('/api/referral/use', (req, res) => {
-  const { code } = req.body as { code: string }
+  const { code, handle } = req.body as { code: string; handle?: string }
   if (!code) { res.status(400).json({ error: 'code required' }); return }
   let found = false
   referralStore.forEach((v, k) => {
     if (v.code === code.toUpperCase()) {
-      referralStore.set(k, { ...v, uses: v.uses + 1 })
+      const entry: ReferralEntry = {
+        ...v,
+        uses: v.uses + 1,
+        referrals: [...(v.referrals ?? []), {
+          handle: handle ?? `Friend #${v.uses + 1}`,
+          joinedAt: Date.now(),
+          firstTransfer: false,
+        }],
+      }
+      referralStore.set(k, entry)
       found = true
     }
   })
