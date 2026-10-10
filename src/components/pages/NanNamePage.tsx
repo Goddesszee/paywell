@@ -20,6 +20,7 @@ import { toast } from 'sonner'
 import { useAppStore } from '../../store/appStore'
 import { useNanName, REGISTRY_ABI, ERC20_APPROVE_ABI, PRICES } from '../../hooks/useNanName'
 import { useNanTheme } from '../../hooks/useNanTheme'
+import { useCircleTransaction } from '../../hooks/useCircleTransaction'
 import { buildAddressExplorerUrl } from '../../onchain-facts'
 
 const NAME_REGISTRY = (import.meta.env.VITE_NAME_REGISTRY as string | undefined) ?? ''
@@ -148,6 +149,7 @@ export function NanNamePage() {
   const isPasskeyUser = !!auth?.isPasskeyUser
 
   const { resolveName, checkAvailable, registrySet } = useNanName()
+  const circleTx = useCircleTransaction()
 
   const [step, setStep]                     = useState<Step>('loading')
   const [myHandle, setMyHandle]             = useState('')
@@ -162,7 +164,7 @@ export function NanNamePage() {
   const [copied, setCopied]                 = useState(false)
   const [justRegistered, setJustRegistered] = useState('')
   const [showCelebration, setShowCelebration] = useState(false)
-
+  const [altBusy, setAltBusy]               = useState(false)
 
   const pendingRef = useRef<{ fn: string; handle: string }>({ fn: '', handle: '' })
 
@@ -177,7 +179,7 @@ export function NanNamePage() {
   const { isLoading: registerConfirming, isSuccess: registerSuccess } = useWaitForTransactionReceipt({ hash: registerHash })
 
   const isBusy = approveWrite.isPending || approveConfirming
-    || registerWrite.isPending || registerConfirming
+    || registerWrite.isPending || registerConfirming || altBusy
 
   // ── load handle on mount ──────────────────────────────────────────────────
   const loadMyHandle = useCallback(async () => {
@@ -207,16 +209,11 @@ export function NanNamePage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [approveSuccess])
 
-  // ── after register confirmed ───────────────────────────────────────────────
+  // ── after register confirmed (wagmi) ─────────────────────────────────────
   useEffect(() => {
     if (!registerSuccess) return
     const { handle } = pendingRef.current
-    setJustRegistered(handle)
-    setMyHandle(handle)
-    setShowCelebration(true)
-    setStep('success')
-    approveWrite.reset()
-    registerWrite.reset()
+    onSuccess(handle)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [registerSuccess])
 
@@ -242,7 +239,90 @@ export function NanNamePage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [registerWrite.error])
 
-  // ── submit (wagmi path) ────────────────────────────────────────────────────
+  // ── success helper ─────────────────────────────────────────────────────────
+  const onSuccess = useCallback((handle: string) => {
+    setJustRegistered(handle)
+    setMyHandle(handle)
+    setShowCelebration(true)
+    setStep('success')
+    approveWrite.reset()
+    registerWrite.reset()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // ── Circle path: approve then register ────────────────────────────────────
+  const submitCircle = useCallback(async (h: string, dur: Dur) => {
+    setAltBusy(true)
+    setStep('approving')
+    // Step 1: approve USDC
+    const approveTxId = await circleTx.executeContract({
+      contractAddress: USDC_ADDRESS,
+      abiFunctionSignature: 'approve(address,uint256)',
+      abiParameters: [NAME_REGISTRY, String(PRICES[dur])],
+    })
+    if (!approveTxId) {
+      toast.error(circleTx.error ?? 'USDC approval failed')
+      setStep('lookup'); setAltBusy(false); return
+    }
+    // Step 2: register
+    setStep('registering')
+    const regTxId = await circleTx.executeContract({
+      contractAddress: NAME_REGISTRY,
+      abiFunctionSignature: 'register(string,uint8)',
+      abiParameters: [h, String(dur)],
+    })
+    setAltBusy(false)
+    if (regTxId) {
+      onSuccess(h)
+    } else {
+      const msg = circleTx.error ?? 'Registration failed'
+      toast.error(msg.includes('Name already taken') ? 'That name is already taken.' : msg.slice(0, 100))
+      setStep('lookup')
+    }
+  }, [circleTx, onSuccess])
+
+  // ── Passkey path: two sequential UserOperations ────────────────────────────
+  const submitPasskey = useCallback(async (h: string, dur: Dur) => {
+    const clientKey = import.meta.env.VITE_CLIENT_KEY as string | undefined
+    if (!clientKey) { toast.error('VITE_CLIENT_KEY is not set'); return }
+    setAltBusy(true)
+    setStep('approving')
+    try {
+      const { createPublicClient } = await import('viem')
+      const { arcTestnet } = await import('viem/chains')
+      const { toCircleSmartAccount, toModularTransport } = await import('@circle-fin/modular-wallets-core')
+      const { createBundlerClient, toWebAuthnAccount } = await import('viem/account-abstraction')
+      const MODULAR_URL = 'https://modular-sdk.circle.com/v1/rpc/w3s/buidl'
+      const stored = localStorage.getItem('nan_passkey_credential')
+      if (!stored) { toast.error('Passkey credential not found — please log in again'); setAltBusy(false); return }
+      const credential = JSON.parse(stored) as Parameters<typeof toWebAuthnAccount>[0]['credential']
+      const modularTransport = toModularTransport(`${MODULAR_URL}/arcTestnet`, clientKey)
+      const publicClient = createPublicClient({ chain: arcTestnet, transport: modularTransport })
+      const account = await toCircleSmartAccount({ client: publicClient, owner: toWebAuthnAccount({ credential }) })
+      const bundler = createBundlerClient({ account, chain: arcTestnet, transport: modularTransport })
+
+      // Step 1: approve
+      const approveData = encodeFunctionData({ abi: ERC20_APPROVE_ABI, functionName: 'approve', args: [NAME_REGISTRY as `0x${string}`, PRICES[dur]] })
+      const approveOp = await bundler.sendUserOperation({ account, calls: [{ to: USDC_ADDRESS, data: approveData, value: 0n }] })
+      await bundler.waitForUserOperationReceipt({ hash: approveOp })
+
+      // Step 2: register
+      setStep('registering')
+      const registerData = encodeFunctionData({ abi: REGISTRY_ABI, functionName: 'register', args: [h, dur] })
+      const registerOp = await bundler.sendUserOperation({ account, calls: [{ to: NAME_REGISTRY as `0x${string}`, data: registerData, value: 0n }] })
+      await bundler.waitForUserOperationReceipt({ hash: registerOp })
+
+      onSuccess(h)
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Passkey transaction failed'
+      toast.error(msg.includes('Name already taken') ? 'That name is already taken.' : msg.slice(0, 100))
+      setStep('lookup')
+    } finally {
+      setAltBusy(false)
+    }
+  }, [onSuccess])
+
+  // ── submit: route to correct path ──────────────────────────────────────────
   const handleSubmit = () => {
     const h = sanitize(newHandle.trim())
     if (!isValidHandle(h)) {
@@ -251,8 +331,12 @@ export function NanNamePage() {
     }
     setHandleError('')
     pendingRef.current = { fn: 'register', handle: h }
+
+    if (isCircleUser) { void submitCircle(h, duration); return }
+    if (isPasskeyUser) { void submitPasskey(h, duration); return }
+
+    // wagmi: step 1 — approve USDC
     setStep('approving')
-    // Step 1: approve USDC spend
     approveWrite.writeContract({
       address: USDC_ADDRESS,
       abi: ERC20_APPROVE_ABI,
