@@ -157,12 +157,12 @@ function ListView({
   ]
 
   return (
-    <div style={{ width: '100%', paddingBottom: 80 }}>
+    <div style={{ width: '100%', paddingBottom: 100 }}>
 
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+      {/* ── Header ── */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 0 16px' }}>
         <div>
-          <h1 style={{ fontSize: 22, fontWeight: 700, color: C.text, margin: 0, letterSpacing: '-0.025em' }}>
+          <h1 style={{ fontSize: 22, fontWeight: 800, color: C.text, margin: 0, letterSpacing: '-0.03em', lineHeight: 1.1 }}>
             Payment Requests
           </h1>
           <p style={{ fontSize: 12, color: C.t3, marginTop: 3, marginBottom: 0 }}>
@@ -177,33 +177,34 @@ function ListView({
             background: BLUE, border: 'none', color: '#fff',
             fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: F,
             boxShadow: '0 4px 16px rgba(0,102,255,0.3)', flexShrink: 0,
+            WebkitTapHighlightColor: 'transparent',
           }}
         >
-          <Plus size={15} /> New Request
+          <Plus size={15} /> New
         </button>
       </div>
 
-      {/* Summary cards */}
+      {/* ── Summary cards ── */}
       {paymentRequests.length > 0 && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8, margin: '16px 0' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8, marginBottom: 16 }}>
           {[
-            { label: 'Pending', count: totals.count, sub: `${totals.pending.toFixed(2)}`, color: GOLD },
-            { label: 'Paid',    count: paymentRequests.filter(r => r.status === 'paid').length, sub: `${totals.paid.toFixed(2)}`, color: GREEN },
-            { label: 'Total',   count: paymentRequests.length, sub: `${totals.total.toFixed(2)}`, color: BLUE },
+            { label: 'Pending', count: totals.count, sub: totals.pending.toFixed(2), color: GOLD },
+            { label: 'Paid',    count: paymentRequests.filter(r => r.status === 'paid').length, sub: totals.paid.toFixed(2), color: GREEN },
+            { label: 'Total',   count: paymentRequests.length, sub: totals.total.toFixed(2), color: BLUE },
           ].map(s => (
             <div key={s.label} style={{
               background: C.surf, border: `1px solid ${C.bdr}`,
-              borderRadius: 14, padding: '12px 10px', minWidth: 0,
+              borderRadius: 16, padding: '14px 12px', minWidth: 0,
             }}>
               <div style={{ fontSize: 10, fontWeight: 700, color: C.t3, textTransform: 'uppercase' as const, letterSpacing: '0.07em', marginBottom: 6 }}>{s.label}</div>
-              <div style={{ fontSize: 20, fontWeight: 800, color: s.color, fontFamily: MONO, lineHeight: 1, marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.count}</div>
-              <div style={{ fontSize: 11, fontWeight: 600, color: C.t2, fontFamily: MONO, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.sub} USDC</div>
+              <div style={{ fontSize: 22, fontWeight: 800, color: s.color, fontFamily: MONO, lineHeight: 1, marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.count}</div>
+              <div style={{ fontSize: 10, fontWeight: 600, color: C.t2, fontFamily: MONO, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.sub} USDC</div>
             </div>
           ))}
         </div>
       )}
 
-      {/* Search */}
+      {/* ── Search ── */}
       <div style={{ position: 'relative', marginBottom: 10 }}>
         <Search size={14} color={C.t3} style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
         <input
@@ -211,102 +212,123 @@ function ListView({
           onChange={e => setSearch(e.target.value)}
           placeholder="Search requests…"
           style={{
-            width: '100%', padding: '11px 12px 11px 36px', boxSizing: 'border-box',
+            width: '100%', padding: '12px 12px 12px 38px', boxSizing: 'border-box',
             background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 12,
             fontSize: 14, fontFamily: F, color: C.text, outline: 'none',
           }}
         />
+        {search && (
+          <button onClick={() => setSearch('')} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', padding: 2 }}>
+            <X size={14} color={C.t3} />
+          </button>
+        )}
       </div>
 
-      {/* Status filter chips */}
-      <div style={{ display: 'flex', gap: 6, marginBottom: 16, overflowX: 'auto', paddingBottom: 4, scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' }}>
-        {statuses.map(s => (
-          <button key={s.id} onClick={() => setStatusFilter(s.id)} style={{
-            padding: '6px 14px', borderRadius: 20, cursor: 'pointer', fontFamily: F,
-            fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap', flexShrink: 0,
-            background: statusFilter === s.id ? BLUE : C.surf,
-            color: statusFilter === s.id ? '#fff' : C.t2,
-            border: `1px solid ${statusFilter === s.id ? BLUE : C.bdr}`,
-            transition: 'all 0.15s',
-          }}>{s.label}</button>
-        ))}
+      {/* ── Filter chips ── */}
+      <div style={{ display: 'flex', gap: 6, marginBottom: 16, overflowX: 'auto', paddingBottom: 2, msOverflowStyle: 'none', scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' }}>
+        {statuses.map(s => {
+          const active = statusFilter === s.id
+          return (
+            <button key={s.id} onClick={() => setStatusFilter(s.id)} style={{
+              padding: '7px 14px', borderRadius: 20, cursor: 'pointer', fontFamily: F,
+              fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap', flexShrink: 0,
+              background: active ? BLUE : C.surf,
+              color: active ? '#fff' : C.t2,
+              border: `1px solid ${active ? BLUE : C.bdr}`,
+              transition: 'all 0.15s', WebkitTapHighlightColor: 'transparent',
+            }}>{s.label}</button>
+          )
+        })}
       </div>
 
-      {/* Empty state */}
+      {/* ── Empty state ── */}
       {filtered.length === 0 && (
-        <div style={{ textAlign: 'center', padding: '56px 20px' }}>
+        <div style={{ textAlign: 'center', padding: '64px 20px' }}>
           <div style={{
-            width: 56, height: 56, borderRadius: 16,
+            width: 60, height: 60, borderRadius: 18,
             background: C.surf, border: `1px solid ${C.bdr}`,
-            display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px',
           }}>
-            {search || statusFilter !== 'all' ? <Search size={22} color={C.t3} /> : <FileText size={22} color={C.t3} />}
+            {search || statusFilter !== 'all' ? <Search size={24} color={C.t3} /> : <FileText size={24} color={C.t3} />}
           </div>
-          <div style={{ fontSize: 16, fontWeight: 700, color: C.text, marginBottom: 6 }}>
-            {search || statusFilter !== 'all' ? 'No matching requests' : 'No payment requests yet'}
+          <div style={{ fontSize: 17, fontWeight: 700, color: C.text, marginBottom: 8 }}>
+            {search ? 'No results found' : statusFilter !== 'all' ? `No ${statusFilter} requests` : 'No payment requests yet'}
           </div>
-          <div style={{ fontSize: 13, color: C.t3, marginBottom: 24, lineHeight: 1.6 }}>
+          <div style={{ fontSize: 13, color: C.t3, marginBottom: 28, lineHeight: 1.65, maxWidth: 280, margin: '0 auto 28px' }}>
             {search || statusFilter !== 'all'
-              ? 'Try different search terms or clear the filter'
-              : 'Create your first request and share the payment link'}
+              ? 'Try different search terms or clear the filter.'
+              : 'Create a payment request and share the link to get paid instantly.'}
           </div>
           {!search && statusFilter === 'all' && (
             <button onClick={onNew} style={{
               display: 'inline-flex', alignItems: 'center', gap: 7,
-              padding: '12px 22px', borderRadius: 12,
+              padding: '13px 24px', borderRadius: 12,
               background: BLUE, border: 'none', color: '#fff',
               fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: F,
               boxShadow: '0 4px 16px rgba(0,102,255,0.28)',
+              WebkitTapHighlightColor: 'transparent',
             }}>
-              <Plus size={15} /> New Request
+              <Plus size={15} /> Create Request
+            </button>
+          )}
+          {(search || statusFilter !== 'all') && (
+            <button onClick={() => { setSearch(''); setStatusFilter('all') }} style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              padding: '10px 20px', borderRadius: 10,
+              background: C.surf, border: `1px solid ${C.bdr}`, color: C.t2,
+              fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: F,
+            }}>
+              Clear filters
             </button>
           )}
         </div>
       )}
 
-      {/* Request list */}
+      {/* ── Request list ── */}
       {filtered.length > 0 && (
-        <div style={{ background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 16, overflow: 'hidden' }}>
+        <div style={{ background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 18, overflow: 'hidden' }}>
           {filtered.map((req, idx) => (
             <div
               key={req.id}
               onClick={() => onOpen(req)}
               style={{
-                display: 'flex', alignItems: 'center', gap: 12, padding: '15px 16px',
+                display: 'flex', alignItems: 'center', gap: 12, padding: '16px',
                 borderBottom: idx < filtered.length - 1 ? `1px solid ${C.bdr}` : 'none',
                 cursor: 'pointer', transition: 'background 0.1s',
+                WebkitTapHighlightColor: 'transparent',
               }}
             >
               {/* Icon */}
               <div style={{
-                width: 40, height: 40, borderRadius: 12, flexShrink: 0,
+                width: 44, height: 44, borderRadius: 13, flexShrink: 0,
                 background: STATUS_META[req.status].bg,
+                border: `1px solid ${STATUS_META[req.status].color}22`,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}>
-                <FileText size={17} color={STATUS_META[req.status].color} />
+                <FileText size={18} color={STATUS_META[req.status].color} />
               </div>
 
               {/* Info */}
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 14, fontWeight: 600, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {req.title}
                 </div>
                 <div style={{ fontSize: 11, color: C.t3, marginTop: 3, display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
                   <span style={{ fontFamily: MONO }}>{req.refNumber}</span>
-                  {req.recipientName && <><span>·</span><span>{req.recipientName}</span></>}
+                  {req.recipientName && <><span>·</span><span style={{ overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 80 }}>{req.recipientName}</span></>}
                   {req.dueDate && <><span>·</span><span>Due {new Date(req.dueDate).toLocaleDateString('en', { month: 'short', day: 'numeric' })}</span></>}
                 </div>
               </div>
 
               {/* Amount + status */}
-              <div style={{ textAlign: 'right', flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
-                <div style={{ fontSize: 15, fontWeight: 700, color: req.status === 'paid' ? GREEN : C.text, fontFamily: MONO }}>
-                  {req.amount.toFixed(2)} <span style={{ fontSize: 11, color: C.t3, fontWeight: 600 }}>{req.currency}</span>
+              <div style={{ textAlign: 'right', flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 5 }}>
+                <div style={{ fontSize: 15, fontWeight: 800, color: req.status === 'paid' ? GREEN : C.text, fontFamily: MONO, whiteSpace: 'nowrap' }}>
+                  {req.amount.toFixed(2)} <span style={{ fontSize: 10, color: C.t3, fontWeight: 600 }}>{req.currency}</span>
                 </div>
                 <StatusBadge status={req.status} />
               </div>
 
-              <ChevronRight size={14} color={C.t3} style={{ flexShrink: 0 }} />
+              <ChevronRight size={14} color={C.t3} style={{ flexShrink: 0, marginLeft: 2 }} />
             </div>
           ))}
         </div>
@@ -390,25 +412,25 @@ function CreateForm({
     : inputStyle
 
   return (
-    <div style={{ width: '100%', paddingBottom: 80 }}>
+    <div style={{ width: '100%', paddingBottom: 100 }}>
 
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+      {/* ── Header ── */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '20px 0 20px' }}>
         <button onClick={onBack} style={{
-          width: 34, height: 34, borderRadius: 10,
+          width: 36, height: 36, borderRadius: 10,
           background: C.surf, border: `1px solid ${C.bdr}`,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          cursor: 'pointer', flexShrink: 0,
+          cursor: 'pointer', flexShrink: 0, WebkitTapHighlightColor: 'transparent',
         }}>
-          <X size={15} color={C.t2} />
+          <X size={16} color={C.t2} />
         </button>
         <div>
-          <h2 style={{ fontSize: 18, fontWeight: 700, color: C.text, margin: 0, letterSpacing: '-0.02em' }}>New Payment Request</h2>
+          <h2 style={{ fontSize: 19, fontWeight: 800, color: C.text, margin: 0, letterSpacing: '-0.025em' }}>New Payment Request</h2>
           <p style={{ fontSize: 12, color: C.t3, margin: 0 }}>Fill in the details and share the payment link</p>
         </div>
       </div>
 
-      <div style={{ background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 14, padding: '20px' }}>
+      <div style={{ background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 18, padding: '20px' }}>
 
         <Field labelColor={C.t2} label="Title / Description *" error={errors.title}>
           <input
@@ -574,86 +596,84 @@ function DetailView({
   const rowProps = { bdr: C.bdr, t3: C.t3, text: C.text }
 
   return (
-    <div style={{ width: '100%', paddingBottom: 80 }}>
+    <div style={{ width: '100%', paddingBottom: 100 }}>
 
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+      {/* ── Header ── */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '20px 0 20px' }}>
         <button onClick={onBack} style={{
-          width: 34, height: 34, borderRadius: 10,
+          width: 36, height: 36, borderRadius: 10,
           background: C.surf, border: `1px solid ${C.bdr}`,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          cursor: 'pointer', flexShrink: 0,
+          cursor: 'pointer', flexShrink: 0, WebkitTapHighlightColor: 'transparent',
         }}>
-          <X size={15} color={C.t2} />
+          <X size={16} color={C.t2} />
         </button>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <h2 style={{ fontSize: 17, fontWeight: 700, color: C.text, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <h2 style={{ fontSize: 18, fontWeight: 800, color: C.text, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', letterSpacing: '-0.025em' }}>
             {req.title}
           </h2>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 3 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
             <span style={{ fontSize: 11, color: C.t3, fontFamily: MONO }}>{req.refNumber}</span>
             <StatusBadge status={req.status} />
           </div>
         </div>
       </div>
 
-      {/* Amount hero */}
+      {/* ── Amount hero ── */}
       <div style={{
-        background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 16,
-        padding: '24px 20px', marginBottom: 14, textAlign: 'center',
+        background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 18,
+        padding: '28px 20px', marginBottom: 12, textAlign: 'center',
       }}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: C.t3, textTransform: 'uppercase' as const, letterSpacing: '0.09em', marginBottom: 8 }}>
+        <div style={{ fontSize: 10, fontWeight: 700, color: C.t3, textTransform: 'uppercase' as const, letterSpacing: '0.1em', marginBottom: 10 }}>
           Amount Requested
         </div>
-        <div style={{ fontSize: 44, fontWeight: 800, color: req.status === 'paid' ? GREEN : C.text, fontFamily: MONO, letterSpacing: '-0.03em', lineHeight: 1, marginBottom: 6 }}>
+        <div style={{ fontSize: 48, fontWeight: 800, color: req.status === 'paid' ? GREEN : C.text, fontFamily: MONO, letterSpacing: '-0.04em', lineHeight: 1, marginBottom: 8 }}>
           {req.amount.toFixed(2)}
           <span style={{ fontSize: 20, fontWeight: 600, color: C.t3, marginLeft: 10 }}>{req.currency}</span>
         </div>
         {req.status === 'paid' && req.paidAt && (
-          <div style={{ fontSize: 12, color: GREEN, fontWeight: 600, marginTop: 4 }}>
-            Paid {new Date(req.paidAt).toLocaleDateString('en', { month: 'short', day: 'numeric', year: 'numeric' })}
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, color: GREEN, fontWeight: 600, background: 'rgba(0,200,83,0.10)', border: '1px solid rgba(0,200,83,0.2)', borderRadius: 20, padding: '4px 12px' }}>
+            <CheckCircle2 size={12} /> Paid {new Date(req.paidAt).toLocaleDateString('en', { month: 'short', day: 'numeric', year: 'numeric' })}
           </div>
         )}
         {req.status === 'pending' && req.dueDate && (
-          <div style={{ fontSize: 12, color: GOLD, fontWeight: 600, marginTop: 4 }}>
-            Due {new Date(req.dueDate).toLocaleDateString('en', { month: 'short', day: 'numeric', year: 'numeric' })}
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, color: GOLD, fontWeight: 600, background: 'rgba(240,165,0,0.10)', border: '1px solid rgba(240,165,0,0.2)', borderRadius: 20, padding: '4px 12px' }}>
+            <Clock size={12} /> Due {new Date(req.dueDate).toLocaleDateString('en', { month: 'short', day: 'numeric', year: 'numeric' })}
           </div>
         )}
       </div>
 
-      {/* Action buttons — primary actions */}
+      {/* ── Primary actions ── */}
       {req.status !== 'paid' && req.status !== 'cancelled' && req.status !== 'expired' && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
           <button onClick={copyLink} style={{
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
-            padding: '14px', borderRadius: 12,
+            padding: '14px', borderRadius: 13,
             background: BLUE, border: 'none', color: '#fff',
             fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: F,
-            boxShadow: '0 4px 14px rgba(0,102,255,0.28)',
+            boxShadow: '0 4px 14px rgba(0,102,255,0.28)', WebkitTapHighlightColor: 'transparent',
           }}>
             {copied ? <Check size={15} /> : <Copy size={15} />}
             {copied ? 'Copied!' : 'Copy Link'}
           </button>
           <button onClick={shareLink} style={{
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
-            padding: '14px', borderRadius: 12,
+            padding: '14px', borderRadius: 13,
             background: C.surf, border: `1px solid ${C.bdr}`, color: C.text,
             fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: F,
+            WebkitTapHighlightColor: 'transparent',
           }}>
             <Share2 size={15} /> Share
           </button>
         </div>
       )}
 
-      {/* Open payment page */}
+      {/* ── Preview link ── */}
       {req.status !== 'paid' && req.status !== 'cancelled' && req.status !== 'expired' && (
-        <a
-          href={payLink}
-          target="_blank"
-          rel="noopener noreferrer"
+        <a href={payLink} target="_blank" rel="noopener noreferrer"
           style={{
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
-            padding: '11px', borderRadius: 12, marginBottom: 14,
+            padding: '12px', borderRadius: 12, marginBottom: 12,
             background: C.surf, border: `1px solid ${C.bdr}`,
             color: BLUE, fontSize: 13, fontWeight: 700,
             textDecoration: 'none', fontFamily: F,
@@ -663,67 +683,67 @@ function DetailView({
         </a>
       )}
 
-      {/* Detail rows */}
-      <div style={{ background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 14, padding: '4px 16px', marginBottom: 14 }}>
-        <Row {...rowProps} label="Reference number" value={req.refNumber} mono />
+      {/* ── Detail rows ── */}
+      <div style={{ background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 16, padding: '4px 16px', marginBottom: 12 }}>
+        <Row {...rowProps} label="Reference" value={req.refNumber} mono />
         {req.recipientName && <Row {...rowProps} label="Recipient" value={req.recipientName} />}
         <Row {...rowProps} label="Amount" value={`${req.amount.toFixed(2)} ${req.currency}`} mono />
         <Row {...rowProps} label="Status" value={STATUS_META[req.status].label} />
         <Row {...rowProps} label="Created" value={new Date(req.createdAt).toLocaleDateString('en', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })} />
         {req.dueDate && <Row {...rowProps} label="Due date" value={new Date(req.dueDate).toLocaleDateString('en', { month: 'short', day: 'numeric', year: 'numeric' })} />}
         {req.note && <Row {...rowProps} label="Note" value={req.note} />}
-        {req.reference && <Row {...rowProps} label="Your reference" value={req.reference} mono />}
+        {req.reference && <Row {...rowProps} label="Reference" value={req.reference} mono />}
         {req.paidAt && <Row {...rowProps} label="Paid on" value={new Date(req.paidAt).toLocaleDateString('en', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })} />}
         {req.paidTxHash && <Row {...rowProps} label="Transaction" value={`${req.paidTxHash.slice(0,10)}…${req.paidTxHash.slice(-6)}`} mono />}
       </div>
 
-      {/* Payment instructions (to address) */}
-      <div style={{ background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 14, padding: '14px 16px', marginBottom: 14 }}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: C.t3, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>
+      {/* ── Payment destination ── */}
+      <div style={{ background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 16, padding: '14px 16px', marginBottom: 12 }}>
+        <div style={{ fontSize: 10, fontWeight: 700, color: C.t3, textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 10 }}>
           Payment destination
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ flex: 1, fontSize: 12, fontFamily: MONO, color: C.t2, wordBreak: 'break-all' }}>{req.creatorAddress ?? '—'}</span>
+          <span style={{ flex: 1, fontSize: 12, fontFamily: MONO, color: C.t2, wordBreak: 'break-all', lineHeight: 1.5 }}>{req.creatorAddress ?? '—'}</span>
           <button
             onClick={() => { if (req.creatorAddress) { void navigator.clipboard.writeText(req.creatorAddress); toast.success('Address copied') } }}
-            style={{ flexShrink: 0, background: C.surf2, border: `1px solid ${C.bdr}`, borderRadius: 8, padding: '6px 10px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+            style={{ flexShrink: 0, background: C.surf2, border: `1px solid ${C.bdr}`, borderRadius: 8, padding: '7px 10px', cursor: 'pointer', display: 'flex', alignItems: 'center', WebkitTapHighlightColor: 'transparent' }}
           >
-            <Copy size={12} color={C.t2} />
+            <Copy size={13} color={C.t2} />
           </button>
         </div>
-        <div style={{ fontSize: 11, color: C.t3, marginTop: 6 }}>Arc Testnet · USDC</div>
+        <div style={{ fontSize: 11, color: C.t3, marginTop: 8 }}>Arc Testnet · USDC</div>
       </div>
 
-      {/* If paid — link to activity */}
+      {/* ── If paid — view activity ── */}
       {req.status === 'paid' && (
-        <button
-          onClick={() => setActiveView('activity')}
-          style={{
-            width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
-            padding: '13px', borderRadius: 12, marginBottom: 14,
-            background: 'rgba(0,200,83,0.08)', border: '1px solid rgba(0,200,83,0.25)',
-            color: GREEN, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: F,
-          }}
-        >
+        <button onClick={() => setActiveView('activity')} style={{
+          width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+          padding: '13px', borderRadius: 12, marginBottom: 12,
+          background: 'rgba(0,200,83,0.08)', border: '1px solid rgba(0,200,83,0.25)',
+          color: GREEN, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: F,
+          WebkitTapHighlightColor: 'transparent',
+        }}>
           <CheckCircle2 size={14} /> View in Activity
         </button>
       )}
 
-      {/* Cancel / delete */}
+      {/* ── Cancel / delete ── */}
       {canCancel && (
         <button onClick={handleCancel} style={{
-          width: '100%', padding: '12px', borderRadius: 12,
+          width: '100%', padding: '13px', borderRadius: 12,
           background: 'transparent', border: `1px solid ${C.bdr}`, color: C.t3,
           fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: F,
+          WebkitTapHighlightColor: 'transparent',
         }}>
           Cancel Request
         </button>
       )}
       {canDelete && (
         <button onClick={handleDelete} style={{
-          width: '100%', padding: '12px', borderRadius: 12, marginTop: 8,
+          width: '100%', padding: '13px', borderRadius: 12, marginTop: 8,
           background: 'rgba(255,59,59,0.06)', border: '1px solid rgba(255,59,59,0.2)',
           color: RED, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: F,
+          WebkitTapHighlightColor: 'transparent',
         }}>
           Delete Request
         </button>
