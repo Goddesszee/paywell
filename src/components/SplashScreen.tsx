@@ -8,8 +8,8 @@ export function SplashScreen({ onDone }: Props) {
   const [out, setOut] = useState(false)
 
   useEffect(() => {
-    const t1 = setTimeout(() => setOut(true),  4400)  // start fade at 4.4s
-    const t2 = setTimeout(() => onDone(),      5000)  // dismiss at 5s
+    const t1 = setTimeout(() => setOut(true),  1500)  // start fade at 1.5s
+    const t2 = setTimeout(() => onDone(),      2000)  // dismiss at 2s
     return () => { clearTimeout(t1); clearTimeout(t2) }
   }, [onDone])
 
