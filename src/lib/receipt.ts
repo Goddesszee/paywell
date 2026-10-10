@@ -154,11 +154,26 @@ export async function shareReceipt(data: ReceiptData) {
   const html = buildReceiptHtml(data)
   const blob = new Blob([html], { type: 'text/html' })
   const ts   = new Date(data.timestamp).toISOString().slice(0, 10)
-  const file = new File([blob], `nan-receipt-${ts}.html`, { type: 'text/html' })
+  const id   = data.id ? data.id.slice(-6) : ts
+  const filename = `nan-receipt-${ts}-${id}.html`
+  const file = new File([blob], filename, { type: 'text/html' })
+
+  // Try native share (shows OS share sheet on mobile — no tab switch, no logout)
   if (navigator.share && navigator.canShare?.({ files: [file] })) {
     try { await navigator.share({ title: 'NAN Receipt', files: [file] }); return } catch { /* fall through */ }
   }
+  // Try sharing just text + URL if file share isn't supported
+  if (navigator.share) {
+    try {
+      await navigator.share({ title: 'NAN Receipt', text: `NAN payment receipt · ${data.amount} USDC` })
+      return
+    } catch { /* fall through */ }
+  }
+  // Fallback: trigger a download in-page (no new tab, no navigation away from the app)
   const url = URL.createObjectURL(blob)
-  window.open(url, '_blank')
-  setTimeout(() => URL.revokeObjectURL(url), 30000)
+  const a   = document.createElement('a')
+  a.href     = url
+  a.download = filename
+  a.click()
+  setTimeout(() => URL.revokeObjectURL(url), 10000)
 }
