@@ -1,10 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
-import { User, Camera, Save, Shield, Bell, Clock, LogOut, ChevronRight, CheckCircle, Sun, Moon, Monitor, ArrowLeft, AtSign } from 'lucide-react'
+import { User, Camera, Save, Shield, Bell, Clock, LogOut, ChevronRight, CheckCircle, Sun, Moon, Monitor, ArrowLeft, AtSign, Headphones } from 'lucide-react'
 import { useAccount, useDisconnect } from 'wagmi'
 import { useAppStore } from '../../store/appStore'
 import { useNanTheme } from '../../hooks/useNanTheme'
 import { useNanName } from '../../hooks/useNanName'
-import { formatAddress } from '../../utils/format'
 
 const F    = "'Inter', -apple-system, sans-serif"
 const MONO = "'JetBrains Mono', Menlo, monospace"
@@ -17,8 +16,9 @@ export function ProfilePage() {
   const C = useNanTheme()
   const { address, isConnected } = useAccount()
   const { disconnect } = useDisconnect()
-  const { auth, profile, setProfile, setActiveView, theme, setTheme, favorites, activity, nanHandle, setNanHandle } = useAppStore()
+  const { auth, profile, setProfile, setActiveView, theme, setTheme, nanHandle, setNanHandle, logout } = useAppStore()
   const { resolveName, registrySet } = useNanName()
+  const [view, setView] = useState<'main' | 'account'>('main')
   const [tab, setTab] = useState<Tab>('profile')
   const [displayName, setDisplayName] = useState(profile.displayName)
   const [bio, setBio]                 = useState(profile.bio)
@@ -124,61 +124,102 @@ export function ProfilePage() {
     { id: 'theme' as Tab, label: 'Theme', Icon: Sun },
   ]
 
+  const isDark = theme === 'dark' || (theme !== 'light' && typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-color-scheme: dark)').matches)
+
+  const handleLogout = () => {
+    if (!window.confirm('Log out and clear your session data?')) return
+    disconnect()
+    logout()
+    setActiveView('landing')
+  }
+
+  const iconCircle = (icon: React.ReactNode) => (
+    <div style={{ width: 48, height: 48, borderRadius: '50%', background: C.blue, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+      {icon}
+    </div>
+  )
+
+  const listRow = (opts: { key: string; icon: React.ReactNode; label: string; sub?: string; onClick: () => void; right?: React.ReactNode; chevron?: boolean }) => (
+    <div key={opts.key} role="button" tabIndex={0} onClick={opts.onClick}
+      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); opts.onClick() } }}
+      style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '12px 4px', cursor: 'pointer', borderRadius: 12 }}>
+      {iconCircle(opts.icon)}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 16, fontWeight: 600, color: C.text }}>{opts.label}</div>
+        {opts.sub && <div style={{ fontSize: 12, color: C.t3, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{opts.sub}</div>}
+      </div>
+      {opts.right ?? (opts.chevron === false ? null : <ChevronRight size={18} color={C.t3} />)}
+    </div>
+  )
+
+  if (view === 'main') {
+    return (
+      <div style={{ width: '100%', fontFamily: F, paddingBottom: 80 }}>
+        {/* Top bar */}
+        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', height: 40, marginBottom: 12 }}>
+          <button onClick={() => setActiveView('settings')} aria-label="Back"
+            style={{ position: 'absolute', left: 0, width: 36, height: 36, borderRadius: 10, background: 'transparent', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+            <ArrowLeft size={20} color={C.text} />
+          </button>
+          <div style={{ fontSize: 18, fontWeight: 700, color: C.text }}>Profile</div>
+        </div>
+
+        {/* Avatar + name */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '8px 0 24px' }}>
+          <div style={{ position: 'relative' }}>
+            {profile.avatarUrl ? (
+              <img src={profile.avatarUrl} alt="Avatar" onError={() => setProfile({ avatarUrl: '' })}
+                style={{ width: 104, height: 104, borderRadius: '50%', objectFit: 'cover', border: `1px solid ${C.bdr}` }} />
+            ) : (
+              <div style={{ width: 104, height: 104, borderRadius: '50%', background: 'rgba(8,102,245,0.12)', border: '1px solid rgba(8,102,245,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 40, fontWeight: 700, color: C.blue }}>
+                {avatarLetter}
+              </div>
+            )}
+            <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleAvatarChange} />
+            <button onClick={() => fileInputRef.current?.click()} disabled={avatarUploading} aria-label="Change photo"
+              style={{ position: 'absolute', bottom: 0, right: 0, width: 32, height: 32, borderRadius: '50%', background: avatarUploading ? '#555' : C.blue, border: `3px solid ${C.bg}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+              <Camera size={14} color="#fff" />
+            </button>
+          </div>
+          <div style={{ fontSize: 24, fontWeight: 700, color: C.text, marginTop: 14, textAlign: 'center' }}>
+            {profile.displayName || auth?.email?.split('@')[0] || 'User'}
+          </div>
+          {saveError && <div style={{ fontSize: 12, color: '#FF3B3B', marginTop: 6 }}>{saveError}</div>}
+        </div>
+
+        {/* List */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          {listRow({ key: 'account', icon: <User size={22} color="#fff" />, label: 'My Account', onClick: () => { setTab('profile'); setView('account') } })}
+          {nanHandle
+            ? listRow({ key: 'nan', icon: <AtSign size={22} color="#fff" />, label: 'NAN Name', sub: `@${nanHandle}`, onClick: () => setActiveView('nan-name') })
+            : registrySet
+              ? listRow({ key: 'nan', icon: <AtSign size={22} color="#fff" />, label: 'NAN Name', sub: 'Get your @handle', onClick: () => setActiveView('nan-name') })
+              : null}
+          {listRow({
+            key: 'dark', icon: <Moon size={22} color="#fff" />, label: 'Dark Mode', onClick: () => setTheme(isDark ? 'light' : 'dark'),
+            right: (
+              <div aria-label="Dark mode" style={{ width: 52, height: 30, borderRadius: 15, background: isDark ? C.blue : C.surf2, border: `1px solid ${isDark ? C.blue : C.bdr}`, position: 'relative', flexShrink: 0, transition: 'background 0.2s' }}>
+                <div style={{ position: 'absolute', top: 3, left: isDark ? 25 : 3, width: 22, height: 22, borderRadius: 11, background: '#fff', transition: 'left 0.2s' }} />
+              </div>
+            ),
+          })}
+          {listRow({ key: 'support', icon: <Headphones size={22} color="#fff" />, label: 'Support service', onClick: () => setActiveView('support') })}
+          {listRow({ key: 'logout', icon: <LogOut size={22} color="#fff" />, label: 'Logout', onClick: handleLogout, chevron: false })}
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div style={{ width: '100%', fontFamily: F, paddingBottom: 80 }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
-        <button onClick={() => setActiveView('settings')} style={{ width: 32, height: 32, borderRadius: 8, background: C.surf, border: `1px solid ${C.bdr}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+        <button onClick={() => setView('main')} aria-label="Back" style={{ width: 32, height: 32, borderRadius: 8, background: C.surf, border: `1px solid ${C.bdr}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
           <ArrowLeft size={15} color={C.t2} />
         </button>
         <div>
-          <div style={{ fontSize: 20, fontWeight: 700, color: C.text, letterSpacing: '-0.02em' }}>Your Profile</div>
+          <div style={{ fontSize: 20, fontWeight: 700, color: C.text, letterSpacing: '-0.02em' }}>My Account</div>
           <div style={{ fontSize: 13, color: C.t3 }}>{auth?.email ?? ''}</div>
-        </div>
-      </div>
-
-      {/* Avatar + Name hero */}
-      <div style={{ background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 16, padding: '20px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 16 }}>
-        <div style={{ position: 'relative', flexShrink: 0 }}>
-          {profile.avatarUrl ? (
-            <img src={profile.avatarUrl} alt="Avatar" style={{ width: 64, height: 64, borderRadius: 20, objectFit: 'cover', border: `1px solid ${C.bdr}` }} onError={() => setProfile({ avatarUrl: '' })} />
-          ) : (
-            <div style={{ width: 64, height: 64, borderRadius: 20, background: 'rgba(0,102,255,0.10)', border: '1px solid rgba(0,102,255,0.20)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, fontWeight: 700, color: '#0066FF' }}>
-              {avatarLetter}
-            </div>
-          )}
-          <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleAvatarChange} />
-          <button onClick={() => fileInputRef.current?.click()} disabled={avatarUploading}
-            style={{ position: 'absolute', bottom: -4, right: -4, width: 22, height: 22, borderRadius: 6, background: avatarUploading ? '#555' : '#0066FF', border: '2px solid ' + C.surf, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-            <Camera size={10} color="#fff" />
-          </button>
-        </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 17, fontWeight: 700, color: C.text, marginBottom: 2 }}>{profile.displayName || auth?.email?.split('@')[0] || 'User'}</div>
-          {/* NAN onchain handle */}
-          {nanHandle ? (
-            <button
-              onClick={() => setActiveView('nan-name')}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'rgba(0,102,255,0.10)', border: '1px solid rgba(0,102,255,0.22)', borderRadius: 20, padding: '2px 10px', cursor: 'pointer', marginBottom: 3, marginTop: 1 }}>
-              <AtSign size={10} color="#0066FF" />
-              <span style={{ fontSize: 12, fontWeight: 700, color: '#0066FF', fontFamily: MONO }}>{nanHandle}</span>
-            </button>
-          ) : registrySet ? (
-            <button
-              onClick={() => setActiveView('nan-name')}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: C.surf2, border: `1px solid ${C.bdr}`, borderRadius: 20, padding: '2px 10px', cursor: 'pointer', marginBottom: 3, marginTop: 1 }}>
-              <AtSign size={10} color={C.t3} />
-              <span style={{ fontSize: 11, fontWeight: 600, color: C.t3 }}>Get a handle</span>
-            </button>
-          ) : null}
-          <div style={{ fontSize: 12, color: C.t3, fontFamily: MONO, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{auth?.email ?? ''}</div>
-          {isConnected && (
-            <div style={{ fontSize: 11, color: C.t3, fontFamily: MONO, marginTop: 2 }}>{formatAddress(address!)}</div>
-          )}
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flexShrink: 0, textAlign: 'right' }}>
-          <span style={{ fontSize: 11, color: C.t3 }}>{favorites.length} saved</span>
-          <span style={{ fontSize: 11, color: C.t3 }}>{activity.length} txns</span>
         </div>
       </div>
 
@@ -215,25 +256,6 @@ export function ProfilePage() {
               style={{ width: '100%', padding: '11px', borderRadius: 10, background: '#0066FF', color: '#fff', border: 'none', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, opacity: saving ? 0.7 : 1 }}>
               <Save size={14} /> {saving ? 'Saving…' : 'Save changes'}
             </button>
-          </div>
-
-          {/* Quick links */}
-          <div style={{ background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 16, overflow: 'hidden' }}>
-            {[
-              { label: 'NAN Name', sub: nanHandle ? `@${nanHandle}` : 'Register your @handle', view: 'nan-name', accent: !nanHandle },
-            ].map(({ label, sub, view, accent }, i, arr) => (
-              <button key={view} onClick={() => setActiveView(view)}
-                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '13px 16px', borderTop: 'none', borderLeft: 'none', borderRight: 'none', borderBottom: i < arr.length - 1 ? `1px solid ${C.bdr}` : 'none', background: accent ? 'rgba(0,102,255,0.04)' : 'transparent', cursor: 'pointer', fontFamily: F, textAlign: 'left' }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: accent ? '#0066FF' : C.text, display: 'flex', alignItems: 'center', gap: 5 }}>
-                    {label === 'NAN Name' && <AtSign size={13} color={accent ? '#0066FF' : C.t2} />}
-                    {label}
-                  </div>
-                  <div style={{ fontSize: 12, color: accent ? '#0066FF' : C.t3, marginTop: 1, fontWeight: accent ? 600 : 400 }}>{sub}</div>
-                </div>
-                <ChevronRight size={14} color={accent ? '#0066FF' : C.t3} />
-              </button>
-            ))}
           </div>
         </div>
       )}
