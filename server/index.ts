@@ -2083,8 +2083,8 @@ app.delete('/api/recurring-tasks/:id', (req, res) => {
 
 const _onrampApiKey =
   process.env.CIRCLE_STABLECOIN_KIT_API_KEY ?? process.env.ONRAMP_API_KEY ?? process.env.CIRCLE_API_KEY
-const _onrampBaseUrl = process.env.ONRAMP_API_BASE_URL ?? 'https://api-test.circle.com'
-const _onrampWidgetUrl = process.env.ONRAMP_WIDGET_BASE_URL ?? 'https://onramp-sandbox.arc.io'
+const _onrampBaseUrl = process.env.ONRAMP_API_BASE_URL ?? 'https://api.circle.com'
+const _onrampWidgetUrl = process.env.ONRAMP_WIDGET_BASE_URL ?? 'https://onramp.arc.io'
 // Bare hostname of the page embedding the widget (server-side config only)
 const _onrampReferrer = process.env.ONRAMP_REFERRER_DOMAIN ?? 'nanarc.xyz'
 const _onrampDestChain = process.env.ONRAMP_DESTINATION_CHAIN ?? 'Arc'

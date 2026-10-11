@@ -668,7 +668,7 @@ export function describeAction(action: NanAction): { title: string; lines: Array
     case 'buy_usdc':
       return { title: 'Buy USDC', lines: [{ label: 'Amount', value: action.params.amount ? `$${action.params.amount}` : 'Choose in the next screen' }] }
     case 'claim_faucet':
-      return { title: 'Claim testnet USDC', lines: [{ label: 'Source', value: 'Circle faucet' }] }
+      return { title: 'Open Buy USDC', lines: [{ label: 'Action', value: 'Navigate to onramp' }] }
     case 'submit_feedback':
       return { title: 'Submit Feedback', lines: [
         { label: 'Rating', value: `${action.params.rating}/5` },

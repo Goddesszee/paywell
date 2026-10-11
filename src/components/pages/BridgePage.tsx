@@ -9,7 +9,7 @@ import { ConnectKitButton } from 'connectkit'
 import { useAppStore } from '../../store/appStore'
 import { executeWithGuard } from '../../lib/circle-execute'
 import { getPasskeyAdapter } from '../CirclePasskeyLogin'
-import { bridgeFee, BRIDGE_FEE_BPS, bpsToPercent, BRIDGE_FEE_MIN_USDC } from '../../lib/fees'
+import { bridgeFee, BRIDGE_FEE_BPS, bpsToPercent } from '../../lib/fees'
 
 
 const S  = 'var(--nan-surface)'

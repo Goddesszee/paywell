@@ -65,9 +65,9 @@ export function FaucetPage() {
         throw new Error(data.message ?? `Faucet returned HTTP ${res.status}`)
       }
 
-      setSuccess(data.message ?? 'Testnet USDC is on its way.')
+      setSuccess(data.message ?? 'USDC is on its way.')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to request testnet funds')
+      setError(err instanceof Error ? err.message : 'Failed to request funds')
     } finally {
       setLoading(false)
     }
@@ -103,8 +103,7 @@ export function FaucetPage() {
         </div>
 
         <p style={{ textAlign: 'center', fontSize: 14, color: PW_TEXT_2, marginBottom: 20, lineHeight: 1.5 }}>
-          Get free testnet USDC on Arc — funds both your gas balance and your
-          spendable balance, since Arc's gas token is USDC itself.
+          Request USDC for development and testing. For real USDC, use Buy USDC.
         </p>
 
         {/* Destination */}

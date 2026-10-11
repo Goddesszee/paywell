@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react'
 import {
   Home, Activity, Menu, X, LayoutDashboard,
   ArrowLeftRight, ArrowUpDown, Settings, ChevronRight,
-  Droplet, Layers, Repeat, Bot, Wallet,
+  Layers, Repeat, Bot, Wallet,
   MessageSquare, HelpCircle, Info, User, Search, Bookmark,
   Star, Lightbulb, ArrowRight, Clock, ShoppingBag, FileDown,
   FileText,

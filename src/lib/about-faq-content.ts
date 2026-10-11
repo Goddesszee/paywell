@@ -51,7 +51,7 @@ export const ABOUT_FEATURES: AboutFeature[] = [
   { icon: '🧭', title: 'Gateway', desc: 'Deposit once and use one unified USDC balance across chains, with near-instant transfers.' },
   { icon: '🔁', title: 'Recurring payments', desc: 'Schedule daily, weekly or monthly USDC payments and pause or cancel them any time.' },
   { icon: '🧾', title: 'Invoices & requests', desc: 'Create invoices and shareable payment-request links, and download account statements.' },
-  { icon: '💳', title: 'Buy USDC & free test funds', desc: 'Buy USDC with the Circle onramp, or grab free testnet USDC from the Faucet.' },
+  { icon: '💳', title: 'Buy USDC', desc: 'Buy USDC instantly with your card or bank transfer via Circle.' },
 ]
 
 export const FAQS: FaqItem[] = [

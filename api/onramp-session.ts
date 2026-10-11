@@ -56,8 +56,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       server = createAppServerKit({
         onramp: {
           apiKey,
-          baseUrl: process.env.ONRAMP_API_BASE_URL ?? 'https://api-test.circle.com',
-          widgetBaseUrl: process.env.ONRAMP_WIDGET_BASE_URL ?? 'https://onramp-sandbox.arc.io',
+          baseUrl: process.env.ONRAMP_API_BASE_URL ?? 'https://api.circle.com',
+          widgetBaseUrl: process.env.ONRAMP_WIDGET_BASE_URL ?? 'https://onramp.arc.io',
           referrerDomain: process.env.ONRAMP_REFERRER_DOMAIN ?? 'nanarc.xyz',
         },
       }) as unknown as KitServer

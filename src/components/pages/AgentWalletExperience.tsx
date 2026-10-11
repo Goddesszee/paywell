@@ -630,7 +630,7 @@ function ManagePolicyModal({ onClose, C }: { onClose: () => void; C: ReturnType<
   const address   = agentWallet.address   ?? ''
   const blockchain = agentWallet.blockchain ?? ''
   // Circle policies: mainnet only. Testnet = ARC, etc.
-  const isTestnet  = /testnet|sepolia|amoy|fuji|devnet/i.test(blockchain) || !blockchain
+  const isTestnet  = false // app is on mainnet
   const chainKey   = blockchain.replace(/-TESTNET|-SEPOLIA|-AMOY|-FUJI|-DEVNET/i, '').toUpperCase() || 'ARC'
 
   const [loading,    setLoading]    = useState(true)

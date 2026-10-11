@@ -52,7 +52,7 @@ function normalizeChain(raw: string): string | null {
   if (/\bsei\b/.test(c)) return 'Sei Testnet'
   if (/\bworld\b/.test(c)) return 'World Chain Sepolia'
   if (/\barc\b/.test(c)) return 'Arc'
-  if (/\bethereum\b|\beth\b|\bsepolia\b/.test(c)) return 'Ethereum Sepolia'
+  if (/\bethereum\b|\beth\b|\bsepolia\b/.test(c)) return 'Ethereum'
   return null
 }
 
@@ -157,7 +157,7 @@ function detectDirectAction(message: string): { reply: string; action: Record<st
     const target = nav[1].trim().replace(/\s+/g, '-')
     const pages: Record<string, string> = {
       home: 'home', dashboard: 'dashboard', wallet: 'wallet', send: 'send', receive: 'receive', agent: 'agent',
-      'agent-wallet': 'agent-wallet', bridge: 'bridge', swap: 'swap', gateway: 'gateway', faucet: 'faucet',
+      'agent-wallet': 'agent-wallet', bridge: 'bridge', swap: 'swap', gateway: 'gateway', onramp: 'onramp',
       activity: 'activity', history: 'activity', transactions: 'activity', settings: 'settings', recurring: 'recurring',
       notifications: 'notifications', support: 'support', faq: 'faq', about: 'about', feedback: 'feedback',
       suggestions: 'suggestions', profile: 'profile', favorites: 'favorites', exports: 'exports', invoices: 'exports',
@@ -279,8 +279,7 @@ function classifyToService(message: string): ServiceIntent {
     return { service_id: 'perplexity-research', query: message }
   if (/supplier|manufacturer|wholesale|factory|alibaba|bulk buy|product sourcing/.test(m))
     return { service_id: 'alibaba-suppliers', query: message }
-  if (/search for|look up|what is the latest|current news|who is|where is|find information|tell me about|news about/.test(m)) {
-    if (process.env.SERPER_API_KEY) return { service_id: 'serper-search', query: message }
+  if (/search for|look up|what is the latest|current news|who is|where is|find information|tell me about|nevice_id: 'serper-search', query: message }
     if (process.env.BRAVE_SEARCH_API_KEY) return { service_id: 'brave-search', query: message }
   }
   return null

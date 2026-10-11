@@ -5,11 +5,10 @@
 
 const EXPLORER: Record<string, string> = {
   'arc':          'https://explorer.arc.io',
-  'arc testnet':  'https://explorer.arc.io',
-  'arc mainnet':  'https://explorer.arc.io',
+
   'eth':          'https://etherscan.io',
   'base':         'https://basescan.org',
-  'base sepolia': 'https://basescan.org',
+
   'arbitrum':     'https://arbiscan.io',
   'polygon':      'https://polygonscan.com',
   'avalanche':    'https://snowtrace.io',
@@ -49,7 +48,7 @@ export function buildReceiptHtml(r: ReceiptData): string {
   const narrative = r.description || (isIn ? `Received ${r.amount} ${token}` : `Sent ${r.amount} ${token}`)
 
   const txUrl = r.txHash
-    ? `${EXPLORER[(network).toLowerCase()] ?? EXPLORER['arc testnet']}/tx/${r.txHash}`
+    ? `${EXPLORER[(network).toLowerCase()] ?? EXPLORER['arc']}/tx/${r.txHash}`
     : null
 
   // Determine sender / receiver based on direction

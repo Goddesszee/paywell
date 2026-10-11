@@ -20,7 +20,7 @@ const GOLD  = '#F0A500'
 
 function explorerUrl(txHash: string, chain?: string): string {
   const key  = (chain ?? 'arc').toLowerCase()
-  const base = EXPLORER[key] ?? EXPLORER['arc testnet']
+  const base = EXPLORER[key] ?? EXPLORER['arc']
   return `${base}/tx/${txHash}`
 }
 
@@ -73,11 +73,9 @@ function timeStr(date: Date): string {
 // ── Receipt modal ──────────────────────────────────────────────────────────────
 const EXPLORER: Record<string, string> = {
   'arc':          'https://explorer.arc.io',
-  'arc testnet':  'https://explorer.arc.io',
-  'arc mainnet':  'https://explorer.arc.io',
+
   'eth':          'https://etherscan.io',
   'base':         'https://basescan.org',
-  'base sepolia': 'https://basescan.org',
   'arbitrum':     'https://arbiscan.io',
   'polygon':      'https://polygonscan.com',
   'avalanche':    'https://snowtrace.io',
@@ -89,7 +87,7 @@ function ReceiptModal({ item, onClose, ownAddress }: { item: ActivityItem; onClo
   const C   = useNanTheme()
   const isIn = item.sign === '+'
   const txUrl = item.txHash
-    ? `${EXPLORER[(item.chain ?? 'arc testnet').toLowerCase()] ?? EXPLORER['arc testnet']}/tx/${item.txHash}`
+    ? `${EXPLORER[(item.chain ?? 'arc').toLowerCase()] ?? EXPLORER['arc']}/tx/${item.txHash}`
     : null
 
   const receiptData = {
