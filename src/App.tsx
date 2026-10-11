@@ -122,8 +122,18 @@ export default function App() {
     const a = st.auth
     if ((st.activeView === 'landing' || st.activeView === 'login') && (a?.walletAddress || a?.circleWalletAddress || a?.userToken || a?.sessionToken)) {
       let last = ''
-      try { last = localStorage.getItem('nan_last_view') ?? '' } catch { /* ignore */ }
-      st.setActiveView(!st.profile.displayName ? 'name' : (last && !NO_RESTORE.has(last) ? last : 'home'))
+      let namePromptShown = false
+      try {
+        last = localStorage.getItem('nan_last_view') ?? ''
+        namePromptShown = localStorage.getItem('nan_name_prompt_shown') === '1'
+      } catch { /* ignore */ }
+      // Only redirect to the name page on the very first login (never seen it before
+      // AND no display name set). Returning users always go to their last view or home.
+      const needsName = !st.profile.displayName && !namePromptShown
+      if (needsName) {
+        try { localStorage.setItem('nan_name_prompt_shown', '1') } catch { /* ignore */ }
+      }
+      st.setActiveView(needsName ? 'name' : (last && !NO_RESTORE.has(last) ? last : 'home'))
     }
     // remember where the user is (only while signed in)
     return useAppStore.subscribe((s, prev) => {

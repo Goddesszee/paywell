@@ -8,6 +8,9 @@ import { useAppStore } from '../../store/appStore'
 
 export function NamePage() {
   const { setActiveView } = useAppStore()
-  useEffect(() => { setActiveView('nan-name') }, [setActiveView])
+  useEffect(() => {
+    try { localStorage.setItem('nan_name_prompt_shown', '1') } catch { /* ignore */ }
+    setActiveView('nan-name')
+  }, [setActiveView])
   return null
 }
