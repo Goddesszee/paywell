@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { User, Camera, Save, Shield, Bell, Clock, LogOut, ChevronRight, CheckCircle, Sun, Moon, Monitor, ArrowLeft, AtSign, Headphones, Gift } from 'lucide-react'
+import { User, Camera, Save, Shield, Bell, Clock, LogOut, ChevronRight, CheckCircle, Sun, Moon, Monitor, ArrowLeft, AtSign, Headphones, Gift, HelpCircle, Star, Lightbulb, Info } from 'lucide-react'
 import { useAccount, useDisconnect } from 'wagmi'
 import { useAppStore } from '../../store/appStore'
 import { useNanTheme } from '../../hooks/useNanTheme'
@@ -206,6 +206,10 @@ export function ProfilePage() {
             ),
           })}
           {listRow({ key: 'support', icon: <Headphones size={22} color="#fff" />, label: 'Support service', onClick: () => setActiveView('support') })}
+          {listRow({ key: 'faq', icon: <HelpCircle size={22} color="#fff" />, label: 'FAQ', sub: 'Common questions', onClick: () => setActiveView('faq') })}
+          {listRow({ key: 'feedback', icon: <Star size={22} color="#fff" />, label: 'Feedback', sub: 'Rate your experience', onClick: () => setActiveView('feedback') })}
+          {listRow({ key: 'suggestions', icon: <Lightbulb size={22} color="#fff" />, label: 'Suggestions', sub: 'Share an idea', onClick: () => setActiveView('suggestions') })}
+          {listRow({ key: 'about', icon: <Info size={22} color="#fff" />, label: 'About NAN', sub: 'Platform info', onClick: () => setActiveView('about') })}
           {listRow({ key: 'logout', icon: <LogOut size={22} color="#fff" />, label: 'Logout', onClick: handleLogout, chevron: false })}
         </div>
       </div>

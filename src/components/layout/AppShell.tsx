@@ -262,12 +262,15 @@ const SIDEBAR_SECTIONS = [
 //  - No "Home" (bottom nav covers it) or "Dashboard" (Home IS the mobile overview)
 //  - No "Transactions" from Payments (duplicate of Activity in Main)
 //  - No "Swap" (complex enough to be desktop-first)
-const MOBILE_DRAWER_SECTIONS = SIDEBAR_SECTIONS.map(s => ({
+// - No "Bridge" (it's in the bottom nav) and no "Help & Info" section (Support, FAQ, Feedback,
+//   Suggestions and About now live on the Profile page).
+const MOBILE_DRAWER_SECTIONS = SIDEBAR_SECTIONS.filter(s => s.title !== 'Help & Info').map(s => ({
   ...s,
   items: s.items.filter(i =>
     i.id !== 'home' &&
     i.id !== 'dashboard' &&
     i.id !== 'swap' &&
+    i.id !== 'bridge' &&
     !(s.title === 'Payments' && i.label === 'Transactions') &&
     !(s.title === 'Payments' && i.id === 'send') &&
     !(s.title === 'Payments' && i.id === 'receive')
