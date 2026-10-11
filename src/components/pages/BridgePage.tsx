@@ -397,7 +397,7 @@ export function BridgePage({ inCard = false }: { inCard?: boolean }) {
   )
 
   return (
-    <div style={{ fontFamily: SANS, maxWidth: 480, margin: '0 auto', padding: inCard ? '0 16px 24px' : '0 16px 100px' }}>
+    <div style={{ fontFamily: SANS, maxWidth: 540, margin: '0 auto', padding: inCard ? '14px 16px 20px' : '0 16px 80px' }}>
 
       {/* ── Header (hidden when inCard — TradePage provides its own) ── */}
       {!inCard && (
@@ -407,12 +407,12 @@ export function BridgePage({ inCard = false }: { inCard?: boolean }) {
         </div>
       )}
 
-      {inCard && <div style={{ height: 14 }} />}
+      {inCard && <div style={{ height: 4 }} />}
 
       {/* ── From / To ── */}
       <div style={{ background: inCard ? 'transparent' : S, border: inCard ? 'none' : `1px solid ${B}`, borderRadius: inCard ? 0 : 20, borderBottom: inCard ? `1px solid ${B}` : undefined, overflow: 'visible', marginBottom: inCard ? 0 : 14 }}>
         {/* From */}
-        <div style={{ padding: '16px 18px 14px' }}>
+        <div style={{ padding: '12px 14px 10px' }}>
           <div style={{ fontSize: 10, fontWeight: 700, color: T3, textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 10 }}>From</div>
           <ChainSelect value={fromIdx} onChange={v => { setFromIdx(v); if (v === toIdx) setToIdx(v === 0 ? 1 : 0) }} exclude={-1} />
         </div>
@@ -426,19 +426,19 @@ export function BridgePage({ inCard = false }: { inCard?: boolean }) {
         </div>
 
         {/* To */}
-        <div style={{ padding: '14px 18px 16px', borderTop: `1px solid ${B}` }}>
+        <div style={{ padding: '10px 14px 12px', borderTop: `1px solid ${B}` }}>
           <div style={{ fontSize: 10, fontWeight: 700, color: T3, textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 10 }}>To</div>
           <ChainSelect value={toIdx} onChange={v => { setToIdx(v); if (v === fromIdx) setFromIdx(v === 0 ? 1 : 0) }} exclude={fromIdx} />
         </div>
       </div>
 
       {/* ── Amount ── */}
-      <div style={{ background: inCard ? 'transparent' : S, border: inCard ? 'none' : `1px solid ${B}`, borderBottom: inCard ? `1px solid ${B}` : undefined, borderRadius: inCard ? 0 : 20, padding: '16px 18px', marginBottom: inCard ? 0 : 14 }}>
-        <div style={{ fontSize: 10, fontWeight: 700, color: T3, textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 12 }}>Amount</div>
+      <div style={{ background: inCard ? 'transparent' : S, border: inCard ? 'none' : `1px solid ${B}`, borderBottom: inCard ? `1px solid ${B}` : undefined, borderRadius: inCard ? 0 : 20, padding: '12px 14px', marginBottom: inCard ? 0 : 12 }}>
+        <div style={{ fontSize: 10, fontWeight: 700, color: T3, textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 8 }}>Amount</div>
         <div style={{ position: 'relative' as const }}>
           <input type="number" min="0" step="0.01" placeholder="0.00" value={amount}
             onChange={e => setAmount(e.target.value)} disabled={status === 'bridging'}
-            style={{ width: '100%', padding: '10px 64px 10px 0', border: 'none', background: 'transparent', color: T, fontSize: 36, fontWeight: 800, fontFamily: 'var(--nan-mono, monospace)', boxSizing: 'border-box' as const, outline: 'none', letterSpacing: '-0.02em' }} />
+            style={{ width: '100%', padding: '6px 64px 6px 0', border: 'none', background: 'transparent', color: T, fontSize: 28, fontWeight: 800, fontFamily: 'var(--nan-mono, monospace)', boxSizing: 'border-box' as const, outline: 'none', letterSpacing: '-0.02em' }} />
           <span style={{ position: 'absolute' as const, right: 0, top: '50%', transform: 'translateY(-50%)', fontSize: 14, fontWeight: 700, color: T2 }}>USDC</span>
         </div>
         <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
@@ -452,7 +452,7 @@ export function BridgePage({ inCard = false }: { inCard?: boolean }) {
       </div>
 
       {/* ── Transfer summary ── */}
-      <div style={{ background: inCard ? WH : S, border: `1px solid ${B}`, borderRadius: 16, padding: '4px 18px', marginBottom: 14, marginTop: inCard ? 14 : 0 }}>
+      <div style={{ background: inCard ? WH : S, border: `1px solid ${B}`, borderRadius: 14, padding: '4px 14px', marginBottom: 12, marginTop: inCard ? 10 : 0 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderBottom: `1px solid ${B}` }}>
           <span style={{ fontSize: 11, fontWeight: 700, color: T3, textTransform: 'uppercase' as const, letterSpacing: '0.07em' }}>Transfer Summary</span>
           <span style={{ fontSize: 11, color: T3 }}>CCTP V2 · 8–20s</span>

@@ -220,6 +220,16 @@ function useTokenBalance(token: Token, address: `0x${string}` | undefined) {
   return '—'
 }
 
+// ── Compact stat row used in the quote summary ────────────────────────────────
+function StatRow({ label, value, c, last = false }: { label: string; value: string; c: ReturnType<typeof useNanTheme>; last?: boolean }) {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderBottom: last ? 'none' : `1px solid ${c.bdr}` }}>
+      <span style={{ fontSize: 11, color: 'var(--nan-text3)' }}>{label}</span>
+      <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--nan-text)' }}>{value}</span>
+    </div>
+  )
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 export function SwapPage({ inCard = false }: { inCard?: boolean }) {
   const c = useNanTheme()
@@ -283,9 +293,7 @@ export function SwapPage({ inCard = false }: { inCard?: boolean }) {
   // Passkey users sign client-side; Circle email/Google users go server-side
   const canReview = (isConnected || isCircleUser || isPasskeyUser) && !!amountIn && parseFloat(amountIn) > 0 && !invalid
 
-  // Display address: prefer connected wagmi wallet, fall back to Circle wallet
-  const displayAddress = address ?? circleWalletAddress ?? ''
-  const addrShort = displayAddress ? `${displayAddress.slice(0, 4)}…${displayAddress.slice(-4)}` : ''
+  // (address shown via wallet indicator in AppShell — not repeated in swap panels)
 
   // ── % chips: parse live balance and apply fraction ────────────────────────
   const applyPct = useCallback((pct: number | 'max') => {
@@ -480,20 +488,20 @@ export function SwapPage({ inCard = false }: { inCard?: boolean }) {
 
   // ── Success screen ────────────────────────────────────────────────────────
   if (phase === 'done') return (
-    <div style={{ maxWidth: 480, margin: '0 auto', padding: inCard ? '0 16px 24px' : '0 16px 100px', fontFamily: F }}>
-      <div style={{ textAlign: 'center', padding: '56px 0 32px' }}>
-        <div style={{ width: 72, height: 72, borderRadius: 24, background: 'rgba(16,185,129,0.10)', border: '2px solid rgba(16,185,129,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
-          <CheckCircle size={32} color={c.green} strokeWidth={1.6} />
+    <div style={{ maxWidth: 540, margin: '0 auto', padding: inCard ? '0 20px 24px' : '0 16px 80px', fontFamily: F }}>
+      <div style={{ textAlign: 'center', padding: '40px 0 28px' }}>
+        <div style={{ width: 60, height: 60, borderRadius: 20, background: 'rgba(16,185,129,0.10)', border: '1.5px solid rgba(16,185,129,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+          <CheckCircle size={26} color={c.green} strokeWidth={1.6} />
         </div>
-        <div style={{ fontSize: 24, fontWeight: 800, color: c.text, letterSpacing: '-0.03em', marginBottom: 6 }}>Swap complete</div>
-        <div style={{ fontSize: 14, color: c.t2, marginBottom: 28 }}>Your tokens have been exchanged.</div>
+        <div style={{ fontSize: 20, fontWeight: 800, color: c.text, letterSpacing: '-0.03em', marginBottom: 4 }}>Swap complete</div>
+        <div style={{ fontSize: 13, color: c.t2, marginBottom: 20 }}>Your tokens have been exchanged.</div>
         {txHash && (
           <a href={explorerUrl || `https://explorer.arc.io/tx/${txHash}`} target="_blank" rel="noreferrer"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: c.blue, textDecoration: 'none', background: c.blueDim, border: `1px solid ${c.blueBd}`, borderRadius: 10, padding: '8px 16px', marginBottom: 28, fontFamily: MONO }}>
-            {txHash.slice(0, 14)}… <ExternalLink size={11} />
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, color: c.blue, textDecoration: 'none', background: c.blueDim, border: `1px solid ${c.blueBd}`, borderRadius: 8, padding: '6px 14px', marginBottom: 20, fontFamily: MONO }}>
+            {txHash.slice(0, 14)}… <ExternalLink size={10} />
           </a>
         )}
-        <button onClick={reset} style={{ width: '100%', height: 54, background: c.blue, color: '#fff', border: 'none', borderRadius: 16, fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: F, boxShadow: '0 6px 24px rgba(8,102,245,0.32)' }}>
+        <button onClick={reset} style={{ width: '100%', height: 48, background: c.blue, color: '#fff', border: 'none', borderRadius: 14, fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: F, boxShadow: '0 4px 20px rgba(8,102,245,0.28)' }}>
           Swap again
         </button>
       </div>
@@ -502,114 +510,128 @@ export function SwapPage({ inCard = false }: { inCard?: boolean }) {
 
   // ── Main swap UI ──────────────────────────────────────────────────────────
   return (
-    <div style={{ maxWidth: 480, margin: '0 auto', padding: inCard ? '0 16px 24px' : '0 16px 100px', fontFamily: F }}>
+    <div style={{ maxWidth: 540, margin: '0 auto', padding: inCard ? '0 0 4px' : '0 16px 80px', fontFamily: F }}>
 
-      {/* ── Header (hidden when inCard — TradePage provides its own) ── */}
+      {/* ── Standalone header (only when NOT inside TradePage card) ── */}
       {!inCard && (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 0 18px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 0 14px' }}>
           <div>
-            <div style={{ fontSize: 22, fontWeight: 800, color: c.text, letterSpacing: '-0.03em', lineHeight: 1.1 }}>Swap</div>
-            <div style={{ fontSize: 12, color: c.t3, marginTop: 3 }}>Circle App Kit · Arc</div>
+            <div style={{ fontSize: 20, fontWeight: 800, color: c.text, letterSpacing: '-0.03em', lineHeight: 1.1 }}>Swap</div>
+            <div style={{ fontSize: 11, color: c.t3, marginTop: 2 }}>Circle App Kit · Arc</div>
           </div>
           <button onClick={() => setShowSlippage(true)}
-            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 14px', borderRadius: 12, border: `1px solid ${c.bdr}`, background: c.surf, cursor: 'pointer', transition: 'all 0.15s', WebkitTapHighlightColor: 'transparent' }}>
-            <Settings size={13} color={c.t2} strokeWidth={2} />
-            <span style={{ fontSize: 13, fontWeight: 700, color: c.t2 }}>{(slippageBps / 100).toFixed(2)}%</span>
-          </button>
-        </div>
-      )}
-
-      {/* Slippage button inside card (top-right of sell panel area) */}
-      {inCard && (
-        <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: 14, paddingBottom: 4 }}>
-          <button onClick={() => setShowSlippage(true)}
-            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 10, border: `1px solid ${c.bdr}`, background: c.surf2, cursor: 'pointer', transition: 'all 0.15s', WebkitTapHighlightColor: 'transparent' }}>
+            style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 12px', borderRadius: 10, border: `1px solid ${c.bdr}`, background: c.surf, cursor: 'pointer', transition: 'all 0.15s', WebkitTapHighlightColor: 'transparent' }}>
             <Settings size={12} color={c.t2} strokeWidth={2} />
             <span style={{ fontSize: 12, fontWeight: 700, color: c.t2 }}>{(slippageBps / 100).toFixed(2)}%</span>
           </button>
         </div>
       )}
 
+      {/* ── Slippage row inside card (TradePage header has history/settings icons
+           but NOT slippage %, so keep it as a subtle row at the top of swap content) ── */}
+      {inCard && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', padding: '10px 20px 0' }}>
+          <button onClick={() => setShowSlippage(true)}
+            style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 10px', borderRadius: 8, border: `1px solid ${c.bdr}`, background: 'transparent', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}>
+            <Settings size={11} color={c.t3} strokeWidth={2} />
+            <span style={{ fontSize: 11, fontWeight: 600, color: c.t3 }}>{(slippageBps / 100).toFixed(2)}% slippage</span>
+          </button>
+        </div>
+      )}
+
       {/* ── Sell panel ── */}
-      <div style={{ background: inCard ? 'transparent' : c.surf, border: inCard ? 'none' : `1px solid ${c.bdr}`, borderRadius: inCard ? 0 : 20, borderBottom: inCard ? `1px solid ${c.bdr}` : undefined, overflow: 'visible', marginBottom: inCard ? 0 : 2 }}>
-        <div style={{ padding: '18px 18px 16px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-            <span style={{ fontSize: 11, fontWeight: 700, color: c.t3, textTransform: 'uppercase' as const, letterSpacing: '0.08em' }}>You pay</span>
-            {(isConnected || isCircleUser) && addrShort && (
-              <span style={{ fontSize: 11, color: c.t3, display: 'flex', alignItems: 'center', gap: 4 }}>
-                <span style={{ width: 6, height: 6, borderRadius: '50%', background: isCircleUser ? '#10B981' : c.blue, display: 'inline-block', flexShrink: 0 }} />
-                <span style={{ fontFamily: MONO }}>{addrShort}</span>
-                {isCircleUser && <span style={{ fontSize: 10, color: '#10B981', fontWeight: 700 }}>Circle</span>}
+      <div style={{
+        background: c.surf2,
+        border: `1px solid ${c.bdr}`,
+        borderRadius: 16,
+        padding: '14px 16px 12px',
+        margin: inCard ? '10px 16px 0' : '0 0 2px',
+      }}>
+        {/* Label + wallet row */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+          <span style={{ fontSize: 10, fontWeight: 700, color: c.t3, textTransform: 'uppercase' as const, letterSpacing: '0.08em' }}>You pay</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {(isConnected || isCircleUser || isPasskeyUser) && (
+              <span style={{ fontSize: 10, color: c.t3 }}>
+                Bal: <span style={{ color: c.t2, fontWeight: 600 }}>{balIn}</span>
               </span>
             )}
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <input type="text" inputMode="decimal" placeholder="0" value={amountIn}
-              onChange={e => { const v = e.target.value.replace(/[^0-9.]/g, ''); if (v === '' || /^\d*\.?\d*$/.test(v)) { setAmountIn(v); setReviewed(null); setPhase('idle') } }}
-              disabled={phase === 'swapping'}
-              style={{ flex: 1, fontSize: 36, fontWeight: 800, color: c.text, border: 'none', outline: 'none', background: 'transparent', fontFamily: MONO, minWidth: 0, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em' }} />
-            <TokenPill token={tokenIn} onClick={() => setShowSellModal(true)} c={c} />
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
-            <span style={{ fontSize: 12, color: c.t3 }}>{amountIn && parseFloat(amountIn) > 0 ? `≈ $${parseFloat(amountIn).toFixed(2)}` : ''}</span>
-            {(isConnected || isCircleUser) && (
-              <span style={{ fontSize: 11, color: c.t3 }}>Balance: <span style={{ color: c.t2, fontWeight: 600 }}>{balIn}</span></span>
-            )}
-          </div>
-          {/* % chips */}
-          <div style={{ display: 'flex', gap: 6, marginTop: 14 }}>
-            {([['25%', 25], ['50%', 50], ['MAX', 'max']] as [string, number | 'max'][]).map(([label, pct]) => (
-              <button key={label} onClick={() => applyPct(pct)}
-                style={{ flex: 1, padding: '8px 0', border: `1px solid ${c.bdr}`, borderRadius: 10, background: c.surf2, color: c.t2, fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: F, transition: 'all 0.12s', WebkitTapHighlightColor: 'transparent' }}>
-                {label}
-              </button>
-            ))}
+            {/* % chips inline */}
+            {(['25%', '50%', 'MAX'] as const).map((label, i) => {
+              const pct = i === 0 ? 25 : i === 1 ? 50 : 'max' as const
+              return (
+                <button key={label} onClick={() => applyPct(pct)}
+                  style={{ padding: '3px 7px', border: `1px solid ${c.bdr}`, borderRadius: 6, background: 'transparent', color: c.t3, fontSize: 10, fontWeight: 700, cursor: 'pointer', fontFamily: F, WebkitTapHighlightColor: 'transparent' }}>
+                  {label}
+                </button>
+              )
+            })}
           </div>
         </div>
+
+        {/* Amount + token selector */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <input type="text" inputMode="decimal" placeholder="0.00" value={amountIn}
+            onChange={e => { const v = e.target.value.replace(/[^0-9.]/g, ''); if (v === '' || /^\d*\.?\d*$/.test(v)) { setAmountIn(v); setReviewed(null); setPhase('idle') } }}
+            disabled={phase === 'swapping'}
+            style={{ flex: 1, fontSize: 28, fontWeight: 800, color: c.text, border: 'none', outline: 'none', background: 'transparent', fontFamily: MONO, minWidth: 0, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em' }} />
+          <TokenPill token={tokenIn} onClick={() => setShowSellModal(true)} c={c} />
+        </div>
+
+        {/* Fiat estimate */}
+        {amountIn && parseFloat(amountIn) > 0 && (
+          <div style={{ fontSize: 11, color: c.t3, marginTop: 4 }}>≈ ${parseFloat(amountIn).toFixed(2)}</div>
+        )}
       </div>
 
-      {/* ── Flip ── */}
-      <div style={{ display: 'flex', justifyContent: 'center', margin: inCard ? '0' : '6px 0', zIndex: 2, position: 'relative', padding: inCard ? '10px 0' : 0 }}>
-        <button onClick={flipTokens} style={{ width: 40, height: 40, borderRadius: 13, border: `1px solid ${c.bdr}`, background: c.surf, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'transform 0.2s', WebkitTapHighlightColor: 'transparent', boxShadow: '0 2px 12px rgba(0,0,0,0.18)' }}>
-          <ArrowDown size={16} color={c.blue} strokeWidth={2.5} />
+      {/* ── Flip button ── */}
+      <div style={{ display: 'flex', justifyContent: 'center', margin: '-1px 0', zIndex: 2, position: 'relative' }}>
+        <button onClick={flipTokens} style={{
+          width: 36, height: 36, borderRadius: 11,
+          border: `1.5px solid ${c.bdr2}`,
+          background: c.surf,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          cursor: 'pointer', transition: 'background 0.15s, transform 0.2s',
+          WebkitTapHighlightColor: 'transparent',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.20)',
+        }}>
+          <ArrowDown size={14} color={c.blue} strokeWidth={2.5} />
         </button>
       </div>
 
-      {/* ── Buy panel ── */}
-      <div style={{ background: inCard ? 'transparent' : c.surf, border: inCard ? 'none' : `1px solid ${c.bdr}`, borderRadius: inCard ? 0 : 20, borderBottom: inCard ? `1px solid ${c.bdr}` : undefined, overflow: 'hidden', marginBottom: inCard ? 0 : 14 }}>
-        <div style={{ padding: '18px 18px 20px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-            <span style={{ fontSize: 11, fontWeight: 700, color: c.t3, textTransform: 'uppercase' as const, letterSpacing: '0.08em' }}>You receive</span>
-            {(isConnected || isCircleUser) && addrShort && (
-              <span style={{ fontSize: 11, color: c.t3, display: 'flex', alignItems: 'center', gap: 4 }}>
-                <span style={{ width: 6, height: 6, borderRadius: '50%', background: isCircleUser ? '#10B981' : c.blue, display: 'inline-block', flexShrink: 0 }} />
-                <span style={{ fontFamily: MONO }}>{addrShort}</span>
-              </span>
-            )}
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div style={{ flex: 1, fontSize: 36, fontWeight: 800, color: estimatedOut ? c.green : c.t3, fontFamily: MONO, minWidth: 0, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em' }}>
-              {phase === 'estimating'
-                ? <span style={{ display: 'inline-block', width: 110, height: 36, borderRadius: 10, background: c.surf2, animation: 'nan-pulse 1.2s ease-in-out infinite' }} />
-                : estimatedOut ? estimatedOut.amount : '0'}
-            </div>
-            <TokenPill token={tokenOut} onClick={() => setShowBuyModal(true)} c={c} />
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
-            <span style={{ fontSize: 12, color: c.t3 }}>
-              {estimatedOut && parseFloat(estimatedOut.amount) > 0 ? `≈ $${parseFloat(estimatedOut.amount).toFixed(2)}` : ''}
+      {/* ── Receive panel ── */}
+      <div style={{
+        background: c.surf2,
+        border: `1px solid ${c.bdr}`,
+        borderRadius: 16,
+        padding: '14px 16px 12px',
+        margin: inCard ? '0 16px 0' : '2px 0 12px',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+          <span style={{ fontSize: 10, fontWeight: 700, color: c.t3, textTransform: 'uppercase' as const, letterSpacing: '0.08em' }}>You receive</span>
+          {(isConnected || isCircleUser || isPasskeyUser) && (
+            <span style={{ fontSize: 10, color: c.t3 }}>
+              Bal: <span style={{ color: c.t2, fontWeight: 600 }}>{balOut}</span>
             </span>
-            {(isConnected || isCircleUser) && (
-              <span style={{ fontSize: 11, color: c.t3 }}>Balance: <span style={{ color: c.t2, fontWeight: 600 }}>{balOut}</span></span>
-            )}
-          </div>
+          )}
         </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ flex: 1, fontSize: 28, fontWeight: 800, color: estimatedOut ? c.green : c.t3, fontFamily: MONO, minWidth: 0, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em' }}>
+            {phase === 'estimating'
+              ? <span style={{ display: 'inline-block', width: 100, height: 28, borderRadius: 8, background: c.surf3, animation: 'nan-pulse 1.2s ease-in-out infinite' }} />
+              : estimatedOut ? estimatedOut.amount : '0.00'}
+          </div>
+          <TokenPill token={tokenOut} onClick={() => setShowBuyModal(true)} c={c} />
+        </div>
+        {estimatedOut && parseFloat(estimatedOut.amount) > 0 && (
+          <div style={{ fontSize: 11, color: c.t3, marginTop: 4 }}>≈ ${parseFloat(estimatedOut.amount).toFixed(2)}</div>
+        )}
       </div>
 
       {/* ── Warnings ── */}
       {(sameToken || arcNoPair || arcUnsupportedPair) && (
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '12px 14px', background: 'rgba(255,149,0,0.06)', border: '1px solid rgba(255,149,0,0.20)', borderRadius: 14, marginBottom: 12, marginTop: inCard ? 14 : 0, fontSize: 13, color: c.t2, lineHeight: 1.5 }}>
-          <AlertCircle size={14} color="#FF9500" style={{ flexShrink: 0, marginTop: 1 }} />
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '10px 12px', background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.20)', borderRadius: 12, margin: inCard ? '10px 16px 0' : '0 0 10px', fontSize: 12, color: c.t2, lineHeight: 1.5 }}>
+          <AlertCircle size={13} color="#F59E0B" style={{ flexShrink: 0, marginTop: 1 }} />
           <span>
             {arcNoPair ? 'USDC and NATIVE are the same asset on Arc.'
               : sameToken ? 'Choose different tokens to swap.'
@@ -618,73 +640,70 @@ export function SwapPage({ inCard = false }: { inCard?: boolean }) {
         </div>
       )}
 
-      {/* ── Quote details ── */}
+      {/* ── Compact quote summary ── */}
       {reviewed && phase === 'reviewed' && (
-        <div style={{ background: inCard ? c.surf2 : c.surf, border: `1px solid ${c.bdr}`, borderRadius: 16, padding: '4px 16px', marginBottom: 14, marginTop: inCard ? 14 : 0 }}>
-          {([
-            ['Estimated output', `${estimatedOut?.amount ?? '—'} ${estimatedOut?.token ?? tokenOut}`],
-            ['Slippage tolerance', `${(reviewed.slippageBps / 100).toFixed(2)}%`],
-            [`NAN fee (${bpsToPercent(SWAP_FEE_BPS)})`, `${swapFee(parseFloat(reviewed.amountIn) || 0).toFixed(4)} ${reviewed.tokenIn}`],
-            ...(reviewed.estimate.fees?.map(f => [`${f.type} fee`, `${f.amount} ${f.token}`]) ?? []),
-          ] as [string, string][]).map(([label, value], i, arr) => (
-            <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: i < arr.length - 1 ? `1px solid ${c.bdr}` : 'none' }}>
-              <span style={{ fontSize: 12, color: c.t2 }}>{label}</span>
-              <span style={{ fontSize: 12, fontWeight: 700, color: c.text }}>{value}</span>
-            </div>
+        <div style={{ background: c.surf2, border: `1px solid ${c.bdr}`, borderRadius: 14, padding: '4px 14px', margin: inCard ? '10px 16px 0' : '0 0 12px' }}>
+          <StatRow label="Estimated output" value={`${estimatedOut?.amount ?? '—'} ${estimatedOut?.token ?? tokenOut}`} c={c} />
+          <StatRow label="Slippage" value={`${(reviewed.slippageBps / 100).toFixed(2)}%`} c={c} />
+          <StatRow label={`NAN fee (${bpsToPercent(SWAP_FEE_BPS)})`} value={`${swapFee(parseFloat(reviewed.amountIn) || 0).toFixed(4)} ${reviewed.tokenIn}`} c={c} />
+          {(reviewed.estimate.fees ?? []).map((f, i, arr) => (
+            <StatRow key={f.type} label={`${f.type} fee`} value={`${f.amount} ${f.token}`} c={c} last={i === arr.length - 1} />
           ))}
-          <div style={{ padding: '8px 0', fontSize: 11, color: c.t3 }}>Routed via LiFi · amounts may vary at execution.</div>
+          <div style={{ fontSize: 10, color: c.t3, padding: '5px 0 6px' }}>Routed via LiFi · amounts may vary at execution.</div>
         </div>
       )}
 
       {/* ── Error ── */}
       {phase === 'error' && errMsg && (
         errMsg === 'SESSION_EXPIRED' ? (
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '14px 16px', background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.20)', borderRadius: 14, marginBottom: 14 }}>
-            <AlertCircle size={14} color="#EF4444" style={{ flexShrink: 0, marginTop: 1 }} />
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '12px 14px', background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.20)', borderRadius: 12, margin: inCard ? '10px 16px 0' : '0 0 10px' }}>
+            <AlertCircle size={13} color="#EF4444" style={{ flexShrink: 0, marginTop: 1 }} />
             <div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: c.text, marginBottom: 4 }}>PIN required</div>
-              <div style={{ fontSize: 12, color: c.t2, marginBottom: 10, lineHeight: 1.5 }}>Get a new quote and confirm with your Circle PIN. Your wallet and balance are safe.</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: c.text, marginBottom: 3 }}>PIN required</div>
+              <div style={{ fontSize: 11, color: c.t2, marginBottom: 8, lineHeight: 1.5 }}>Get a new quote and confirm with your Circle PIN.</div>
               <button onClick={() => { setPhase('idle'); setErrMsg(''); setReviewed(null) }}
-                style={{ padding: '8px 18px', background: c.blue, border: 'none', borderRadius: 10, color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: F }}>
+                style={{ padding: '6px 14px', background: c.blue, border: 'none', borderRadius: 8, color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: F }}>
                 Get new quote
               </button>
             </div>
           </div>
         ) : (
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '12px 14px', background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.20)', borderRadius: 14, marginBottom: 14, fontSize: 13, color: c.t2, lineHeight: 1.5 }}>
-            <AlertCircle size={14} color="#EF4444" style={{ flexShrink: 0, marginTop: 1 }} /><span>{errMsg}</span>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '10px 12px', background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.20)', borderRadius: 12, margin: inCard ? '10px 16px 0' : '0 0 10px', fontSize: 12, color: c.t2, lineHeight: 1.5 }}>
+            <AlertCircle size={13} color="#EF4444" style={{ flexShrink: 0, marginTop: 1 }} /><span>{errMsg}</span>
           </div>
         )
       )}
 
       {/* ── CTA ── */}
-      {phase === 'reviewed' ? (
-        <div style={{ display: 'flex', gap: 10, marginTop: inCard ? 14 : 0 }}>
-          <button onClick={clearQuote}
-            style={{ flex: 1, height: 54, borderRadius: 16, border: `1px solid ${c.bdr}`, background: c.surf, color: c.t2, fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, WebkitTapHighlightColor: 'transparent' }}>
-            <RefreshCw size={13} /> New quote
+      <div style={{ margin: inCard ? '12px 16px 16px' : '12px 0 0' }}>
+        {phase === 'reviewed' ? (
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={clearQuote}
+              style={{ flex: 1, height: 48, borderRadius: 14, border: `1px solid ${c.bdr}`, background: c.surf, color: c.t2, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, WebkitTapHighlightColor: 'transparent' }}>
+              <RefreshCw size={12} /> New quote
+            </button>
+            <button onClick={() => void executeSwap()}
+              style={{ flex: 2, height: 48, borderRadius: 14, border: 'none', background: c.blue, color: '#fff', fontSize: 14, fontWeight: 800, cursor: 'pointer', fontFamily: F, boxShadow: '0 4px 20px rgba(8,102,245,0.28)', WebkitTapHighlightColor: 'transparent' }}>
+              Confirm swap
+            </button>
+          </div>
+        ) : (
+          <button onClick={() => void reviewSwap()} disabled={!canReview || phase === 'estimating' || phase === 'swapping'}
+            style={{ width: '100%', height: 48, borderRadius: 14, border: 'none', background: canReview && phase !== 'estimating' && phase !== 'swapping' ? c.blue : c.surf2, color: canReview && phase !== 'estimating' && phase !== 'swapping' ? '#fff' : c.t3, fontSize: 14, fontWeight: 800, cursor: canReview ? 'pointer' : 'not-allowed', fontFamily: F, transition: 'all 0.15s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, boxShadow: canReview && phase === 'idle' ? '0 4px 20px rgba(8,102,245,0.26)' : 'none', WebkitTapHighlightColor: 'transparent' }}>
+            {phase === 'estimating'
+              ? <><span className="nan-spinner" />Getting quote…</>
+              : phase === 'swapping'
+              ? <><span className="nan-spinner" />Swapping…</>
+              : !isConnected && !isCircleUser && !isPasskeyUser ? 'Connect wallet to swap'
+              : !amountIn || parseFloat(amountIn) === 0 ? 'Enter an amount'
+              : arcUnsupportedPair ? 'Token not on Arc'
+              : invalid ? 'Select different tokens'
+              : 'Get quote'}
           </button>
-          <button onClick={() => void executeSwap()}
-            style={{ flex: 2, height: 54, borderRadius: 16, border: 'none', background: c.blue, color: '#fff', fontSize: 15, fontWeight: 800, cursor: 'pointer', fontFamily: F, boxShadow: '0 6px 24px rgba(8,102,245,0.32)', WebkitTapHighlightColor: 'transparent' }}>
-            Confirm swap
-          </button>
-        </div>
-      ) : (
-        <button onClick={() => void reviewSwap()} disabled={!canReview || phase === 'estimating' || phase === 'swapping'}
-          style={{ width: '100%', height: 54, borderRadius: 16, border: 'none', background: canReview && phase !== 'estimating' && phase !== 'swapping' ? c.blue : c.surf2, color: canReview && phase !== 'estimating' && phase !== 'swapping' ? '#fff' : c.t3, fontSize: 15, fontWeight: 800, cursor: canReview ? 'pointer' : 'not-allowed', fontFamily: F, transition: 'all 0.15s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, boxShadow: canReview && phase === 'idle' ? '0 6px 24px rgba(8,102,245,0.30)' : 'none', WebkitTapHighlightColor: 'transparent', marginTop: inCard ? 14 : 0 }}>
-          {phase === 'estimating'
-            ? <><span className="nan-spinner" />Getting quote…</>
-            : phase === 'swapping'
-            ? <><span className="nan-spinner" />Swapping…</>
-            : !isConnected && !isCircleUser && !isPasskeyUser ? 'Connect wallet to swap'
-            : !amountIn || parseFloat(amountIn) === 0 ? 'Enter an amount'
-            : arcUnsupportedPair ? 'Token not on Arc'
-            : invalid ? 'Select different tokens'
-            : 'Get quote'}
-        </button>
-      )}
+        )}
+      </div>
 
-      <div style={{ marginTop: 14, fontSize: 11, color: c.t3, textAlign: 'center', paddingBottom: inCard ? 4 : 0 }}>Powered by Circle App Kit · Routed via LiFi</div>
+      <div style={{ fontSize: 10, color: c.t3, textAlign: 'center', padding: inCard ? '0 16px 8px' : '8px 0 0' }}>Circle App Kit · LiFi</div>
 
       {/* ── Modals ── */}
       {showSellModal && <TokenModal current={tokenIn} exclude={tokenOut} onSelect={t => { setTokenIn(t); setReviewed(null); setPhase('idle') }} onClose={() => setShowSellModal(false)} c={c} />}
