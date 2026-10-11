@@ -2,7 +2,7 @@
  * useMultiChainBalances
  *
  * Reads the USDC ERC-20 balance for a given address across every
- * CCTP-supported testnet chain defined in onchain-facts. Results are
+ * CCTP-supported mainnet chain defined in onchain-facts. Results are
  * returned as a stable map keyed by chain name.
  *
  * Uses wagmi's useReadContracts so all reads are batched via multicall

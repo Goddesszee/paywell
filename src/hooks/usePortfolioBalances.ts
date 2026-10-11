@@ -1,7 +1,7 @@
 /**
  * usePortfolioBalances
  *
- * Aggregates USDC, EURC, and USDT balances across every NAN-supported testnet
+ * Aggregates USDC, EURC, and USDT balances across every NAN-supported mainnet
  * chain, converts them to USD using live FX rates, and returns a clean portfolio
  * summary with Gateway deduplication.
  *

@@ -17,7 +17,7 @@ const T3    = 'var(--nan-text3)'
 // Widget origins for postMessage security. Sandbox is used with Arc; production for mainnet.
 // Per https://docs.arc.io/app-kit/references/onramp-hosting-requirements the origin must match
 // what the server minted the session against, so we also derive it from session.widgetUrl.
-const WIDGET_ORIGINS = ['https://onramp-sandbox.arc.io', 'https://onramp.arc.io']
+const WIDGET_ORIGINS = ['https://onramp.arc.io']
 function widgetOriginOf(url?: string): string | null {
   try { return url ? new URL(url).origin : null } catch { return null }
 }

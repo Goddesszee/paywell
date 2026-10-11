@@ -65,7 +65,7 @@ export const FAQS: FaqItem[] = [
 
   // ── Wallet & Balances ──
   { id: 'wb1', category: 'Wallet & Balances', order: 1, question: 'What wallets does NAN have?', answer: 'Your Main Wallet holds your everyday USDC. The Agent Wallet is a separate wallet used by the NAN Agent for automated payments and paid services. The two balances are separate, and you decide how much goes into the Agent Wallet.' },
-  { id: 'wb2', category: 'Wallet & Balances', order: 2, question: 'How do I add money to my wallet?', answer: 'Three ways: use the Faucet for free testnet USDC, use Buy USDC (Onramp) to purchase with a card or bank transfer, or have someone send USDC to your wallet address.' },
+  { id: 'wb2', category: 'Wallet & Balances', order: 2, question: 'How do I add money to my wallet?', answer: 'Two ways: use Buy USDC (Onramp) to purchase USDC with a card or bank transfer, or have someone send USDC to your wallet address.' },
   { id: 'wb3', category: 'Wallet & Balances', order: 3, question: 'How do I find my wallet address?', answer: 'Open Receive from the Home screen or menu. You will see your address and a QR code you can share to get paid.' },
   { id: 'wb4', category: 'Wallet & Balances', order: 4, question: 'Can I connect MetaMask or another wallet?', answer: 'Yes. On the login page choose to connect a browser wallet such as MetaMask. You keep your own keys, and NAN will ask your wallet to approve each transaction.' },
   { id: 'wb5', category: 'Wallet & Balances', order: 5, question: 'Where can I see my transaction history?', answer: 'Open Activity from the menu. You can search and filter your transactions, view them on the explorer, and download statements from Generate Statement.' },

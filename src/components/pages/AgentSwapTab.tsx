@@ -21,16 +21,16 @@ const BLUE = '#0066FF'
 const GREEN = '#00C853'
 const AMBER = '#FF9500'
 
-// Tokens supported by Circle / LiFi on testnet chains
+// Tokens supported by Circle / LiFi on mainnet chains
 const TOKENS = [
   { symbol: 'USDC',  name: 'USD Coin',       chain: 'Arc' },
-  { symbol: 'USDC',  name: 'USD Coin',       chain: 'Base Sepolia' },
-  { symbol: 'USDC',  name: 'USD Coin',       chain: 'Ethereum Sepolia' },
-  { symbol: 'USDC',  name: 'USD Coin',       chain: 'Arbitrum Sepolia' },
-  { symbol: 'USDT',  name: 'Tether USD',     chain: 'Ethereum Sepolia' },
-  { symbol: 'ETH',   name: 'Ether',          chain: 'Ethereum Sepolia' },
-  { symbol: 'ETH',   name: 'Ether',          chain: 'Base Sepolia' },
-  { symbol: 'WETH',  name: 'Wrapped Ether',  chain: 'Arbitrum Sepolia' },
+  { symbol: 'USDC',  name: 'USD Coin',       chain: 'Base' },
+  { symbol: 'USDC',  name: 'USD Coin',       chain: 'Ethereum' },
+  { symbol: 'USDC',  name: 'USD Coin',       chain: 'Arbitrum One' },
+  { symbol: 'USDT',  name: 'Tether USD',     chain: 'Ethereum' },
+  { symbol: 'ETH',   name: 'Ether',          chain: 'Ethereum' },
+  { symbol: 'ETH',   name: 'Ether',          chain: 'Base' },
+  { symbol: 'WETH',  name: 'Wrapped Ether',  chain: 'Arbitrum One' },
 ]
 
 type TokenOption = typeof TOKENS[0]
