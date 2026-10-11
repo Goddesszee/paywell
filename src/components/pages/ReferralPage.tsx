@@ -60,30 +60,34 @@ export function ReferralPage() {
       .then(r => { if (!r.ok) throw new Error('bad'); return r.json() })
       .then((d: { success?: boolean } & Partial<ReferralData>) => {
         if (d.code) {
-          setData({ code: d.code, uses: d.uses ?? 0, createdAt: d.createdAt ?? Date.now() })
+          setData({ code: d.code, uses: d.uses ?? 0, createdAt: d.createdAt ?? Date.now(), referrals: (d as ReferralData).referrals })
+          setError(false)
         } else {
+          fetchedRef.current = false  // allow retry
           setError(true)
         }
       })
-      .catch(() => setError(true))
+      .catch(() => { fetchedRef.current = false; setError(true) })
       .finally(() => setLoading(false))
   }, [])
 
   useEffect(() => {
-    // Try immediately, then retry every 600ms up to 8 times while key is null
+    // Reset so a new auth value always triggers a fresh fetch
+    fetchedRef.current = false
+    if (retryTimer.current) clearTimeout(retryTimer.current)
     let attempts = 0
     const tryLoad = () => {
       const key = buildKey(nanHandle, wagmiAddress, auth as Record<string, unknown> | null)
       if (key) {
-        if (!fetchedRef.current) doFetch(key)
+        doFetch(key)
         return
       }
       attempts++
-      if (attempts < 8) {
-        retryTimer.current = setTimeout(tryLoad, 600)
+      if (attempts < 10) {
+        retryTimer.current = setTimeout(tryLoad, 500)
       } else {
-        // Give up after ~5s — generate anonymous key from timestamp
-        const fallbackKey = `anon:${Date.now().toString(36)}`
+        // Last resort — use a session-stable anonymous key
+        const fallbackKey = `anon:${(auth as Record<string,string>|null)?.sessionToken?.slice(0,12) ?? Date.now().toString(36)}`
         doFetch(fallbackKey)
       }
     }
@@ -312,7 +316,7 @@ export function ReferralPage() {
         onClick={doShare}
         disabled={!referralLink}
         style={{
-          position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)',
+          position: 'fixed', bottom: 80, left: '50%', transform: 'translateX(-50%)',
           width: 'calc(100% - 48px)', maxWidth: 432,
           padding: '16px', borderRadius: 16,
           background: referralLink ? '#0066FF' : C.surf2,
