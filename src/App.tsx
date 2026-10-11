@@ -85,6 +85,28 @@ export default function App() {
   // gone after the tab is closed. Restore it silently with the login refreshToken (Circle returns a
   // fresh key), on startup and whenever the tab becomes visible again. If this isn't possible the
   // actions themselves tell the user to sign in again.
+  // Referral links look like nanarc.xyz/join?ref=<nan-name>. Remember the code when someone lands
+  // with one, then credit the referrer ONCE (per joined wallet — the server enforces it) after the
+  // friend has signed in.
+  const joinedWallet = useAppStore(st => st.auth?.circleWalletAddress ?? st.auth?.walletAddress ?? '')
+  useEffect(() => {
+    try {
+      const ref = new URLSearchParams(window.location.search).get('ref')
+      if (ref && /^[a-zA-Z0-9-]{2,32}$/.test(ref)) localStorage.setItem('nan_pending_ref', ref)
+    } catch { /* storage unavailable */ }
+  }, [])
+  useEffect(() => {
+    if (!joinedWallet) return
+    let ref: string | null = null
+    try { ref = localStorage.getItem('nan_pending_ref') } catch { /* ignore */ }
+    if (!ref) return
+    void fetch('/api/referral/use', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: ref, wallet: joinedWallet }),
+    }).finally(() => { try { localStorage.removeItem('nan_pending_ref') } catch { /* ignore */ } })
+  }, [joinedWallet])
+
   useEffect(() => {
     // Sessions created by Google login before the fix stored the wallet id only as `walletId`;
     // every Circle transaction path reads `circleWalletId`, so copy it across once.

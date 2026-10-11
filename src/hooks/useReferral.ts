@@ -46,12 +46,12 @@ export function useReferral() {
 
   const loading = !!key && !fetched
 
-  const trackReferral = async (code: string) => {
+  const trackReferral = async (code: string, wallet?: string) => {
     try {
       await fetch('/api/referral/use', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code }),
+        body: JSON.stringify({ code, wallet }),
       })
     } catch { /* ignore */ }
   }

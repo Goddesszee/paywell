@@ -134,17 +134,21 @@ export function RewardsSheet({ onClose }: { onClose: () => void }) {
       setLoading(false)
       return
     }
-    fetch(`/api/rewards/balance?wallet=${address}`)
-      .then(r => r.json())
-      .then((d: RewardsData & { success: boolean }) => {
+    fetch(`/api/rewards/balance?wallet=${encodeURIComponent(address)}&handle=${encodeURIComponent(nanCode ?? '')}`)
+      .then(async r => {
+        const d = await r.json().catch(() => null) as (RewardsData & { success?: boolean }) | null
+        if (!r.ok || !d?.success) throw new Error('unavailable')
+        return d
+      })
+      .then(d => {
         // eslint-disable-next-line react/set-state-in-effect
-        if (d.success) setData(d)
+        setData(d)
       })
       // eslint-disable-next-line react/set-state-in-effect
-      .catch(() => setError('Could not load rewards'))
+      .catch(() => setError('Rewards are temporarily unavailable. Please try again later.'))
       // eslint-disable-next-line react/set-state-in-effect
       .finally(() => setLoading(false))
-  }, [address])
+  }, [address, nanCode])
 
   const claim = async () => {
     if (!address) return
@@ -187,9 +191,9 @@ export function RewardsSheet({ onClose }: { onClose: () => void }) {
         borderRadius: '20px 20px 0 0',
         border: `1px solid ${C.bdr}`,
         borderBottom: 'none',
-        padding: '0 20px 40px',
+        padding: '0 20px 24px',
         fontFamily: F,
-        maxHeight: '85dvh',
+        maxHeight: '94dvh',
         overflowY: 'auto',
         boxShadow: C.isDark ? '0 -24px 64px rgba(0,0,0,0.7)' : '0 -24px 64px rgba(0,0,0,0.15)',
       }}>
@@ -199,7 +203,7 @@ export function RewardsSheet({ onClose }: { onClose: () => void }) {
         </div>
 
         {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 0 20px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0 12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div style={{ width: 40, height: 40, borderRadius: 12, background: C.blue, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Gift size={20} color="#fff" strokeWidth={1.8} />
@@ -250,10 +254,10 @@ export function RewardsSheet({ onClose }: { onClose: () => void }) {
                 ? 'linear-gradient(135deg, rgba(8,102,245,0.12) 0%, rgba(80,0,255,0.07) 100%)'
                 : C.surf,
               border: `1px solid ${hasReward ? 'rgba(8,102,245,0.25)' : C.bdr}`,
-              borderRadius: 16, padding: '20px', marginBottom: 16, textAlign: 'center',
+              borderRadius: 16, padding: '14px 16px', marginBottom: 12, textAlign: 'center',
             }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: C.t3, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>Claimable Balance</div>
-              <div style={{ fontSize: 42, fontWeight: 900, color: hasReward ? C.blue : C.t3, fontFamily: MONO, letterSpacing: '-0.04em', marginBottom: 4 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: C.t3, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>Claimable Balance</div>
+              <div style={{ fontSize: 34, fontWeight: 900, color: hasReward ? C.blue : C.t3, fontFamily: MONO, letterSpacing: '-0.04em', marginBottom: 4 }}>
                 ${data?.claimable ?? '0.00'}
               </div>
               <div style={{ fontSize: 12, fontWeight: 600, color: C.t3 }}>USDC</div>
@@ -261,7 +265,7 @@ export function RewardsSheet({ onClose }: { onClose: () => void }) {
 
             {/* Stats row */}
             {data && (
-              <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+              <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
                 {[
                   { label: 'Friends referred', val: String(data.referralCount) },
                   { label: 'Total earned',     val: `$${data.totalEarned}` },
@@ -276,7 +280,7 @@ export function RewardsSheet({ onClose }: { onClose: () => void }) {
             )}
 
             {error && (
-              <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.20)', borderRadius: 10, padding: '10px 14px', fontSize: 13, color: '#EF4444', marginBottom: 16 }}>
+              <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.20)', borderRadius: 10, padding: '9px 12px', fontSize: 13, color: '#EF4444', marginBottom: 12 }}>
                 {error}
               </div>
             )}
@@ -298,10 +302,9 @@ export function RewardsSheet({ onClose }: { onClose: () => void }) {
                 {claiming ? 'Claiming…' : `Claim $${data?.claimable} USDC`}
               </button>
             ) : (
-              <div style={{ textAlign: 'center', padding: '8px 0 4px' }}>
-                <div style={{ fontSize: 36, marginBottom: 10 }}>😔</div>
-                <div style={{ fontSize: 16, fontWeight: 700, color: C.text, marginBottom: 6 }}>No rewards yet</div>
-                <div style={{ fontSize: 13, color: C.t3, lineHeight: 1.6, marginBottom: 24 }}>
+              <div style={{ textAlign: 'center', padding: '0 0 2px' }}>
+                <div style={{ fontSize: 16, fontWeight: 700, color: C.text, marginBottom: 4 }}>No rewards yet</div>
+                <div style={{ fontSize: 13, color: C.t3, lineHeight: 1.5, marginBottom: 14 }}>
                   Share your referral link with friends.<br />
                   You earn <strong style={{ color: C.blue }}>$1 USDC</strong> for every friend who joins NAN.
                 </div>
@@ -311,13 +314,13 @@ export function RewardsSheet({ onClose }: { onClose: () => void }) {
                   /* ── No NAN name → CTA to claim one ── */
                   <div style={{
                     background: 'rgba(8,102,245,0.06)', border: '1px solid rgba(8,102,245,0.18)',
-                    borderRadius: 16, padding: '20px 18px', marginBottom: 4,
+                    borderRadius: 16, padding: '16px 16px', marginBottom: 4,
                   }}>
                     <div style={{
                       width: 48, height: 48, borderRadius: 14,
                       background: 'rgba(8,102,245,0.12)', border: '1px solid rgba(8,102,245,0.25)',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      margin: '0 auto 12px',
+                      margin: '0 auto 10px',
                     }}>
                       <AtSign size={22} color={C.blue} />
                     </div>

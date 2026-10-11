@@ -14,6 +14,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { isAddress } from 'viem'
 import { getAllServices } from '../src/lib/agent-registry.js'
+import { getRedis, REDIS_NOT_CONFIGURED } from './_redis.js'
 
 // ── faucet config ─────────────────────────────────────────────────────────────
 const FAUCET_URL  = 'https://api.circle.com/v1/faucet/drips'
@@ -225,6 +226,105 @@ NAN integrates deeply with the Circle stack: Circle Agent Stack for agent paymen
         { id: 'tr4', category: 'Troubleshooting', order: 4, question: 'How do I contact support?', answer: 'Go to Support from the side drawer. Submit a ticket with your issue description and wallet address. The NAN team will respond as quickly as possible. You can also use the Feedback page to report bugs or suggest improvements.' },
       ],
     })
+  }
+
+  // ── Referrals & rewards (Redis-backed) ──────────────────────────────────────
+  // GET  ?route=referral&wallet=<key>                 get-or-create the referral entry for an identity
+  // POST ?route=referral-use  { code, wallet? }       credit a referral (once per joined wallet)
+  // GET  ?route=rewards-balance&wallet=0x..&handle=x  claimable / earned / claimed
+  // POST ?route=rewards-claim                         payouts are switched off (see below)
+  if (route === 'referral' || route === 'referral-use' || route === 'rewards-balance' || route === 'rewards-claim') {
+    const REWARD_PER_REFERRAL = 1.0
+    type Entry = { code: string; uses: number; createdAt: number; referrals: { handle: string; joinedAt: number; firstTransfer: boolean }[] }
+
+    if (route === 'rewards-claim') {
+      // Deliberately OFF. The "friend joined" signal is not yet verified (it only proves a browser
+      // opened a link), so automatic mainnet USDC payouts could be farmed with fake signups. Enable
+      // only after referrals are tied to a verified first transfer.
+      return res.status(503).json({ success: false, error: 'Reward payouts open soon — your earnings are being tracked.' })
+    }
+
+    const redis = getRedis()
+    if (!redis) return res.status(503).json({ success: false, ...REDIS_NOT_CONFIGURED })
+
+    const keyOf = (v: unknown) => String(v ?? '').trim().toLowerCase().slice(0, 120)
+    const load = async (k: string): Promise<Entry | null> => {
+      const raw = await redis.get<Entry | string>(`ref:${k}`)
+      if (!raw) return null
+      return (typeof raw === 'string' ? JSON.parse(raw) : raw) as Entry
+    }
+
+    try {
+      if (route === 'referral') {
+        const wallet = keyOf(req.query.wallet)
+        if (!wallet) return res.status(400).json({ success: false, error: 'wallet required' })
+        let entry = await load(wallet)
+        if (!entry) {
+          const prefix = wallet.startsWith('0x') ? wallet.slice(2, 8) : wallet.replace(/[^a-z0-9]/gi, '').slice(0, 6)
+          let h = 0; for (const c of wallet) { h = (h * 31 + c.charCodeAt(0)) >>> 0 }
+          const code = (prefix.slice(0, 4) + h.toString(36).slice(0, 3)).toUpperCase()
+          entry = { code, uses: 0, createdAt: Date.now(), referrals: [] }
+          await redis.set(`ref:${wallet}`, JSON.stringify(entry))
+          await redis.set(`ref:code:${code}`, wallet)
+        }
+        return res.json({ success: true, ...entry })
+      }
+
+      if (route === 'referral-use') {
+        const { code, wallet } = (req.body ?? {}) as { code?: string; wallet?: string }
+        const codeRaw = String(code ?? '').trim()
+        if (!codeRaw) return res.status(400).json({ success: false, error: 'code required' })
+
+        // Abuse guard: max 30 credits attempts / hour / IP
+        const ip = String(req.headers['x-forwarded-for'] ?? 'unknown').split(',')[0].trim()
+        const rl = await redis.incr(`rl:refuse:${ip}`)
+        if (rl === 1) await redis.expire(`rl:refuse:${ip}`, 3600)
+        if (rl > 30) return res.status(429).json({ success: false, error: 'Too many attempts' })
+
+        // Referral links use the referrer's NAN handle ("aunty"); older codes are generated ones.
+        const indexed = await redis.get<string>(`ref:code:${codeRaw.toUpperCase()}`)
+        let referrerKey = indexed ? String(indexed) : ''
+        if (!referrerKey) {
+          if (!/^[a-zA-Z0-9-]{2,32}$/.test(codeRaw)) return res.status(404).json({ success: false, error: 'Invalid referral code' })
+          referrerKey = `nan:${codeRaw.toLowerCase()}`
+        }
+
+        const joined = keyOf(wallet)
+        if (joined) {
+          if (joined === referrerKey) return res.status(400).json({ success: false, error: 'You cannot refer yourself' })
+          // One credit per joined wallet, ever.
+          const first = await redis.set(`ref:joined:${joined}`, referrerKey, { nx: true })
+          if (!first) return res.json({ success: true, counted: false })
+        } else {
+          // No wallet supplied: one credit per IP per code per 30 days.
+          const first = await redis.set(`ref:seen:${referrerKey}:${ip}`, '1', { nx: true, ex: 30 * 86400 })
+          if (!first) return res.json({ success: true, counted: false })
+        }
+
+        const existing = await load(referrerKey)
+        const entry: Entry = existing ?? { code: codeRaw.toUpperCase(), uses: 0, createdAt: Date.now(), referrals: [] }
+        entry.uses += 1
+        entry.referrals = [...(entry.referrals ?? []), { handle: joined ? `${joined.slice(0, 6)}…${joined.slice(-4)}` : `Friend #${entry.uses}`, joinedAt: Date.now(), firstTransfer: false }].slice(-200)
+        await redis.set(`ref:${referrerKey}`, JSON.stringify(entry))
+        if (!existing) await redis.set(`ref:code:${entry.code}`, referrerKey)
+        return res.json({ success: true, counted: true })
+      }
+
+      // rewards-balance
+      const wallet = keyOf(req.query.wallet)
+      const handle = keyOf(req.query.handle).replace(/^@/, '')
+      if (!wallet) return res.status(400).json({ success: false, error: 'wallet required' })
+      const keys = Array.from(new Set([wallet, ...(handle ? [`nan:${handle}`] : [])]))
+      const entries = await Promise.all(keys.map(load))
+      const uses = entries.reduce((t, e) => t + (e?.uses ?? 0), 0)
+      const claimed = Number((await redis.get<number | string>(`rewards:claimed:${wallet}`)) ?? 0) || 0
+      const totalEarned = uses * REWARD_PER_REFERRAL
+      const claimable = Math.max(0, totalEarned - claimed)
+      return res.json({ success: true, claimable: claimable.toFixed(2), totalEarned: totalEarned.toFixed(2), claimed: claimed.toFixed(2), referralCount: uses })
+    } catch (e) {
+      console.error('[misc/referral]', e)
+      return res.status(500).json({ success: false, error: 'Rewards are temporarily unavailable' })
+    }
   }
 
   return res.status(400).json({ error: 'Unknown route.' })
