@@ -20,6 +20,10 @@ const BG      = 'var(--nan-bg)'
 // Show/hide the "Continue with Google" button on the login screen.
 const SHOW_GOOGLE_LOGIN = false
 
+// Passkey login is hidden for now (Arc mainnet client key/passkey domain not ready).
+// Set to true to show the "Continue with Passkey" button again.
+const SHOW_PASSKEY_LOGIN = false
+
 type LoginMode = 'choose' | 'email' | 'google' | 'wallet' | 'passkey'
 
 export function LoginPage() {
@@ -188,10 +192,12 @@ export function LoginPage() {
       </button>
 
       {/* Passkey / Modular Wallet */}
-      <button onClick={() => setMode('passkey')} style={btnS(SURFACE, TEXT, BORDER)}>
-        <PasskeyIcon />
-        <span>Continue with Passkey</span>
-      </button>
+      {SHOW_PASSKEY_LOGIN && (
+        <button onClick={() => setMode('passkey')} style={btnS(SURFACE, TEXT, BORDER)}>
+          <PasskeyIcon />
+          <span>Continue with Passkey</span>
+        </button>
+      )}
 
       <p style={{ fontSize: 12, color: TEXT3, textAlign: 'center', marginTop: 14, lineHeight: 1.6 }}>
         New here? We'll create your Circle wallet automatically.
