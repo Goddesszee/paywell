@@ -453,6 +453,23 @@ export const useAppStore = create<AppState>()(
             ...s.activity,
           ],
         }))
+        // In-app notification for outgoing activity. Incoming payments are announced by usePaymentWatcher,
+        // so 'received' is skipped here to avoid duplicates.
+        try {
+          const verb: Partial<Record<ActivityType, string>> = { sent: 'sent', swap: 'swapped', bridge: 'bridged', purchase: 'spent' }
+          const v = verb[item.type]
+          if (v && item.status !== 'pending') {
+            const amt = Number(item.amount) || 0
+            const ok = item.status !== 'failed'
+            get().addLocalNotification({
+              type: 'payment',
+              title: ok ? `USDC ${v}` : 'Transaction failed',
+              body: ok
+                ? `You ${v} ${amt.toFixed(2)} USDC${item.counterparty ? ` ${item.type === 'sent' ? 'to' : 'with'} ${item.counterparty}` : ''}.`
+                : (item.description || 'Your transaction did not go through.'),
+            })
+          }
+        } catch { /* notifications must never break a transaction */ }
         // Report to server ledger (fire-and-forget — never block the UI)
         const state = get()
         const token = state.auth?.sessionToken
@@ -839,6 +856,7 @@ export const useAppStore = create<AppState>()(
       name: 'paywell-state-v2',
       partialize: (s) => ({
         auth: s.auth, onboarding: s.onboarding,
+        notifications: s.notifications.slice(0, 50),
         agentPermissions: s.agentPermissions,
         agentDailyUsed: s.agentDailyUsed,
         agentMessages: s.agentMessages,
@@ -871,6 +889,8 @@ export const useAppStore = create<AppState>()(
         return {
           ...current,
           ...p,
+          notifications: p.notifications ?? current.notifications,
+          unreadCount: (p.notifications ?? []).filter((n) => !n.read).length,
           activity: (p.activity ?? current.activity).map((a) => ({ ...a, timestamp: new Date(a.timestamp) })),
           agentMessages: (p.agentMessages ?? current.agentMessages).map((m) => ({ ...m, timestamp: new Date(m.timestamp) })),
           agentExecutionLog: (p.agentExecutionLog ?? current.agentExecutionLog ?? []).map((e) => ({ ...e, timestamp: new Date(e.timestamp) })),

@@ -51,6 +51,7 @@ function AdminPasswordGate({ onUnlock }: { onUnlock: () => void }) {
         </div>
         <input
           type="password"
+          autoCapitalize="off" autoCorrect="off" spellCheck={false} autoComplete="current-password"
           value={pw}
           onChange={e => { setPw(e.target.value); setError('') }}
           onKeyDown={e => e.key === 'Enter' && void attempt()}

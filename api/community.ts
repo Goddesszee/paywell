@@ -110,7 +110,9 @@ async function pushNotif(kv: RedisClient, email: string, n: Omit<AppNotification
 
 const ADMIN_TTL_MS = 8 * 60 * 60 * 1000
 
-function adminPassword(): string { return process.env.ADMIN_PASSWORD ?? process.env.VITE_ADMIN_PASSWORD ?? '' }
+// Trim whitespace and stray quotes — a pasted value often carries a trailing newline or wrapping quotes.
+function cleanSecret(v: string | undefined): string { return (v ?? '').trim().replace(/^(["'])(.*)\1$/, '$2').trim() }
+function adminPassword(): string { return cleanSecret(process.env.ADMIN_PASSWORD) || cleanSecret(process.env.VITE_ADMIN_PASSWORD) }
 function adminSecret(): string { return process.env.ADMIN_SESSION_SECRET ?? adminPassword() }
 
 function sha256(v: string) { return crypto.createHash('sha256').update(v).digest() }
@@ -271,7 +273,7 @@ async function routeHandler(req: VercelRequest, res: VercelResponse) {
     const fails = num(await kv.get(failKey))
     if (fails >= 5) return res.status(429).json({ success: false, error: 'Too many attempts. Try again in 15 minutes.' })
     const { password = '' } = (req.body ?? {}) as { password?: string }
-    const ok = crypto.timingSafeEqual(sha256(String(password)), sha256(adminPassword()))
+    const ok = crypto.timingSafeEqual(sha256(String(password).trim()), sha256(adminPassword()))
     if (!ok) {
       await kv.incr(failKey); await kv.expire(failKey, 900)
       await auditLog(kv, 'login_failed', `Failed admin login from ${ip}`)
