@@ -1577,13 +1577,19 @@ app.post('/api/rewards/claim', async (req, res) => {
   const claimable = Math.max(0, totalEarned - prev)
   if (claimable <= 0) { res.status(400).json({ error: 'No rewards to claim' }); return }
 
+  // Option A: personal wallet via private key (simpler — just needs REWARDS_PRIVATE_KEY + REWARDS_WALLET_ADDRESS)
+  // Option B: Circle developer-controlled wallet (REWARDS_WALLET_ID + circle creds)
+  const rewardsPrivateKey = process.env.REWARDS_PRIVATE_KEY as `0x${string}` | undefined
   const circleKey = process.env.CIRCLE_DEVELOPER_CONTROLLED_API_KEY ?? process.env.CIRCLE_API_KEY
   const entitySecret = process.env.CIRCLE_ENTITY_SECRET
   const rewardsWalletId = process.env.REWARDS_WALLET_ID
 
-  if (!circleKey || !entitySecret || !rewardsWalletId) {
+  const hasPersonalWallet = !!rewardsPrivateKey
+  const hasCircleWallet   = !!(circleKey && entitySecret && rewardsWalletId)
+
+  if (!hasPersonalWallet && !hasCircleWallet) {
     if (process.env.NODE_ENV === 'production') {
-      res.status(503).json({ error: 'Rewards not configured — set CIRCLE_DEVELOPER_CONTROLLED_API_KEY, CIRCLE_ENTITY_SECRET, and REWARDS_WALLET_ID to enable real payouts' })
+      res.status(503).json({ error: 'Rewards not configured — set REWARDS_PRIVATE_KEY (personal wallet) or CIRCLE_DEVELOPER_CONTROLLED_API_KEY + CIRCLE_ENTITY_SECRET + REWARDS_WALLET_ID' })
       return
     }
     // Dev-only mock
@@ -1595,20 +1601,62 @@ app.post('/api/rewards/claim', async (req, res) => {
     return
   }
 
-  // Real Circle developer-controlled wallet transfer
   try {
-    const result = await circleTransfer({
-      walletId: rewardsWalletId,
-      to: wallet,
-      amount: claimable.toFixed(6),
-      tokenSymbol: 'USDC',
-      apiKey: circleKey,
-      entitySecret,
-    })
+    let txHash: string
+
+    if (hasPersonalWallet) {
+      // Send USDC from personal wallet using viem.
+      // Requires env vars: REWARDS_PRIVATE_KEY, ARC_MAINNET_USDC_ADDRESS, ARC_MAINNET_CHAIN_ID
+      // and either RPC_PROXY_BASE_URL (provisioned) or ARC_MAINNET_RPC_URL.
+      const { createWalletClient, createPublicClient, http, parseUnits } = await import('viem')
+      const { privateKeyToAccount } = await import('viem/accounts')
+
+      const proxyChains = (process.env.RPC_PROXY_CHAINS ?? '').split(',').map((s: string) => s.trim())
+      const rpcUrl = process.env.RPC_PROXY_BASE_URL && proxyChains.includes('Arc_Mainnet')
+        ? `${process.env.RPC_PROXY_BASE_URL}/api/rpc/Arc_Mainnet?_rpc_token=${process.env.RPC_PROXY_TOKEN}`
+        : process.env.ARC_MAINNET_RPC_URL
+
+      if (!rpcUrl) throw new Error('No RPC URL — set ARC_MAINNET_RPC_URL in Vercel env vars')
+
+      const USDC_ADDRESS = process.env.ARC_MAINNET_USDC_ADDRESS as `0x${string}`
+      if (!USDC_ADDRESS) throw new Error('ARC_MAINNET_USDC_ADDRESS not set in env')
+
+      const ERC20_ABI = [{
+        name: 'transfer', type: 'function', stateMutability: 'nonpayable',
+        inputs: [{ name: 'to', type: 'address' }, { name: 'amount', type: 'uint256' }],
+        outputs: [{ name: '', type: 'bool' }],
+      }] as const
+
+      const chainId = Number(process.env.ARC_MAINNET_CHAIN_ID ?? 1478)
+      const arcChain = {
+        id: chainId, name: 'Arc',
+        nativeCurrency: { name: 'USD Coin', symbol: 'USDC', decimals: 18 },
+        rpcUrls: { default: { http: [rpcUrl] } },
+      } as const
+
+      const account = privateKeyToAccount(rewardsPrivateKey!)
+      const walletClient = createWalletClient({ account, chain: arcChain, transport: http(rpcUrl) })
+      const publicClient = createPublicClient({ chain: arcChain, transport: http(rpcUrl) })
+
+      const hash = await walletClient.writeContract({
+        address: USDC_ADDRESS, abi: ERC20_ABI, functionName: 'transfer',
+        args: [wallet as `0x${string}`, parseUnits(claimable.toFixed(6), 6)],
+      })
+      await publicClient.waitForTransactionReceipt({ hash })
+      txHash = hash
+    } else {
+      const result = await circleTransfer({
+        walletId: rewardsWalletId!, to: wallet,
+        amount: claimable.toFixed(6), tokenSymbol: 'USDC',
+        apiKey: circleKey!, entitySecret: entitySecret!,
+      })
+      txHash = result.txId
+    }
+
     const newClaimed = prev + claimable
     rewardClaimedStore.set(key, { claimed: newClaimed, lastClaimedAt: Date.now() })
     debouncedSave('rewards-claimed', Object.fromEntries(rewardClaimedStore))
-    res.json({ success: true, amount: claimable.toFixed(2), txHash: result.txId })
+    res.json({ success: true, amount: claimable.toFixed(2), txHash })
   } catch (e) {
     console.error('Rewards claim transfer failed:', e)
     res.status(500).json({ error: 'Transfer failed — please try again' })
