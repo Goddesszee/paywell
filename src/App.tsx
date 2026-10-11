@@ -64,8 +64,8 @@ function lazyWithReload<T extends ComponentType<Record<string, unknown>>>(factor
   })
 }
 
-const BridgePage = lazyWithReload(() => import('./components/pages/BridgePage').then(m => ({ default: m.BridgePage })))
-const SwapPage   = lazyWithReload(() => import('./components/pages/SwapPage').then(m => ({ default: m.SwapPage })))
+// TradePage wraps both Swap and Bridge in a unified card with tab switching
+const TradePage  = lazyWithReload(() => import('./components/pages/TradePage').then(m => ({ default: m.TradePage })))
 
 function PageLoading() {
   return (
@@ -195,8 +195,8 @@ export default function App() {
       {activeView === 'receive' && <WalletPage initialSubView="receive" />}
       {activeView === 'agent' && <AgentPage />}
       {activeView === 'agent-wallet' && <AgentWalletExperience />}
-      {activeView === 'bridge' && <ErrorBoundary key="bridge"><Suspense fallback={<PageLoading />}><BridgePage /></Suspense></ErrorBoundary>}
-      {activeView === 'swap'   && <ErrorBoundary key="swap"><Suspense fallback={<PageLoading />}><SwapPage /></Suspense></ErrorBoundary>}
+      {activeView === 'bridge' && <ErrorBoundary key="bridge"><Suspense fallback={<PageLoading />}><TradePage initialTab="bridge" /></Suspense></ErrorBoundary>}
+      {activeView === 'swap'   && <ErrorBoundary key="swap"><Suspense fallback={<PageLoading />}><TradePage initialTab="swap" /></Suspense></ErrorBoundary>}
       {activeView === 'onramp' && <OnrampPage />}
       {activeView === 'faucet' && <FaucetPage />}
       {activeView === 'activity' && <ActivityPage />}
