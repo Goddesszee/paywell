@@ -6,21 +6,17 @@
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { initiateUserControlledWalletsClient } from '@circle-fin/user-controlled-wallets'
+import { circleKeyInfo, requireCircleKey } from './_circle-key'
 import { getRedis } from './_redis'
 
 // ── shared helpers ─────────────────────────────────────────────────────────────
 
 function circleKey(): string | undefined {
-  return (
-    process.env.CIRCLE_USER_CONTROLLED_API_KEY ??
-    process.env.CIRCLE_API_KEY ??
-    process.env.CIRCLE_DEVELOPER_CONTROLLED_API_KEY
-  )
+  return circleKeyInfo()?.key
 }
 
 function ucwClient() {
-  const key = circleKey()
-  if (!key) throw new Error('CIRCLE_API_KEY not configured')
+  const key = requireCircleKey()
   return initiateUserControlledWalletsClient({ apiKey: key })
 }
 

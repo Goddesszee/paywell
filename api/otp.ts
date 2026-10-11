@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
+import crypto from 'crypto'
 import nodemailer from 'nodemailer'
 import { getRedis } from './_redis'
 
@@ -24,7 +25,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   // ── SEND OTP ────────────────────────────────────────────────────────────────
   if (action === 'send' || !action) {
-    const otp = Math.floor(100000 + Math.random() * 900000).toString()
+    // Production must deliver codes by email — never hand the code back to the browser.
+    const isProd = process.env.VERCEL_ENV === 'production'
+    if (isProd && !process.env.SMTP_HOST) {
+      return res.status(503).json({ error: 'Email delivery is not configured (set SMTP_HOST / SMTP_PORT / SMTP_USER / SMTP_PASS in Vercel).' })
+    }
+    const otp = crypto.randomInt(100000, 1000000).toString()
     const expires = Date.now() + OTP_TTL_SECONDS * 1000
 
     if (kv) {
@@ -53,7 +59,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     } else {
       console.log(`[NAN OTP] ${email} → ${otp}`)
     }
-    return res.status(200).json({ ok: true, ...(process.env.SMTP_HOST ? {} : { code: otp }) })
+    return res.status(200).json({ ok: true, ...(process.env.SMTP_HOST || isProd ? {} : { code: otp }) })
   }
 
   // ── VERIFY OTP ──────────────────────────────────────────────────────────────

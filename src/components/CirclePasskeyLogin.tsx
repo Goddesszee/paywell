@@ -70,7 +70,8 @@ export function CirclePasskeyLogin({ onBack, onSuccess }: Props) {
 
   async function buildAccount(credential: P256Credential) {
     if (!clientKey) throw new Error('VITE_CLIENT_KEY is not set. Add it in Circle Console → Client Keys.')
-    const modularTransport = toModularTransport(`${CIRCLE_MODULAR_URL}/arc`, clientKey)
+    if (/^TEST_/i.test(clientKey.trim())) throw new Error('VITE_CLIENT_KEY is a TEST key. Arc mainnet needs a LIVE client key from Circle Console → Keys → Client Keys (set it in Vercel and redeploy).')
+    const modularTransport = toModularTransport(`${CIRCLE_MODULAR_URL}/arc`, clientKey.trim())
     const publicClient = createPublicClient({ chain: arc, transport: modularTransport })
     const account = await toCircleSmartAccount({
       client: publicClient,

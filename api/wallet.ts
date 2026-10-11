@@ -28,21 +28,17 @@
 
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { initiateUserControlledWalletsClient, Blockchain } from '@circle-fin/user-controlled-wallets'
+import { circleKeyInfo, requireCircleKey } from './_circle-key'
 import { AppKit } from '@circle-fin/app-kit'
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
 function apiKey(): string | undefined {
-  return (
-    process.env.CIRCLE_USER_CONTROLLED_API_KEY ??
-    process.env.CIRCLE_API_KEY ??
-    process.env.CIRCLE_DEVELOPER_CONTROLLED_API_KEY
-  )
+  return circleKeyInfo()?.key
 }
 
 function ucwClient() {
-  const key = apiKey()
-  if (!key) throw new Error('CIRCLE_API_KEY not configured')
+  const key = requireCircleKey()
   return initiateUserControlledWalletsClient({ apiKey: key })
 }
 
@@ -72,6 +68,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-user-token')
   if (req.method === 'OPTIONS') return res.status(200).end()
+
+  // ── GET /api/wallet?action=health — non-secret setup check (open in a browser) ──
+  if (req.method === 'GET' && req.query.action === 'health') {
+    const info = circleKeyInfo()
+    return res.json({
+      circleApiKey: info ? { env: info.env, type: info.kind } : 'missing',
+      mainnetReady: info?.kind === 'live',
+      hint: !info ? 'Set CIRCLE_API_KEY to a LIVE_API_KEY:… key'
+        : info.kind === 'test' ? 'This is a TEST key. Arc mainnet needs a LIVE_API_KEY:… key in CIRCLE_API_KEY'
+        : 'Server key looks correct for mainnet',
+    })
+  }
 
   // ── GET /api/wallet?action=list ──────────────────────────────────────────
   if (req.method === 'GET') {

@@ -22,6 +22,7 @@
  *   Falls back to skipping payment (logs reason) if any credential is missing.
  */
 
+import { circleKeyInfo } from './_circle-key'
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { randomUUID } from 'crypto'
 
@@ -44,7 +45,7 @@ async function executeNanopayment(
 ): Promise<NanopaymentResult> {
   if (cost_usdc <= 0) return { paid: false, skipped_reason: 'free service' }
 
-  const apiKey       = process.env.CIRCLE_API_KEY ?? process.env.CIRCLE_DEVELOPER_CONTROLLED_API_KEY
+  const apiKey       = circleKeyInfo()?.key
   const entitySecret = process.env.CIRCLE_ENTITY_SECRET ?? process.env.ENTITY_SECRET
   const walletId     = process.env.AGENT_WALLET_ID
   const walletAddress = process.env.AGENT_WALLET_ADDRESS
