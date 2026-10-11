@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { Bell, CheckCheck, MessageSquare, Zap, Info, ChevronRight } from 'lucide-react'
+import { Bell, CheckCheck, ChevronRight } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
 import type { AppNotification } from '../../store/appStore'
 
@@ -16,22 +16,16 @@ function timeAgo(iso: string): string {
   return `${d}d ago`
 }
 
-function NotifIcon({ type }: { type: AppNotification['type'] }) {
-  const map = {
-    support: <MessageSquare size={16} color="var(--nan-blue)" />,
-    support_reply: <MessageSquare size={16} color="var(--nan-green)" />,
-    payment: <Zap size={16} color="var(--nan-gold)" />,
-    system: <Info size={16} color="var(--nan-text2)" />,
-  }
-  const bgMap = {
-    support: 'var(--nan-blue-dim)',
-    support_reply: 'var(--nan-green-dim)',
-    payment: 'var(--nan-gold-dim)',
-    system: 'var(--nan-surface2)',
-  }
+/** NAN app icon — rounded square with the N mark optically centred, like an OS notification. */
+function NanAppIcon({ size = 44 }: { size?: number }) {
+  const h = size * 0.5
+  const w = h * (324 / 480)
   return (
-    <div style={{ width: 36, height: 36, borderRadius: 10, background: bgMap[type], display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-      {map[type]}
+    <div style={{ width: size, height: size, borderRadius: size * 0.26, background: '#0066FF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: '0 1px 2px rgba(0,0,0,0.18)' }}>
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 324 480" width={w} height={h} style={{ display: 'block' }} aria-hidden>
+        <path d="M255,0 L84,167 L71,163 L0,97 L0,378 L246,132 L255,110 Z" fill="#fff" />
+        <path d="M69,480 L240,313 L253,317 L324,383 L324,102 L78,348 L69,370 Z" fill="#fff" />
+      </svg>
     </div>
   )
 }
@@ -85,32 +79,34 @@ export function NotificationsPage() {
           </div>
         </div>
       ) : (
-        <div style={{ background: 'var(--nan-surface)', border: '1px solid var(--nan-bdr)', borderRadius: 16, overflow: 'hidden' }}>
-          {notifications.map((n, i) => (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {notifications.map(n => (
             <div
               key={n.id}
               onClick={() => handleNotifClick(n)}
               style={{
                 display: 'flex', alignItems: 'flex-start', gap: 12, padding: '14px 16px',
-                borderBottom: i < notifications.length - 1 ? '1px solid var(--nan-bdr)' : 'none',
-                background: n.read ? 'transparent' : 'var(--nan-blue-dim)',
+                borderRadius: 22,
+                background: 'var(--nan-surface)',
+                border: `1px solid ${n.read ? 'var(--nan-bdr)' : 'rgba(0,102,255,0.35)'}`,
+                boxShadow: n.read ? 'none' : '0 2px 14px rgba(0,102,255,0.10)',
                 cursor: n.ticketId ? 'pointer' : 'default',
                 transition: 'background 0.15s',
               }}
             >
-              <NotifIcon type={n.type} />
+              <NanAppIcon size={44} />
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 2 }}>
-                  <div style={{ fontSize: 13, fontWeight: n.read ? 500 : 700, color: 'var(--nan-text)', lineHeight: 1.3 }}>
-                    {n.title}
-                    {!n.read && <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', background: 'var(--nan-blue)', marginLeft: 7, verticalAlign: 'middle', flexShrink: 0 }} />}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
+                  <div style={{ fontSize: 15, fontWeight: 700, letterSpacing: '-0.01em', color: 'var(--nan-text)', lineHeight: 1.3, display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{n.title}</span>
+                    {!n.read && <span aria-label="Unread" style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--nan-blue)', flexShrink: 0 }} />}
                   </div>
-                  <span style={{ fontSize: 11, color: 'var(--nan-text3)', whiteSpace: 'nowrap', flexShrink: 0 }}>{timeAgo(n.createdAt)}</span>
+                  <span style={{ fontSize: 12, color: 'var(--nan-text3)', whiteSpace: 'nowrap', flexShrink: 0 }}>{timeAgo(n.createdAt)}</span>
                 </div>
-                <div style={{ fontSize: 12, color: 'var(--nan-text2)', lineHeight: 1.5 }}>{n.body}</div>
+                <div style={{ fontSize: 14, color: 'var(--nan-text2)', lineHeight: 1.4, marginTop: 2 }}>{n.body}</div>
                 {n.ticketId && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 6, color: 'var(--nan-blue)', fontSize: 11, fontWeight: 600 }}>
-                    View conversation <ChevronRight size={11} />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 8, color: 'var(--nan-blue)', fontSize: 12, fontWeight: 600 }}>
+                    View conversation <ChevronRight size={12} />
                   </div>
                 )}
               </div>
