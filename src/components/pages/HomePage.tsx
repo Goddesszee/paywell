@@ -8,7 +8,7 @@ import {
   ArrowUpRight, ArrowDownLeft, ChevronRight,
   ArrowDownToLine, Sparkles, Bot,
   CheckCircle2, Clock, ShoppingBag,
-  RefreshCw, Gift,
+  RefreshCw, Gift, Link2, Copy, Check as CheckIcon, AtSign,
 } from 'lucide-react'
 import { useAppStore, ActivityItem } from '../../store/appStore'
 import { getUsdc } from '../../onchain-facts'
@@ -25,6 +25,129 @@ import { RewardsSheet } from './RewardsSheet'
 const F    = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif"
 const MONO = "'JetBrains Mono', 'SF Mono', Menlo, monospace"
 const ARC  = 5042
+
+// ─── NAN Pay Link card ────────────────────────────────────────────────────────
+function PayLinkCard({
+  nanHandle, setActiveView, C,
+}: {
+  nanHandle: string
+  setActiveView: (v: string) => void
+  C: NanTheme
+}) {
+  const [copied, setCopied] = React.useState(false)
+  const handle   = nanHandle ? nanHandle.replace(/^@/, '') : ''
+  const payLink  = handle ? `https://nanarc.xyz/?nanpay=${handle}` : ''
+
+  const copy = () => {
+    if (!payLink) return
+    void navigator.clipboard.writeText(payLink).then(() => {
+      setCopied(true); setTimeout(() => setCopied(false), 2500)
+    })
+  }
+
+  const share = async () => {
+    if (!payLink) return
+    if (navigator.share) {
+      try { await navigator.share({ title: `Pay @${handle} with NAN`, url: payLink }); return } catch { /* dismissed */ }
+    }
+    copy()
+  }
+
+  return (
+    <div style={{ marginBottom: 22 }}>
+      <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 10 }}>Your Pay Link</div>
+      <div style={{
+        background: C.surf, border: `1px solid ${C.bdr}`,
+        borderRadius: 18, padding: '16px 18px',
+        position: 'relative', overflow: 'hidden',
+      }}>
+        {/* top accent bar */}
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: 'linear-gradient(90deg, #0866F5, #7B61FF)' }} />
+
+        {!handle ? (
+          /* ── No NAN name yet ── */
+          <button
+            onClick={() => setActiveView('nan-name')}
+            style={{
+              width: '100%', background: 'none', border: 'none', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', gap: 14, padding: 0, fontFamily: F,
+              WebkitTapHighlightColor: 'transparent', textAlign: 'left',
+            }}
+          >
+            <div style={{
+              width: 44, height: 44, borderRadius: 14, flexShrink: 0,
+              background: 'rgba(8,102,245,0.10)', border: '1px solid rgba(8,102,245,0.20)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <AtSign size={20} color={C.blue} />
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 3 }}>
+                Get a NAN name to create your pay link
+              </div>
+              <div style={{ fontSize: 12, color: C.t3, lineHeight: 1.4 }}>
+                Anyone can pay you from anywhere — no crypto wallet needed on their end
+              </div>
+            </div>
+            <ChevronRight size={16} color={C.blue} strokeWidth={2.5} />
+          </button>
+        ) : (
+          /* ── Has NAN name — show link ── */
+          <>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+              <div style={{
+                width: 44, height: 44, borderRadius: 14, flexShrink: 0,
+                background: 'rgba(8,102,245,0.10)', border: '1px solid rgba(8,102,245,0.20)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <Link2 size={20} color={C.blue} />
+              </div>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: C.text }}>
+                  nanarc.xyz/?nanpay=<span style={{ color: C.blue }}>@{handle}</span>
+                </div>
+                <div style={{ fontSize: 11, color: C.t3, marginTop: 2 }}>
+                  Share it — anyone can pay with card or crypto
+                </div>
+              </div>
+            </div>
+
+            {/* link display row */}
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              background: C.surf2, border: `1px solid ${C.bdr}`,
+              borderRadius: 10, padding: '7px 8px 7px 12px', marginBottom: 10,
+            }}>
+              <span style={{ flex: 1, fontSize: 11, color: C.t2, fontFamily: MONO, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {payLink}
+              </span>
+              <button onClick={copy} style={{
+                flexShrink: 0, display: 'flex', alignItems: 'center', gap: 5,
+                padding: '6px 10px', borderRadius: 7,
+                background: copied ? 'rgba(16,185,129,0.12)' : C.blue,
+                border: 'none', cursor: 'pointer',
+                fontSize: 11, fontWeight: 700, color: copied ? '#10B981' : '#fff',
+                transition: 'all 0.15s', fontFamily: F,
+              }}>
+                {copied ? <CheckIcon size={11} /> : <Copy size={11} />}
+                {copied ? 'Copied!' : 'Copy'}
+              </button>
+            </div>
+
+            <button onClick={() => { void share() }} style={{
+              width: '100%', padding: '11px', borderRadius: 10,
+              background: 'rgba(8,102,245,0.06)', border: '1px solid rgba(8,102,245,0.15)',
+              color: C.blue, fontSize: 13, fontWeight: 700,
+              cursor: 'pointer', fontFamily: F, letterSpacing: '-0.01em',
+            }}>
+              Share my pay link
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
 
 // ─── Transaction row ──────────────────────────────────────────────────────────
 
@@ -558,6 +681,9 @@ export function HomePage() {
           <ChevronRight size={17} color={C.blue} strokeWidth={2.5} />
         </button>
       </div>
+
+      {/* ── 5b. NAN PAY LINK ── */}
+      <PayLinkCard nanHandle={nanHandle} setActiveView={setActiveView} C={C} />
 
       {/* ── 6. RECENT ACTIVITY ── */}
       <div>
