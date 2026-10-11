@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { User, Camera, Save, Shield, Bell, Clock, LogOut, ChevronRight, CheckCircle, Sun, Moon, Monitor, ArrowLeft, AtSign, Headphones, Gift, HelpCircle, Star, Lightbulb, Info } from 'lucide-react'
+import { User, Camera, Save, Shield, Bell, Clock, LogOut, ChevronRight, CheckCircle, Sun, Moon, Monitor, ArrowLeft, AtSign, Headphones, Gift, HelpCircle, Star, Lightbulb, Info, Link2, Copy, Check as CheckIcon } from 'lucide-react'
 import { useAccount, useDisconnect } from 'wagmi'
 import { useAppStore } from '../../store/appStore'
 import { useNanTheme } from '../../hooks/useNanTheme'
@@ -29,6 +29,7 @@ export function ProfilePage() {
   const [loadingSessions, setLoadingSessions] = useState(false)
   const [avatarUploading, setAvatarUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [linkCopied, setLinkCopied] = useState(false)
 
   const token = auth?.sessionToken ?? ''
 
@@ -215,6 +216,48 @@ export function ProfilePage() {
           nanRow,
           { key: 'referral', icon: <Gift />, label: 'Refer a Friend', sub: 'Earn $1 USDC per friend who joins', onClick: () => setActiveView('referral') },
         ])}
+
+        {/* NAN Pay Link — only shown when user has a NAN name */}
+        {nanHandle && (() => {
+          const payLink = `https://nanarc.xyz/?nanpay=${nanHandle.replace(/^@/, '')}`
+          const copyLink = () => {
+            void navigator.clipboard.writeText(payLink).then(() => {
+              setLinkCopied(true); setTimeout(() => setLinkCopied(false), 2500)
+            })
+          }
+          const shareLink = async () => {
+            if (navigator.share) {
+              try { await navigator.share({ title: `Pay @${nanHandle} with NAN`, url: payLink }); return } catch { /* dismissed */ }
+            }
+            copyLink()
+          }
+          return (
+            <div style={{ background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 14, padding: '14px 16px', marginTop: 10, overflow: 'hidden', position: 'relative' }}>
+              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: 'linear-gradient(90deg, #0866F5, #7B61FF)' }} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                <div style={{ width: 34, height: 34, borderRadius: 10, background: 'rgba(8,102,245,0.10)', border: '1px solid rgba(8,102,245,0.20)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Link2 size={16} color={C.blue} />
+                </div>
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: C.text }}>Your NAN Pay Link</div>
+                  <div style={{ fontSize: 11, color: C.t3 }}>Share it — anyone can pay you without a crypto wallet</div>
+                </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: C.surf2, border: `1px solid ${C.bdr}`, borderRadius: 9, padding: '7px 8px 7px 12px', marginBottom: 10 }}>
+                <span style={{ flex: 1, fontSize: 12, color: C.t2, fontFamily: MONO, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {payLink}
+                </span>
+                <button onClick={copyLink} style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 5, padding: '6px 10px', borderRadius: 7, background: linkCopied ? 'rgba(16,185,129,0.12)' : C.blue, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700, color: linkCopied ? '#10B981' : '#fff', transition: 'all 0.15s', fontFamily: F }}>
+                  {linkCopied ? <CheckIcon size={12} /> : <Copy size={12} />}
+                  {linkCopied ? 'Copied!' : 'Copy'}
+                </button>
+              </div>
+              <button onClick={() => { void shareLink() }} style={{ width: '100%', padding: '11px', borderRadius: 10, background: 'rgba(8,102,245,0.06)', border: '1px solid rgba(8,102,245,0.15)', color: C.blue, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: F, letterSpacing: '-0.01em' }}>
+                Share my pay link
+              </button>
+            </div>
+          )
+        })()}
 
         {sectionLabel('Preferences')}
         {cardBlock([{
