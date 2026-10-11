@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { User, Camera, Save, Shield, Bell, Clock, LogOut, ChevronRight, CheckCircle, Sun, Moon, Monitor, ArrowLeft, AtSign, Headphones, Gift, HelpCircle, Star, Lightbulb, Info } from 'lucide-react'
 import { useAccount, useDisconnect } from 'wagmi'
 import { useAppStore } from '../../store/appStore'
@@ -133,85 +133,110 @@ export function ProfilePage() {
     setActiveView('landing')
   }
 
-  const iconCircle = (icon: React.ReactNode) => (
-    <div style={{ width: 48, height: 48, borderRadius: '50%', background: C.blue, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-      {icon}
+  const iconCircle = (icon: React.ReactElement<{ size?: number; color?: string }>, danger = false) => (
+    <div style={{ width: 32, height: 32, borderRadius: 8, background: danger ? 'rgba(255,59,59,0.10)' : C.surf2, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+      {React.cloneElement(icon, { size: 16, color: danger ? '#FF3B3B' : C.t2 })}
     </div>
   )
 
-  const listRow = (opts: { key: string; icon: React.ReactNode; label: string; sub?: string; onClick: () => void; right?: React.ReactNode; chevron?: boolean }) => (
+  const sectionLabel = (text: string) => (
+    <div style={{ fontSize: 11, fontWeight: 600, color: C.t3, textTransform: 'uppercase', letterSpacing: '0.07em', padding: '20px 0 8px' }}>{text}</div>
+  )
+
+  type RowOpts = { key: string; icon: React.ReactElement<{ size?: number; color?: string }>; label: string; sub?: string; onClick: () => void; right?: React.ReactNode; chevron?: boolean; danger?: boolean }
+  const listRow = (opts: RowOpts, last = false) => (
     <div key={opts.key} role="button" tabIndex={0} onClick={opts.onClick}
       onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); opts.onClick() } }}
-      style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '12px 4px', cursor: 'pointer', borderRadius: 12 }}>
-      {iconCircle(opts.icon)}
+      style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 16px', cursor: 'pointer', borderBottom: last ? 'none' : `1px solid ${C.bdr}` }}>
+      {iconCircle(opts.icon, opts.danger)}
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 16, fontWeight: 600, color: C.text }}>{opts.label}</div>
-        {opts.sub && <div style={{ fontSize: 12, color: C.t3, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{opts.sub}</div>}
+        <div style={{ fontSize: 14, fontWeight: 600, color: opts.danger ? '#FF3B3B' : C.text }}>{opts.label}</div>
+        {opts.sub && <div style={{ fontSize: 12, color: C.t3, marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{opts.sub}</div>}
       </div>
-      {opts.right ?? (opts.chevron === false ? null : <ChevronRight size={18} color={C.t3} />)}
+      {opts.right ?? (opts.chevron === false ? null : <ChevronRight size={14} color={C.t3} />)}
     </div>
   )
 
+  const cardBlock = (rows: (RowOpts | null)[]) => {
+    const list = rows.filter((r): r is RowOpts => r !== null)
+    return (
+      <div style={{ background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 14, overflow: 'hidden' }}>
+        {list.map((r, i) => listRow(r, i === list.length - 1))}
+      </div>
+    )
+  }
+
   if (view === 'main') {
+    const nameShown = profile.displayName || auth?.email?.split('@')[0] || 'User'
+    const nanRow: RowOpts | null = nanHandle
+      ? { key: 'nan', icon: <AtSign />, label: 'NAN Name', sub: `@${nanHandle}`, onClick: () => setActiveView('nan-name') }
+      : registrySet ? { key: 'nan', icon: <AtSign />, label: 'NAN Name', sub: 'Get your @handle', onClick: () => setActiveView('nan-name') } : null
     return (
       <div style={{ width: '100%', fontFamily: F, paddingBottom: 80 }}>
-        {/* Top bar */}
-        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', height: 40, marginBottom: 12 }}>
+        {/* Header — same pattern as My Account and the other pages */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
           <button onClick={() => setActiveView(previousView && previousView !== 'profile' ? previousView : 'home')} aria-label="Back"
-            style={{ position: 'absolute', left: 0, width: 36, height: 36, borderRadius: 10, background: 'transparent', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-            <ArrowLeft size={20} color={C.text} />
+            style={{ width: 32, height: 32, borderRadius: 8, background: C.surf, border: `1px solid ${C.bdr}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+            <ArrowLeft size={15} color={C.t2} />
           </button>
-          <div style={{ fontSize: 18, fontWeight: 700, color: C.text }}>Profile</div>
+          <div>
+            <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.025em', color: C.text }}>Profile</div>
+            <div style={{ fontSize: 13, color: C.t3 }}>NAN · Arc Testnet · Circle USDC</div>
+          </div>
         </div>
 
-        {/* Avatar + name */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '8px 0 24px' }}>
-          <div style={{ position: 'relative' }}>
+        {/* Identity card */}
+        <div style={{ background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 14, padding: '16px', display: 'flex', alignItems: 'center', gap: 14 }}>
+          <div style={{ position: 'relative', flexShrink: 0 }}>
             {profile.avatarUrl ? (
               <img src={profile.avatarUrl} alt="Avatar" onError={() => setProfile({ avatarUrl: '' })}
-                style={{ width: 104, height: 104, borderRadius: '50%', objectFit: 'cover', border: `1px solid ${C.bdr}` }} />
+                style={{ width: 64, height: 64, borderRadius: '50%', objectFit: 'cover', border: `1px solid ${C.bdr}` }} />
             ) : (
-              <div style={{ width: 104, height: 104, borderRadius: '50%', background: 'rgba(8,102,245,0.12)', border: '1px solid rgba(8,102,245,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 40, fontWeight: 700, color: C.blue }}>
+              <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'rgba(8,102,245,0.12)', border: '1px solid rgba(8,102,245,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26, fontWeight: 700, color: C.blue }}>
                 {avatarLetter}
               </div>
             )}
             <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleAvatarChange} />
             <button onClick={() => fileInputRef.current?.click()} disabled={avatarUploading} aria-label="Change photo"
-              style={{ position: 'absolute', bottom: 0, right: 0, width: 32, height: 32, borderRadius: '50%', background: avatarUploading ? '#555' : C.blue, border: `3px solid ${C.bg}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-              <Camera size={14} color="#fff" />
+              style={{ position: 'absolute', bottom: -2, right: -2, width: 24, height: 24, borderRadius: '50%', background: avatarUploading ? '#555' : C.blue, border: `2px solid ${C.surf}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', padding: 0 }}>
+              <Camera size={11} color="#fff" />
             </button>
           </div>
-          <div style={{ fontSize: 24, fontWeight: 700, color: C.text, marginTop: 14, textAlign: 'center' }}>
-            {profile.displayName || auth?.email?.split('@')[0] || 'User'}
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: '-0.02em', color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{nameShown}</div>
+            {(nanHandle || auth?.email) && <div style={{ fontSize: 12, color: C.t3, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{nanHandle ? `@${nanHandle}` : auth?.email}</div>}
+            {saveError && <div style={{ fontSize: 12, color: '#FF3B3B', marginTop: 4 }}>{saveError}</div>}
           </div>
-          {saveError && <div style={{ fontSize: 12, color: '#FF3B3B', marginTop: 6 }}>{saveError}</div>}
         </div>
 
-        {/* List */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          {listRow({ key: 'account', icon: <User size={22} color="#fff" />, label: 'My Account', onClick: () => { setTab('profile'); setView('account') } })}
-          {nanHandle
-            ? listRow({ key: 'nan', icon: <AtSign size={22} color="#fff" />, label: 'NAN Name', sub: `@${nanHandle}`, onClick: () => setActiveView('nan-name') })
-            : registrySet
-              ? listRow({ key: 'nan', icon: <AtSign size={22} color="#fff" />, label: 'NAN Name', sub: 'Get your @handle', onClick: () => setActiveView('nan-name') })
-              : null}
-          {listRow({ key: 'referral', icon: <Gift size={22} color="#fff" />, label: 'Refer a Friend', sub: 'Earn $1 USDC per friend who joins', onClick: () => setActiveView('referral') })}
+        {sectionLabel('Account')}
+        {cardBlock([
+          { key: 'account', icon: <User />, label: 'My Account', onClick: () => { setTab('profile'); setView('account') } },
+          nanRow,
+          { key: 'referral', icon: <Gift />, label: 'Refer a Friend', sub: 'Earn $1 USDC per friend who joins', onClick: () => setActiveView('referral') },
+        ])}
 
-          {listRow({
-            key: 'dark', icon: <Moon size={22} color="#fff" />, label: 'Dark Mode', onClick: () => setTheme(isDark ? 'light' : 'dark'),
-            right: (
-              <div aria-label="Dark mode" style={{ width: 52, height: 30, borderRadius: 15, background: isDark ? C.blue : C.surf2, border: `1px solid ${isDark ? C.blue : C.bdr}`, position: 'relative', flexShrink: 0, transition: 'background 0.2s' }}>
-                <div style={{ position: 'absolute', top: 3, left: isDark ? 25 : 3, width: 22, height: 22, borderRadius: 11, background: '#fff', transition: 'left 0.2s' }} />
-              </div>
-            ),
-          })}
-          {listRow({ key: 'support', icon: <Headphones size={22} color="#fff" />, label: 'Support service', onClick: () => setActiveView('support') })}
-          {listRow({ key: 'faq', icon: <HelpCircle size={22} color="#fff" />, label: 'FAQ', sub: 'Common questions', onClick: () => setActiveView('faq') })}
-          {listRow({ key: 'feedback', icon: <Star size={22} color="#fff" />, label: 'Feedback', sub: 'Rate your experience', onClick: () => setActiveView('feedback') })}
-          {listRow({ key: 'suggestions', icon: <Lightbulb size={22} color="#fff" />, label: 'Suggestions', sub: 'Share an idea', onClick: () => setActiveView('suggestions') })}
-          {listRow({ key: 'about', icon: <Info size={22} color="#fff" />, label: 'About NAN', sub: 'Platform info', onClick: () => setActiveView('about') })}
-          {listRow({ key: 'logout', icon: <LogOut size={22} color="#fff" />, label: 'Logout', onClick: handleLogout, chevron: false })}
-        </div>
+        {sectionLabel('Preferences')}
+        {cardBlock([{
+          key: 'dark', icon: <Moon />, label: 'Dark Mode', onClick: () => setTheme(isDark ? 'light' : 'dark'),
+          right: (
+            <div aria-label="Dark mode" style={{ width: 44, height: 26, borderRadius: 13, background: isDark ? C.blue : C.surf2, border: `1px solid ${isDark ? C.blue : C.bdr}`, position: 'relative', flexShrink: 0, transition: 'background 0.2s' }}>
+              <div style={{ position: 'absolute', top: 3, left: isDark ? 21 : 3, width: 18, height: 18, borderRadius: 9, background: '#fff', transition: 'left 0.2s' }} />
+            </div>
+          ),
+        }])}
+
+        {sectionLabel('Help & Info')}
+        {cardBlock([
+          { key: 'support', icon: <Headphones />, label: 'Support service', onClick: () => setActiveView('support') },
+          { key: 'faq', icon: <HelpCircle />, label: 'FAQ', sub: 'Common questions', onClick: () => setActiveView('faq') },
+          { key: 'feedback', icon: <Star />, label: 'Feedback', sub: 'Rate your experience', onClick: () => setActiveView('feedback') },
+          { key: 'suggestions', icon: <Lightbulb />, label: 'Suggestions', sub: 'Share an idea', onClick: () => setActiveView('suggestions') },
+          { key: 'about', icon: <Info />, label: 'About NAN', sub: 'Platform info', onClick: () => setActiveView('about') },
+        ])}
+
+        <div style={{ height: 16 }} />
+        {cardBlock([{ key: 'logout', icon: <LogOut />, label: 'Logout', onClick: handleLogout, chevron: false, danger: true }])}
       </div>
     )
   }
