@@ -17,6 +17,9 @@ const SURFACE = 'var(--nan-surface)'
 const BORDER  = 'var(--nan-bdr2)'
 const BG      = 'var(--nan-bg)'
 
+// Show/hide the "Continue with Google" button on the login screen.
+const SHOW_GOOGLE_LOGIN = false
+
 type LoginMode = 'choose' | 'email' | 'google' | 'wallet' | 'passkey'
 
 export function LoginPage() {
@@ -162,11 +165,14 @@ export function LoginPage() {
         <span>Continue with Email</span>
       </button>
 
-      {/* Google */}
-      <button onClick={() => setMode('google')} style={btnS(SURFACE, TEXT, BORDER)}>
-        <GoogleIcon />
-        <span>Continue with Google</span>
-      </button>
+      {/* Google — hidden for now. Flip SHOW_GOOGLE_LOGIN to true to bring it back; the Google
+          login flow (CircleGoogleLogin / 'google' mode) is untouched. */}
+      {SHOW_GOOGLE_LOGIN && (
+        <button onClick={() => setMode('google')} style={btnS(SURFACE, TEXT, BORDER)}>
+          <GoogleIcon />
+          <span>Continue with Google</span>
+        </button>
+      )}
 
       {/* Divider */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '4px 0' }}>
