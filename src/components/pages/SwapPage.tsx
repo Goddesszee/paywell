@@ -21,7 +21,7 @@ const TOKEN_META: Record<string, { label: string; color: string; address: `0x${s
   USDC:  { label: 'USD Coin',        color: '#2775CA', address: '0x3600000000000000000000000000000000000000', decimals: 6,  logo: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48/logo.png' },
   EURC:  { label: 'Euro Coin',        color: '#0099CC', address: '0xbEf5f6d51CB62b58e6A8f77868681825C6fe21c1', decimals: 6,  logo: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x1aBaEA1f7C830bD89Acc67eC4af516284b1bC33c/logo.png' },
   // cirBTC is live on Arc — confirmed address from Circle docs
-  cirBTC:{ label: 'Circle Wrapped BTC', color: '#F7931A', address: '0xf0C4a4CE82A5746AbAAd9425360Ab04fbBA432BF', decimals: 8, logo: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599/logo.png' },
+  cirBTC:{ label: 'Circle Wrapped BTC', color: '#F7931A', address: '0x171A4217b86A807A64eB94757Db6849fb4bDbAA0', decimals: 8, logo: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599/logo.png' },
   // Tokens below have no deployed contract on Arc — they are shown in
   // the selector for cross-chain awareness but flagged as unavailable on this chain.
   USDT:  { label: 'Tether USD',       color: '#26A17B', address: null, decimals: 6,  logo: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xdAC17F958D2ee523a2206206994597C13D831ec7/logo.png',  arcUnsupported: true },

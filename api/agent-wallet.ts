@@ -25,7 +25,7 @@ import { randomUUID } from 'crypto'
 // Arc USDC ERC-20 contract address
 const ARC_USDC = '0x3600000000000000000000000000000000000000'
 // CCTP V2 TokenMessengerV2 on Arc
-const ARC_TOKEN_MESSENGER_V2 = '0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA'
+const ARC_TOKEN_MESSENGER_V2 = '0x28b5a0e9C621a5BadaA536219b3a228C8168cf5d'
 
 const execFileAsync = promisify(execFile)
 
