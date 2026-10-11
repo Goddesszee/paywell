@@ -6,6 +6,11 @@
 - Stack: React + TypeScript + Vite + Tailwind + wagmi + ConnectKit
 - Design: Black & white, Inter font, Revolut-style
 
+## Contracts Staged for Arc Mainnet Deploy (chain ID 5042)
+- NANNameRegistry: `contracts/NANNameRegistry.sol` — deploy with `bun run deploy:self NANNameRegistry '["0x3600000000000000000000000000000000000000"]'`
+- PaywellEscrow: `contracts/PaywellEscrow.sol` — deploy with `bun run deploy:self PaywellEscrow '["0x3600000000000000000000000000000000000000","0x28b5a0e9C621a5BadaA536219b3a228C8168cf5d","0xYOUR_FEE_RECIPIENT"]'`
+- Full runbook: `docs/mainnet-deploy.md`
+
 ## Deployed Contracts (Arc Testnet — chain ID 5042002)
 - USDC: `0x3600000000000000000000000000000000000000`
 - EURC: `0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a`
