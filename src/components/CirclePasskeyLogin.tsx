@@ -64,10 +64,7 @@ export function CirclePasskeyLogin({ onBack, onSuccess }: Props) {
   const [hasExisting, setHasExisting] = useState(() => !!getStoredCredential())
 
   const clientKey = getClientKey()
-  // VITE_CLIENT_URL must be https://modular-sdk.circle.com/v1/rpc/w3s/buidl
-  // Fall back to the canonical URL so the env var being wrong/missing doesn't break passkey.
-  const clientUrl = (import.meta.env.VITE_CLIENT_URL as string | undefined)
-    || 'https://modular-sdk.circle.com/v1/rpc/w3s/buidl'
+  // CIRCLE_MODULAR_URL is hardcoded — no env var needed for the URL.
 
   async function buildAccount(credential: P256Credential) {
     if (!clientKey) throw new Error('VITE_CLIENT_KEY is not set. Add it in Circle Console → Client Keys.')
@@ -83,7 +80,7 @@ export function CirclePasskeyLogin({ onBack, onSuccess }: Props) {
 
   async function handleRegister() {
     const keyProblem = clientKeyProblem(clientKey)
-    if (keyProblem || !clientKey || !clientUrl) {
+    if (keyProblem || !clientKey) {
       setErrorMsg(keyProblem ?? 'VITE_CLIENT_KEY is not set. Complete the Circle Console setup first.')
       setStatus('error')
       return
@@ -118,7 +115,7 @@ export function CirclePasskeyLogin({ onBack, onSuccess }: Props) {
 
   async function handleLogin() {
     const keyProblem = clientKeyProblem(clientKey)
-    if (keyProblem || !clientKey || !clientUrl) {
+    if (keyProblem || !clientKey) {
       setErrorMsg(keyProblem ?? 'VITE_CLIENT_KEY is not set. Complete the Circle Console setup first.')
       setStatus('error')
       return

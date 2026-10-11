@@ -43,29 +43,33 @@ import { usePresence } from './hooks/usePresence'
 // Lazy-load Circle App Kit pages — they import @circle-fin/app-kit which
 // initialises sub-kit module-level code. Loading them lazily ensures React's
 // internal dispatcher is fully set up before any kit code runs.
-// If a lazy chunk fails to load (typically a stale tab after a new deploy, where the old hashed
-// file no longer exists), reload once to pick up the fresh bundle instead of leaving a blank page.
-function lazyWithReload<T extends ComponentType<Record<string, unknown>>>(factory: () => Promise<{ default: T }>) {
+// If a lazy chunk fails (stale tab after a deploy — old hash no longer exists on CDN),
+// reload ONCE per chunk to pick up the new bundle. Each chunk gets its own key so a
+// Bridge reload doesn't consume the Swap reload budget.
+function lazyWithReload<T extends ComponentType<Record<string, unknown>>>(chunkName: string, factory: () => Promise<{ default: T }>) {
   return lazy(async () => {
-    const KEY = 'chunk-reload-once'
+    const KEY = `chunk-reload-${chunkName}`
     try {
       const mod = await factory()
       try { sessionStorage.removeItem(KEY) } catch { /* ignore */ }
       return mod
     } catch (err) {
+      // Only reload for fetch/network errors (stale CDN hash) — not for JS runtime errors.
+      const msg = err instanceof Error ? err.message : String(err)
+      const isChunkLoadError = /failed to fetch|loading chunk|load module|dynamically imported|unexpected token/i.test(msg)
       let alreadyReloaded = false
       try { alreadyReloaded = sessionStorage.getItem(KEY) === '1'; sessionStorage.setItem(KEY, '1') } catch { /* ignore */ }
-      if (!alreadyReloaded) {
+      if (isChunkLoadError && !alreadyReloaded) {
         window.location.reload()
         return new Promise<{ default: T }>(() => { /* page is reloading */ })
       }
-      throw err // second failure: let the ErrorBoundary show a message
+      throw err // not a chunk error, or already reloaded — let ErrorBoundary handle it
     }
   })
 }
 
-const BridgePage = lazyWithReload(() => import('./components/pages/BridgePage').then(m => ({ default: m.BridgePage })))
-const SwapPage   = lazyWithReload(() => import('./components/pages/SwapPage').then(m => ({ default: m.SwapPage })))
+const BridgePage = lazyWithReload('bridge', () => import('./components/pages/BridgePage').then(m => ({ default: m.BridgePage })))
+const SwapPage   = lazyWithReload('swap',   () => import('./components/pages/SwapPage').then(m => ({ default: m.SwapPage })))
 
 function PageLoading() {
   return (
