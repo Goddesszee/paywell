@@ -308,7 +308,9 @@ async function handleWallet(req: VercelRequest, res: VercelResponse) {
       const kit = new AppKit()
 
       let resolveChallenge!: (id: string) => void
-      const challengePromise = new Promise<string>(resolve => { resolveChallenge = resolve })
+      let rejectChallenge!: (e: Error) => void
+      const challengePromise = new Promise<string>((resolve, reject) => { resolveChallenge = resolve; rejectChallenge = reject })
+      challengePromise.catch(() => { /* surfaced via Promise.race below */ })
 
       const adapter = await createCircleUserWalletAdapter({
         apiKey: key,
@@ -393,12 +395,16 @@ async function handleWallet(req: VercelRequest, res: VercelResponse) {
           useForwarder: true,
         },
         amount,
-      }).catch(() => { /* handled by ucw-bridge-confirm */ })
+      }).catch((e: unknown) => {
+        // If the bridge fails before a PIN challenge is issued, report the real reason to the user.
+        rejectChallenge(e instanceof Error ? e : new Error(String(e)))
+      })
 
+      // Must stay under the function's maxDuration (vercel.json) so we answer with JSON, not a platform timeout page.
       const challengeId = await Promise.race([
         challengePromise,
         new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('Timeout waiting for bridge challenge')), 30_000)
+          setTimeout(() => reject(new Error('Timed out waiting for the bridge approval request. Please try again.')), 40_000)
         ),
       ])
 
