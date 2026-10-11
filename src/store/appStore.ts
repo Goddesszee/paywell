@@ -433,7 +433,7 @@ export const useAppStore = create<AppState>()(
         })
       },
       logout: () => {
-        try { sessionStorage.removeItem('circle_ek') } catch { /* ignore */ }
+        try { sessionStorage.removeItem('circle_ek'); localStorage.removeItem('nan_last_view') } catch { /* ignore */ }
         set({ auth: null, ...USER_DEFAULTS })
       },
       setWallet: (walletAddress, walletId) =>

@@ -102,6 +102,24 @@ export default function App() {
   const { activeView } = useAppStore()
   useActivityStream() // real-time SSE feed — connects when wallet is present
   usePresence() // registers the user + wallets for the admin dashboard
+
+  // Keep signed-in users signed in: auth is persisted, but the current view is not,
+  // so every reload used to start on the landing page. Restore the last page instead.
+  useEffect(() => {
+    const NO_RESTORE = new Set(['landing', 'login', 'onboarding', 'name', 'admin'])
+    const st = useAppStore.getState()
+    const a = st.auth
+    if ((st.activeView === 'landing' || st.activeView === 'login') && (a?.walletAddress || a?.circleWalletAddress || a?.userToken || a?.sessionToken)) {
+      let last = ''
+      try { last = localStorage.getItem('nan_last_view') ?? '' } catch { /* ignore */ }
+      st.setActiveView(!st.profile.displayName ? 'name' : (last && !NO_RESTORE.has(last) ? last : 'home'))
+    }
+    // remember where the user is (only while signed in)
+    return useAppStore.subscribe((s, prev) => {
+      if (s.activeView === prev.activeView || !s.auth || NO_RESTORE.has(s.activeView)) return
+      try { localStorage.setItem('nan_last_view', s.activeView) } catch { /* ignore */ }
+    })
+  }, [])
   const [splashDone, setSplashDone] = useState(() => {
     // only show splash on first ever visit per session
     if (sessionStorage.getItem('nan_splash_shown')) return true
