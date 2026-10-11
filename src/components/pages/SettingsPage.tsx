@@ -117,7 +117,7 @@ export function SettingsPage() {
           icon={<Shield />}
           label="Network"
           sub={chain.name}
-          right={<Badge variant="default" size="sm">Testnet</Badge>}
+          right={<Badge variant={chain.isTestnet ? 'default' : 'success'} size="sm">{chain.isTestnet ? 'Testnet' : 'Mainnet'}</Badge>}
           noBorder
         />
       </CardBlock>
