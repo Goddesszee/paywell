@@ -221,7 +221,7 @@ function useTokenBalance(token: Token, address: `0x${string}` | undefined) {
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
-export function SwapPage() {
+export function SwapPage({ inCard = false }: { inCard?: boolean }) {
   const c = useNanTheme()
   const { connector, isConnected, address: wagmiAddress } = useAccount()
   const auth = useAppStore(s => s.auth)
@@ -480,7 +480,7 @@ export function SwapPage() {
 
   // ── Success screen ────────────────────────────────────────────────────────
   if (phase === 'done') return (
-    <div style={{ maxWidth: 480, margin: '0 auto', padding: '0 16px 100px', fontFamily: F }}>
+    <div style={{ maxWidth: 480, margin: '0 auto', padding: inCard ? '0 16px 24px' : '0 16px 100px', fontFamily: F }}>
       <div style={{ textAlign: 'center', padding: '56px 0 32px' }}>
         <div style={{ width: 72, height: 72, borderRadius: 24, background: 'rgba(16,185,129,0.10)', border: '2px solid rgba(16,185,129,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
           <CheckCircle size={32} color={c.green} strokeWidth={1.6} />
@@ -502,23 +502,36 @@ export function SwapPage() {
 
   // ── Main swap UI ──────────────────────────────────────────────────────────
   return (
-    <div style={{ maxWidth: 480, margin: '0 auto', padding: '0 16px 100px', fontFamily: F }}>
+    <div style={{ maxWidth: 480, margin: '0 auto', padding: inCard ? '0 16px 24px' : '0 16px 100px', fontFamily: F }}>
 
-      {/* ── Header ── */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 0 18px' }}>
-        <div>
-          <div style={{ fontSize: 22, fontWeight: 800, color: c.text, letterSpacing: '-0.03em', lineHeight: 1.1 }}>Swap</div>
-          <div style={{ fontSize: 12, color: c.t3, marginTop: 3 }}>Circle App Kit · Arc</div>
+      {/* ── Header (hidden when inCard — TradePage provides its own) ── */}
+      {!inCard && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 0 18px' }}>
+          <div>
+            <div style={{ fontSize: 22, fontWeight: 800, color: c.text, letterSpacing: '-0.03em', lineHeight: 1.1 }}>Swap</div>
+            <div style={{ fontSize: 12, color: c.t3, marginTop: 3 }}>Circle App Kit · Arc</div>
+          </div>
+          <button onClick={() => setShowSlippage(true)}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 14px', borderRadius: 12, border: `1px solid ${c.bdr}`, background: c.surf, cursor: 'pointer', transition: 'all 0.15s', WebkitTapHighlightColor: 'transparent' }}>
+            <Settings size={13} color={c.t2} strokeWidth={2} />
+            <span style={{ fontSize: 13, fontWeight: 700, color: c.t2 }}>{(slippageBps / 100).toFixed(2)}%</span>
+          </button>
         </div>
-        <button onClick={() => setShowSlippage(true)}
-          style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 14px', borderRadius: 12, border: `1px solid ${c.bdr}`, background: c.surf, cursor: 'pointer', transition: 'all 0.15s', WebkitTapHighlightColor: 'transparent' }}>
-          <Settings size={13} color={c.t2} strokeWidth={2} />
-          <span style={{ fontSize: 13, fontWeight: 700, color: c.t2 }}>{(slippageBps / 100).toFixed(2)}%</span>
-        </button>
-      </div>
+      )}
+
+      {/* Slippage button inside card (top-right of sell panel area) */}
+      {inCard && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: 14, paddingBottom: 4 }}>
+          <button onClick={() => setShowSlippage(true)}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 10, border: `1px solid ${c.bdr}`, background: c.surf2, cursor: 'pointer', transition: 'all 0.15s', WebkitTapHighlightColor: 'transparent' }}>
+            <Settings size={12} color={c.t2} strokeWidth={2} />
+            <span style={{ fontSize: 12, fontWeight: 700, color: c.t2 }}>{(slippageBps / 100).toFixed(2)}%</span>
+          </button>
+        </div>
+      )}
 
       {/* ── Sell panel ── */}
-      <div style={{ background: c.surf, border: `1px solid ${c.bdr}`, borderRadius: 20, overflow: 'visible', marginBottom: 2 }}>
+      <div style={{ background: inCard ? 'transparent' : c.surf, border: inCard ? 'none' : `1px solid ${c.bdr}`, borderRadius: inCard ? 0 : 20, borderBottom: inCard ? `1px solid ${c.bdr}` : undefined, overflow: 'visible', marginBottom: inCard ? 0 : 2 }}>
         <div style={{ padding: '18px 18px 16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
             <span style={{ fontSize: 11, fontWeight: 700, color: c.t3, textTransform: 'uppercase' as const, letterSpacing: '0.08em' }}>You pay</span>
@@ -556,14 +569,14 @@ export function SwapPage() {
       </div>
 
       {/* ── Flip ── */}
-      <div style={{ display: 'flex', justifyContent: 'center', margin: '6px 0', zIndex: 2, position: 'relative' }}>
+      <div style={{ display: 'flex', justifyContent: 'center', margin: inCard ? '0' : '6px 0', zIndex: 2, position: 'relative', padding: inCard ? '10px 0' : 0 }}>
         <button onClick={flipTokens} style={{ width: 40, height: 40, borderRadius: 13, border: `1px solid ${c.bdr}`, background: c.surf, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'transform 0.2s', WebkitTapHighlightColor: 'transparent', boxShadow: '0 2px 12px rgba(0,0,0,0.18)' }}>
           <ArrowDown size={16} color={c.blue} strokeWidth={2.5} />
         </button>
       </div>
 
       {/* ── Buy panel ── */}
-      <div style={{ background: c.surf, border: `1px solid ${c.bdr}`, borderRadius: 20, overflow: 'hidden', marginBottom: 14 }}>
+      <div style={{ background: inCard ? 'transparent' : c.surf, border: inCard ? 'none' : `1px solid ${c.bdr}`, borderRadius: inCard ? 0 : 20, borderBottom: inCard ? `1px solid ${c.bdr}` : undefined, overflow: 'hidden', marginBottom: inCard ? 0 : 14 }}>
         <div style={{ padding: '18px 18px 20px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
             <span style={{ fontSize: 11, fontWeight: 700, color: c.t3, textTransform: 'uppercase' as const, letterSpacing: '0.08em' }}>You receive</span>
@@ -595,7 +608,7 @@ export function SwapPage() {
 
       {/* ── Warnings ── */}
       {(sameToken || arcNoPair || arcUnsupportedPair) && (
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '12px 14px', background: 'rgba(255,149,0,0.06)', border: '1px solid rgba(255,149,0,0.20)', borderRadius: 14, marginBottom: 12, fontSize: 13, color: c.t2, lineHeight: 1.5 }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '12px 14px', background: 'rgba(255,149,0,0.06)', border: '1px solid rgba(255,149,0,0.20)', borderRadius: 14, marginBottom: 12, marginTop: inCard ? 14 : 0, fontSize: 13, color: c.t2, lineHeight: 1.5 }}>
           <AlertCircle size={14} color="#FF9500" style={{ flexShrink: 0, marginTop: 1 }} />
           <span>
             {arcNoPair ? 'USDC and NATIVE are the same asset on Arc.'
@@ -607,7 +620,7 @@ export function SwapPage() {
 
       {/* ── Quote details ── */}
       {reviewed && phase === 'reviewed' && (
-        <div style={{ background: c.surf, border: `1px solid ${c.bdr}`, borderRadius: 16, padding: '4px 16px', marginBottom: 14 }}>
+        <div style={{ background: inCard ? c.surf2 : c.surf, border: `1px solid ${c.bdr}`, borderRadius: 16, padding: '4px 16px', marginBottom: 14, marginTop: inCard ? 14 : 0 }}>
           {([
             ['Estimated output', `${estimatedOut?.amount ?? '—'} ${estimatedOut?.token ?? tokenOut}`],
             ['Slippage tolerance', `${(reviewed.slippageBps / 100).toFixed(2)}%`],
@@ -646,7 +659,7 @@ export function SwapPage() {
 
       {/* ── CTA ── */}
       {phase === 'reviewed' ? (
-        <div style={{ display: 'flex', gap: 10 }}>
+        <div style={{ display: 'flex', gap: 10, marginTop: inCard ? 14 : 0 }}>
           <button onClick={clearQuote}
             style={{ flex: 1, height: 54, borderRadius: 16, border: `1px solid ${c.bdr}`, background: c.surf, color: c.t2, fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, WebkitTapHighlightColor: 'transparent' }}>
             <RefreshCw size={13} /> New quote
@@ -658,7 +671,7 @@ export function SwapPage() {
         </div>
       ) : (
         <button onClick={() => void reviewSwap()} disabled={!canReview || phase === 'estimating' || phase === 'swapping'}
-          style={{ width: '100%', height: 54, borderRadius: 16, border: 'none', background: canReview && phase !== 'estimating' && phase !== 'swapping' ? c.blue : c.surf2, color: canReview && phase !== 'estimating' && phase !== 'swapping' ? '#fff' : c.t3, fontSize: 15, fontWeight: 800, cursor: canReview ? 'pointer' : 'not-allowed', fontFamily: F, transition: 'all 0.15s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, boxShadow: canReview && phase === 'idle' ? '0 6px 24px rgba(8,102,245,0.30)' : 'none', WebkitTapHighlightColor: 'transparent' }}>
+          style={{ width: '100%', height: 54, borderRadius: 16, border: 'none', background: canReview && phase !== 'estimating' && phase !== 'swapping' ? c.blue : c.surf2, color: canReview && phase !== 'estimating' && phase !== 'swapping' ? '#fff' : c.t3, fontSize: 15, fontWeight: 800, cursor: canReview ? 'pointer' : 'not-allowed', fontFamily: F, transition: 'all 0.15s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, boxShadow: canReview && phase === 'idle' ? '0 6px 24px rgba(8,102,245,0.30)' : 'none', WebkitTapHighlightColor: 'transparent', marginTop: inCard ? 14 : 0 }}>
           {phase === 'estimating'
             ? <><span className="nan-spinner" />Getting quote…</>
             : phase === 'swapping'
@@ -671,7 +684,7 @@ export function SwapPage() {
         </button>
       )}
 
-      <div style={{ marginTop: 14, fontSize: 11, color: c.t3, textAlign: 'center' }}>Powered by Circle App Kit · Routed via LiFi</div>
+      <div style={{ marginTop: 14, fontSize: 11, color: c.t3, textAlign: 'center', paddingBottom: inCard ? 4 : 0 }}>Powered by Circle App Kit · Routed via LiFi</div>
 
       {/* ── Modals ── */}
       {showSellModal && <TokenModal current={tokenIn} exclude={tokenOut} onSelect={t => { setTokenIn(t); setReviewed(null); setPhase('idle') }} onClose={() => setShowSellModal(false)} c={c} />}

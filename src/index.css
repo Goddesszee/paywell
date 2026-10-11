@@ -25,33 +25,6 @@
   30%            { transform: translateY(-5px); opacity: 1 }
 }
 
-/* ── TradePage: hide sub-page headers when rendered inside the unified card ── */
-/* SwapPage header = first div > div.flex (the "Swap / slippage" row)           */
-/* BridgePage header = first div > div (the "Bridge USDC / subtitle" row)       */
-.trade-page-inner > div > div:first-child {
-  display: none !important;
-}
-/* Remove the sub-page outer horizontal padding — card provides its own */
-.trade-page-inner > div {
-  padding-left: 0 !important;
-  padding-right: 0 !important;
-  max-width: none !important;
-  margin-left: 0 !important;
-  margin-right: 0 !important;
-}
-/* Re-add consistent inner padding to all card rows */
-.trade-page-inner--swap > div > div:not(:first-child),
-.trade-page-inner--bridge > div > div:not(:first-child) {
-  padding-left: 16px;
-  padding-right: 16px;
-}
-/* Swap: the sell/buy panels and action buttons are direct children of the outer div.
-   Add side padding uniformly. */
-.trade-page-inner--swap > div > div { padding-left: 16px; padding-right: 16px; }
-/* Bridge: same treatment */
-.trade-page-inner--bridge > div > div { padding-left: 16px; padding-right: 16px; }
-/* Keep bottom padding inside card */
-.trade-page-inner > div { padding-bottom: 24px !important; }
 
 .nan-skeleton {
   background: linear-gradient(90deg, var(--nan-surface2) 25%, var(--nan-surface3) 50%, var(--nan-surface2) 75%);

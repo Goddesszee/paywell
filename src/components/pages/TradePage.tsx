@@ -158,48 +158,12 @@ export function TradePage({ initialTab = 'swap' }: TradePageProps) {
   )
 }
 
-/**
- * Thin wrappers that inject the card's padding and strip the
- * sub-page's own header (the sub-pages render their own title + slippage
- * button in a `padding: '20px 0 18px'` block — we replace that with
- * a tighter in-card variant by overriding the container padding via CSS).
- */
+// These pass inCard=true so SwapPage/BridgePage strip their own headers
+// and inner card chrome — the outer TradePage card is the only chrome shown.
 function SwapInCard() {
-  return (
-    <div style={{ paddingTop: 4 }}>
-      <SwapPageInCard />
-    </div>
-  )
+  return <SwapContent inCard />
 }
 
 function BridgeInCard() {
-  return (
-    <div style={{ paddingTop: 4 }}>
-      <BridgePageInCard />
-    </div>
-  )
-}
-
-// ---------------------------------------------------------------------------
-// Inline stripped variants
-// Instead of forking the pages, we simply render them and rely on the card's
-// clip via overflow:hidden — but we also need to remove the card's own
-// page-level header row. We do this by rendering the original component
-// inside a CSS-scoped wrapper that hides its first child (the header row).
-// ---------------------------------------------------------------------------
-
-function SwapPageInCard() {
-  return (
-    <div className="trade-page-inner trade-page-inner--swap">
-      <SwapContent />
-    </div>
-  )
-}
-
-function BridgePageInCard() {
-  return (
-    <div className="trade-page-inner trade-page-inner--bridge">
-      <BridgeContent />
-    </div>
-  )
+  return <BridgeContent inCard />
 }

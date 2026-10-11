@@ -74,7 +74,7 @@ const INITIAL_STEPS: StepState[] = [
 
 interface LiveFee { bps: number; label: string; fetched: boolean }
 
-export function BridgePage() {
+export function BridgePage({ inCard = false }: { inCard?: boolean }) {
   const { connector, isConnected, address: wagmiAddress } = useAccount()
   const auth = useAppStore(s => s.auth)
   const isPasskeyUser = !wagmiAddress && !!auth?.isPasskeyUser
@@ -397,16 +397,20 @@ export function BridgePage() {
   )
 
   return (
-    <div style={{ fontFamily: SANS, maxWidth: 480, margin: '0 auto', padding: '0 16px 100px' }}>
+    <div style={{ fontFamily: SANS, maxWidth: 480, margin: '0 auto', padding: inCard ? '0 16px 24px' : '0 16px 100px' }}>
 
-      {/* ── Header ── */}
-      <div style={{ padding: '20px 0 18px' }}>
-        <div style={{ fontSize: 22, fontWeight: 800, color: T, letterSpacing: '-0.03em', lineHeight: 1.1 }}>Bridge USDC</div>
-        <div style={{ fontSize: 12, color: T2, marginTop: 3 }}>Circle CCTP V2 · cross-chain in seconds</div>
-      </div>
+      {/* ── Header (hidden when inCard — TradePage provides its own) ── */}
+      {!inCard && (
+        <div style={{ padding: '20px 0 18px' }}>
+          <div style={{ fontSize: 22, fontWeight: 800, color: T, letterSpacing: '-0.03em', lineHeight: 1.1 }}>Bridge USDC</div>
+          <div style={{ fontSize: 12, color: T2, marginTop: 3 }}>Circle CCTP V2 · cross-chain in seconds</div>
+        </div>
+      )}
+
+      {inCard && <div style={{ height: 14 }} />}
 
       {/* ── From / To ── */}
-      <div style={{ background: S, border: `1px solid ${B}`, borderRadius: 20, overflow: 'visible', marginBottom: 14 }}>
+      <div style={{ background: inCard ? 'transparent' : S, border: inCard ? 'none' : `1px solid ${B}`, borderRadius: inCard ? 0 : 20, borderBottom: inCard ? `1px solid ${B}` : undefined, overflow: 'visible', marginBottom: inCard ? 0 : 14 }}>
         {/* From */}
         <div style={{ padding: '16px 18px 14px' }}>
           <div style={{ fontSize: 10, fontWeight: 700, color: T3, textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 10 }}>From</div>
@@ -429,7 +433,7 @@ export function BridgePage() {
       </div>
 
       {/* ── Amount ── */}
-      <div style={{ background: S, border: `1px solid ${B}`, borderRadius: 20, padding: '16px 18px', marginBottom: 14 }}>
+      <div style={{ background: inCard ? 'transparent' : S, border: inCard ? 'none' : `1px solid ${B}`, borderBottom: inCard ? `1px solid ${B}` : undefined, borderRadius: inCard ? 0 : 20, padding: '16px 18px', marginBottom: inCard ? 0 : 14 }}>
         <div style={{ fontSize: 10, fontWeight: 700, color: T3, textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 12 }}>Amount</div>
         <div style={{ position: 'relative' as const }}>
           <input type="number" min="0" step="0.01" placeholder="0.00" value={amount}
@@ -448,7 +452,7 @@ export function BridgePage() {
       </div>
 
       {/* ── Transfer summary ── */}
-      <div style={{ background: S, border: `1px solid ${B}`, borderRadius: 16, padding: '4px 18px', marginBottom: 14 }}>
+      <div style={{ background: inCard ? WH : S, border: `1px solid ${B}`, borderRadius: 16, padding: '4px 18px', marginBottom: 14, marginTop: inCard ? 14 : 0 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderBottom: `1px solid ${B}` }}>
           <span style={{ fontSize: 11, fontWeight: 700, color: T3, textTransform: 'uppercase' as const, letterSpacing: '0.07em' }}>Transfer Summary</span>
           <span style={{ fontSize: 11, color: T3 }}>CCTP V2 · 8–20s</span>
@@ -494,7 +498,7 @@ export function BridgePage() {
 
       {/* ── Steps ── */}
       {status !== 'idle' && (
-        <div style={{ background: S, border: `1px solid ${B}`, borderRadius: 16, overflow: 'hidden', marginBottom: 14 }}>
+        <div style={{ background: inCard ? WH : S, border: `1px solid ${B}`, borderRadius: 16, overflow: 'hidden', marginBottom: 14 }}>
           {steps.map((step, i) => (
             <div key={step.name} style={{ padding: '13px 18px', borderBottom: i < steps.length - 1 ? `1px solid ${B}` : 'none', display: 'flex', alignItems: 'center', gap: 12 }}>
               <div style={{ width: 32, height: 32, borderRadius: 10, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
