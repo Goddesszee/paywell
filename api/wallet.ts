@@ -333,13 +333,17 @@ async function handleWallet(req: VercelRequest, res: VercelResponse) {
         tokenIn, tokenOut, amountIn,
         // SCA wallets (UCW) must use 'approve' — USDC permit uses ecrecover which rejects SCA signatures
         config: { slippageBps: slippageBps ? Number(slippageBps) : 300, allowanceStrategy: 'approve', apiKey: swapApiKey(key) },
-      }).catch(() => { /* handled by ucw-swap-confirm */ })
+      }).catch((e: unknown) => {
+        // The swap failed before any PIN challenge was issued — report the real reason.
+        console.error('[ucw-swap-start] kit.swap failed:', e)
+        rejectChallenge(e instanceof Error ? e : new Error(String(e)))
+      })
 
-      // Wait up to 30s for the challenge to be issued
+      // Wait for the challenge; must stay under the function's maxDuration (60s) so we reply with JSON.
       const challengeId = await Promise.race([
         challengePromise,
         new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('Timeout waiting for swap challenge')), 30_000)
+          setTimeout(() => reject(new Error('Timed out waiting for the swap approval request. Please try again.')), 40_000)
         ),
       ])
 
