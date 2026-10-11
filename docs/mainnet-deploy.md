@@ -84,3 +84,8 @@ Both `NANNameRegistry` and `PaywellEscrow` should compile with no errors.
 
 - NANNameRegistry: `https://explorer.arc.io/address/<address>`
 - PaywellEscrow: `https://explorer.arc.io/address/<address>`
+
+## Swap key (required for swaps on mainnet)
+Circle App Kit swap needs a key in its config. Set in Vercel:
+- `VITE_KIT_KEY` — Circle Console key (LIVE) used by the browser swap paths (connected wallet / passkey / agent). Redeploy after setting.
+- Email/Google (server) swaps automatically use your LIVE `CIRCLE_API_KEY`; set `KIT_KEY` only to override.

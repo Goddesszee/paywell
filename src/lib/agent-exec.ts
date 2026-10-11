@@ -11,6 +11,7 @@
  */
 
 import { AppKit } from '@circle-fin/app-kit'
+import { swapKeyConfig } from '../lib/swap-key'
 import { createViemAdapterFromProvider } from '@circle-fin/adapter-viem-v2'
 import { W3SSdk } from '@circle-fin/w3s-pw-web-sdk'
 import type { EIP1193Provider } from 'viem'
@@ -287,14 +288,14 @@ export async function runAgentSwap(
     const estimate = await appKit.estimateSwap({
       from: { adapter, chain: ARC_KIT_NAME },
       tokenIn, tokenOut, amountIn: params.amount,
-      config: { slippageBps: SLIPPAGE_BPS },
+      config: { slippageBps: SLIPPAGE_BPS, ...swapKeyConfig() },
     })
     const outAmount = estimate.estimatedOutput?.amount
     notify(`Quote: about ${outAmount ?? '—'} ${tokenOut}. ${kind === 'passkey' ? 'Approve with your passkey' : 'Confirm in your wallet'}…`)
     const result = await appKit.swap({
       from: { adapter, chain: ARC_KIT_NAME },
       tokenIn, tokenOut, amountIn: params.amount,
-      config: { slippageBps: SLIPPAGE_BPS },
+      config: { slippageBps: SLIPPAGE_BPS, ...swapKeyConfig() },
     })
     const hash = (result as { txHash?: string }).txHash ?? ''
     const url = (result as { explorerUrl?: string }).explorerUrl

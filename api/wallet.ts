@@ -37,6 +37,11 @@ function apiKey(): string | undefined {
   return circleKeyInfo()?.key
 }
 
+/** App Kit swap needs a Circle API key in its config on mainnet. KIT_KEY (legacy kit key) wins if set, else the LIVE Circle API key. */
+function swapApiKey(fallback: string): string {
+  return (process.env.KIT_KEY ?? process.env.CIRCLE_KIT_KEY ?? '').trim().replace(/^["']|["']$/g, '') || fallback
+}
+
 function ucwClient() {
   const key = requireCircleKey()
   return initiateUserControlledWalletsClient({ apiKey: key })
@@ -283,7 +288,7 @@ async function handleWallet(req: VercelRequest, res: VercelResponse) {
         from: { adapter, chain: 'Arc' },
         tokenIn, tokenOut, amountIn,
         // SCA wallets (UCW) must use 'approve' — USDC permit uses ecrecover which rejects SCA signatures
-        config: { slippageBps: slippageBps ? Number(slippageBps) : 300, allowanceStrategy: 'approve' },
+        config: { slippageBps: slippageBps ? Number(slippageBps) : 300, allowanceStrategy: 'approve', apiKey: swapApiKey(key) },
       })
       return res.json({ estimate })
     } catch (e) {
@@ -327,7 +332,7 @@ async function handleWallet(req: VercelRequest, res: VercelResponse) {
         from: { adapter, chain: 'Arc' },
         tokenIn, tokenOut, amountIn,
         // SCA wallets (UCW) must use 'approve' — USDC permit uses ecrecover which rejects SCA signatures
-        config: { slippageBps: slippageBps ? Number(slippageBps) : 300, allowanceStrategy: 'approve' },
+        config: { slippageBps: slippageBps ? Number(slippageBps) : 300, allowanceStrategy: 'approve', apiKey: swapApiKey(key) },
       }).catch(() => { /* handled by ucw-swap-confirm */ })
 
       // Wait up to 30s for the challenge to be issued
