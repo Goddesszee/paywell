@@ -4,12 +4,12 @@
  */
 
 import { http, createConfig } from 'wagmi'
-import { mainnet, base, arbitrum, optimism, polygon, avalanche } from 'wagmi/chains'
+import { mainnet, base, arbitrum, optimism, polygon, avalanche, zkSync } from 'wagmi/chains'
 import { arc } from 'viem/chains'
 import { injected } from 'wagmi/connectors'
 import { registerChain } from './tracing'
 
-// Unichain Mainnet (chainId 130) — not yet in wagmi/chains, define manually.
+// Unichain Mainnet (chainId 130)
 const unichain = {
   id: 130,
   name: 'Unichain',
@@ -42,7 +42,7 @@ const worldChain = {
   name: 'World Chain',
   nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
   rpcUrls: { default: { http: ['https://worldchain-mainnet.g.alchemy.com/public'] } },
-  blockExplorers: { default: { name: 'World Chain Explorer', url: 'https://worldchain-mainnet.explorer.alchemy.com' } },
+  blockExplorers: { default: { name: 'World Chain Explorer', url: 'https://worldscan.org' } },
 } as const
 
 // Pre-register Arc Mainnet RPC URL so trace events show correct chain names immediately
@@ -51,7 +51,7 @@ registerChain(arc.id, 'https://rpc.mainnet.arc.io')
 export const config = createConfig({
   chains: [
     arc,
-    mainnet,      // ENS resolution
+    mainnet,      // ENS resolution + USDC/EURC
     base,
     arbitrum,
     optimism,
@@ -61,6 +61,7 @@ export const config = createConfig({
     linea,
     sei,
     worldChain,
+    zkSync,
   ],
   connectors: [injected()],
   transports: {
@@ -75,5 +76,6 @@ export const config = createConfig({
     [linea.id]:       http(),
     [sei.id]:         http(),
     [worldChain.id]:  http(),
+    [zkSync.id]:      http(),
   },
 })

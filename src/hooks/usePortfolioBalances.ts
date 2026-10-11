@@ -74,15 +74,18 @@ export const PORTFOLIO_CHAINS = ONCHAIN_CHAINS.filter(
   (c) => !c.isTestnet && !!c.usdc,
 )
 
-// ── Well-known testnet token addresses ───────────────────────────────────────
-// EURC only exists on Arc and Ethereum Sepolia for now
+// ── EURC mainnet addresses (verified from Circle docs) ───────────────────────
+// Source: https://developers.circle.com/stablecoins/eurc-contract-addresses.md
 const EURC_BY_CHAIN: Record<number, `0x${string}`> = {
-  5042:  '0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a', // Arc
-  11155111: '0x08210F9170F89Ab7658F0B5E3fF39b0E03C2Bfa4', // Ethereum Sepolia (Circle testnet EURC)
+  5042:  '0xbEf5f6d51CB62b58e6A8f77868681825C6fe21c1', // Arc mainnet
+  1:     '0x1aBaEA1f7C830bD89Acc67eC4af516284b1bC33c', // Ethereum mainnet
+  8453:  '0x60a3E35Cc302bFA44Cb288Bc5a4F316Fdb1adb42', // Base mainnet
+  43114: '0xC891EB4cbdEFf6e073e859e987815Ed1505c2ACD', // Avalanche mainnet
+  480:   '0x1C60ba0A0eD1019e8Eb035E6daF4155A5cE2380B', // World Chain mainnet
 }
 
-// USDT — no official Circle testnet USDT, so we track what's available
-// (kept empty for now so we never show a 0.00 placeholder for a non-existent contract)
+// USDT — not widely deployed on Circle-supported chains; left empty so we
+// never show a 0.00 placeholder for a non-existent contract.
 const USDT_BY_CHAIN: Record<number, `0x${string}`> = {}
 
 export interface TokenPosition {

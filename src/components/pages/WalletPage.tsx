@@ -31,7 +31,7 @@ const SANS = 'Inter, -apple-system, sans-serif'
 // ── Supported send tokens ─────────────────────────────────────────────────────
 const SEND_TOKENS = [
   { symbol: 'USDC', label: 'USD Coin',  address: '0x3600000000000000000000000000000000000000' as `0x${string}`, decimals: 6, color: '#2775CA' },
-  { symbol: 'EURC', label: 'Euro Coin', address: '0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a' as `0x${string}`, decimals: 6, color: '#0099CC' },
+  { symbol: 'EURC', label: 'Euro Coin', address: '0xbEf5f6d51CB62b58e6A8f77868681825C6fe21c1' as `0x${string}`, decimals: 6, color: '#0099CC' },
 ] as const
 type SendToken = typeof SEND_TOKENS[number]
 
@@ -69,7 +69,7 @@ function useWalletBalance(address: string) {
 }
 
 // ── Live token list: USDC (passed in) + EURC (live read) ─────────────────────
-const EURC_ADDRESS = '0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a' as `0x${string}`
+const EURC_ADDRESS = '0xbEf5f6d51CB62b58e6A8f77868681825C6fe21c1' as `0x${string}`
 
 function TokenList({ address, usdcBalance }: { address: string; usdcBalance: string }) {
   const { balance: eurcBalance, isLoading: eurcLoading } = useTokenBalance(EURC_ADDRESS, 6, address)

@@ -445,6 +445,84 @@ const FACTS: OnchainFacts = {
         "address": "0x1d17CBcF0D6D143135aE902365D2E5e2A16538D4",
         "decimals": 6
       }
+    },
+    {
+      "chainId": 59144,
+      "name": "Linea",
+      "isTestnet": false,
+      "explorerBase": "https://lineascan.build",
+      "rpcUrls": [
+        "https://rpc.linea.build"
+      ],
+      "nativeCurrency": {
+        "symbol": "ETH",
+        "decimals": 18,
+        "isUsdc": false
+      },
+      "usdc": {
+        "symbol": "USDC",
+        "address": "0x176211869cA2b568f2A7D4EE941E073a821EE1ff",
+        "decimals": 6
+      }
+    },
+    {
+      "chainId": 1329,
+      "name": "Sei",
+      "isTestnet": false,
+      "explorerBase": "https://seistream.app",
+      "rpcUrls": [
+        "https://evm-rpc.sei-apis.com"
+      ],
+      "nativeCurrency": {
+        "symbol": "SEI",
+        "decimals": 18,
+        "isUsdc": false
+      },
+      "usdc": {
+        "symbol": "USDC",
+        "address": "0xe15fC38F6D8c56aF07bbCBe3BAf5708A2Bf42392",
+        "decimals": 6
+      },
+      "cctpDomain": 16
+    },
+    {
+      "chainId": 130,
+      "name": "Unichain",
+      "isTestnet": false,
+      "family": "op-stack",
+      "explorerBase": "https://uniscan.xyz",
+      "rpcUrls": [
+        "https://mainnet.unichain.org"
+      ],
+      "nativeCurrency": {
+        "symbol": "ETH",
+        "decimals": 18,
+        "isUsdc": false
+      },
+      "usdc": {
+        "symbol": "USDC",
+        "address": "0x078D782b760474a361dDA0AF3839290b0EF57AD6",
+        "decimals": 6
+      }
+    },
+    {
+      "chainId": 480,
+      "name": "World Chain",
+      "isTestnet": false,
+      "explorerBase": "https://worldscan.org",
+      "rpcUrls": [
+        "https://worldchain-mainnet.g.alchemy.com/public"
+      ],
+      "nativeCurrency": {
+        "symbol": "ETH",
+        "decimals": 18,
+        "isUsdc": false
+      },
+      "usdc": {
+        "symbol": "USDC",
+        "address": "0x79A02482A880bCe3F13E09da970dC34dB4cD24D1",
+        "decimals": 6
+      }
     }
   ],
   "protocolContracts": [
