@@ -61,7 +61,7 @@ const FACTS: OnchainFacts = {
     {
       "chainId": 5042,
       "name": "Arc",
-      "isTestnet": true,
+      "isTestnet": false,
       "family": "arc",
       "explorerBase": "https://explorer.arc.io",
       "rpcUrls": [
@@ -79,27 +79,6 @@ const FACTS: OnchainFacts = {
       },
       "cctpDomain": 26,
       "scpBlockchain": "ARC"
-    },
-    {
-      "chainId": 5042,
-      "name": "Arc",
-      "isTestnet": false,
-      "family": "arc",
-      "explorerBase": "https://explorer.arc.io",
-      "rpcUrls": [
-        "https://rpc.mainnet.arc.io"
-      ],
-      "nativeCurrency": {
-        "symbol": "USDC",
-        "decimals": 18,
-        "isUsdc": true
-      },
-      "usdc": {
-        "symbol": "USDC",
-        "address": "0x3600000000000000000000000000000000000000",
-        "decimals": 6
-      },
-      "cctpDomain": 26
     },
     {
       "chainId": 11155111,

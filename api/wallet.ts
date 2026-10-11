@@ -148,7 +148,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const client = ucwClient()
       const response = await client.createUserPinWithWallets({
         userToken,
-        blockchains: [Blockchain.ArcTestnet],
+        blockchains: [Blockchain.Arc],
         accountType: 'SCA',
       })
       return res.json({ challengeId: response.data?.challengeId })

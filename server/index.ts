@@ -734,15 +734,14 @@ async function circleTransfer(opts: {
 }) {
   // Uses the official Circle developer-controlled wallets SDK.
   // The SDK requires tokenId (Circle's internal token identifier), NOT tokenAddress.
-  // USDC tokenId on Arc is the canonical Circle ID for testnet USDC.
+  // USDC tokenId on Arc is the canonical Circle ID for USDC on Arc (mainnet and testnet share the same token ID).
   const { initiateDeveloperControlledWalletsClient } = await import('@circle-fin/developer-controlled-wallets')
   const client = initiateDeveloperControlledWalletsClient({
     apiKey: opts.apiKey,
     entitySecret: opts.entitySecret,
   })
 
-  // Arc USDC tokenId — obtain at runtime by listing wallet token balances
-  // if not known, or hard-code the well-known testnet value.
+  // Arc USDC tokenId — the Circle-internal UUID for USDC on Arc.
   // We pass tokenAddress here via the amounts array using the SDK's transfer method.
   const response = await client.createTransaction({
     walletId: opts.walletId,
