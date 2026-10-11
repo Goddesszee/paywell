@@ -1,4 +1,5 @@
 import { Info, MessageSquare, HelpCircle } from 'lucide-react'
+import { BackButton } from '../ui/BackButton'
 import { useAppStore } from '../../store/appStore'
 import { ABOUT as about, ABOUT_FEATURES } from '../../lib/about-faq-content'
 
@@ -8,6 +9,7 @@ export function AboutPage() {
   const { setActiveView } = useAppStore()
   return (
     <div style={{ width: '100%', minHeight: '100%', fontFamily: SANS }}>
+      <BackButton from="about" />
       {/* Header */}
       <div style={{ marginBottom: 24 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>

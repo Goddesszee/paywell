@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Lightbulb, Send, CheckCircle, ArrowLeft, Plus, ChevronRight } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
+import { useGoBack } from '../../hooks/useGoBack'
 import { useNanTheme } from '../../hooks/useNanTheme'
 
 const F = "'Inter', -apple-system, sans-serif"
@@ -26,6 +27,7 @@ interface Suggestion { id: string; title: string; description: string; category:
 export function SuggestionsPage() {
   const C = useNanTheme()
   const { auth, setActiveView } = useAppStore()
+  const goBack = useGoBack('suggestions')
   const [view, setView]             = useState<'list' | 'new'>('list')
   const [title, setTitle]           = useState('')
   const [description, setDescription] = useState('')
@@ -97,7 +99,7 @@ export function SuggestionsPage() {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <button onClick={() => view === 'new' ? setView('list') : setActiveView('home')}
+          <button onClick={() => view === 'new' ? setView('list') : goBack()}
             style={{ width: 32, height: 32, borderRadius: 8, background: C.surf, border: `1px solid ${C.bdr}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
             <ArrowLeft size={15} color={C.t2} />
           </button>

@@ -3,6 +3,7 @@ import {
   MessageSquare, Plus, ChevronRight, ArrowLeft,
   Send, Clock, CheckCircle, AlertCircle, RotateCcw
 } from 'lucide-react'
+import { BackButton } from '../ui/BackButton'
 import { useAppStore } from '../../store/appStore'
 
 const SANS = "var(--nan-font, 'Inter', sans-serif)"
@@ -178,6 +179,7 @@ export function SupportPage() {
   // ── List view ────────────────────────────────────────────────────────────────
   if (view === 'list') return (
     <div style={{ width: '100%', minHeight: '100%', fontFamily: SANS }}>
+      <BackButton from="support" />
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>

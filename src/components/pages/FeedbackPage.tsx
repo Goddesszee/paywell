@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Star, Send, CheckCircle, MessageSquare, ArrowLeft } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
+import { useGoBack } from '../../hooks/useGoBack'
 import { useNanTheme } from '../../hooks/useNanTheme'
 
 const F = "'Inter', -apple-system, sans-serif"
@@ -16,6 +17,7 @@ const CATEGORIES = [
 export function FeedbackPage() {
   const C = useNanTheme()
   const { auth, setActiveView } = useAppStore()
+  const goBack = useGoBack('feedback')
   const [rating, setRating]       = useState(0)
   const [hovered, setHovered]     = useState(0)
   const [comment, setComment]     = useState('')
@@ -66,7 +68,7 @@ export function FeedbackPage() {
     <div style={{ width: '100%', minHeight: '100%', fontFamily: F, paddingBottom: 80 }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 24 }}>
-        <button onClick={() => setActiveView('home')} style={{ width: 32, height: 32, borderRadius: 8, background: C.surf, border: `1px solid ${C.bdr}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+        <button onClick={goBack} aria-label="Back" style={{ width: 32, height: 32, borderRadius: 8, background: C.surf, border: `1px solid ${C.bdr}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
           <ArrowLeft size={15} color={C.t2} />
         </button>
         <div>

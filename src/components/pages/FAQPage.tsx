@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react'
 import { HelpCircle, Search, ChevronDown, ChevronUp } from 'lucide-react'
+import { BackButton } from '../ui/BackButton'
 import { FAQS as faqs } from '../../lib/about-faq-content'
 
 const SANS = "var(--nan-font, 'Inter', sans-serif)"
@@ -30,6 +31,7 @@ export function FAQPage() {
 
   return (
     <div style={{ width: '100%', minHeight: '100%', fontFamily: SANS }}>
+      <BackButton from="faq" />
       {/* Header */}
       <div style={{ marginBottom: 22 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
