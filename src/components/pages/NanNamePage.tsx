@@ -170,6 +170,15 @@ export function NanNamePage() {
 
   const pendingRef = useRef<{ fn: string; handle: string }>({ fn: '', handle: '' })
 
+  // Name / duration requested by the NAN Agent ("register @ada for 2 years") — user still taps Register
+  useEffect(() => {
+    const pre = useAppStore.getState().nanNamePrefill
+    if (!pre) return
+    setNewHandle(pre.name)
+    if (pre.years) setDuration(pre.years)
+    useAppStore.getState().setNanNamePrefill(null)
+  }, [])
+
   // ── wagmi writes ──────────────────────────────────────────────────────────
   const approveWrite  = useWriteContract()
   const registerWrite = useWriteContract()

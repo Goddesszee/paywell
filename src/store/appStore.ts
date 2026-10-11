@@ -397,6 +397,8 @@ export interface AppState {
   setGatewayPrefill: (p: { mode: 'deposit' | 'transfer'; amount?: string; toChain?: string } | null) => void
   setBridgePrefill: (p: { amount?: string; toChain?: string } | null) => void
   onrampPrefill: { amount?: number } | null
+  nanNamePrefill: { name: string; years?: 1 | 2 | 5 } | null
+  setNanNamePrefill: (p: { name: string; years?: 1 | 2 | 5 } | null) => void
   setOnrampPrefill: (p: { amount?: number } | null) => void
   swapPrefill: { fromToken?: string; toToken?: string; amount?: string } | null
   setSwapPrefill: (p: { fromToken?: string; toToken?: string; amount?: string } | null) => void
@@ -780,6 +782,8 @@ export const useAppStore = create<AppState>()(
       gatewayPrefill: null,
       setGatewayPrefill: (p) => set({ gatewayPrefill: p }),
       onrampPrefill: null,
+      nanNamePrefill: null,
+      setNanNamePrefill: (p) => set({ nanNamePrefill: p }),
       setOnrampPrefill: (p) => set({ onrampPrefill: p }),
       setBridgePrefill: (p) => set({ bridgePrefill: p }),
       swapPrefill: null,

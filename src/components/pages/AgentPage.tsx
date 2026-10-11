@@ -46,6 +46,7 @@ import {
   type NanAction,
 } from '../../lib/agent-actions'
 import { runAgentBridge, runAgentSwap } from '../../lib/agent-exec'
+import { resolveActionRecipients } from '../../lib/agent-resolve'
 import { executeWithGuard } from '../../lib/circle-execute'
 import { AgentWalletExperience } from './AgentWalletExperience'
 
@@ -1317,7 +1318,16 @@ function AgentChat({ onNavigate }: { onNavigate?: (page: string, query?: string)
 
         // Parse and handle action block
         if (res.action) {
-          const parsed = parseAction(res.action)
+          let parsed = parseAction(res.action)
+          // "@aunty" / "Ada" → real 0x address BEFORE showing the confirmation card
+          if (parsed) {
+            try { parsed = await resolveActionRecipients(parsed, useAppStore.getState()) }
+            catch (resolveErr) {
+              addAgentMessage({ role: 'agent', content: resolveErr instanceof Error ? resolveErr.message : 'I could not work out who to send to.', action: 'info' })
+              setTimeout(scrollToBottom, 50)
+              parsed = null
+            }
+          }
           if (parsed) {
             // swap_start from the Agent Wallet → inline swap card in chat.
             // Main-wallet swaps open the Swap tab pre-filled (handled by executeAction below).

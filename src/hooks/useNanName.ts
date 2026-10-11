@@ -11,7 +11,7 @@ import { useCallback } from 'react'
 import { usePublicClient } from 'wagmi'
 import { createPublicClient, http } from 'viem'
 
-const NAME_REGISTRY = (import.meta.env.VITE_NAME_REGISTRY as string | undefined) ?? ''
+export const NAME_REGISTRY = (import.meta.env.VITE_NAME_REGISTRY as string | undefined) ?? ''
 const ARC_RPC = 'https://rpc.testnet.arc.io'
 const ARC_CHAIN_ID = 5042002
 
@@ -58,7 +58,7 @@ function getFallbackClient() {
   return _fallbackClient
 }
 
-async function readRegistry<
+export async function readRegistry<
   F extends typeof REGISTRY_ABI[number]['name'],
 >(
   client: ReturnType<typeof usePublicClient> | null,

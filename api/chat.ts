@@ -167,6 +167,57 @@ function detectDirectAction(message: string): { reply: string; action: Record<st
     if (page) return { reply: `Opening ${page.replace('-', ' ')}.`, action: { action: 'navigate', params: { page } } }
   }
 
+  // Send to a @nanname or contact: "send 5 usdc to @aunty"
+  {
+    const m = text.match(/\b(?:send|pay|transfer)\s+\$?(\d+(?:\.\d+)?)\s*(?:usdc|usd|dollars?)?\s+to\s+(@[A-Za-z0-9-]{2,32})\b/i)
+    if (!isQuestion && m) {
+      return { reply: `Preparing to send ${m[1]} USDC to ${m[2]}…`, action: { action: 'send_usdc', params: { toAddress: m[2], amount: m[1] } } }
+    }
+  }
+
+  // Referral
+  if (!/^(how|why|where|when|can|could|does|do|which)\b/.test(lower) && /\b(referral|refer)\b.*\b(link|code)\b|\b(my|get|share|show)\b.*\breferral\b/.test(lower)) {
+    return { reply: 'Here is your referral info…', action: { action: 'get_referral', params: {} } }
+  }
+
+  // NAN name availability: "is @ada available", "check if ada is available"
+  {
+    const m = lower.match(/(?:\bis\s+@?([a-z0-9-]{2,32})\s+(?:available|taken|free)\b|\bcheck\s+(?:if\s+)?(?:@([a-z0-9-]{2,32})\b|([a-z0-9-]{2,32})\s+(?:is\s+)?(?:available|free)\b))/)
+    if (m && !/\b(usdc|balance|price|transaction)\b/.test(lower)) {
+      return { reply: 'Checking the NAN name registry…', action: { action: 'check_name', params: { name: (m[1] ?? m[2] ?? m[3]) } } }
+    }
+  }
+
+  // Register a NAN name: "register @ada", "claim @ada for 2 years"
+  {
+    const m = text.match(/\b(?:register|claim|get)\s+(?:the\s+)?(?:nan\s+name\s+)?@([A-Za-z0-9-]{2,32})(?:\s+for\s+(1|2|5)\s*years?)?/i)
+    if (!isQuestion && m) {
+      return { reply: `Setting up @${m[1].toLowerCase()}…`, action: { action: 'register_name', params: { name: m[1].toLowerCase(), ...(m[2] ? { years: Number(m[2]) } : {}) } } }
+    }
+  }
+
+  // Contacts
+  if (!isQuestion && /\b(show|list|see)\b.*\b(my\s+)?contacts\b/.test(lower)) {
+    return { reply: 'Here are your contacts…', action: { action: 'list_contacts', params: {} } }
+  }
+
+  // Payment requests overview
+  if (!isQuestion && /\b(show|list|see)\b.*\bpayment requests\b/.test(lower)) {
+    return { reply: 'Here are your payment requests…', action: { action: 'list_payment_requests', params: {} } }
+  }
+
+  // Recent transactions: "last 5 transactions", "what did I send this week"
+  if (/\b(last|recent|latest)\s*(\d+)?\s*(transactions?|payments?|transfers?)\b|\bwhat\s+did\s+i\s+(send|receive|spend)\b|\bhow much\s+(did\s+i|have\s+i)\s+(send|sent|receive|received|spend|spent)\b/.test(lower)) {
+    const n = lower.match(/\b(?:last|recent|latest)\s*(\d+)/)
+    const period = /\btoday\b/.test(lower) ? 'today' : /\bweek\b/.test(lower) ? 'week' : /\bmonth\b/.test(lower) ? 'month' : undefined
+    return { reply: 'Looking at your activity…', action: { action: 'list_activity', params: { ...(n ? { limit: Number(n[1]) } : {}), ...(period ? { period } : {}) } } }
+  }
+
+  // Logout
+  if (/^(please\s+)?(log\s*out|sign\s*out|logout)[.!]*$/.test(lower)) {
+    return { reply: 'Ready to log you out — please confirm.', action: { action: 'logout', params: {} } }
+  }
+
   return null
 }
 
@@ -424,6 +475,41 @@ Open a support ticket (both fields required — ask the user for the issue if mi
 
 Download the user's activity/transactions as a CSV file:
 {"action":"export_activity","params":{}}
+
+**── NAN NAME / CONTACTS / REQUESTS / ACTIVITY / REFERRAL / SETTINGS ──**
+
+IMPORTANT — recipients: for any send / recurring action, "toAddress" / "recipient" may be a 0x address, a @nanname (e.g. "@aunty") or a saved contact name (e.g. "Ada"). Pass it EXACTLY as the user said it; the app resolves it to an address and shows it for confirmation. Never invent an address.
+
+Check if a NAN name is free (read-only):
+{"action":"check_name","params":{"name":"ada"}}
+
+Show the user's own NAN name:
+{"action":"get_nan_name","params":{}}
+
+Register a NAN name (opens the name page prefilled; years 1|2|5, default 1):
+{"action":"register_name","params":{"name":"ada","years":1}}
+
+Save / list / remove contacts (address may be 0x or a @nanname):
+{"action":"add_contact","params":{"name":"Ada","address":"0x..."}}
+{"action":"list_contacts","params":{}}
+{"action":"remove_contact","params":{"name":"Ada"}}
+
+Manage payment requests (ref = reference number, id, or part of the title/payer name):
+{"action":"list_payment_requests","params":{"status":"pending|paid|cancelled|all"}}
+{"action":"cancel_payment_request","params":{"ref":"<ref>"}}
+{"action":"get_payment_request_link","params":{"ref":"<ref>"}}
+
+Answer questions about the user's own transactions (period today|week|month|all, limit up to 20, optional type word):
+{"action":"list_activity","params":{"limit":5,"period":"week"}}
+
+Referral code + link (the user's NAN name is their code):
+{"action":"get_referral","params":{}}
+
+Notification settings (key supportReplies|systemUpdates|payments):
+{"action":"set_notification_pref","params":{"key":"payments","enabled":false}}
+
+Log the user out:
+{"action":"logout","params":{}}
 
 **── AGENT WALLET ──**
 

@@ -26,6 +26,9 @@ import { parseUnits, getAddress } from 'viem'
 import { getUsdc } from '../onchain-facts'
 import { buildReceiptHtml } from './receipt'
 import { syncRtCreate } from '../hooks/useBackendSync'
+import { readRegistry, NAME_REGISTRY } from '../hooks/useNanName'
+import { disconnect as wagmiDisconnect } from 'wagmi/actions'
+import { config as wagmiConfig } from '../config'
 import { useAppStore, type AppState, type RecurringFrequency } from '../store/appStore'
 
 const USDC_TRANSFER_ABI = [{
@@ -48,6 +51,16 @@ const PAGE_ALIASES: Record<string, string> = {
   'payment-requests': 'payment-requests', 'payment requests': 'payment-requests', requests: 'payment-requests',
   name: 'name',
 }
+function findPaymentRequest(store: AppState, ref: string) {
+  const q = ref.trim().toLowerCase().replace(/^#/, '')
+  const list = store.paymentRequests
+  const hit =
+    list.find(r => r.id.toLowerCase() === q || r.refNumber.toLowerCase() === q) ??
+    list.find(r => `${r.title} ${r.recipientName ?? ''}`.toLowerCase().includes(q))
+  if (!hit) throw new Error(`I couldn't find a payment request matching "${ref}". Say "list my payment requests" to see them.`)
+  return hit
+}
+
 function normalizePage(page: string): string {
   const k = page.trim().toLowerCase().replace(/^\//, '').replace(/_/g, '-')
   return PAGE_ALIASES[k] ?? PAGE_ALIASES[k.replace(/-/g, ' ')] ?? k
@@ -95,17 +108,30 @@ export type NanActionType =
   | 'submit_feedback'
   | 'create_support_ticket'
   | 'export_activity'
+  | 'check_name'
+  | 'get_nan_name'
+  | 'register_name'
+  | 'add_contact'
+  | 'list_contacts'
+  | 'remove_contact'
+  | 'list_payment_requests'
+  | 'cancel_payment_request'
+  | 'get_payment_request_link'
+  | 'list_activity'
+  | 'get_referral'
+  | 'set_notification_pref'
+  | 'logout'
 
 // ── Individual action interfaces ───────────────────────────────────────────────
 
 export interface AddRecurringAction {
   action: 'add_recurring'
-  params: { name: string; recipient: string; amount: string; frequency: RecurringFrequency }
+  params: { name: string; recipient: string; amount: string; frequency: RecurringFrequency; toLabel?: string }
 }
 
 export interface AddAgentRecurringAction {
   action: 'add_agent_recurring'
-  params: { name: string; recipient: string; amount: string; frequency: RecurringFrequency }
+  params: { name: string; recipient: string; amount: string; frequency: RecurringFrequency; toLabel?: string }
 }
 
 export interface CancelRecurringAction {
@@ -127,18 +153,18 @@ export interface SetPolicyAction {
 
 export interface SendUsdcAction {
   action: 'send_usdc'
-  params: { toAddress: string; amount: string; note?: string }
+  params: { toAddress: string; amount: string; note?: string; toLabel?: string }
 }
 
 export interface AgentSendAction {
   action: 'agent_send'
-  params: { toAddress: string; amount: string; note?: string }
+  params: { toAddress: string; amount: string; note?: string; toLabel?: string }
 }
 
 /** UCW send: Circle User-Controlled Wallet (email/Google login) */
 export interface UcwSendAction {
   action: 'ucw_send'
-  params: { toAddress: string; amount: string; note?: string }
+  params: { toAddress: string; amount: string; note?: string; toLabel?: string }
 }
 
 /** Bridge via Circle UCW — calls /api/wallet → bridge-start then opens Bridge tab */
@@ -286,6 +312,20 @@ export interface SubmitFeedbackAction { action: 'submit_feedback'; params: { rat
 export interface CreateSupportTicketAction { action: 'create_support_ticket'; params: { subject: string; message: string } }
 export interface ExportActivityAction { action: 'export_activity'; params: Record<string, never> }
 
+export interface CheckNameAction { action: 'check_name'; params: { name: string } }
+export interface GetNanNameAction { action: 'get_nan_name'; params: Record<string, never> }
+export interface RegisterNameAction { action: 'register_name'; params: { name: string; years?: 1 | 2 | 5 } }
+export interface AddContactAction { action: 'add_contact'; params: { name: string; address: string; note?: string } }
+export interface ListContactsAction { action: 'list_contacts'; params: Record<string, never> }
+export interface RemoveContactAction { action: 'remove_contact'; params: { name: string } }
+export interface ListPaymentRequestsAction { action: 'list_payment_requests'; params: { status?: string } }
+export interface CancelPaymentRequestAction { action: 'cancel_payment_request'; params: { ref: string } }
+export interface GetPaymentRequestLinkAction { action: 'get_payment_request_link'; params: { ref: string } }
+export interface ListActivityAction { action: 'list_activity'; params: { limit?: number; period?: 'today' | 'week' | 'month' | 'all'; type?: string } }
+export interface GetReferralAction { action: 'get_referral'; params: Record<string, never> }
+export interface SetNotificationPrefAction { action: 'set_notification_pref'; params: { key: 'supportReplies' | 'systemUpdates' | 'payments'; enabled: boolean } }
+export interface LogoutAction { action: 'logout'; params: Record<string, never> }
+
 // ── Union ─────────────────────────────────────────────────────────────────────
 
 export type NanAction =
@@ -328,6 +368,19 @@ export type NanAction =
   | SubmitFeedbackAction
   | CreateSupportTicketAction
   | ExportActivityAction
+  | CheckNameAction
+  | GetNanNameAction
+  | RegisterNameAction
+  | AddContactAction
+  | ListContactsAction
+  | RemoveContactAction
+  | ListPaymentRequestsAction
+  | CancelPaymentRequestAction
+  | GetPaymentRequestLinkAction
+  | ListActivityAction
+  | GetReferralAction
+  | SetNotificationPrefAction
+  | LogoutAction
 
 // ── Safe string coercion ───────────────────────────────────────────────────────
 
@@ -466,6 +519,64 @@ export function parseAction(raw: Record<string, unknown>): NanAction | null {
     }
     case 'export_activity':
       return { action: 'export_activity', params: {} }
+    case 'check_name': {
+      const name = s(params.name).replace(/^@/, '').toLowerCase()
+      if (!name) return null
+      return { action: 'check_name', params: { name } }
+    }
+    case 'get_nan_name':
+      return { action: 'get_nan_name', params: {} }
+    case 'register_name': {
+      const name = s(params.name).replace(/^@/, '').toLowerCase()
+      if (!name) return null
+      const y = Number(params.years)
+      return { action: 'register_name', params: { name, ...(y === 1 || y === 2 || y === 5 ? { years: y as 1 | 2 | 5 } : {}) } }
+    }
+    case 'add_contact': {
+      const name = s(params.name)
+      const address = s(params.address)
+      if (!name || !address) return null
+      return { action: 'add_contact', params: { name, address, note: s(params.note) || undefined } }
+    }
+    case 'list_contacts':
+      return { action: 'list_contacts', params: {} }
+    case 'remove_contact': {
+      const name = s(params.name)
+      if (!name) return null
+      return { action: 'remove_contact', params: { name } }
+    }
+    case 'list_payment_requests':
+      return { action: 'list_payment_requests', params: { status: s(params.status).toLowerCase() || undefined } }
+    case 'cancel_payment_request': {
+      const ref = s(params.ref)
+      if (!ref) return null
+      return { action: 'cancel_payment_request', params: { ref } }
+    }
+    case 'get_payment_request_link': {
+      const ref = s(params.ref)
+      if (!ref) return null
+      return { action: 'get_payment_request_link', params: { ref } }
+    }
+    case 'list_activity': {
+      const n = Math.round(Number(params.limit))
+      const period = s(params.period).toLowerCase()
+      return { action: 'list_activity', params: {
+        ...(Number.isFinite(n) && n > 0 ? { limit: Math.min(n, 20) } : {}),
+        ...(period === 'today' || period === 'week' || period === 'month' || period === 'all' ? { period } : {}),
+        ...(s(params.type) ? { type: s(params.type).toLowerCase() } : {}),
+      } }
+    }
+    case 'get_referral':
+      return { action: 'get_referral', params: {} }
+    case 'set_notification_pref': {
+      const key = s(params.key)
+      if (key !== 'supportReplies' && key !== 'systemUpdates' && key !== 'payments') return null
+      const en = params.enabled
+      const enabled = en === true || en === 'true' || en === 'on' || en === 1
+      return { action: 'set_notification_pref', params: { key, enabled } }
+    }
+    case 'logout':
+      return { action: 'logout', params: {} }
     case 'generate_receipt':
       return { action: 'generate_receipt', params: { txHash: s(params.txHash) || undefined, index: params.index !== undefined ? Number(params.index) : undefined } }
     case 'show_qr':
@@ -528,6 +639,32 @@ export function parseAction(raw: Record<string, unknown>): NanAction | null {
 
 export function describeAction(action: NanAction): { title: string; lines: Array<{ label: string; value: string }> } {
   switch (action.action) {
+    case 'check_name':
+      return { title: 'Check NAN Name', lines: [{ label: 'Name', value: `@${action.params.name}` }] }
+    case 'get_nan_name':
+      return { title: 'Your NAN Name', lines: [] }
+    case 'register_name':
+      return { title: 'Register NAN Name', lines: [{ label: 'Name', value: `@${action.params.name}` }, ...(action.params.years ? [{ label: 'Years', value: String(action.params.years) }] : [])] }
+    case 'add_contact':
+      return { title: 'Save Contact', lines: [{ label: 'Name', value: action.params.name }, { label: 'Address', value: action.params.address }] }
+    case 'list_contacts':
+      return { title: 'Your Contacts', lines: [] }
+    case 'remove_contact':
+      return { title: 'Remove Contact', lines: [{ label: 'Name', value: action.params.name }] }
+    case 'list_payment_requests':
+      return { title: 'Payment Requests', lines: [] }
+    case 'cancel_payment_request':
+      return { title: 'Cancel Payment Request', lines: [{ label: 'Request', value: action.params.ref }] }
+    case 'get_payment_request_link':
+      return { title: 'Payment Request Link', lines: [{ label: 'Request', value: action.params.ref }] }
+    case 'list_activity':
+      return { title: 'Recent Activity', lines: [] }
+    case 'get_referral':
+      return { title: 'Referral Link', lines: [] }
+    case 'set_notification_pref':
+      return { title: 'Notification Setting', lines: [{ label: action.params.key, value: action.params.enabled ? 'On' : 'Off' }] }
+    case 'logout':
+      return { title: 'Log Out', lines: [{ label: 'Effect', value: 'Ends your session on this device' }] }
     case 'buy_usdc':
       return { title: 'Buy USDC', lines: [{ label: 'Amount', value: action.params.amount ? `$${action.params.amount}` : 'Choose in the next screen' }] }
     case 'claim_faucet':
@@ -547,7 +684,7 @@ export function describeAction(action: NanAction): { title: string; lines: Array
     case 'add_recurring':
       return { title: 'Add Recurring Payment', lines: [
         { label: 'Name',      value: action.params.name },
-        { label: 'To',        value: action.params.recipient },
+        { label: 'To',        value: action.params.toLabel ? `${action.params.toLabel} (${action.params.recipient})` : action.params.recipient },
         { label: 'Amount',    value: `${action.params.amount} USDC` },
         { label: 'Frequency', value: action.params.frequency },
         { label: 'Source',    value: 'Main Wallet' },
@@ -555,7 +692,7 @@ export function describeAction(action: NanAction): { title: string; lines: Array
     case 'add_agent_recurring':
       return { title: 'Add Agent Recurring Payment', lines: [
         { label: 'Name',      value: action.params.name },
-        { label: 'To',        value: action.params.recipient },
+        { label: 'To',        value: action.params.toLabel ? `${action.params.toLabel} (${action.params.recipient})` : action.params.recipient },
         { label: 'Amount',    value: `${action.params.amount} USDC` },
         { label: 'Frequency', value: action.params.frequency },
         { label: 'Source',    value: 'Agent Wallet' },
@@ -574,21 +711,21 @@ export function describeAction(action: NanAction): { title: string; lines: Array
     }
     case 'send_usdc':
       return { title: 'Send USDC from Your Wallet', lines: [
-        { label: 'To',     value: action.params.toAddress },
+        { label: 'To',     value: action.params.toLabel ? `${action.params.toLabel} (${action.params.toAddress})` : action.params.toAddress },
         { label: 'Amount', value: `${action.params.amount} USDC` },
         ...(action.params.note ? [{ label: 'Note', value: action.params.note }] : []),
         { label: 'Source', value: 'Main wallet' },
       ]}
     case 'agent_send':
       return { title: 'Send USDC from Agent Wallet', lines: [
-        { label: 'To',     value: action.params.toAddress },
+        { label: 'To',     value: action.params.toLabel ? `${action.params.toLabel} (${action.params.toAddress})` : action.params.toAddress },
         { label: 'Amount', value: `${action.params.amount} USDC` },
         ...(action.params.note ? [{ label: 'Note', value: action.params.note }] : []),
         { label: 'Source', value: 'Agent Wallet' },
       ]}
     case 'ucw_send':
       return { title: 'Send USDC (Circle Wallet)', lines: [
-        { label: 'To',     value: action.params.toAddress },
+        { label: 'To',     value: action.params.toLabel ? `${action.params.toLabel} (${action.params.toAddress})` : action.params.toAddress },
         { label: 'Amount', value: `${action.params.amount} USDC` },
         ...(action.params.note ? [{ label: 'Note', value: action.params.note }] : []),
         { label: 'Source', value: 'Circle User-Controlled Wallet' },
@@ -738,6 +875,9 @@ export function requiresConfirmation(action: NanAction): boolean {
     case 'ucw_gateway_transfer':
     case 'set_policy':
     case 'create_invoice':
+    case 'remove_contact':
+    case 'cancel_payment_request':
+    case 'logout':
     case 'submit_feedback':
     case 'create_support_ticket':
       return true
@@ -757,6 +897,16 @@ export function requiresConfirmation(action: NanAction): boolean {
     case 'set_theme':
     case 'mark_notifications_read':
     case 'create_payment_request':
+    case 'check_name':
+    case 'get_nan_name':
+    case 'register_name':
+    case 'add_contact':
+    case 'list_contacts':
+    case 'list_payment_requests':
+    case 'get_payment_request_link':
+    case 'list_activity':
+    case 'get_referral':
+    case 'set_notification_pref':
     case 'buy_usdc':
     case 'claim_faucet':
     case 'export_activity':
@@ -1257,6 +1407,118 @@ export async function executeAction(action: NanAction, ctx: ExecutorContext): Pr
       document.body.appendChild(el); el.click(); el.remove()
       setTimeout(() => URL.revokeObjectURL(url), 5000)
       return `Exported ${rows.length} transactions to CSV.`
+    }
+
+    case 'check_name': {
+      if (!NAME_REGISTRY) return 'The NAN name registry is not configured yet.'
+      const q = action.params.name
+      if (!/^[a-z0-9-]{2,32}$/.test(q)) return 'NAN names are 2–32 characters: lowercase letters, numbers and hyphens only.'
+      let avail: boolean
+      try { avail = await readRegistry(null, 'isAvailable', [q]) as boolean } catch { return `I couldn't reach the name registry to check @${q}. Please try again in a moment.` }
+      if (avail) return `@${q} is available! Prices: 1 year 2 USDC · 2 years 3 USDC · 5 years 8 USDC. Say "register @${q}" to claim it.`
+      let owner = ''
+      try { owner = await readRegistry(null, 'resolve', [q]) as string } catch { /* ignore */ }
+      return `@${q} is already taken${owner ? ` (owned by ${owner.slice(0, 6)}…${owner.slice(-4)})` : ''}. Try another name.`
+    }
+
+    case 'get_nan_name': {
+      return store.nanHandle
+        ? `Your NAN name is @${store.nanHandle.replace(/^@/, '')}.`
+        : `You haven't claimed a NAN name yet. Say "check @yourname" to see if a name is free, then "register @yourname".`
+    }
+
+    case 'register_name': {
+      const q = action.params.name
+      if (!/^[a-z0-9-]{2,32}$/.test(q)) return 'NAN names are 2–32 characters: lowercase letters, numbers and hyphens only.'
+      store.setNanNamePrefill({ name: q, years: action.params.years })
+      navigate('nan-name')
+      const yrs = action.params.years ?? 1
+      const price = yrs === 5 ? 8 : yrs === 2 ? 3 : 2
+      return `Opening NAN Name with @${q} filled in (${yrs} year${yrs > 1 ? 's' : ''}, ${price} USDC) — tap Register and approve to claim it.`
+    }
+
+    case 'add_contact': {
+      const { name, address, note } = action.params
+      if (!/^0x[a-fA-F0-9]{40}$/.test(address)) throw new Error('Please give a valid 0x wallet address for the contact.')
+      if (store.contacts.some(c => c.address.toLowerCase() === address.toLowerCase())) return `That address is already saved as "${store.contacts.find(c => c.address.toLowerCase() === address.toLowerCase())!.name}".`
+      store.addContact({ name, address, note })
+      return `Saved ${name} (${address.slice(0, 6)}…${address.slice(-4)}) to your contacts. You can now say "send 5 USDC to ${name}".`
+    }
+
+    case 'list_contacts': {
+      const cs = store.contacts
+      if (cs.length === 0) return 'You have no saved contacts yet. Say "save Ada 0x…" to add one.'
+      return `Your contacts (${cs.length}):\n` + cs.slice(0, 20).map(c => `• ${c.name} — ${c.address.slice(0, 6)}…${c.address.slice(-4)}`).join('\n')
+    }
+
+    case 'remove_contact': {
+      const q = action.params.name.toLowerCase()
+      const c = store.contacts.find(x => x.name.toLowerCase() === q) ?? store.contacts.find(x => x.name.toLowerCase().includes(q))
+      if (!c) throw new Error(`I couldn't find a contact named "${action.params.name}".`)
+      store.removeContact(c.id)
+      return `Removed ${c.name} from your contacts.`
+    }
+
+    case 'list_payment_requests': {
+      const want = action.params.status
+      const all = store.paymentRequests
+      const rows = (want && want !== 'all' ? all.filter(r => r.status === want) : all.filter(r => r.status !== 'cancelled')).slice(0, 10)
+      if (rows.length === 0) return want && want !== 'all' ? `No ${want} payment requests.` : 'You have no payment requests yet. Say "create a payment request for Ada, 50 USDC for design".'
+      return `Your payment requests:\n` + rows.map(r => `• #${r.refNumber} ${r.title} — ${r.amount} ${r.currency}${r.recipientName ? ` (${r.recipientName})` : ''} — ${r.status}`).join('\n')
+    }
+
+    case 'cancel_payment_request': {
+      const r = findPaymentRequest(store, action.params.ref)
+      if (r.status === 'paid') throw new Error(`"${r.title}" is already paid, so it can't be cancelled.`)
+      store.updatePaymentRequest(r.id, { status: 'cancelled' })
+      return `Cancelled payment request #${r.refNumber} "${r.title}".`
+    }
+
+    case 'get_payment_request_link': {
+      const r = findPaymentRequest(store, action.params.ref)
+      const creator = r.creatorAddress ?? ctx.connectedAddress ?? store.auth?.walletAddress ?? store.auth?.circleWalletAddress ?? ''
+      const q = new URLSearchParams()
+      q.set('pr', r.id); q.set('pay', creator); q.set('amount', String(r.amount)); if (r.title) q.set('note', r.title)
+      const link = `${window.location.origin}?${q.toString()}`
+      try { await navigator.clipboard.writeText(link) } catch { /* clipboard unavailable */ }
+      return `Link for #${r.refNumber} "${r.title}" (${r.amount} ${r.currency}):\n[Open payment link](${link})\n\n${link}`
+    }
+
+    case 'list_activity': {
+      const { limit = 5, period = 'all', type } = action.params
+      const now = Date.now()
+      const since = period === 'today' ? now - 86_400_000 : period === 'week' ? now - 7 * 86_400_000 : period === 'month' ? now - 30 * 86_400_000 : 0
+      let rows = store.activity.filter(a => new Date(a.timestamp).getTime() >= since)
+      if (type) rows = rows.filter(a => `${a.type} ${a.description}`.toLowerCase().includes(type))
+      if (rows.length === 0) return `No transactions found${period !== 'all' ? ` for the ${period === 'today' ? 'last 24 hours' : `last ${period}`}` : ''}.`
+      const done = rows.filter(a => a.status === 'confirmed')
+      const sent = done.filter(a => a.sign === '-').reduce((t, a) => t + a.amount, 0)
+      const recv = done.filter(a => a.sign === '+').reduce((t, a) => t + a.amount, 0)
+      const fmt = (d: Date | string) => new Date(d).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+      const lines = rows.slice(0, limit).map(a => `• ${fmt(a.timestamp)} — ${a.description} — ${a.sign}${a.amount} USDC (${a.status})`)
+      return `${rows.length} transaction${rows.length > 1 ? 's' : ''}${period !== 'all' ? ` in the ${period === 'today' ? 'last 24 hours' : `last ${period}`}` : ''} · sent ${sent.toFixed(2)} USDC · received ${recv.toFixed(2)} USDC\n` + lines.join('\n')
+    }
+
+    case 'get_referral': {
+      const code = store.nanHandle?.replace(/^@/, '')
+      if (!code) return 'Your NAN name is your referral code, and you don\'t have one yet. Say "register @yourname" to claim it, then ask me for your referral link.'
+      const link = `https://nanarc.xyz/join?ref=${code}`
+      try { await navigator.clipboard.writeText(link) } catch { /* clipboard unavailable */ }
+      return `Your referral code is **${code}**. Earn $1 USDC when a friend signs up and makes their first transfer.\n[Open referral link](${link})\n\n${link}`
+    }
+
+    case 'set_notification_pref': {
+      const { key, enabled } = action.params
+      store.setProfile({ notifPrefs: { ...store.profile.notifPrefs, [key]: enabled } })
+      const label = key === 'supportReplies' ? 'support reply' : key === 'systemUpdates' ? 'system update' : 'payment'
+      return `${label.charAt(0).toUpperCase() + label.slice(1)} notifications are now ${enabled ? 'on' : 'off'}.`
+    }
+
+    case 'logout': {
+      try { await wagmiDisconnect(wagmiConfig) } catch { /* not connected via wagmi */ }
+      store.logout()
+      store.setActiveView('landing')
+      return 'You have been logged out.'
     }
 
     case 'agent_service_search': {
