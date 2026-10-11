@@ -29,6 +29,7 @@ import {
 import { ConnectKitButton } from 'connectkit'
 import { safeJson } from '../../lib/safe-json'
 import { confirmWithRetry } from '../../lib/poll-confirm'
+import { bridgeCustomFee } from '../../lib/fee-config'
 import { useAppStore } from '../../store/appStore'
 import { executeWithGuard } from '../../lib/circle-execute'
 import { getPasskeyAdapter } from '../CirclePasskeyLogin'
@@ -460,6 +461,7 @@ export function BridgePage({ inCard = false }: { inCard?: boolean }) {
           from: { adapter, chain: fromChain.kitName as AppKitChain },
           to:   { chain: toChain.kitName as AppKitChain, recipientAddress: auth?.circleWalletAddress as string, useForwarder: true },
           amount,
+          config: { ...bridgeCustomFee(parseFloat(amount)) },
         }) as BridgeResult
         console.log('[bridge/passkey] result:', JSON.stringify({ state: result.state, steps: result.steps?.map(s => ({ name: s.name, state: s.state, error: s.error, message: s.message })) }))
         for (const step of result.steps ?? []) {
@@ -511,6 +513,7 @@ export function BridgePage({ inCard = false }: { inCard?: boolean }) {
         from: { adapter, chain: fromChain.kitName as AppKitChain },
         to:   { chain: toChain.kitName as AppKitChain, recipientAddress: wagmiAddress as string, useForwarder: true },
         amount,
+        config: { ...bridgeCustomFee(parseFloat(amount)) },
       }) as BridgeResult
 
       console.log('[bridge] result state:', result.state, 'steps:', result.steps?.map(s => s.name + ':' + s.state).join(', '))

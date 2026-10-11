@@ -42,6 +42,25 @@ function swapApiKey(fallback: string): string {
   return (process.env.KIT_KEY ?? process.env.CIRCLE_KIT_KEY ?? '').trim().replace(/^["']|["']$/g, '') || fallback
 }
 
+/** Opt-in platform fee: only charged when FEE_WALLET (or VITE_FEE_WALLET) is a valid address. */
+function feeWallet(): string | null {
+  const raw = (process.env.FEE_WALLET ?? process.env.VITE_FEE_WALLET ?? '').trim().replace(/^["']|["']$/g, '').trim()
+  return /^0x[0-9a-fA-F]{40}$/.test(raw) ? raw : null
+}
+function swapFeeCfg() {
+  const to = feeWallet()
+  const bps = Number(process.env.FEE_SWAP_BPS ?? process.env.VITE_FEE_SWAP_BPS ?? 30)
+  return to && bps > 0 ? { customFee: { percentageBps: bps, recipientAddress: to } } : {}
+}
+function bridgeFeeCfg(amount: string) {
+  const to = feeWallet()
+  const a = parseFloat(amount)
+  if (!to || !(a > 0)) return {}
+  const bps = Number(process.env.FEE_BRIDGE_BPS ?? process.env.VITE_FEE_BRIDGE_BPS ?? 50)
+  const min = Number(process.env.FEE_BRIDGE_MIN_USDC ?? process.env.VITE_FEE_BRIDGE_MIN_USDC ?? 0.1)
+  return { customFee: { value: Math.max(Math.round(a * bps) / 10000, min).toFixed(6), recipientAddress: to } }
+}
+
 function ucwClient() {
   const key = requireCircleKey()
   return initiateUserControlledWalletsClient({ apiKey: key })
@@ -288,7 +307,7 @@ async function handleWallet(req: VercelRequest, res: VercelResponse) {
         from: { adapter, chain: 'Arc' },
         tokenIn, tokenOut, amountIn,
         // SCA wallets (UCW) must use 'approve' — USDC permit uses ecrecover which rejects SCA signatures
-        config: { slippageBps: slippageBps ? Number(slippageBps) : 300, allowanceStrategy: 'approve', apiKey: swapApiKey(key) },
+        config: { slippageBps: slippageBps ? Number(slippageBps) : 300, allowanceStrategy: 'approve', apiKey: swapApiKey(key), ...swapFeeCfg() },
       })
       return res.json({ estimate })
     } catch (e) {
@@ -332,7 +351,7 @@ async function handleWallet(req: VercelRequest, res: VercelResponse) {
         from: { adapter, chain: 'Arc' },
         tokenIn, tokenOut, amountIn,
         // SCA wallets (UCW) must use 'approve' — USDC permit uses ecrecover which rejects SCA signatures
-        config: { slippageBps: slippageBps ? Number(slippageBps) : 300, allowanceStrategy: 'approve', apiKey: swapApiKey(key) },
+        config: { slippageBps: slippageBps ? Number(slippageBps) : 300, allowanceStrategy: 'approve', apiKey: swapApiKey(key), ...swapFeeCfg() },
       }).catch((e: unknown) => {
         // The swap failed before any PIN challenge was issued — report the real reason.
         console.error('[ucw-swap-start] kit.swap failed:', e)
@@ -404,6 +423,7 @@ async function handleWallet(req: VercelRequest, res: VercelResponse) {
           useForwarder: true,
         },
         amount,
+        config: { ...bridgeFeeCfg(String(amount)) },
       }).catch((e: unknown) => {
         // If the bridge fails before a PIN challenge is issued, report the real reason to the user.
         rejectChallenge(e instanceof Error ? e : new Error(String(e)))

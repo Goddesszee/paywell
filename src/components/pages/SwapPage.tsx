@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useRef } from 'react'
 import { swapKeyConfig } from '../../lib/swap-key'
+import { swapCustomFee } from '../../lib/fee-config'
 import { useAccount, useChainId, useSwitchChain, useReadContract, useBalance } from 'wagmi'
 import { AppKit, type SwapEstimate } from '@circle-fin/app-kit'
 import { createViemAdapterFromProvider } from '@circle-fin/adapter-viem-v2'
@@ -465,7 +466,7 @@ export function SwapPage({ inCard = false }: { inCard?: boolean }) {
       const estimate = await appKit.estimateSwap({
         from: { adapter, chain: CHAIN_KEY },
         tokenIn, tokenOut, amountIn,
-        config: { slippageBps, ...swapKeyConfig() },
+        config: { slippageBps, ...swapKeyConfig(), ...swapCustomFee() },
       })
       setReviewed({ estimate, tokenIn, tokenOut, amountIn, slippageBps, account: address })
       setPhase('reviewed')
@@ -485,7 +486,7 @@ export function SwapPage({ inCard = false }: { inCard?: boolean }) {
         from: { adapter, chain: CHAIN_KEY },
         tokenIn:  reviewed.tokenIn, tokenOut: reviewed.tokenOut,
         amountIn: reviewed.amountIn,
-        config: { slippageBps: reviewed.slippageBps, ...swapKeyConfig() },
+        config: { slippageBps: reviewed.slippageBps, ...swapKeyConfig(), ...swapCustomFee() },
       })
       const rHash = (result as { txHash?: string }).txHash ?? ''
       const rUrl  = (result as { explorerUrl?: string }).explorerUrl ?? ''

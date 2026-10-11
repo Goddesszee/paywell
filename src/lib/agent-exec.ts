@@ -12,6 +12,7 @@
 
 import { AppKit } from '@circle-fin/app-kit'
 import { swapKeyConfig } from '../lib/swap-key'
+import { swapCustomFee, bridgeCustomFee } from '../lib/fee-config'
 import { createViemAdapterFromProvider } from '@circle-fin/adapter-viem-v2'
 import { W3SSdk } from '@circle-fin/w3s-pw-web-sdk'
 import type { EIP1193Provider } from 'viem'
@@ -198,6 +199,7 @@ export async function runAgentBridge(
     from: { adapter, chain: ARC_KIT_NAME as Chain },
     to: { chain: dest.kitName as Chain, recipientAddress: recipient, useForwarder: true },
     amount: params.amount,
+    config: { ...bridgeCustomFee(parseFloat(params.amount)) },
   }) as BridgeResult
 
   const steps = result.steps ?? []
@@ -288,14 +290,14 @@ export async function runAgentSwap(
     const estimate = await appKit.estimateSwap({
       from: { adapter, chain: ARC_KIT_NAME },
       tokenIn, tokenOut, amountIn: params.amount,
-      config: { slippageBps: SLIPPAGE_BPS, ...swapKeyConfig() },
+      config: { slippageBps: SLIPPAGE_BPS, ...swapKeyConfig(), ...swapCustomFee() },
     })
     const outAmount = estimate.estimatedOutput?.amount
     notify(`Quote: about ${outAmount ?? '—'} ${tokenOut}. ${kind === 'passkey' ? 'Approve with your passkey' : 'Confirm in your wallet'}…`)
     const result = await appKit.swap({
       from: { adapter, chain: ARC_KIT_NAME },
       tokenIn, tokenOut, amountIn: params.amount,
-      config: { slippageBps: SLIPPAGE_BPS, ...swapKeyConfig() },
+      config: { slippageBps: SLIPPAGE_BPS, ...swapKeyConfig(), ...swapCustomFee() },
     })
     const hash = (result as { txHash?: string }).txHash ?? ''
     const url = (result as { explorerUrl?: string }).explorerUrl
