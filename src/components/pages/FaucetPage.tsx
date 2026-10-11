@@ -14,8 +14,14 @@ const PW_WHITE   = 'var(--nan-surface2)'
 const SANS       = 'Inter, sans-serif'
 
 export function FaucetPage() {
-  const { address, isConnected } = useAccount()
+  const { address: wagmiAddress, isConnected: wagmiConnected } = useAccount()
   const setActiveView = useAppStore(s => s.setActiveView)
+  const auth = useAppStore(s => s.auth)
+  const mainWalletAddress = useAppStore(s => s.mainWalletAddress)
+  // Email / Google / passkey users use their Circle wallet instead of a browser-wallet connection
+  const nanWallet = auth?.circleWalletAddress || auth?.walletAddress || mainWalletAddress || ''
+  const address = wagmiAddress ?? (nanWallet ? (nanWallet as `0x${string}`) : undefined)
+  const isConnected = wagmiConnected || Boolean(nanWallet)
 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)

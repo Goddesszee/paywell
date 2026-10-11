@@ -68,8 +68,13 @@ function RowItem({
 }
 
 export function SettingsPage() {
-  const { address, isConnected } = useAccount()
-  const { agentPermissions, setAgentPermissions, setOnboarding, setActiveView } = useAppStore()
+  const { address: wagmiAddress, isConnected: wagmiConnected } = useAccount()
+  const { agentPermissions, setAgentPermissions, setOnboarding, setActiveView, auth, mainWalletAddress } = useAppStore()
+  // Email / Google / passkey users have a Circle wallet instead of a browser-wallet connection
+  const nanWallet = auth?.circleWalletAddress || auth?.walletAddress || mainWalletAddress || ''
+  const signedIn = Boolean(nanWallet || auth?.userToken || auth?.isPasskeyUser)
+  const address = wagmiAddress ?? (nanWallet as `0x${string}` | '')
+  const isConnected = wagmiConnected || signedIn
   const chain = requireChain(ARC)
   const [editingLimits, setEditingLimits] = useState(false)
   const [daily, setDaily] = useState(String(agentPermissions.dailyLimit))
@@ -104,9 +109,9 @@ export function SettingsPage() {
       <CardBlock>
         <RowItem
           icon={<Wallet />}
-          label="Connected wallet"
-          sub={isConnected ? formatAddress(address!) : 'Not connected'}
-          right={isConnected ? <Badge variant="success" size="sm">Connected</Badge> : null}
+          label={wagmiConnected ? 'Connected wallet' : 'NAN wallet'}
+          sub={isConnected ? (address ? formatAddress(address) : (auth?.email ?? 'Signed in')) : 'Not connected'}
+          right={isConnected ? <Badge variant="success" size="sm">{wagmiConnected ? 'Connected' : 'Signed in'}</Badge> : null}
         />
         <RowItem
           icon={<Shield />}
