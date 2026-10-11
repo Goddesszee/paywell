@@ -72,6 +72,12 @@ function AdminPasswordGate({ onUnlock }: { onUnlock: () => void }) {
           {busy ? 'Checking…' : 'Unlock Dashboard'}
         </button>
         <button
+          onClick={() => setActiveView('setup')}
+          style={{ width: '100%', padding: '10px', borderRadius: 11, background: 'rgba(0,102,255,0.08)', color: '#0066FF', fontSize: 13, fontWeight: 600, border: '1px solid rgba(0,102,255,0.2)', cursor: 'pointer', fontFamily: "'Inter', sans-serif", marginBottom: 8 }}
+        >
+          Mainnet Setup Wizard
+        </button>
+        <button
           onClick={() => setActiveView('home')}
           style={{ width: '100%', padding: '10px', borderRadius: 11, background: 'transparent', color: 'var(--nan-text2)', fontSize: 13, fontWeight: 500, border: '1px solid var(--nan-bdr)', cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}
         >

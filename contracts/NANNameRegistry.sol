@@ -8,6 +8,10 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 contract NANNameRegistry is Ownable, ReentrancyGuard {
     uint256 private constant _ONE_YEAR = 365 days;
 
+    uint256 public constant COMMIT_DELAY = 2;
+    uint256 public constant COMMIT_EXPIRY = 256;
+    uint256 public constant MAX_NAMES_PER_ADDRESS = 20;
+
     IERC20 private immutable _usdc;
 
     uint256 private _price1Yr = 2_000_000;
@@ -23,9 +27,11 @@ contract NANNameRegistry is Ownable, ReentrancyGuard {
     mapping(address => string[]) private _ownedNames;
     mapping(address => mapping(bytes32 => bool)) private _ownsNameHash;
     mapping(address => string) private _primaryNames;
+    mapping(bytes32 => uint256) private _commitments;
 
     event NameRegistered(string name, address indexed owner, uint256 expiry, uint256 pricePaid);
     event NameRenewed(string name, address indexed owner, uint256 newExpiry);
+    event NameCommitted(bytes32 indexed commitment, address indexed committer, uint256 blockNumber);
     event PrimaryNameUpdated(address indexed owner, string name);
     event PricesUpdated(uint256 price1Yr, uint256 price2Yr, uint256 price5Yr);
     event Withdrawn(address indexed to, uint256 amount);
@@ -35,7 +41,19 @@ contract NANNameRegistry is Ownable, ReentrancyGuard {
         _usdc = IERC20(usdc_);
     }
 
-    function register(string calldata name, uint8 duration) external nonReentrant {
+    function commit(bytes32 commitment) external {
+        _commitments[commitment] = block.number;
+        emit NameCommitted(commitment, msg.sender, block.number);
+    }
+
+    function register(string calldata name, uint8 duration, bytes32 salt) external nonReentrant {
+        bytes32 commitment = keccak256(abi.encodePacked(name, salt, msg.sender));
+        uint256 commitBlock = _commitments[commitment];
+        require(commitBlock != 0, "No commitment found");
+        require(block.number >= commitBlock + COMMIT_DELAY, "Too soon after commit");
+        require(block.number <= commitBlock + COMMIT_EXPIRY, "Commitment expired");
+        delete _commitments[commitment];
+
         _validateName(name);
 
         NameRecord storage record = _records[name];
@@ -117,7 +135,25 @@ contract NANNameRegistry is Ownable, ReentrancyGuard {
     }
 
     function getNamesForAddress(address addr) external view returns (string[] memory) {
-        return _ownedNames[addr];
+        string[] storage all = _ownedNames[addr];
+        uint256 count = 0;
+        for (uint256 i = 0; i < all.length; i++) {
+            NameRecord storage r = _records[all[i]];
+            if (r.owner == addr && block.timestamp <= r.expiry) {
+                count++;
+            }
+        }
+
+        string[] memory active = new string[](count);
+        uint256 idx = 0;
+        for (uint256 i = 0; i < all.length; i++) {
+            NameRecord storage r = _records[all[i]];
+            if (r.owner == addr && block.timestamp <= r.expiry) {
+                active[idx++] = all[i];
+            }
+        }
+
+        return active;
     }
 
     function price1Yr() external view returns (uint256) {
@@ -177,6 +213,8 @@ contract NANNameRegistry is Ownable, ReentrancyGuard {
         if (_ownsNameHash[addr][hash]) {
             return;
         }
+
+        require(_ownedNames[addr].length < MAX_NAMES_PER_ADDRESS, "Too many names");
 
         _ownsNameHash[addr][hash] = true;
         _ownedNames[addr].push(name);

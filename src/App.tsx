@@ -35,6 +35,7 @@ import { PaymentRequestsPage } from './components/pages/PaymentRequestsPage'
 import { ContactsPage } from './components/pages/ContactsPage'
 import { NanNamePage } from './components/pages/NanNamePage'
 import { ReferralPage } from './components/pages/ReferralPage'
+import { MainnetSetupPage } from './components/pages/MainnetSetupPage'
 import { WelcomeBalloon } from './components/WelcomeBalloon'
 import { useActivityStream } from './hooks/useActivityStream'
 import { usePresence } from './hooks/usePresence'
@@ -160,6 +161,7 @@ export default function App() {
   if (activeView === 'onboarding') return <OnboardingPage />
   if (activeView === 'name') return <><WelcomeBalloon /><NamePage /></>
   if (activeView === 'admin') return <AdminDashboard />
+  if (activeView === 'setup') return <MainnetSetupPage />
 
   // App pages — inside the shell
   return (

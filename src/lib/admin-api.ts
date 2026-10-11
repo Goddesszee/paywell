@@ -9,7 +9,7 @@ export async function adminLogin(password: string): Promise<{ ok: true } | { ok:
     const r = await fetch('/api/admin/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ password }) })
     const raw = await r.text().catch(() => '')
     let d: { token?: string; error?: string } = {}
-    try { d = JSON.parse(raw) } catch { /* non-JSON body (platform error page) */ }
+    try { d = JSON.parse(raw) as { token?: string; error?: string } } catch { /* non-JSON body (platform error page) */ }
     if (r.ok && d.token) { setAdminToken(d.token); return { ok: true } }
     if (d.error) return { ok: false, error: d.error }
     const snippet = raw.replace(/\s+/g, ' ').trim().slice(0, 140)

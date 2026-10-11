@@ -279,7 +279,8 @@ function classifyToService(message: string): ServiceIntent {
     return { service_id: 'perplexity-research', query: message }
   if (/supplier|manufacturer|wholesale|factory|alibaba|bulk buy|product sourcing/.test(m))
     return { service_id: 'alibaba-suppliers', query: message }
-  if (/search for|look up|what is the latest|current news|who is|where is|find information|tell me about|nevice_id: 'serper-search', query: message }
+  if (/search for|look up|what is the latest|current news|who is|where is|find information|tell me about/.test(m)) {
+    if (process.env.SERPER_API_KEY) return { service_id: 'serper-search', query: message }
     if (process.env.BRAVE_SEARCH_API_KEY) return { service_id: 'brave-search', query: message }
   }
   return null

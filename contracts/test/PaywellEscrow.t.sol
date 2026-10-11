@@ -242,16 +242,95 @@ contract PaywellEscrowTest is Test {
         assertEq(usdc.balanceOf(buyer), before + AMOUNT);
     }
 
+    // ── claimRefundAfterDisputeTimeout ───────────────────────────────────────
+
+    function test_claimRefundAfterDisputeTimeout_refundsBuyer() public {
+        uint256 id = _createOrder();
+        vm.prank(buyer);
+        escrow.disputeOrder(id);
+        // Advance past CANCEL_WINDOW + DISPUTE_RESOLUTION_TIMEOUT
+        vm.warp(block.timestamp + 1 hours + 14 days + 1);
+        uint256 before = usdc.balanceOf(buyer);
+        vm.prank(buyer);
+        escrow.claimRefundAfterDisputeTimeout(id);
+        assertEq(usdc.balanceOf(buyer), before + AMOUNT);
+        assertEq(escrow.lockedBalance(), 0);
+    }
+
+    function test_claimRefundAfterDisputeTimeout_revertsBeforeDeadline() public {
+        uint256 id = _createOrder();
+        vm.prank(buyer);
+        escrow.disputeOrder(id);
+        vm.warp(block.timestamp + 1 days);
+        vm.prank(buyer);
+        vm.expectRevert("dispute timeout not reached");
+        escrow.claimRefundAfterDisputeTimeout(id);
+    }
+
+    function test_claimRefundAfterDisputeTimeout_revertsIfNotBuyer() public {
+        uint256 id = _createOrder();
+        vm.prank(buyer);
+        escrow.disputeOrder(id);
+        vm.warp(block.timestamp + 1 hours + 14 days + 1);
+        vm.prank(merchant);
+        vm.expectRevert("only buyer");
+        escrow.claimRefundAfterDisputeTimeout(id);
+    }
+
+    // ── lockedBalance accounting ──────────────────────────────────────────────
+
+    function test_lockedBalance_incrementsOnCreate() public {
+        assertEq(escrow.lockedBalance(), 0);
+        _createOrder();
+        assertEq(escrow.lockedBalance(), AMOUNT);
+    }
+
+    function test_lockedBalance_decrementsOnConfirm() public {
+        uint256 id = _createOrder();
+        vm.prank(buyer);
+        escrow.confirmOrder(id);
+        assertEq(escrow.lockedBalance(), 0);
+    }
+
+    function test_lockedBalance_decrementsOnCancel() public {
+        uint256 id = _createOrder();
+        vm.prank(buyer);
+        escrow.cancelOrder(id);
+        assertEq(escrow.lockedBalance(), 0);
+    }
+
+    function test_emergencyWithdraw_revertsOnLockedFunds() public {
+        _createOrder(); // locks AMOUNT
+        // Mint extra surplus
+        usdc.mint(address(escrow), 5e6);
+        address recv = makeAddr("recv");
+        // Should only be able to withdraw the 5e6 surplus, not the locked AMOUNT
+        vm.expectRevert("amount exceeds surplus");
+        escrow.emergencyWithdraw(address(usdc), recv, AMOUNT);
+        // But withdrawing just the surplus is fine
+        escrow.emergencyWithdraw(address(usdc), recv, 5e6);
+        assertEq(usdc.balanceOf(recv), 5e6);
+    }
+
     // ── cctpBurnAndTransfer ───────────────────────────────────────────────────
 
     function test_cctpBurnAndTransfer_callsMessenger() public {
-        // Pre-fund the escrow contract with USDC as if it held escrowed funds
+        // Mint surplus USDC (no locked balance, so full amount is available)
         usdc.mint(address(escrow), 50e6);
         bytes32 recipient = bytes32(uint256(uint160(merchant)));
         uint64 nonce = escrow.cctpBurnAndTransfer(50e6, 0, recipient, bytes32(0));
         assertEq(nonce, 1);
         assertEq(messenger.lastAmount(), 50e6);
         assertEq(messenger.lastRecipient(), recipient);
+    }
+
+    function test_cctpBurnAndTransfer_revertsWhenFundsLocked() public {
+        _createOrder(); // locks AMOUNT
+        usdc.mint(address(escrow), 50e6); // add surplus
+        bytes32 recipient = bytes32(uint256(uint160(merchant)));
+        // Trying to bridge more than the surplus should revert
+        vm.expectRevert("amount exceeds surplus");
+        escrow.cctpBurnAndTransfer(AMOUNT + 50e6, 0, recipient, bytes32(0));
     }
 
     function test_cctpBurnAndTransfer_revertsForNonOwner() public {

@@ -37,12 +37,14 @@ contract PaywellEscrow is Ownable, ReentrancyGuard {
     uint256 public constant BPS_DENOMINATOR = 10_000;
     uint256 public constant DISPUTE_TIMEOUT = 3 days;
     uint256 public constant CANCEL_WINDOW = 1 hours;
+    uint256 public constant DISPUTE_RESOLUTION_TIMEOUT = 14 days;
 
     IERC20 public immutable usdc;
     ITokenMessengerV2 public tokenMessenger;
     address public feeRecipient;
 
     uint256 public nextOrderId;
+    uint256 public lockedBalance;
     mapping(uint256 => Order) public orders;
 
     event OrderCreated(
@@ -62,9 +64,11 @@ contract PaywellEscrow is Ownable, ReentrancyGuard {
     );
     event OrderDisputed(uint256 indexed orderId, address indexed buyer);
     event OrderRefunded(uint256 indexed orderId, address indexed buyer, uint256 amount);
+    event DisputeTimeoutRefund(uint256 indexed orderId, address indexed buyer, uint256 amount);
     event FeeCollected(uint256 indexed orderId, address indexed feeRecipient, uint256 feeAmount);
     event FeeRecipientUpdated(address indexed oldRecipient, address indexed newRecipient);
     event TokenMessengerUpdated(address indexed oldMessenger, address indexed newMessenger);
+    event LockedBalanceUpdated(uint256 newLockedBalance);
 
     constructor(address _usdc, address _tokenMessenger, address _feeRecipient) Ownable(msg.sender) {
         require(_usdc != address(0), "invalid usdc");
@@ -93,6 +97,9 @@ contract PaywellEscrow is Ownable, ReentrancyGuard {
         });
 
         require(usdc.transferFrom(msg.sender, address(this), amount), "transferFrom failed");
+
+        lockedBalance += amount;
+        emit LockedBalanceUpdated(lockedBalance);
 
         emit OrderCreated(orderId, msg.sender, merchant, amount, fee, block.timestamp);
     }
@@ -128,6 +135,9 @@ contract PaywellEscrow is Ownable, ReentrancyGuard {
         require(msg.sender == order.buyer, "only buyer");
         require(block.timestamp < order.createdAt + CANCEL_WINDOW, "cancellation window has passed");
 
+        lockedBalance -= order.amount;
+        emit LockedBalanceUpdated(lockedBalance);
+
         order.status = OrderStatus.Refunded;
         require(usdc.transfer(order.buyer, order.amount), "refund transfer failed");
 
@@ -140,6 +150,9 @@ contract PaywellEscrow is Ownable, ReentrancyGuard {
             order.status == OrderStatus.Created || order.status == OrderStatus.Disputed,
             "order not refundable"
         );
+
+        lockedBalance -= order.amount;
+        emit LockedBalanceUpdated(lockedBalance);
 
         order.status = OrderStatus.Refunded;
         require(usdc.transfer(order.buyer, order.amount), "refund transfer failed");
@@ -154,6 +167,9 @@ contract PaywellEscrow is Ownable, ReentrancyGuard {
         uint256 fee = order.fee;
         uint256 merchantAmount = order.amount - fee;
 
+        lockedBalance -= order.amount;
+        emit LockedBalanceUpdated(lockedBalance);
+
         order.status = OrderStatus.Confirmed;
 
         require(usdc.transfer(order.merchant, merchantAmount), "merchant transfer failed");
@@ -167,10 +183,32 @@ contract PaywellEscrow is Ownable, ReentrancyGuard {
         Order storage order = orders[orderId];
         require(order.status == OrderStatus.Disputed, "order not disputed");
 
+        lockedBalance -= order.amount;
+        emit LockedBalanceUpdated(lockedBalance);
+
         order.status = OrderStatus.Refunded;
         require(usdc.transfer(order.buyer, order.amount), "refund transfer failed");
 
         emit OrderRefunded(orderId, order.buyer, order.amount);
+    }
+
+    function claimRefundAfterDisputeTimeout(uint256 orderId) external nonReentrant {
+        Order storage order = orders[orderId];
+        require(order.status == OrderStatus.Disputed, "order not disputed");
+        require(msg.sender == order.buyer, "only buyer");
+        require(
+            block.timestamp >= order.createdAt + CANCEL_WINDOW + DISPUTE_RESOLUTION_TIMEOUT,
+            "dispute timeout not reached"
+        );
+
+        lockedBalance -= order.amount;
+        emit LockedBalanceUpdated(lockedBalance);
+
+        order.status = OrderStatus.Refunded;
+        require(usdc.transfer(order.buyer, order.amount), "refund transfer failed");
+
+        emit OrderRefunded(orderId, order.buyer, order.amount);
+        emit DisputeTimeoutRefund(orderId, order.buyer, order.amount);
     }
 
     function cctpBurnAndTransfer(
@@ -180,6 +218,10 @@ contract PaywellEscrow is Ownable, ReentrancyGuard {
         bytes32 destinationCaller
     ) external onlyOwner nonReentrant returns (uint64 nonce) {
         require(amount > 0, "amount is zero");
+
+        uint256 available = usdc.balanceOf(address(this));
+        require(available > lockedBalance, "no surplus to bridge");
+        require(amount <= available - lockedBalance, "amount exceeds surplus");
 
         require(usdc.approve(address(tokenMessenger), 0), "approve reset failed");
         require(usdc.approve(address(tokenMessenger), amount), "approve failed");
@@ -218,12 +260,22 @@ contract PaywellEscrow is Ownable, ReentrancyGuard {
         require(to != address(0), "invalid recipient");
         require(amount > 0, "amount is zero");
 
+        if (token == address(usdc)) {
+            uint256 available = usdc.balanceOf(address(this));
+            require(available > lockedBalance, "no surplus to withdraw");
+            uint256 surplus = available - lockedBalance;
+            require(amount <= surplus, "amount exceeds surplus");
+        }
+
         require(IERC20(token).transfer(to, amount), "withdraw failed");
     }
 
     function _releaseToMerchant(uint256 orderId, Order storage order, bool byTimeout) internal {
         uint256 fee = order.fee;
         uint256 merchantAmount = order.amount - fee;
+
+        lockedBalance -= order.amount;
+        emit LockedBalanceUpdated(lockedBalance);
 
         order.status = OrderStatus.Confirmed;
 

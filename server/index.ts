@@ -44,7 +44,8 @@ function debouncedSave(name: string, data: unknown) {
 const app = express()
 const PORT = Number(process.env.PORT ?? 3001)
 
-app.use(cors({ origin: '*', credentials: true }))
+const allowedOrigin = process.env.ALLOWED_ORIGIN ?? '*'
+app.use(cors({ origin: allowedOrigin, credentials: true }))
 app.use(express.json({ limit: '5mb' }))
 
 // ── x402 Circle Gateway Nanopayments ──────────────────────────────────────────
@@ -115,6 +116,27 @@ for (const tx of [...txLedger].reverse()) {
   activityStore.set(tx.walletAddress, list)
 }
 
+// ── Production startup guard ──────────────────────────────────────────────────
+// In production, hard-fail if critical credentials are absent so the server
+// never silently falls back to mocks with real user data at stake.
+if (process.env.NODE_ENV === 'production') {
+  const missing: string[] = []
+  if (!process.env.CIRCLE_DEVELOPER_CONTROLLED_API_KEY && !process.env.CIRCLE_API_KEY && !process.env.CIRCLE_USER_CONTROLLED_API_KEY) {
+    missing.push('CIRCLE_DEVELOPER_CONTROLLED_API_KEY (or CIRCLE_API_KEY)')
+  }
+  if (!process.env.SMTP_HOST && !process.env.RESEND_API_KEY) {
+    missing.push('SMTP_HOST / SMTP_PORT / SMTP_USER / SMTP_PASS (or RESEND_API_KEY)')
+  }
+  const kvUrl = process.env.KV_REST_API_URL ?? process.env.UPSTASH_REDIS_REST_URL
+  if (!kvUrl) {
+    missing.push('KV_REST_API_URL (Upstash/Vercel KV Redis)')
+  }
+  if (missing.length > 0) {
+    console.error('FATAL: Missing required production env vars:\n  ' + missing.join('\n  '))
+    process.exit(1)
+  }
+}
+
 // ── helpers ───────────────────────────────────────────────────────────────────
 
 function genToken(len = 32) {
@@ -135,6 +157,29 @@ function requireSession(req: express.Request, res: express.Response) {
     return null
   }
   return session
+}
+
+// ── Admin authentication middleware ───────────────────────────────────────────
+// All /api/admin/* routes require a constant-time-compared secret token.
+// Set ADMIN_SECRET in your deployment environment (.env / Vercel env vars).
+// Without it, admin routes return 403 — never leave them open in production.
+const ADMIN_SECRET = process.env.ADMIN_SECRET ?? ''
+
+function requireAdmin(req: express.Request, res: express.Response, next: express.NextFunction) {
+  const provided = (req.headers['x-admin-secret'] as string | undefined) ?? req.query.secret as string | undefined ?? ''
+  if (!ADMIN_SECRET) {
+    // No secret configured — block all admin access rather than allowing open access
+    res.status(403).json({ success: false, error: 'Admin access not configured (ADMIN_SECRET not set)' })
+    return
+  }
+  // Constant-time comparison to prevent timing attacks
+  const aBuffer = Buffer.from(provided.padEnd(64))
+  const bBuffer = Buffer.from(ADMIN_SECRET.padEnd(64))
+  if (aBuffer.length !== bBuffer.length || !crypto.timingSafeEqual(aBuffer, bBuffer)) {
+    res.status(403).json({ success: false, error: 'Forbidden' })
+    return
+  }
+  next()
 }
 
 // ── health ────────────────────────────────────────────────────────────────────
@@ -207,8 +252,8 @@ app.post('/api/otp', async (req, res) => {
     if (action === 'send') {
       otpRateEntry.count++
       otpRateStore.set(otpRateKey, otpRateEntry)
-      // Generate a 6-digit OTP
-      const code = Math.floor(100000 + Math.random() * 900000).toString()
+      // Generate a 6-digit OTP using a CSPRNG
+      const code = crypto.randomInt(100000, 999999).toString()
       const otpToken = genToken()
       const exp = Date.now() + 1000 * 60 * 10 // 10 min
 
@@ -268,9 +313,19 @@ app.post('/api/otp', async (req, res) => {
 
       otpStore.delete(email)
 
+      // In production, block mock wallet assignment — real wallets must come from Circle API
+      if (process.env.NODE_ENV === 'production') {
+        const hasCircleKey = !!(process.env.CIRCLE_DEVELOPER_CONTROLLED_API_KEY ?? process.env.CIRCLE_API_KEY ?? process.env.CIRCLE_USER_CONTROLLED_API_KEY)
+        if (!hasCircleKey) {
+          res.status(503).json({ success: false, error: 'Circle API credentials not configured — cannot create real wallet' })
+          return
+        }
+      }
+
       // Create or reuse session
       const sessionToken = genToken()
       // Assign a deterministic mock wallet address per email in dev
+      // (replaced by a real Circle wallet address in production flows via /api/wallet/initialize)
       const walletAddress = deterministicAddress(email)
       const walletId = `wallet-${crypto.createHash('sha256').update(email).digest('hex').slice(0, 16)}`
 
@@ -953,16 +1008,21 @@ app.post('/api/support/tickets/:id/reply', (req, res) => {
   res.json({ success: true, ticket })
 })
 
+// ── Admin router (all /api/admin/* require requireAdmin middleware) ────────────
+const adminRouter = express.Router()
+adminRouter.use(requireAdmin)
+app.use('/api/admin', adminRouter)
+
 // ── Admin support endpoints ────────────────────────────────────────────────────
 
 // Get all tickets (admin)
-app.get('/api/admin/support/tickets', (_req, res) => {
+app.get('/api/admin/support/tickets', requireAdmin, (_req, res) => {
   const all = [...supportStore.values()].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
   res.json({ success: true, tickets: all })
 })
 
 // Admin reply + status change
-app.post('/api/admin/support/tickets/:id/reply', (req, res) => {
+app.post('/api/admin/support/tickets/:id/reply', requireAdmin, (req, res) => {
   const ticket = supportStore.get(req.params.id)
   if (!ticket) { res.status(404).json({ success: false, error: 'Not found' }); return }
   const { message, status } = req.body as { message?: string; status?: SupportTicket['status'] }
@@ -986,7 +1046,7 @@ app.post('/api/admin/support/tickets/:id/reply', (req, res) => {
 })
 
 // Mark ticket unread for admin (after reading)
-app.post('/api/admin/support/tickets/:id/read', (_req, res) => {
+app.post('/api/admin/support/tickets/:id/read', requireAdmin, (_req, res) => {
   const ticket = supportStore.get(_req.params.id)
   if (ticket) { ticket.hasUnreadCustomer = false; debouncedSave('support-tickets', Object.fromEntries(supportStore)) }
   res.json({ success: true })
@@ -1069,7 +1129,7 @@ app.get('/api/faqs', (_req, res) => {
   res.json({ success: true, faqs: faqStore.sort((a, b) => a.order - b.order) })
 })
 
-app.post('/api/admin/faqs', (req, res) => {
+app.post('/api/admin/faqs', requireAdmin, (req, res) => {
   const { action, faq, id } = req.body as {
     action: 'create' | 'update' | 'delete' | 'reorder'
     faq?: Partial<FaqItem>
@@ -1130,7 +1190,7 @@ app.get('/api/about', (_req, res) => {
   res.json({ success: true, about: aboutContent })
 })
 
-app.post('/api/admin/about', (req, res) => {
+app.post('/api/admin/about', requireAdmin, (req, res) => {
   const update = req.body as Partial<AboutContent>
   aboutContent = { ...aboutContent, ...update, updatedAt: new Date().toISOString() }
   res.json({ success: true, about: aboutContent })
@@ -1168,14 +1228,14 @@ app.post('/api/feedback', (req, res) => {
   res.json({ success: true, id: entry.id })
 })
 
-app.get('/api/admin/feedback', (_req, res) => {
+app.get('/api/admin/feedback', requireAdmin, (_req, res) => {
   const avg = feedbackStore.length
     ? feedbackStore.reduce((s, f) => s + f.rating, 0) / feedbackStore.length
     : 0
   res.json({ success: true, feedback: feedbackStore, averageRating: Math.round(avg * 10) / 10, total: feedbackStore.length })
 })
 
-app.post('/api/admin/feedback/:id/review', (req, res) => {
+app.post('/api/admin/feedback/:id/review', requireAdmin, (req, res) => {
   const entry = feedbackStore.find(f => f.id === req.params.id)
   if (!entry) { res.status(404).json({ success: false, error: 'Not found' }); return }
   entry.reviewed = true
@@ -1232,11 +1292,11 @@ app.get('/api/suggestions', (req, res) => {
   }
 })
 
-app.get('/api/admin/suggestions', (_req, res) => {
+app.get('/api/admin/suggestions', requireAdmin, (_req, res) => {
   res.json({ success: true, suggestions: suggestionStore })
 })
 
-app.patch('/api/admin/suggestions/:id', (req, res) => {
+app.patch('/api/admin/suggestions/:id', requireAdmin, (req, res) => {
   const entry = suggestionStore.find(s => s.id === req.params.id)
   if (!entry) { res.status(404).json({ success: false, error: 'Not found' }); return }
   const { status, adminNote } = req.body as { status?: SuggestionStatus; adminNote?: string }
@@ -1268,7 +1328,7 @@ export function appendAudit(action: string, actor: string, detail: string, recor
   if (auditLog.length > 500) auditLog.length = 500
 }
 
-app.get('/api/admin/audit', (_req, res) => {
+app.get('/api/admin/audit', requireAdmin, (_req, res) => {
   res.json({ success: true, log: auditLog.slice(0, 200) })
 })
 
@@ -1317,7 +1377,7 @@ app.patch('/api/account/profile', (req, res) => {
 
 // ── Analytics summary (admin) ─────────────────────────────────────────────────
 
-app.get('/api/admin/analytics', (_req, res) => {
+app.get('/api/admin/analytics', requireAdmin, (_req, res) => {
   const totalSessions = sessionStore.size
   const totalFeedback = feedbackStore.length
   const avgRating = feedbackStore.length
@@ -1507,7 +1567,7 @@ app.get('/api/rewards/balance', (req, res) => {
   res.json({ success: true, claimable: claimable.toFixed(2), totalEarned: totalEarned.toFixed(2), claimed: claimed.toFixed(2), referralCount: ref?.uses ?? 0 })
 })
 
-app.post('/api/rewards/claim', (req, res) => {
+app.post('/api/rewards/claim', async (req, res) => {
   const { wallet } = req.body as { wallet: string }
   if (!wallet) { res.status(400).json({ error: 'wallet required' }); return }
   const key = wallet.toLowerCase()
@@ -1516,15 +1576,46 @@ app.post('/api/rewards/claim', (req, res) => {
   const totalEarned = (ref?.uses ?? 0) * REWARD_PER_REFERRAL
   const claimable = Math.max(0, totalEarned - prev)
   if (claimable <= 0) { res.status(400).json({ error: 'No rewards to claim' }); return }
-  const newClaimed = prev + claimable
-  rewardClaimedStore.set(key, { claimed: newClaimed, lastClaimedAt: Date.now() })
-  debouncedSave('rewards-claimed', Object.fromEntries(rewardClaimedStore))
-  // Mock txHash — in production this would be a real Circle wallet transfer
-  const txHash = '0x' + crypto.randomBytes(32).toString('hex')
-  res.json({ success: true, amount: claimable.toFixed(2), txHash })
+
+  const circleKey = process.env.CIRCLE_DEVELOPER_CONTROLLED_API_KEY ?? process.env.CIRCLE_API_KEY
+  const entitySecret = process.env.CIRCLE_ENTITY_SECRET
+  const rewardsWalletId = process.env.REWARDS_WALLET_ID
+
+  if (!circleKey || !entitySecret || !rewardsWalletId) {
+    if (process.env.NODE_ENV === 'production') {
+      res.status(503).json({ error: 'Rewards not configured — set CIRCLE_DEVELOPER_CONTROLLED_API_KEY, CIRCLE_ENTITY_SECRET, and REWARDS_WALLET_ID to enable real payouts' })
+      return
+    }
+    // Dev-only mock
+    const newClaimed = prev + claimable
+    rewardClaimedStore.set(key, { claimed: newClaimed, lastClaimedAt: Date.now() })
+    debouncedSave('rewards-claimed', Object.fromEntries(rewardClaimedStore))
+    const txHash = '0x' + crypto.randomBytes(32).toString('hex')
+    res.json({ success: true, amount: claimable.toFixed(2), txHash, _mock: true })
+    return
+  }
+
+  // Real Circle developer-controlled wallet transfer
+  try {
+    const result = await circleTransfer({
+      walletId: rewardsWalletId,
+      to: wallet,
+      amount: claimable.toFixed(6),
+      tokenSymbol: 'USDC',
+      apiKey: circleKey,
+      entitySecret,
+    })
+    const newClaimed = prev + claimable
+    rewardClaimedStore.set(key, { claimed: newClaimed, lastClaimedAt: Date.now() })
+    debouncedSave('rewards-claimed', Object.fromEntries(rewardClaimedStore))
+    res.json({ success: true, amount: claimable.toFixed(2), txHash: result.txId })
+  } catch (e) {
+    console.error('Rewards claim transfer failed:', e)
+    res.status(500).json({ error: 'Transfer failed — please try again' })
+  }
 })
 
-app.get('/api/admin/tx-report', (_req, res) => {
+app.get('/api/admin/tx-report', requireAdmin, (_req, res) => {
   const totalVolume = txLedger.reduce((s, t) => s + t.amount, 0)
   const mainVolume  = txLedger.filter(t => t.walletType === 'main').reduce((s, t) => s + t.amount, 0)
   const agentVolume = txLedger.filter(t => t.walletType === 'agent').reduce((s, t) => s + t.amount, 0)
