@@ -19,6 +19,56 @@ import { erc20Abi } from 'viem'
 import { ONCHAIN_CHAINS } from '../onchain-facts'
 import { useFxRates } from './useFxRates'
 
+// ── Direct RPC reads — works for ALL user types, no wallet required ───────────
+// keccak256("balanceOf(address)")[0..4] = 0x70a08231
+function balanceOfCalldata(address: string): string {
+  return '0x70a08231' + '000000000000000000000000' + address.slice(2).toLowerCase()
+}
+
+async function ethCallDirect(rpc: string, to: string, data: string): Promise<bigint> {
+  try {
+    const res = await fetch(rpc, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'eth_call', params: [{ to, data }, 'latest'] }),
+    })
+    if (!res.ok) return 0n
+    const json = await res.json() as { result?: string }
+    const hex = json.result
+    if (!hex || hex === '0x' || hex === '0x0') return 0n
+    return BigInt(hex)
+  } catch {
+    return 0n
+  }
+}
+
+/** One entry per (chainId, symbol) pair we want to read directly */
+interface DirectCall {
+  chainId: number
+  chainName: string
+  symbol: 'USDC' | 'EURC' | 'USDT'
+  rpc: string
+  contractAddress: string
+}
+
+/** Result keyed as `${chainId}:${symbol}` */
+type DirectResults = Record<string, bigint>
+
+async function fetchAllBalancesDirect(
+  address: string,
+  calls: DirectCall[],
+): Promise<DirectResults> {
+  const results = await Promise.allSettled(
+    calls.map(c => ethCallDirect(c.rpc, c.contractAddress, balanceOfCalldata(address)))
+  )
+  const out: DirectResults = {}
+  calls.forEach((c, i) => {
+    const val = results[i].status === 'fulfilled' ? results[i].value : 0n
+    out[`${c.chainId}:${c.symbol}`] = val
+  })
+  return out
+}
+
 // ── Supported chains for NAN (must have USDC) ────────────────────────────────
 export const PORTFOLIO_CHAINS = ONCHAIN_CHAINS.filter(
   (c) => !c.isTestnet && !!c.usdc,
@@ -183,6 +233,44 @@ export function usePortfolioBalances(address: string | undefined): PortfolioSumm
     },
   })
 
+  // ── Direct RPC reads for ALL chains — works for every user type ──────────
+  // Build the call list from PORTFOLIO_CHAINS + EURC_BY_CHAIN so we cover
+  // every chain without a wagmi connection requirement.
+  const directCalls = useMemo<DirectCall[]>(() => {
+    return PORTFOLIO_CHAINS.flatMap(chain => {
+      const rpc = chain.rpcUrls[0]
+      if (!rpc) return []
+      const calls: DirectCall[] = []
+      if (chain.usdc) {
+        calls.push({ chainId: chain.chainId, chainName: chain.name, symbol: 'USDC', rpc, contractAddress: chain.usdc.address })
+      }
+      if (EURC_BY_CHAIN[chain.chainId]) {
+        calls.push({ chainId: chain.chainId, chainName: chain.name, symbol: 'EURC', rpc, contractAddress: EURC_BY_CHAIN[chain.chainId] })
+      }
+      return calls
+    })
+  }, [])
+
+  const [directResults, setDirectResults] = useState<DirectResults>({})
+  const [directLoading, setDirectLoading] = useState(true)
+
+  const fetchDirect = useCallback(async () => {
+    if (!address || directCalls.length === 0) return
+    setDirectLoading(true)
+    const results = await fetchAllBalancesDirect(address, directCalls)
+    setDirectResults(results)
+    setDirectLoading(false)
+  }, [address, directCalls])
+
+  /* oxlint-disable react(set-state-in-effect) */
+  useEffect(() => {
+    void fetchDirect()
+    const id = setInterval(() => { void fetchDirect() }, 30_000)
+    return () => clearInterval(id)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fetchDirect])
+  /* oxlint-enable react(set-state-in-effect) */
+
   // ── Gateway balance ───────────────────────────────────────────────────────
   const [gatewayAvailable, setGatewayAvailable] = useState('0')
   const [gatewayPending,   setGatewayPending]   = useState('0')
@@ -221,11 +309,17 @@ export function usePortfolioBalances(address: string | undefined): PortfolioSumm
 
   // ── Build positions ───────────────────────────────────────────────────────
   const positions: TokenPosition[] = useMemo(() => {
-    if (!data) return []
     return contracts.map((c, i) => {
-      const result = data[i]
+      const result = data?.[i]
       const ok  = result?.status === 'success'
-      const raw = ok ? (result.result) : 0n
+      let raw = ok ? (result.result) : 0n
+
+      // If wagmi returned 0 or failed, fill in from the direct RPC result
+      const directKey = `${c._meta.chainId}:${c._meta.symbol}`
+      if (raw === 0n && directResults[directKey] && directResults[directKey] > 0n) {
+        raw = directResults[directKey]
+      }
+
       const qty = Number(raw) / 1e6
       const usd = c._meta.symbol === 'EURC'
         ? qty * eurRate
@@ -238,13 +332,40 @@ export function usePortfolioBalances(address: string | undefined): PortfolioSumm
         quantity: qty.toFixed(2),
         usdValue: usd.toFixed(2),
         raw,
-        status: (ok ? 'confirmed' : result?.status === 'failure' ? 'unavailable' : 'pending'),
+        status: (ok || raw > 0n ? 'confirmed' : result?.status === 'failure' ? 'unavailable' : 'pending'),
       }
     })
-  }, [data, contracts, eurRate])
+  }, [data, contracts, eurRate, directResults])
+
+  // ── Full cross-chain positions from direct RPC ────────────────────────────
+  // Used when wagmi has no data yet — covers all chains, all user types.
+  const directOnlyPositions: TokenPosition[] = useMemo(() => {
+    if (Object.keys(directResults).length === 0 || !address) return []
+    return directCalls.map(c => {
+      const raw = directResults[`${c.chainId}:${c.symbol}`] ?? 0n
+      const qty = Number(raw) / 1e6
+      const usd = c.symbol === 'EURC' ? qty * eurRate : qty
+      return {
+        symbol: c.symbol,
+        chainId: c.chainId,
+        chainName: c.chainName,
+        quantity: qty.toFixed(2),
+        usdValue: usd.toFixed(2),
+        raw,
+        status: 'confirmed' as const,
+      }
+    })
+  }, [directResults, directCalls, address, eurRate])
 
   // ── Aggregate ─────────────────────────────────────────────────────────────
   const ARC_CHAIN_ID = 5042
+
+  // Use wagmi positions when available (they already have direct fallback merged in);
+  // fall back to pure direct results when wagmi hasn't returned data yet at all.
+  const effectivePositions = useMemo(() => {
+    if (!data && directOnlyPositions.length > 0) return directOnlyPositions
+    return positions
+  }, [data, positions, directOnlyPositions])
 
   const {
     networks, byToken, totalUsd, totalUsdc, totalEurc, totalUsdt,
@@ -269,7 +390,7 @@ export function usePortfolioBalances(address: string | undefined): PortfolioSumm
       }
     }
 
-    for (const pos of positions) {
+    for (const pos of effectivePositions) {
       const net = netMap[pos.chainId]
       if (!net) continue
       net.positions.push(pos)
@@ -324,13 +445,14 @@ export function usePortfolioBalances(address: string | undefined): PortfolioSumm
       nonArcTotalUsd: nonArcUsd.toFixed(2),
       nonArcNetworksWithBalance: nonArcNets,
     }
-  }, [positions, eurRate])
+  }, [effectivePositions, eurRate])
 
   const refetch = useCallback(() => {
     void refetchContracts()
     void refetchFx()
     void fetchGateway()
-  }, [refetchContracts, refetchFx, fetchGateway])
+    void fetchDirect()
+  }, [refetchContracts, refetchFx, fetchGateway, fetchDirect])
 
   return {
     totalUsd, totalUsdc, totalEurc, totalUsdt,
@@ -338,7 +460,7 @@ export function usePortfolioBalances(address: string | undefined): PortfolioSumm
     nonArcTotalUsd, nonArcNetworksWithBalance,
     gatewayAvailable, gatewayPending,
     lastUpdated,
-    isLoading: contractsLoading,
+    isLoading: contractsLoading && directLoading,
     eurUsdRate: eurRate,
     fxUpdatedAt,
     refetch,
