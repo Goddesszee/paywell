@@ -3,7 +3,7 @@
  * Shows claimable balance, a Claim button, and balloon confetti on success.
  */
 import { useState, useEffect } from 'react'
-import { X, Gift, CheckCircle2, ExternalLink, Share2, Copy, Check as CheckIcon } from 'lucide-react'
+import { X, Gift, CheckCircle2, ExternalLink, Share2, Copy, Check as CheckIcon, AtSign } from 'lucide-react'
 import { useNanTheme } from '../../hooks/useNanTheme'
 import { useAccount } from 'wagmi'
 import { useAppStore } from '../../store/appStore'
@@ -93,13 +93,17 @@ interface RewardsData {
 export function RewardsSheet({ onClose }: { onClose: () => void }) {
   const C = useNanTheme()
   const { address: wagmiAddress } = useAccount()
-  const { auth } = useAppStore()
+  const { auth, nanHandle, setActiveView } = useAppStore()
   const address = wagmiAddress ?? auth?.circleWalletAddress
 
-  const { data: referral } = useReferral()
-  const referralLink = referral?.code
-    ? `https://nanarc.xyz/join?ref=${referral.code}`
-    : `https://nanarc.xyz`
+  // useReferral is kept for trackReferral side-effects; we don't use its code here.
+  useReferral()
+
+  // Only show a referral link when the user has a NAN name — the code is tied to the handle.
+  // useReferral auto-generates a code from any identity key, but we gate sharing on nanHandle
+  // so every link is meaningful and human-readable (nanarc.xyz/join?ref=alice, not a hex string).
+  const nanCode = nanHandle ? nanHandle.replace(/^@/, '') : null
+  const referralLink = nanCode ? `https://nanarc.xyz/join?ref=${nanCode}` : null
 
   const [data, setData] = useState<RewardsData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -110,6 +114,7 @@ export function RewardsSheet({ onClose }: { onClose: () => void }) {
   const [linkCopied, setLinkCopied] = useState(false)
 
   const shareLink = async () => {
+    if (!referralLink) return
     if (navigator.share) {
       try {
         await navigator.share({ title: 'Join me on NAN', text: 'Send and receive USDC instantly — earn $1 USDC for signing up!', url: referralLink })
@@ -301,43 +306,79 @@ export function RewardsSheet({ onClose }: { onClose: () => void }) {
                   You earn <strong style={{ color: C.blue }}>$1 USDC</strong> for every friend who joins NAN.
                 </div>
 
-                {/* Referral link box */}
-                {referral?.code && (
+                {/* Gate: must have a NAN name to get a referral link */}
+                {!nanCode ? (
+                  /* ── No NAN name → CTA to claim one ── */
                   <div style={{
-                    background: C.surf2, border: `1px dashed rgba(8,102,245,0.30)`,
-                    borderRadius: 12, padding: '10px 14px', marginBottom: 14,
-                    display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
+                    background: 'rgba(8,102,245,0.06)', border: '1px solid rgba(8,102,245,0.18)',
+                    borderRadius: 16, padding: '20px 18px', marginBottom: 4,
                   }}>
-                    <div style={{ textAlign: 'left', minWidth: 0 }}>
-                      <div style={{ fontSize: 10, color: C.t3, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 3 }}>Your code</div>
-                      <div style={{ fontSize: 18, fontWeight: 900, color: C.blue, letterSpacing: '0.1em', fontFamily: MONO }}>{referral.code}</div>
+                    <div style={{
+                      width: 48, height: 48, borderRadius: 14,
+                      background: 'rgba(8,102,245,0.12)', border: '1px solid rgba(8,102,245,0.25)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      margin: '0 auto 12px',
+                    }}>
+                      <AtSign size={22} color={C.blue} />
+                    </div>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 6 }}>
+                      Claim your NAN name first
+                    </div>
+                    <div style={{ fontSize: 12, color: C.t3, lineHeight: 1.55, marginBottom: 16 }}>
+                      Your NAN name becomes your unique referral link — easy to share and instantly recognisable.
                     </div>
                     <button
-                      onClick={() => {
-                        navigator.clipboard.writeText(referralLink).then(() => {
-                          setLinkCopied(true)
-                          setTimeout(() => setLinkCopied(false), 2500)
-                        }).catch(() => {})
+                      onClick={() => { onClose(); setActiveView('nan-name') }}
+                      style={{
+                        width: '100%', padding: '13px', borderRadius: 12,
+                        background: C.blue, border: 'none', color: '#fff',
+                        fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: F,
+                        letterSpacing: '-0.01em',
                       }}
-                      style={{ width: 36, height: 36, borderRadius: 9, background: C.surf, border: `1px solid ${C.bdr}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}
                     >
-                      {linkCopied ? <CheckIcon size={14} color="#10B981" /> : <Copy size={14} color={C.t3} />}
+                      Get my NAN name →
                     </button>
                   </div>
-                )}
+                ) : (
+                  /* ── Has NAN name → show link + share ── */
+                  <>
+                    <div style={{
+                      background: C.surf2, border: `1px dashed rgba(8,102,245,0.30)`,
+                      borderRadius: 12, padding: '10px 14px', marginBottom: 14,
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
+                    }}>
+                      <div style={{ textAlign: 'left', minWidth: 0 }}>
+                        <div style={{ fontSize: 10, color: C.t3, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 3 }}>Your code</div>
+                        <div style={{ fontSize: 18, fontWeight: 900, color: C.blue, letterSpacing: '0.1em', fontFamily: MONO }}>{nanCode}</div>
+                      </div>
+                      <button
+                        onClick={() => {
+                          if (!referralLink) return
+                          navigator.clipboard.writeText(referralLink).then(() => {
+                            setLinkCopied(true)
+                            setTimeout(() => setLinkCopied(false), 2500)
+                          }).catch(() => {})
+                        }}
+                        style={{ width: 36, height: 36, borderRadius: 9, background: C.surf, border: `1px solid ${C.bdr}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}
+                      >
+                        {linkCopied ? <CheckIcon size={14} color="#10B981" /> : <Copy size={14} color={C.t3} />}
+                      </button>
+                    </div>
 
-                <button
-                  onClick={() => { void shareLink() }}
-                  style={{
-                    width: '100%', padding: '14px', borderRadius: 13,
-                    background: C.blue, border: 'none', color: '#fff',
-                    fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: F,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                    boxShadow: '0 5px 18px rgba(8,102,245,0.38)',
-                  }}
-                >
-                  <Share2 size={16} /> Share my referral link
-                </button>
+                    <button
+                      onClick={() => { void shareLink() }}
+                      style={{
+                        width: '100%', padding: '14px', borderRadius: 13,
+                        background: C.blue, border: 'none', color: '#fff',
+                        fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: F,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                        boxShadow: '0 5px 18px rgba(8,102,245,0.38)',
+                      }}
+                    >
+                      <Share2 size={16} /> Share my referral link
+                    </button>
+                  </>
+                )}
               </div>
             )}
           </>
