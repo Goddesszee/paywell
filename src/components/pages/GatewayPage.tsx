@@ -1366,34 +1366,13 @@ function CircleTransferTab({ address, gatewayBalance, onSuccess }: {
       // UCW wallets are SCA (Smart Contract Accounts) — the Gateway API must
       // validate the signature via ERC-1271, so contractSigner:true is required.
       // Without it the API rejects with a signature verification error.
-      const { attestation, signature: mintSignature } = await submitBurnIntent(burnIntent, signature, true)
+      // enableForwarder=true: Circle's Forwarding Service mints on the destination chain, so the user
+      // needs no wallet or gas on that chain (the UCW path used to mint itself, which needed an SCP
+      // blockchain id + a destination-chain wallet and failed for mainnet chains like Base).
+      const { transferId } = await submitBurnIntent(burnIntent, signature, true, true)
 
       setPhase('minting')
-
-      // UCW path mint: Circle UCW executes gatewayMint on destination chain directly
-      const destScpBlockchain = destChain.scpBlockchain
-      if (!destScpBlockchain) throw new Error(`No SCP blockchain ID for ${destChain.name}`)
-      const ucwWalletAddress = auth?.circleWalletAddress
-      if (!ucwWalletAddress) throw new Error('Circle wallet address not found — please log in again')
-
-      // Use pre-encoded callData rather than abiFunctionSignature+abiParameters:
-      // the Circle UCW SDK ABI-encodes abiParameters server-side, which would
-      // double-encode the raw `bytes` hex values for attestation and mintSignature.
-      const { encodeFunctionData: encodeGatewayMint } = await import('viem')
-      // attestation and mintSignature are non-null when enableForwarder=false (UCW path)
-      const gatewayMintCallData = encodeGatewayMint({
-        abi: GATEWAY_MINTER_ABI,
-        functionName: 'gatewayMint',
-        args: [attestation!, mintSignature!],
-      })
-      const txHash = await circleTx.executeContract({
-        contractAddress: GATEWAY_MINTER,
-        callData: gatewayMintCallData,
-        blockchain: destScpBlockchain,
-        walletAddress: ucwWalletAddress,
-      })
-
-      setMintTxHash(txHash)
+      setMintTxHash(transferId ?? 'forwarded')
       setPhase('done')
       toast.success(`Transferred ${amount} USDC to ${destChain.name}`)
       setTimeout(onSuccess, 2000)
@@ -1462,7 +1441,7 @@ function CircleTransferTab({ address, gatewayBalance, onSuccess }: {
                 {s.done ? <Check size={12} color="#fff" /> : s.active ? <div style={{ width:11, height:11, borderRadius:'50%', border:`2px solid ${BLUE}`, borderTopColor:'transparent', animation:'nan-spin 0.8s linear infinite' }} /> : <span style={{ fontSize:11, color:T3 }}>{i+1}</span>}
               </div>
               <span style={{ fontSize:13, color: s.active ? TEXT : s.done ? TEXT : T2 }}>{s.label}</span>
-              {s.done && i===2 && mintTxHash && destChain && (
+              {s.done && i===2 && mintTxHash?.startsWith('0x') && destChain && (
                 <a href={`${destChain.explorerBase}/tx/${mintTxHash}`} target="_blank" rel="noreferrer" style={{ marginLeft:'auto', fontSize:11, color:T2, display:'flex', alignItems:'center', gap:3 }}>View <ExternalLink size={10} /></a>
               )}
             </div>
