@@ -7,7 +7,7 @@
  * The id for PATCH/DELETE is passed as ?id=<id>.
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { getRedis } from './_redis'
+import { getRedis } from './_redis.js'
 
 function walletKey(req: VercelRequest): string {
   return (req.headers['x-wallet-address'] as string | undefined ?? '').toLowerCase()

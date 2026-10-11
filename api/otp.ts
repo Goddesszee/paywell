@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import crypto from 'crypto'
 import nodemailer from 'nodemailer'
-import { getRedis } from './_redis'
+import { getRedis } from './_redis.js'
 
 // Fallback in-memory store — only used if Redis is not configured.
 // On Vercel serverless, different invocations may hit different containers,

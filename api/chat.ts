@@ -19,7 +19,7 @@
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import type { MarketplaceServiceCard } from './agent-wallet'
+import type { MarketplaceServiceCard } from './agent-wallet.js'
 
 // ── action block parser ───────────────────────────────────────────────────────
 function extractAction(raw: string): { text: string; action: Record<string, unknown> | null } {

@@ -12,7 +12,7 @@
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import crypto from 'crypto'
-import { getRedis, REDIS_NOT_CONFIGURED } from './_redis'
+import { getRedis, REDIS_NOT_CONFIGURED } from './_redis.js'
 
 const _H = { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
 

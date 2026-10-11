@@ -28,7 +28,7 @@
 
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { initiateUserControlledWalletsClient, Blockchain } from '@circle-fin/user-controlled-wallets'
-import { circleKeyInfo, requireCircleKey } from './_circle-key'
+import { circleKeyInfo, requireCircleKey } from './_circle-key.js'
 import { AppKit } from '@circle-fin/app-kit'
 
 // ── helpers ──────────────────────────────────────────────────────────────────
@@ -93,7 +93,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // Write a session record to Redis so community endpoints (suggestions,
       // feedback, support) can resolve this user from their sessionToken.
       try {
-        const { getRedis } = await import('./_redis')
+        const { getRedis } = await import('./_redis.js')
         const kv = getRedis()
         if (kv && wallets.length > 0) {
           const wallet = wallets[0]

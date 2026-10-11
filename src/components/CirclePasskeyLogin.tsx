@@ -62,7 +62,7 @@ export function CirclePasskeyLogin({ onBack, onSuccess }: Props) {
   // Initialise directly from storage — avoids a setState inside a useEffect
   const [hasExisting, setHasExisting] = useState(() => !!getStoredCredential())
 
-  const clientKey = import.meta.env.VITE_CLIENT_KEY as string | undefined
+  const clientKey = ((import.meta.env.VITE_CLIENT_KEY as string | undefined) ?? '').trim().replace(/^["']|["']$/g, '').trim() || undefined
   // VITE_CLIENT_URL must be https://modular-sdk.circle.com/v1/rpc/w3s/buidl
   // Fall back to the canonical URL so the env var being wrong/missing doesn't break passkey.
   const clientUrl = (import.meta.env.VITE_CLIENT_URL as string | undefined)

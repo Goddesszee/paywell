@@ -6,8 +6,8 @@
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { initiateUserControlledWalletsClient } from '@circle-fin/user-controlled-wallets'
-import { circleKeyInfo, requireCircleKey } from './_circle-key'
-import { getRedis } from './_redis'
+import { circleKeyInfo, requireCircleKey } from './_circle-key.js'
+import { getRedis } from './_redis.js'
 
 // ── shared helpers ─────────────────────────────────────────────────────────────
 

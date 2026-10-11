@@ -13,7 +13,7 @@
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { isAddress } from 'viem'
-import { SERVICE_REGISTRY } from '../src/lib/agent-registry'
+import { getAllServices } from '../src/lib/agent-registry.js'
 
 // ── faucet config ─────────────────────────────────────────────────────────────
 const FAUCET_URL  = 'https://api.circle.com/v1/faucet/drips'
@@ -43,7 +43,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // ── GET agent-registry ─────────────────────────────────────────────────────
   if (route === 'agent-registry') {
     res.setHeader('Cache-Control', 'public, s-maxage=60')
-    return res.status(200).json({ services: SERVICE_REGISTRY, count: SERVICE_REGISTRY.length })
+    {
+      const services = getAllServices()
+      return res.status(200).json({ services, count: services.length })
+    }
   }
 
   // ── POST faucet ────────────────────────────────────────────────────────────

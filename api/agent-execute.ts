@@ -22,7 +22,7 @@
  *   Falls back to skipping payment (logs reason) if any credential is missing.
  */
 
-import { circleKeyInfo } from './_circle-key'
+import { circleKeyInfo } from './_circle-key.js'
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { randomUUID } from 'crypto'
 
