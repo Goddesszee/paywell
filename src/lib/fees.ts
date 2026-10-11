@@ -8,7 +8,7 @@
  *   Onramp (buy USDC)   1%   (VITE_FEE_ONRAMP_BPS = 100)
  *   Marketplace sale    2%   (VITE_FEE_MARKETPLACE_BPS = 200)
  *   Swap                0.3% (VITE_FEE_SWAP_BPS = 30)
- *   Bridge              0.3% (VITE_FEE_BRIDGE_BPS = 30, min VITE_FEE_BRIDGE_MIN_USDC)
+ *   Bridge              0.5% (VITE_FEE_BRIDGE_BPS = 50, min VITE_FEE_BRIDGE_MIN_USDC)
  *   Send / receive      Free
  *
  * Industry reference (Oct 2026):
@@ -33,9 +33,9 @@ export const MARKETPLACE_FEE_BPS: number =
 export const SWAP_FEE_BPS: number =
   Number(import.meta.env.VITE_FEE_SWAP_BPS ?? 30)
 
-/** Bridge platform fee in basis points (30 = 0.3%). */
+/** Bridge platform fee in basis points (50 = 0.5%). */
 export const BRIDGE_FEE_BPS: number =
-  Number(import.meta.env.VITE_FEE_BRIDGE_BPS ?? 30)
+  Number(import.meta.env.VITE_FEE_BRIDGE_BPS ?? 50)
 
 /** Minimum bridge fee in USDC (protects against dust). */
 export const BRIDGE_FEE_MIN_USDC: number =
