@@ -1,10 +1,11 @@
 /**
- * TradePage — unified Swap + Bridge card.
+ * TradePage — unified Swap + Bridge card (compact premium redesign).
  *
- * Renders a centred, dark glass card with a "Swap | Bridge" pill tab at the
- * top. Both sub-pages render inside the same card so the chrome stays fixed
- * and only the content changes. On desktop the card expands to 620 px for
- * a more comfortable layout.
+ * Key changes vs. previous version:
+ * - Page heading collapsed into card header (single compact row)
+ * - Card top padding trimmed, bottom breathing room kept
+ * - RecentActivity rows tighter with a real empty state
+ * - Tab icons replaced with cleaner ArrowUpDown / ArrowRightLeft
  */
 import { Suspense, lazy, useState } from 'react'
 import { History, Settings2, ArrowRightLeft, ArrowUpDown } from 'lucide-react'
@@ -26,14 +27,14 @@ function PageLoading() {
   return (
     <div style={{
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      padding: '48px 0', color: 'var(--nan-text2)', fontSize: 13,
+      padding: '36px 0', color: 'var(--nan-text2)', fontSize: 13,
     }}>
       <span className="nan-spinner" style={{ marginRight: 8 }} />Loading…
     </div>
   )
 }
 
-/** The header that lives INSIDE the card — tabs + icon buttons */
+/** Card header — tab switcher + subtitle + icon actions all on one compact row */
 function TradeHeader({ tab, setTab, c }: {
   tab: Tab
   setTab: (t: Tab) => void
@@ -44,52 +45,68 @@ function TradeHeader({ tab, setTab, c }: {
   return (
     <div style={{
       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-      padding: '14px 16px 12px',
+      padding: '12px 14px 10px',
       borderBottom: `1px solid ${c.bdr}`,
     }}>
-      {/* Tab pills */}
-      <div style={{
-        display: 'flex', gap: 2,
-        background: c.surf2,
-        borderRadius: 10,
-        padding: 3,
-        border: `1px solid ${c.bdr}`,
-      }}>
-        {(['swap', 'bridge'] as Tab[]).map(t => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            style={{
-              padding: '6px 18px',
-              borderRadius: 8,
-              border: 'none',
-              background: tab === t ? c.surf : 'transparent',
-              color: tab === t ? c.text : c.t2,
-              fontSize: 13,
-              fontWeight: tab === t ? 700 : 500,
-              cursor: 'pointer',
-              fontFamily: 'var(--nan-font)',
-              transition: 'all 0.15s',
-              letterSpacing: '-0.01em',
-              boxShadow: tab === t ? '0 1px 4px rgba(0,0,0,0.15)' : 'none',
-              WebkitTapHighlightColor: 'transparent',
-              display: 'flex', alignItems: 'center', gap: 5,
-            }}
-          >
-            {t === 'swap'
-              ? <><ArrowUpDown size={12} strokeWidth={2.5} />{' '}Swap</>
-              : <><ArrowRightLeft size={12} strokeWidth={2.5} />{' '}Bridge</>}
-          </button>
-        ))}
+      {/* Left: title + tab pills */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        {/* Compact title text — changes with tab */}
+        <div>
+          <div style={{ fontSize: 15, fontWeight: 800, color: c.text, letterSpacing: '-0.03em', lineHeight: 1 }}>
+            {tab === 'swap' ? 'Swap' : 'Bridge'}
+          </div>
+          <div style={{ fontSize: 10, color: c.t3, marginTop: 2, lineHeight: 1 }}>
+            {tab === 'swap'
+              ? 'Exchange tokens on Arc'
+              : 'Move USDC across chains'}
+          </div>
+        </div>
+
+        {/* Tab pills */}
+        <div style={{
+          display: 'flex', gap: 2,
+          background: c.surf2,
+          borderRadius: 9,
+          padding: '2px 3px',
+          border: `1px solid ${c.bdr}`,
+          marginLeft: 4,
+        }}>
+          {(['swap', 'bridge'] as Tab[]).map(t => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              style={{
+                padding: '5px 12px',
+                borderRadius: 7,
+                border: 'none',
+                background: tab === t ? c.surf : 'transparent',
+                color: tab === t ? c.text : c.t2,
+                fontSize: 12,
+                fontWeight: tab === t ? 700 : 500,
+                cursor: 'pointer',
+                fontFamily: 'var(--nan-font)',
+                transition: 'all 0.15s',
+                letterSpacing: '-0.01em',
+                boxShadow: tab === t ? '0 1px 4px rgba(0,0,0,0.15)' : 'none',
+                WebkitTapHighlightColor: 'transparent',
+                display: 'flex', alignItems: 'center', gap: 4,
+              }}
+            >
+              {t === 'swap'
+                ? <><ArrowUpDown size={11} strokeWidth={2.5} />Swap</>
+                : <><ArrowRightLeft size={11} strokeWidth={2.5} />Bridge</>}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* Action icons */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+      {/* Right: icon actions */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
         <button
           onClick={() => setActiveView('activity')}
           title="History"
           style={{
-            width: 34, height: 34, borderRadius: 9,
+            width: 32, height: 32, borderRadius: 8,
             border: `1px solid ${c.bdr}`,
             background: 'transparent',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -98,13 +115,13 @@ function TradeHeader({ tab, setTab, c }: {
             transition: 'background 0.12s',
           }}
         >
-          <History size={14} strokeWidth={2} />
+          <History size={13} strokeWidth={2} />
         </button>
         <button
           onClick={() => setActiveView('settings')}
           title="Settings"
           style={{
-            width: 34, height: 34, borderRadius: 9,
+            width: 32, height: 32, borderRadius: 8,
             border: `1px solid ${c.bdr}`,
             background: 'transparent',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -113,7 +130,7 @@ function TradeHeader({ tab, setTab, c }: {
             transition: 'background 0.12s',
           }}
         >
-          <Settings2 size={14} strokeWidth={2} />
+          <Settings2 size={13} strokeWidth={2} />
         </button>
       </div>
     </div>
@@ -129,15 +146,18 @@ function RecentActivity({ c }: { c: ReturnType<typeof useNanTheme> }) {
     .filter(a => a.type === 'swap' || a.type === 'bridge')
     .slice(0, 4)
 
-  if (recent.length === 0) return null
-
   const statusColor = (s: string) =>
-    s === 'confirmed' ? '#10B981' : s === 'failed' ? '#EF4444' : '#F59E0B'
+    s === 'confirmed' ? c.green : s === 'failed' ? c.red : c.gold
 
   return (
-    <div style={{ marginTop: 12 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-        <span style={{ fontSize: 11, fontWeight: 700, color: c.t3, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Recent</span>
+    <div style={{ marginTop: 10 }}>
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        marginBottom: 6,
+      }}>
+        <span style={{ fontSize: 10, fontWeight: 700, color: c.t3, textTransform: 'uppercase' as const, letterSpacing: '0.07em' }}>
+          Recent
+        </span>
         <button
           onClick={() => setActiveView('activity')}
           style={{ fontSize: 11, color: c.blue, background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--nan-font)', fontWeight: 600, padding: 0 }}
@@ -145,45 +165,63 @@ function RecentActivity({ c }: { c: ReturnType<typeof useNanTheme> }) {
           View all →
         </button>
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-        {recent.map((a, i) => (
-          <div key={i} style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            padding: '8px 12px',
-            background: c.surf,
-            border: `1px solid ${c.bdr}`,
-            borderRadius: 10,
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div style={{
-                width: 28, height: 28, borderRadius: 8,
-                background: a.type === 'swap' ? 'rgba(8,102,245,0.10)' : 'rgba(16,185,129,0.10)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-              }}>
-                {a.type === 'swap'
-                  ? <ArrowUpDown size={12} color={c.blue} strokeWidth={2.5} />
-                  : <ArrowRightLeft size={12} color="#10B981" strokeWidth={2.5} />}
-              </div>
-              <div>
-                <div style={{ fontSize: 12, fontWeight: 600, color: c.text, lineHeight: 1.2 }}>
-                  {a.description ?? (a.type === 'swap' ? 'Swap' : 'Bridge')}
+
+      {recent.length === 0 ? (
+        <div style={{
+          padding: '14px 0',
+          textAlign: 'center' as const,
+          fontSize: 12,
+          color: c.t3,
+        }}>
+          No swap or bridge activity yet.
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 2 }}>
+          {recent.map((a, i) => (
+            <div key={i} style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '8px 12px',
+              background: c.surf,
+              border: `1px solid ${c.bdr}`,
+              borderRadius: 10,
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{
+                  width: 26, height: 26, borderRadius: 7, flexShrink: 0,
+                  background: a.type === 'swap' ? `rgba(8,102,245,0.10)` : `rgba(16,185,129,0.10)`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  {a.type === 'swap'
+                    ? <ArrowUpDown size={11} color={c.blue} strokeWidth={2.5} />
+                    : <ArrowRightLeft size={11} color={c.green} strokeWidth={2.5} />}
                 </div>
-                <div style={{ fontSize: 10, color: c.t3, marginTop: 1 }}>
-                  {a.timestamp instanceof Date ? a.timestamp.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''}
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: c.text, lineHeight: 1.2 }}>
+                    {a.description ?? (a.type === 'swap' ? 'Swap' : 'Bridge')}
+                  </div>
+                  <div style={{ fontSize: 10, color: c.t3, marginTop: 1 }}>
+                    {a.timestamp instanceof Date
+                      ? a.timestamp.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+                      : ''}
+                  </div>
+                </div>
+              </div>
+              <div style={{ textAlign: 'right' as const }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: c.text }}>
+                  {a.sign === '-' ? '-' : '+'}{a.amount?.toFixed(2) ?? '—'}
+                </div>
+                <div style={{
+                  fontSize: 10, fontWeight: 600, marginTop: 1,
+                  textTransform: 'capitalize' as const,
+                  color: statusColor(a.status ?? ''),
+                }}>
+                  {a.status ?? 'pending'}
                 </div>
               </div>
             </div>
-            <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: c.text }}>
-                {a.sign === '-' ? '-' : '+'}{a.amount?.toFixed(2) ?? '—'}
-              </div>
-              <div style={{ fontSize: 10, fontWeight: 600, color: statusColor(a.status ?? ''), marginTop: 1, textTransform: 'capitalize' }}>
-                {a.status ?? 'pending'}
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -201,22 +239,10 @@ export function TradePage({ initialTab = 'swap' }: TradePageProps) {
     <div style={{
       maxWidth: 620,
       margin: '0 auto',
-      padding: '12px 0 48px',
+      padding: '8px 0 40px',
       fontFamily: 'var(--nan-font)',
     }}>
-      {/* Page heading */}
-      <div style={{ marginBottom: 14, paddingLeft: 2 }}>
-        <h1 style={{ fontSize: 20, fontWeight: 800, color: c.text, letterSpacing: '-0.03em', margin: 0, lineHeight: 1.1 }}>
-          {tab === 'swap' ? 'Swap' : 'Bridge'}
-        </h1>
-        <p style={{ fontSize: 11, color: c.t3, margin: '3px 0 0' }}>
-          {tab === 'swap'
-            ? 'Exchange your tokens across supported networks.'
-            : 'Move USDC across chains with Circle CCTP.'}
-        </p>
-      </div>
-
-      {/* Unified card */}
+      {/* Unified card — header + content in one surface */}
       <div style={{
         background: c.surf,
         border: `1px solid ${c.bdr2}`,
@@ -234,7 +260,7 @@ export function TradePage({ initialTab = 'swap' }: TradePageProps) {
         </ErrorBoundary>
       </div>
 
-      {/* Recent activity */}
+      {/* Recent activity — compact strip below card */}
       <RecentActivity c={c} />
     </div>
   )

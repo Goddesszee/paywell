@@ -85,7 +85,7 @@ export default defineConfig({
     cors: true,
     // Fix HMR WebSocket in Arc Studio preview (proxied over HTTPS/WSS).
     hmr: {
-      host: 'inhaolscg21lxbwbkuv44.preview.studio.arc.io',
+      host: 'ikw655jl2o8rodrhc5tjp.preview.studio.arc.io',
       clientPort: 443,
       protocol: 'wss',
     },
