@@ -69,9 +69,18 @@ export function getClientKey(): string | undefined {
   return k || undefined
 }
 
+/** Non-secret fingerprint of the key baked into this build: its type prefix, length and shape. */
+export function describeClientKey(key = getClientKey()): string {
+  if (!key) return 'no key in this build'
+  const parts = key.split(':')
+  const prefix = /^[A-Z_]{6,30}$/.test(parts[0]) ? parts[0] : 'unrecognised prefix'
+  return `${prefix}, ${key.length} chars, ${parts.length} part${parts.length === 1 ? '' : 's'}`
+}
+
 /** Returns a human message if the key is obviously unusable for mainnet, else undefined. */
 export function clientKeyProblem(key: string | undefined): string | undefined {
-  if (!key) return 'Passkey login is not configured: VITE_CLIENT_KEY is missing (Circle Console → Keys → Create a key → Client Key).'
+  if (!key) return 'Passkey login is not configured: VITE_CLIENT_KEY is missing from this build (add it in Vercel, then redeploy).'
+  if (/_API_KEY/i.test(key)) return 'VITE_CLIENT_KEY holds an API key, not a client key. Create a Client Key in Circle Console → Keys → Create a key → Client Key and use that.'
   if (/^TEST_/i.test(key)) return 'VITE_CLIENT_KEY is a TEST key. Arc mainnet needs a LIVE client key (starts with LIVE_CLIENT_KEY:) from Circle Console → Keys → Client Key.'
   return undefined
 }
@@ -79,7 +88,7 @@ export function clientKeyProblem(key: string | undefined): string | undefined {
 /** Turns Circle's terse RPC failures into something the developer/user can act on. */
 export function explainPasskeyError(msg: string): string {
   if (/invalid credentials|unauthori[sz]ed|\b401\b/i.test(msg)) {
-    return 'Circle rejected the passkey client key ("Invalid credentials"). Check that (1) VITE_CLIENT_KEY is a LIVE client key copied in full, and (2) nanarc.xyz is registered as the Passkey Domain in Circle Console → Wallets → Modular Wallets → Passkey. Then redeploy.'
+    return 'Circle rejected the passkey client key ("Invalid credentials"). Check that (1) VITE_CLIENT_KEY is a LIVE client key copied in full, (2) nanarc.xyz is the Passkey Domain in Circle Console → Wallets → Modular Wallets → Passkey, and (3) you redeployed after changing the key (Vite bakes it in at build time). Key in this build: ' + describeClientKey() + '.'
   }
   if (/domain|origin|relying party|rpid/i.test(msg)) {
     return 'Passkey domain mismatch: set the Passkey Domain in Circle Console → Wallets → Modular Wallets → Passkey to exactly this site (nanarc.xyz).'
