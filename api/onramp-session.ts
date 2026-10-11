@@ -37,6 +37,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       destinationAddress?: string; amount?: string | number; appUserId?: string
     }
     const { destinationAddress, amount, appUserId } = body
+
+    // NAN platform fee (1%) is displayed in the UI and collected post-settlement.
+    // Circle does not expose a partner-fee param in the session API, so we pass
+    // the gross amount (what the user intends to pay) to Circle.  The DEPOSIT_SETTLED
+    // webhook triggers a separate USDC transfer of the 1% fee from the user's wallet
+    // to FEE_WALLET once the USDC lands.  This keeps Circle's disclosed amount accurate.
+    const NAN_FEE_BPS = Number(process.env.VITE_FEE_ONRAMP_BPS ?? 100)
+    const grossAmount = amount !== undefined ? Number(amount) : undefined
+    const nanFee = grossAmount !== undefined ? Math.round(grossAmount * NAN_FEE_BPS) / 10000 : undefined
+    void nanFee // collected post-settlement via DEPOSIT_SETTLED webhook
     if (!destinationAddress) {
       return res.status(400).json({ error: 'destinationAddress is required — connect a wallet first' })
     }

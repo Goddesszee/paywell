@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react'
 import { useAccount } from 'wagmi'
 import { ShoppingCart, AlertCircle, Check, X, RefreshCw, Loader2, ArrowLeft } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
+import { onrampFee } from '../../lib/fees'
 
 // NAN design tokens
 const F     = "'Inter', -apple-system, sans-serif"
@@ -290,7 +291,8 @@ export function OnrampPage() {
           <div style={{ marginBottom: 12, padding: '4px 16px', background: SURF, borderRadius: 14, border: `1px solid ${BDR}` }}>
             {[
               { label: 'You pay',             value: `$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD` },
-              { label: 'Est. USDC received',  value: `≈ ${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDC`, note: 'Rate provided by Circle at checkout' },
+              { label: 'NAN fee (1%)',         value: `-$${onrampFee(amount).toFixed(2)} USD`, note: 'Platform fee' },
+              { label: 'Est. USDC received',  value: `≈ ${(amount - onrampFee(amount)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDC`, note: 'Rate provided by Circle at checkout' },
               { label: 'Destination network', value: 'Arc' },
               { label: 'Provider fees',       value: 'Shown at checkout', note: 'Circle discloses fees before confirmation' },
             ].map(({ label, value, note }, i, arr) => (
@@ -302,14 +304,6 @@ export function OnrampPage() {
                 <span style={{ fontSize: 13, fontWeight: 700, color: TEXT, textAlign: 'right' as const, flexShrink: 0 }}>{value}</span>
               </div>
             ))}
-          </div>
-
-          {/* Testnet disclaimer */}
-          <div style={{ marginBottom: 12, padding: '10px 14px', background: 'rgba(255,149,0,0.06)', borderRadius: 12, border: '1px solid rgba(255,149,0,0.18)', display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-            <AlertCircle size={13} color="#F59E0B" style={{ flexShrink: 0, marginTop: 1 }} />
-            <p style={{ color: T2, fontSize: 12, margin: 0, lineHeight: 1.5 }}>
-              This is <strong style={{ color: TEXT }}>Arc</strong>. Tokens received are test USDC and have no real-world value.
-            </p>
           </div>
 
           {/* Error */}
@@ -444,8 +438,7 @@ export function OnrampPage() {
 
       {/* Footer */}
       <p style={{ textAlign: 'center', fontSize: 11, color: T3, marginTop: 16, lineHeight: 1.6 }}>
-        Powered by Circle · KYC &amp; compliance handled by Circle<br />
-        Testnet tokens have no monetary value
+        Powered by Circle · KYC &amp; compliance handled by Circle
       </p>
     </div>
   )
