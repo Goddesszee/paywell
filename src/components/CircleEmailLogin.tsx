@@ -25,7 +25,7 @@ import { fetchPrimaryWallet } from '../lib/circle-session'
 import { ArrowLeft, ArrowRight, Loader, Mail } from 'lucide-react'
 
 const F     = "'Inter', -apple-system, sans-serif"
-const BLUE  = '#0066FF'
+const BLUE  = '#0866F5'
 const TEXT  = 'var(--nan-text)'
 const TEXT2 = '#8A8F9E'
 const TEXT3 = '#50556A'
@@ -354,7 +354,7 @@ export function CircleEmailLogin({ onBack, onSuccess }: Props) {
 
           {notConfigured && (
             <div style={{ background: 'rgba(255,180,0,0.1)', border: '1px solid rgba(255,180,0,0.3)',
-              borderRadius: 10, padding: '10px 14px', marginBottom: 16, fontSize: 12, color: '#F0A500', lineHeight: 1.5 }}>
+              borderRadius: 10, padding: '10px 14px', marginBottom: 16, fontSize: 12, color: '#F59E0B', lineHeight: 1.5 }}>
               Add <code>VITE_CIRCLE_APP_ID</code> and <code>CIRCLE_USER_CONTROLLED_API_KEY</code> in Vercel to activate live email login.
             </div>
           )}
@@ -400,7 +400,7 @@ export function CircleEmailLogin({ onBack, onSuccess }: Props) {
             Tap the button below — a popup will open where you enter the code.
           </p>
 
-          <div style={{ background: 'rgba(0,102,255,0.08)', border: '1px solid rgba(0,102,255,0.2)',
+          <div style={{ background: 'rgba(8,102,245,0.08)', border: '1px solid rgba(8,102,245,0.2)',
             borderRadius: 10, padding: '12px 16px', marginBottom: 20, fontSize: 13, color: BLUE, lineHeight: 1.5 }}>
             Code sent — check inbox and spam folder.
           </div>
@@ -453,8 +453,8 @@ export function CircleEmailLogin({ onBack, onSuccess }: Props) {
       {/* ── success ──────────────────────────────────────────────────────── */}
       {step === 'done' && (
         <div style={{ textAlign: 'center', padding: '40px 0' }}>
-          <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'rgba(0,200,83,0.12)',
-            border: '2px solid rgba(0,200,83,0.4)', display: 'flex', alignItems: 'center',
+          <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'rgba(16,185,129,0.12)',
+            border: '2px solid rgba(16,185,129,0.4)', display: 'flex', alignItems: 'center',
             justifyContent: 'center', margin: '0 auto 18px', fontSize: 24 }}>✓</div>
           <p style={{ fontSize: 17, fontWeight: 700, color: TEXT, marginBottom: 4 }}>
             {profile.displayName ? `Welcome back, ${profile.displayName}!` : 'Wallet ready!'}
@@ -498,5 +498,5 @@ const inputS: React.CSSProperties = {
 }
 
 const errS: React.CSSProperties = {
-  fontSize: 13, color: '#FF3B3B', marginTop: 8, marginBottom: 8, lineHeight: 1.5,
+  fontSize: 13, color: '#EF4444', marginTop: 8, marginBottom: 8, lineHeight: 1.5,
 }

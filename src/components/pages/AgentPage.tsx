@@ -56,11 +56,11 @@ const TEXT    = 'var(--nan-text)'
 const SURF    = 'var(--nan-surface)'
 const SURF2   = 'var(--nan-surface2)'
 const BDR     = 'var(--nan-bdr)'
-const BLUE    = '#0066FF'
+const BLUE    = '#0866F5'
 const TEXT2   = 'var(--nan-text2)'
 const TEXT3   = 'var(--nan-text3)'
-const SUCCESS = '#00C853'
-const DANGER  = '#FF3B3B'
+const SUCCESS = '#10B981'
+const DANGER  = '#EF4444'
 const BLACK   = TEXT
 const WHITE   = SURF2
 const SURFACE = SURF
@@ -107,7 +107,7 @@ function MoreMenu({ active, onSelect, onClose }: {
               style={{
                 width: '100%', display: 'flex', alignItems: 'center', gap: 10,
                 padding: '11px 16px', border: 'none',
-                background: isActive ? 'rgba(0,102,255,0.08)' : 'transparent',
+                background: isActive ? 'rgba(8,102,245,0.08)' : 'transparent',
                 cursor: 'pointer', fontFamily: F, textAlign: 'left',
                 borderBottom: `1px solid ${BDR}`,
               }}
@@ -157,7 +157,7 @@ function PaymentConfirmCard({ serviceName, provider, costUsdc, agentBalance, pol
         </div>
       ))}
       {insufficient && (
-        <div style={{ marginTop: 10, padding: '8px 12px', background: 'rgba(255,59,59,0.07)', border: '1px solid rgba(255,59,59,0.2)', borderRadius: 10, fontSize: 12, color: DANGER }}>
+        <div style={{ marginTop: 10, padding: '8px 12px', background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 10, fontSize: 12, color: DANGER }}>
           Insufficient Agent Wallet balance. Fund your Agent Wallet first.
         </div>
       )}
@@ -165,7 +165,7 @@ function PaymentConfirmCard({ serviceName, provider, costUsdc, agentBalance, pol
         <button
           onClick={onConfirm}
           disabled={insufficient}
-          style={{ flex: 1, height: 40, background: insufficient ? 'rgba(0,102,255,0.35)' : BLUE, color: '#fff', border: 'none', borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: insufficient ? 'not-allowed' : 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+          style={{ flex: 1, height: 40, background: insufficient ? 'rgba(8,102,245,0.35)' : BLUE, color: '#fff', border: 'none', borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: insufficient ? 'not-allowed' : 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
         >
           <Check size={13} /> Continue
         </button>
@@ -185,7 +185,7 @@ function PaymentConfirmCard({ serviceName, provider, costUsdc, agentBalance, pol
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function PaymentSuccessCard({ serviceName, costUsdc, txId, C: _C }: { serviceName: string; costUsdc: number; txId?: string; C?: unknown }) {
   return (
-    <div style={{ background: 'rgba(0,200,83,0.06)', border: '1px solid rgba(0,200,83,0.22)', borderRadius: 14, padding: '12px 14px', marginBottom: 10 }}>
+    <div style={{ background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.22)', borderRadius: 14, padding: '12px 14px', marginBottom: 10 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 8 }}>
         <CheckCircle2 size={14} color={SUCCESS} />
         <span style={{ fontSize: 13, fontWeight: 700, color: SUCCESS }}>Payment successful</span>
@@ -231,19 +231,19 @@ function ActionConfirmCard({ action, onConfirm, onCancel, executing, result, err
         </div>
       ))}
       {result && (
-        <div style={{ marginTop: 10, padding: '8px 12px', background: 'rgba(0,200,83,0.07)', border: '1px solid rgba(0,200,83,0.2)', borderRadius: 10, fontSize: 12, color: '#00C853', display: 'flex', alignItems: 'center', gap: 6 }}>
-          <CheckCircle2 size={12} color="#00C853" /> {result}
+        <div style={{ marginTop: 10, padding: '8px 12px', background: 'rgba(16,185,129,0.07)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: 10, fontSize: 12, color: '#10B981', display: 'flex', alignItems: 'center', gap: 6 }}>
+          <CheckCircle2 size={12} color="#10B981" /> {result}
         </div>
       )}
       {error && (
-        <div style={{ marginTop: 10, padding: '8px 12px', background: 'rgba(255,59,59,0.07)', border: '1px solid rgba(255,59,59,0.2)', borderRadius: 10, fontSize: 12, color: DANGER }}>
+        <div style={{ marginTop: 10, padding: '8px 12px', background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 10, fontSize: 12, color: DANGER }}>
           {error}
         </div>
       )}
       {!result && needsConfirm && (
         <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
           <button onClick={onConfirm} disabled={executing}
-            style={{ flex: 1, height: 40, background: executing ? 'rgba(0,102,255,0.35)' : BLUE, color: '#fff', border: 'none', borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: executing ? 'not-allowed' : 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+            style={{ flex: 1, height: 40, background: executing ? 'rgba(8,102,245,0.35)' : BLUE, color: '#fff', border: 'none', borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: executing ? 'not-allowed' : 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
             {executing ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <Check size={13} />}
             {executing ? 'Working…' : 'Confirm'}
           </button>
@@ -323,7 +323,7 @@ export function AgentPage() {
           background: `linear-gradient(135deg, ${BLUE} 0%, #5B9FFF 100%)`,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           flexShrink: 0,
-          boxShadow: '0 2px 8px rgba(0,102,255,0.2)',
+          boxShadow: '0 2px 8px rgba(8,102,245,0.2)',
         }}>
           <Bot size={19} color="#fff" />
         </div>
@@ -343,8 +343,8 @@ export function AgentPage() {
             style={{
               display: 'flex', alignItems: 'center', gap: 4,
               height: 28, padding: '0 10px',
-              background: 'rgba(0,102,255,0.1)',
-              border: '1px solid rgba(0,102,255,0.25)',
+              background: 'rgba(8,102,245,0.1)',
+              border: '1px solid rgba(8,102,245,0.25)',
               borderRadius: 20, cursor: 'pointer',
               fontSize: 11, fontWeight: 600, color: BLUE,
               fontFamily: F, flexShrink: 0,
@@ -359,7 +359,7 @@ export function AgentPage() {
           onClick={() => setMenuOpen(v => !v)}
           style={{
             width: 36, height: 36, borderRadius: '50%',
-            background: menuOpen ? 'rgba(0,102,255,0.08)' : 'transparent',
+            background: menuOpen ? 'rgba(8,102,245,0.08)' : 'transparent',
             border: 'none', cursor: 'pointer',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             flexShrink: 0,
@@ -488,7 +488,7 @@ function ServiceExecutionFlow({ state, onConfirm, onCancel }: {
           </div>
         ))}
         {insufficient && (
-          <div style={{ marginTop:10, padding:'8px 12px', background:'rgba(255,59,59,0.07)', border:'1px solid rgba(255,59,59,0.2)', borderRadius:10, fontSize:12, color:DANGER }}>
+          <div style={{ marginTop:10, padding:'8px 12px', background:'rgba(239,68,68,0.07)', border:'1px solid rgba(239,68,68,0.2)', borderRadius:10, fontSize:12, color:DANGER }}>
             Your Agent Wallet doesn't have enough USDC. Fund it first in the Agent Wallet tab.
           </div>
         )}
@@ -496,7 +496,7 @@ function ServiceExecutionFlow({ state, onConfirm, onCancel }: {
           <button
             onClick={onConfirm}
             disabled={insufficient}
-            style={{ flex:1, height:40, background:insufficient?'rgba(0,102,255,0.35)':BLUE, color:'#fff', border:'none', borderRadius:10, fontSize:13, fontWeight:700, cursor:insufficient?'not-allowed':'pointer', fontFamily:F, display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}
+            style={{ flex:1, height:40, background:insufficient?'rgba(8,102,245,0.35)':BLUE, color:'#fff', border:'none', borderRadius:10, fontSize:13, fontWeight:700, cursor:insufficient?'not-allowed':'pointer', fontFamily:F, display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}
           >
             <Check size={13} /> Continue
           </button>
@@ -531,7 +531,7 @@ function ServiceExecutionFlow({ state, onConfirm, onCancel }: {
 
   if (state.phase === 'error') {
     return (
-      <div style={{ background:'rgba(255,59,59,0.06)', border:'1px solid rgba(255,59,59,0.22)', borderRadius:14, padding:'12px 14px' }}>
+      <div style={{ background:'rgba(239,68,68,0.06)', border:'1px solid rgba(239,68,68,0.22)', borderRadius:14, padding:'12px 14px' }}>
         <div style={{ fontSize:13, fontWeight:700, color:DANGER, marginBottom:4 }}>I couldn't complete that request.</div>
         <div style={{ fontSize:12, color:TEXT2 }}>{state.reason}</div>
       </div>
@@ -658,7 +658,7 @@ function InlineChatSwap({ fromToken, toToken, amount, agentUserToken, agentAddre
     }
   }
 
-  const BLUE = '#0066FF'; const GREEN = '#00C853'
+  const BLUE = '#0866F5'; const GREEN = '#10B981'
 
   if (phase === 'quoting') return (
     <div style={{ background: SURF, border: `1px solid ${BDR}`, borderRadius: 16, padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 10, fontFamily: F }}>
@@ -671,8 +671,8 @@ function InlineChatSwap({ fromToken, toToken, amount, agentUserToken, agentAddre
   )
 
   if (phase === 'error') return (
-    <div style={{ background: 'rgba(255,59,59,0.06)', border: '1px solid rgba(255,59,59,0.2)', borderRadius: 16, padding: '16px 18px', fontFamily: F }}>
-      <div style={{ fontSize: 13, fontWeight: 700, color: '#FF3B3B', marginBottom: 6 }}>Couldn't complete the swap.</div>
+    <div style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 16, padding: '16px 18px', fontFamily: F }}>
+      <div style={{ fontSize: 13, fontWeight: 700, color: '#EF4444', marginBottom: 6 }}>Couldn't complete the swap.</div>
       <div style={{ fontSize: 12, color: TEXT2, marginBottom: 12 }}>{errMsg}</div>
       <button onClick={onCancel} style={{ padding: '7px 16px', background: SURF, border: `1px solid ${BDR}`, borderRadius: 10, fontSize: 12, fontWeight: 600, color: TEXT, cursor: 'pointer', fontFamily: F }}>Dismiss</button>
     </div>
@@ -686,7 +686,7 @@ function InlineChatSwap({ fromToken, toToken, amount, agentUserToken, agentAddre
   )
 
   if (phase === 'done') return (
-    <div style={{ background: 'rgba(0,200,83,0.06)', border: '1px solid rgba(0,200,83,0.2)', borderRadius: 16, padding: '16px 18px', fontFamily: F }}>
+    <div style={{ background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: 16, padding: '16px 18px', fontFamily: F }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 4 }}>
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={GREEN} strokeWidth="2.5"><path d="M20 6L9 17l-5-5"/></svg>
         <span style={{ fontSize: 13, fontWeight: 700, color: GREEN }}>Swap complete</span>
@@ -1641,7 +1641,7 @@ function AgentChat({ onNavigate }: { onNavigate?: (page: string, query?: string)
             fontSize: 12, fontWeight: 700,
             cursor: 'pointer',
             fontFamily: F,
-            boxShadow: '0 4px 16px rgba(0,102,255,0.4)',
+            boxShadow: '0 4px 16px rgba(8,102,245,0.4)',
             zIndex: 10,
             whiteSpace: 'nowrap',
           }}
@@ -1718,7 +1718,7 @@ function AgentChat({ onNavigate }: { onNavigate?: (page: string, query?: string)
             cursor: input.trim() && !typing ? 'pointer' : 'default',
             flexShrink: 0,
             transition: 'background 0.15s, border-color 0.15s',
-            boxShadow: input.trim() && !typing && !x402Paying ? '0 2px 12px rgba(0,102,255,0.35)' : 'none',
+            boxShadow: input.trim() && !typing && !x402Paying ? '0 2px 12px rgba(8,102,245,0.35)' : 'none',
           }}
         >
           <Send size={16} color={input.trim() && !typing && !x402Paying ? '#fff' : TEXT3} style={{ marginLeft: 2 }} />
@@ -1923,8 +1923,8 @@ function MsgBubble({ msg, onApprove, onReject, onUseService, onInspectService }:
         <div style={{ display:'flex', alignItems:'center', gap:6, flexWrap:'wrap' }}>
           <div style={{ fontSize:10, color:TEXT3 }}>{formatRelativeTime(msg.timestamp)}</div>
           {msg.serviceSource && (
-            <div style={{ fontSize:10, fontWeight:600, color:'#0066FF', background:'rgba(0,102,255,0.08)', border:'1px solid rgba(0,102,255,0.2)', borderRadius:6, padding:'1px 7px', display:'flex', alignItems:'center', gap:3 }}>
-              <Zap size={9} color='#0066FF' /> {msg.serviceSource}
+            <div style={{ fontSize:10, fontWeight:600, color:'#0866F5', background:'rgba(8,102,245,0.08)', border:'1px solid rgba(8,102,245,0.2)', borderRadius:6, padding:'1px 7px', display:'flex', alignItems:'center', gap:3 }}>
+              <Zap size={9} color='#0866F5' /> {msg.serviceSource}
             </div>
           )}
           {msg.marketplaceServices && msg.marketplaceServices.length > 0 && (
@@ -2064,7 +2064,7 @@ function NetworkTab() {
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
       {/* Header */}
-      <div style={{ background:'rgba(0,102,255,0.08)', border:'1px solid rgba(0,102,255,0.18)', borderRadius:14, padding:14 }}>
+      <div style={{ background:'rgba(8,102,245,0.08)', border:'1px solid rgba(8,102,245,0.18)', borderRadius:14, padding:14 }}>
         <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:4 }}>
           <Network size={14} color={BLUE} />
           <span style={{ fontSize:13, fontWeight:700, color:TEXT }}>NAN Agent Network</span>
@@ -2146,14 +2146,14 @@ function AgentMarketplace() {
         <button key={agent.agent_id} onClick={() => setSelected(agent)}
           style={{ background:SURF, border:`1px solid ${BDR}`, borderRadius:14, padding:14, textAlign:'left', cursor:'pointer', width:'100%' }}>
           <div style={{ display:'flex', alignItems:'flex-start', gap:10 }}>
-            <div style={{ width:38, height:38, borderRadius:10, background:'rgba(0,102,255,0.1)', border:'1px solid rgba(0,102,255,0.18)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+            <div style={{ width:38, height:38, borderRadius:10, background:'rgba(8,102,245,0.1)', border:'1px solid rgba(8,102,245,0.18)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
               <Bot size={17} color={BLUE} />
             </div>
             <div style={{ flex:1, minWidth:0 }}>
               <div style={{ display:'flex', alignItems:'center', gap:6, flexWrap:'wrap' }}>
                 <span style={{ fontSize:13, fontWeight:700, color:TEXT }}>{agent.name}</span>
                 {agent.verification_status === 'trusted' && (
-                  <span style={{ fontSize:10, fontWeight:700, color:'#00C853', background:'rgba(0,200,83,0.1)', border:'1px solid rgba(0,200,83,0.25)', borderRadius:6, padding:'1px 6px', display:'flex', alignItems:'center', gap:3 }}>
+                  <span style={{ fontSize:10, fontWeight:700, color:'#10B981', background:'rgba(16,185,129,0.1)', border:'1px solid rgba(16,185,129,0.25)', borderRadius:6, padding:'1px 6px', display:'flex', alignItems:'center', gap:3 }}>
                     <UserCheck size={9} /> Verified
                   </span>
                 )}
@@ -2200,7 +2200,7 @@ function AgentDetail({ agent, onBack }: { agent: NetworkAgent; onBack: () => voi
       </button>
       <div style={{ background:SURF, border:`1px solid ${BDR}`, borderRadius:14, padding:16 }}>
         <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:12 }}>
-          <div style={{ width:44, height:44, borderRadius:12, background:'rgba(0,102,255,0.1)', border:'1px solid rgba(0,102,255,0.18)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+          <div style={{ width:44, height:44, borderRadius:12, background:'rgba(8,102,245,0.1)', border:'1px solid rgba(8,102,245,0.18)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
             <Bot size={20} color={BLUE} />
           </div>
           <div style={{ flex:1, minWidth:0 }}>
@@ -2208,7 +2208,7 @@ function AgentDetail({ agent, onBack }: { agent: NetworkAgent; onBack: () => voi
             <div style={{ fontSize:11, color:TEXT2 }}>{agent.provider}</div>
           </div>
           {agent.verification_status === 'trusted' && (
-            <div style={{ fontSize:11, fontWeight:700, color:'#00C853', display:'flex', alignItems:'center', gap:4 }}>
+            <div style={{ fontSize:11, fontWeight:700, color:'#10B981', display:'flex', alignItems:'center', gap:4 }}>
               <UserCheck size={12} /> Verified
             </div>
           )}
@@ -2254,7 +2254,7 @@ function AgentDetail({ agent, onBack }: { agent: NetworkAgent; onBack: () => voi
       <div style={{ background:SURF, border:`1px solid ${BDR}`, borderRadius:12, padding:12 }}>
         <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
           {agent.payment_methods.map(m => (
-            <span key={m} style={{ fontSize:11, fontWeight:600, color:BLUE, background:'rgba(0,102,255,0.08)', border:'1px solid rgba(0,102,255,0.18)', borderRadius:8, padding:'3px 8px' }}>{m}</span>
+            <span key={m} style={{ fontSize:11, fontWeight:600, color:BLUE, background:'rgba(8,102,245,0.08)', border:'1px solid rgba(8,102,245,0.18)', borderRadius:8, padding:'3px 8px' }}>{m}</span>
           ))}
           {agent.supported_networks.map(n => (
             <span key={n} style={{ fontSize:11, fontWeight:500, color:TEXT2, background:SURF2, border:`1px solid ${BDR}`, borderRadius:8, padding:'3px 8px' }}>{n}</span>
@@ -2388,7 +2388,7 @@ function MultiAgentOrchestrator() {
 
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
-      <div style={{ background:'rgba(0,102,255,0.06)', border:'1px solid rgba(0,102,255,0.15)', borderRadius:12, padding:12 }}>
+      <div style={{ background:'rgba(8,102,245,0.06)', border:'1px solid rgba(8,102,245,0.15)', borderRadius:12, padding:12 }}>
         <div style={{ fontSize:12, fontWeight:700, color:TEXT, marginBottom:4 }}>Multi-Agent Orchestration</div>
         <div style={{ fontSize:11, color:TEXT2, lineHeight:1.5 }}>
           Describe a complex task. NAN will decompose it, discover the right agents, estimate the cost, check your policy, and coordinate execution.
@@ -2415,7 +2415,7 @@ function MultiAgentOrchestrator() {
           <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
             {subtasks.map((st, i) => (
               <div key={st.id} style={{ display:'flex', alignItems:'flex-start', gap:10, paddingBottom: i < subtasks.length-1 ? 8 : 0, borderBottom: i < subtasks.length-1 ? `1px solid ${BDR}` : 'none' }}>
-                <div style={{ width:22, height:22, borderRadius:'50%', background:'rgba(0,102,255,0.1)', border:'1px solid rgba(0,102,255,0.2)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, fontSize:10, fontWeight:800, color:BLUE }}>{i+1}</div>
+                <div style={{ width:22, height:22, borderRadius:'50%', background:'rgba(8,102,245,0.1)', border:'1px solid rgba(8,102,245,0.2)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, fontSize:10, fontWeight:800, color:BLUE }}>{i+1}</div>
                 <div style={{ flex:1, minWidth:0 }}>
                   <div style={{ fontSize:12, fontWeight:700, color:TEXT }}>{st.label}</div>
                   {st.agentRef && <div style={{ fontSize:11, color:TEXT2, marginTop:1 }}>→ {st.agentRef.capabilityName}</div>}
@@ -2487,7 +2487,7 @@ function MultiAgentOrchestrator() {
 
       {/* Final result */}
       {finalResult && (
-        <div style={{ background: stage === 'done' ? 'rgba(0,200,83,0.06)' : 'rgba(255,59,59,0.06)', border:`1px solid ${stage==='done'?'rgba(0,200,83,0.25)':'rgba(255,59,59,0.25)'}`, borderRadius:14, padding:14 }}>
+        <div style={{ background: stage === 'done' ? 'rgba(16,185,129,0.06)' : 'rgba(239,68,68,0.06)', border:`1px solid ${stage==='done'?'rgba(16,185,129,0.25)':'rgba(239,68,68,0.25)'}`, borderRadius:14, padding:14 }}>
           <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:8 }}>
             {stage === 'done' ? <CheckCircle2 size={13} color={SUCCESS} /> : <AlertTriangle size={13} color={DANGER} />}
             <span style={{ fontSize:12, fontWeight:700, color:stage==='done'?SUCCESS:DANGER }}>{stage === 'done' ? 'Task completed' : 'Task failed'}</span>
@@ -2582,7 +2582,7 @@ function RegisterAgentForm() {
 
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
-      <div style={{ background:'rgba(0,102,255,0.06)', border:'1px solid rgba(0,102,255,0.15)', borderRadius:12, padding:12 }}>
+      <div style={{ background:'rgba(8,102,245,0.06)', border:'1px solid rgba(8,102,245,0.15)', borderRadius:12, padding:12 }}>
         <div style={{ fontSize:12, fontWeight:700, color:TEXT, marginBottom:4 }}>Register an Agent</div>
         <div style={{ fontSize:11, color:TEXT2, lineHeight:1.5 }}>
           Register your agent or service so NAN can discover and pay for its capabilities. New agents are marked as <strong>pending</strong> until reviewed.
@@ -2590,7 +2590,7 @@ function RegisterAgentForm() {
       </div>
 
       {errors.length > 0 && (
-        <div style={{ background:'rgba(255,59,59,0.08)', border:'1px solid rgba(255,59,59,0.25)', borderRadius:10, padding:12 }}>
+        <div style={{ background:'rgba(239,68,68,0.08)', border:'1px solid rgba(239,68,68,0.25)', borderRadius:10, padding:12 }}>
           {errors.map((e, i) => <div key={i} style={{ fontSize:11, color:DANGER, marginBottom: i < errors.length-1 ? 4 : 0 }}>• {e}</div>)}
         </div>
       )}
@@ -2665,7 +2665,7 @@ function ProviderDashboard() {
 
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
-      <div style={{ background:'rgba(0,102,255,0.06)', border:'1px solid rgba(0,102,255,0.15)', borderRadius:12, padding:12 }}>
+      <div style={{ background:'rgba(8,102,245,0.06)', border:'1px solid rgba(8,102,245,0.15)', borderRadius:12, padding:12 }}>
         <div style={{ fontSize:12, fontWeight:700, color:TEXT, marginBottom:4 }}>Provider Activity</div>
         <div style={{ fontSize:11, color:TEXT2, lineHeight:1.5 }}>
           Transparent record of all agent economic activity — services used, payments made, and task results.
@@ -2794,7 +2794,7 @@ function ExecutionLogTab() {
           {agentExecutionLog.map(entry => (
             <div key={entry.id} style={{ background:SURF, border:`1px solid ${BDR}`, borderRadius:14, padding:14 }}>
               <div style={{ display:'flex', alignItems:'flex-start', gap:10 }}>
-                <div style={{ width:32, height:32, borderRadius:9, background:'rgba(0,102,255,0.1)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                <div style={{ width:32, height:32, borderRadius:9, background:'rgba(8,102,245,0.1)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
                   <Bot size={14} color={BLUE} />
                 </div>
                 <div style={{ flex:1, minWidth:0 }}>

@@ -17,7 +17,7 @@
 
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { initiateUserControlledWalletsClient, Blockchain } from '@circle-fin/user-controlled-wallets'
-import { circleKeyInfo, requireCircleKey } from './_circle-key.js'
+import { requireCircleKey } from './_circle-key.js'
 import { execFile } from 'child_process'
 import { promisify } from 'util'
 import { randomUUID } from 'crypto'
@@ -31,9 +31,6 @@ const execFileAsync = promisify(execFile)
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
-function apiKey(): string | undefined {
-  return circleKeyInfo()?.key
-}
 
 function ucwClient() {
   const key = requireCircleKey()

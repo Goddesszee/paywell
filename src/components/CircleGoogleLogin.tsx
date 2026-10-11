@@ -20,7 +20,7 @@ import { fetchPrimaryWallet } from '../lib/circle-session'
 import { ArrowLeft, Loader } from 'lucide-react'
 
 const F     = "'Inter', -apple-system, sans-serif"
-const BLUE  = '#0066FF'
+const BLUE  = '#0866F5'
 const TEXT  = 'var(--nan-text)'
 const TEXT2 = '#8A8F9E'
 const TEXT3 = '#50556A'
@@ -297,4 +297,4 @@ function btnS(bg: string, color: string, borderColor?: string): React.CSSPropert
   }
 }
 
-const errS: React.CSSProperties = { fontSize: 13, color: '#FF3B3B', marginTop: 8 }
+const errS: React.CSSProperties = { fontSize: 13, color: '#EF4444', marginTop: 8 }

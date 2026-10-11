@@ -20,7 +20,7 @@ export function AboutPage() {
       </div>
 
       {/* Hero card */}
-      <div style={{ background: 'linear-gradient(135deg, rgba(0,102,255,0.18) 0%, rgba(0,102,255,0.06) 100%)', border: '1px solid var(--nan-blue-bd)', borderRadius: 18, padding: '28px 24px', marginBottom: 20 }}>
+      <div style={{ background: 'linear-gradient(135deg, rgba(8,102,245,0.18) 0%, rgba(8,102,245,0.06) 100%)', border: '1px solid var(--nan-blue-bd)', borderRadius: 18, padding: '28px 24px', marginBottom: 20 }}>
         {/* NAN logo */}
         <div style={{ width: 48, height: 48, borderRadius: 14, background: 'var(--nan-blue)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
           <svg viewBox="0 0 324 480" width="20" height="28" fill="none">

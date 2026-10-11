@@ -96,7 +96,7 @@ function SummaryCard({ label, value, sub, color }: { label: string; value: strin
 function RecordRow({ rec, last }: { rec: ExportRecord; last: boolean }) {
   const C = useNanTheme()
   const isIn = rec.sign === '+'
-  const color = isIn ? '#00C853' : rec.sign === '-' ? '#FF3B3B' : C.t2
+  const color = isIn ? '#10B981' : rec.sign === '-' ? '#EF4444' : C.t2
 
   let RowIcon = ArrowUpRight
   if (rec.type === 'received') RowIcon = ArrowDownLeft
@@ -114,7 +114,7 @@ function RecordRow({ rec, last }: { rec: ExportRecord; last: boolean }) {
     }}>
       <div style={{
         width: 34, height: 34, borderRadius: 9, flexShrink: 0,
-        background: isIn ? 'rgba(0,200,83,0.08)' : rec.sign === '-' ? 'rgba(255,59,59,0.08)' : 'rgba(0,102,255,0.08)',
+        background: isIn ? 'rgba(16,185,129,0.08)' : rec.sign === '-' ? 'rgba(239,68,68,0.08)' : 'rgba(8,102,245,0.08)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}>
         <RowIcon size={15} color={color} />
@@ -133,7 +133,7 @@ function RecordRow({ rec, last }: { rec: ExportRecord; last: boolean }) {
         <div style={{ fontSize: 13, fontWeight: 700, color, fontFamily: MONO }}>
           {rec.sign}{rec.amount} USDC
         </div>
-        <div style={{ fontSize: 10, color: rec.status === 'confirmed' || rec.status === 'complete' ? '#00C853' : C.t3, marginTop: 2 }}>
+        <div style={{ fontSize: 10, color: rec.status === 'confirmed' || rec.status === 'complete' ? '#10B981' : C.t3, marginTop: 2 }}>
           {rec.status}
         </div>
       </div>
@@ -185,17 +185,17 @@ function Dropdown<T extends string>({
                 onClick={() => { onChange(o.value); setOpen(false) }}
                 style={{
                   width: '100%', textAlign: 'left', padding: '10px 14px',
-                  background: o.value === value ? 'rgba(0,102,255,0.08)' : 'transparent',
+                  background: o.value === value ? 'rgba(8,102,245,0.08)' : 'transparent',
                   border: 'none',
                   borderBottom: i < options.length - 1 ? `1px solid ${C.bdr}` : 'none',
-                  color: o.value === value ? '#0066FF' : C.text,
+                  color: o.value === value ? '#0866F5' : C.text,
                   fontSize: 13, fontWeight: o.value === value ? 700 : 500,
                   cursor: 'pointer', fontFamily: F,
                   display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                 }}
               >
                 {o.label}
-                {o.value === value && <CheckCircle2 size={13} color="#0066FF" />}
+                {o.value === value && <CheckCircle2 size={13} color="#0866F5" />}
               </button>
             ))}
           </div>
@@ -479,8 +479,8 @@ export function ExportsPage() {
     /* ── Top header ── */
     .page-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:24px;gap:12px;flex-wrap:wrap;}
     .logo-block{display:flex;align-items:center;gap:10px;}
-    .logo-icon{width:44px;height:44px;border-radius:10px;background:#0066FF;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
-    .logo-text{font-size:22px;font-weight:700;color:#0066FF;letter-spacing:-0.02em;}
+    .logo-icon{width:44px;height:44px;border-radius:10px;background:#0866F5;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+    .logo-text{font-size:22px;font-weight:700;color:#0866F5;letter-spacing:-0.02em;}
     .page-title{font-size:11px;color:#888;font-weight:500;letter-spacing:0.06em;text-transform:uppercase;margin-top:2px;}
     .stmt-range{font-size:11px;color:#555;font-weight:600;text-align:right;padding-top:6px;}
     /* ── Account + printed block ── */
@@ -511,7 +511,7 @@ export function ExportsPage() {
     /* ── Footer ── */
     .footer{margin-top:32px;display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:10px;border-top:1px solid #ddd;padding-top:14px;}
     .footer-brand{display:flex;align-items:center;gap:8px;}
-    .footer-icon{width:26px;height:26px;border-radius:6px;background:#0066FF;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+    .footer-icon{width:26px;height:26px;border-radius:6px;background:#0866F5;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
     .footer-name{font-size:12px;font-weight:700;color:#111;}
     .footer-sub{font-size:10px;color:#888;}
     .footer-right{text-align:right;font-size:10px;color:#888;line-height:1.7;}
@@ -721,9 +721,9 @@ export function ExportsPage() {
 
       {/* Summary cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10, marginBottom: 16 }}>
-        <SummaryCard label="Total In"  value={`+${totalIn.toFixed(2)}`}  sub="USDC received" color="#00C853" />
-        <SummaryCard label="Total Out" value={`-${totalOut.toFixed(2)}`} sub="USDC sent"     color="#FF3B3B" />
-        <SummaryCard label="Net"       value={`${net >= 0 ? '+' : ''}${net.toFixed(2)}`} sub="Net flow" color={net >= 0 ? '#00C853' : '#FF3B3B'} />
+        <SummaryCard label="Total In"  value={`+${totalIn.toFixed(2)}`}  sub="USDC received" color="#10B981" />
+        <SummaryCard label="Total Out" value={`-${totalOut.toFixed(2)}`} sub="USDC sent"     color="#EF4444" />
+        <SummaryCard label="Net"       value={`${net >= 0 ? '+' : ''}${net.toFixed(2)}`} sub="Net flow" color={net >= 0 ? '#10B981' : '#EF4444'} />
       </div>
 
       {/* Download buttons */}
@@ -749,7 +749,7 @@ export function ExportsPage() {
             style={{
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
               padding: '11px 12px', borderRadius: 10,
-              background: downloaded === 'csv' ? '#00C853' : '#0066FF',
+              background: downloaded === 'csv' ? '#10B981' : '#0866F5',
               border: 'none', color: '#fff',
               fontSize: 13, fontWeight: 700, cursor: filtered.length === 0 ? 'not-allowed' : 'pointer',
               opacity: filtered.length === 0 ? 0.5 : 1,
@@ -765,8 +765,8 @@ export function ExportsPage() {
             style={{
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
               padding: '11px 12px', borderRadius: 10,
-              background: downloaded === 'json' ? '#00C853' : C.surf2,
-              border: `1px solid ${downloaded === 'json' ? '#00C853' : C.bdr}`,
+              background: downloaded === 'json' ? '#10B981' : C.surf2,
+              border: `1px solid ${downloaded === 'json' ? '#10B981' : C.bdr}`,
               color: downloaded === 'json' ? '#fff' : C.text,
               fontSize: 13, fontWeight: 700, cursor: filtered.length === 0 ? 'not-allowed' : 'pointer',
               opacity: filtered.length === 0 ? 0.5 : 1,
@@ -782,8 +782,8 @@ export function ExportsPage() {
             style={{
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
               padding: '11px 12px', borderRadius: 10,
-              background: downloaded === 'statement' ? '#00C853' : C.surf2,
-              border: `1px solid ${downloaded === 'statement' ? '#00C853' : C.bdr}`,
+              background: downloaded === 'statement' ? '#10B981' : C.surf2,
+              border: `1px solid ${downloaded === 'statement' ? '#10B981' : C.bdr}`,
               color: downloaded === 'statement' ? '#fff' : C.text,
               fontSize: 13, fontWeight: 700, cursor: filtered.length === 0 ? 'not-allowed' : 'pointer',
               opacity: filtered.length === 0 ? 0.5 : 1,

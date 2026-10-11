@@ -18,7 +18,7 @@ const B  = 'var(--nan-bdr)'
 const T  = 'var(--nan-text)'
 const T2   = 'var(--nan-text2)'
 const T3   = 'var(--nan-text3)'
-const BK = '#0066FF'
+const BK = '#0866F5'
 const WH = 'var(--nan-surface2)'
 const SANS = 'Inter, sans-serif'
 
@@ -440,7 +440,7 @@ export function BridgePage() {
         <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
           {['1', '5', '10', '25'].map(v => (
             <button key={v} onClick={() => setAmount(v)}
-              style={{ flex: 1, padding: '9px 0', border: `1px solid ${amount === v ? BK : B}`, borderRadius: 10, background: amount === v ? 'rgba(0,102,255,0.10)' : WH, color: amount === v ? BK : T, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: SANS, transition: 'all 0.12s', WebkitTapHighlightColor: 'transparent' }}>
+              style={{ flex: 1, padding: '9px 0', border: `1px solid ${amount === v ? BK : B}`, borderRadius: 10, background: amount === v ? 'rgba(8,102,245,0.10)' : WH, color: amount === v ? BK : T, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: SANS, transition: 'all 0.12s', WebkitTapHighlightColor: 'transparent' }}>
               {v}
             </button>
           ))}
@@ -498,12 +498,12 @@ export function BridgePage() {
           {steps.map((step, i) => (
             <div key={step.name} style={{ padding: '13px 18px', borderBottom: i < steps.length - 1 ? `1px solid ${B}` : 'none', display: 'flex', alignItems: 'center', gap: 12 }}>
               <div style={{ width: 32, height: 32, borderRadius: 10, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                background: step.status === 'done' ? 'rgba(0,200,83,0.12)' : step.status === 'active' ? 'rgba(0,102,255,0.12)' : WH,
-                border: `1.5px solid ${step.status === 'done' ? 'rgba(0,200,83,0.3)' : step.status === 'error' ? 'rgba(255,59,59,0.4)' : step.status === 'active' ? BK : B}` }}>
-                {step.status === 'done'   && <CheckCircle size={14} color="#00C853" strokeWidth={2.5} />}
+                background: step.status === 'done' ? 'rgba(16,185,129,0.12)' : step.status === 'active' ? 'rgba(8,102,245,0.12)' : WH,
+                border: `1.5px solid ${step.status === 'done' ? 'rgba(16,185,129,0.3)' : step.status === 'error' ? 'rgba(239,68,68,0.4)' : step.status === 'active' ? BK : B}` }}>
+                {step.status === 'done'   && <CheckCircle size={14} color="#10B981" strokeWidth={2.5} />}
                 {step.status === 'active' && <Loader size={14} color={BK} style={{ animation: 'spin 1s linear infinite' }} />}
                 {step.status === 'idle'   && <span style={{ fontSize: 11, color: T2, fontWeight: 700 }}>{i + 1}</span>}
-                {step.status === 'error'  && <span style={{ fontSize: 13, color: '#FF3B3B', fontWeight: 800 }}>!</span>}
+                {step.status === 'error'  && <span style={{ fontSize: 13, color: '#EF4444', fontWeight: 800 }}>!</span>}
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 13, fontWeight: step.status === 'active' ? 700 : 500, color: step.status === 'done' ? T2 : T }}>{step.label}</div>
@@ -522,7 +522,7 @@ export function BridgePage() {
       {/* ── Error ── */}
       {status === 'error' && errMsg && (
         errMsg === 'SESSION_EXPIRED' ? (
-          <div style={{ padding: '14px 16px', background: 'rgba(255,59,59,0.06)', border: '1px solid rgba(255,59,59,0.20)', borderRadius: 14, marginBottom: 14 }}>
+          <div style={{ padding: '14px 16px', background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.20)', borderRadius: 14, marginBottom: 14 }}>
             <div style={{ fontSize: 13, fontWeight: 700, color: T, marginBottom: 4 }}>PIN required</div>
             <div style={{ fontSize: 12, color: T2, marginBottom: 10, lineHeight: 1.5 }}>Enter your amount again and confirm with your Circle PIN. Your wallet and balance are safe.</div>
             <button onClick={() => { setStatus('idle'); setErrMsg(''); setSteps(INITIAL_STEPS) }}
@@ -531,7 +531,7 @@ export function BridgePage() {
             </button>
           </div>
         ) : (
-          <div style={{ padding: '12px 16px', background: 'rgba(255,59,59,0.06)', border: '1px solid rgba(255,59,59,0.20)', borderRadius: 14, marginBottom: 14, fontSize: 13, color: T2, lineHeight: 1.5 }}>
+          <div style={{ padding: '12px 16px', background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.20)', borderRadius: 14, marginBottom: 14, fontSize: 13, color: T2, lineHeight: 1.5 }}>
             <strong style={{ color: T }}>Bridge failed:</strong> {errMsg}
           </div>
         )
@@ -545,7 +545,7 @@ export function BridgePage() {
         </button>
       ) : (
         <button onClick={() => void handleBridge()} disabled={!canBridge}
-          style={{ width: '100%', height: 54, background: canBridge ? BK : WH, border: `1px solid ${canBridge ? BK : B}`, borderRadius: 16, fontSize: 15, fontWeight: 800, color: canBridge ? '#fff' : T2, cursor: canBridge ? 'pointer' : 'not-allowed', fontFamily: SANS, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, transition: 'all 0.15s', boxShadow: canBridge ? '0 6px 24px rgba(0,102,255,0.30)' : 'none', WebkitTapHighlightColor: 'transparent' }}>
+          style={{ width: '100%', height: 54, background: canBridge ? BK : WH, border: `1px solid ${canBridge ? BK : B}`, borderRadius: 16, fontSize: 15, fontWeight: 800, color: canBridge ? '#fff' : T2, cursor: canBridge ? 'pointer' : 'not-allowed', fontFamily: SANS, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, transition: 'all 0.15s', boxShadow: canBridge ? '0 6px 24px rgba(8,102,245,0.30)' : 'none', WebkitTapHighlightColor: 'transparent' }}>
           {status === 'bridging'
             ? <><Loader size={16} style={{ animation: 'spin 1s linear infinite' }} /> Bridging…</>
             : `Bridge ${amount || '0.00'} USDC`}
@@ -586,7 +586,7 @@ function ChainSelect({ value, onChange, exclude }: { value: number; onChange: (i
             return (
               <button key={c.kitName} type="button" disabled={disabled}
                 onClick={() => { if (!disabled) { onChange(i); setOpen(false) } }}
-                style={{ width: '100%', padding: '12px 16px', background: isSelected ? 'rgba(0,102,255,0.10)' : 'transparent', color: disabled ? T3 : isSelected ? BK : T, fontSize: 13, fontWeight: isSelected ? 700 : 500, fontFamily: SANS, border: 'none', borderBottom: `1px solid ${B}`, cursor: disabled ? 'not-allowed' : 'pointer', textAlign: 'left', opacity: disabled ? 0.4 : 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between', WebkitTapHighlightColor: 'transparent' }}>
+                style={{ width: '100%', padding: '12px 16px', background: isSelected ? 'rgba(8,102,245,0.10)' : 'transparent', color: disabled ? T3 : isSelected ? BK : T, fontSize: 13, fontWeight: isSelected ? 700 : 500, fontFamily: SANS, border: 'none', borderBottom: `1px solid ${B}`, cursor: disabled ? 'not-allowed' : 'pointer', textAlign: 'left', opacity: disabled ? 0.4 : 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between', WebkitTapHighlightColor: 'transparent' }}>
                 <span>{c.label}{c.cctpDomain < 0 ? ' (no CCTP)' : ''}</span>
                 {isSelected && <CheckCircle size={13} color={BK} />}
               </button>
@@ -598,12 +598,4 @@ function ChainSelect({ value, onChange, exclude }: { value: number; onChange: (i
   )
 }
 
-function Row2({ label, value, sub, bold }: { label: string; value: string; sub?: string; bold?: boolean }) {
-  return (
-    <div>
-      <div style={{ fontSize: 11, color: T2 }}>{label}</div>
-      <div style={{ fontSize: 13, fontWeight: bold ? 800 : 600, color: T }}>{value}</div>
-      {sub && <div style={{ fontSize: 10, color: T3, marginTop: 1 }}>{sub}</div>}
-    </div>
-  )
-}
+

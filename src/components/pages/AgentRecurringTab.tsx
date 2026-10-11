@@ -16,9 +16,9 @@ import { useAppStore, type RecurringFrequency, type RecurringTask } from '../../
 
 const F    = "'Inter', -apple-system, sans-serif"
 const MONO = "'JetBrains Mono', 'SF Mono', Menlo, monospace"
-const BLUE = '#0066FF'
-const GREEN = '#00C853'
-const RED   = '#FF3B3B'
+const BLUE = '#0866F5'
+const GREEN = '#10B981'
+const RED   = '#EF4444'
 
 const FREQ_OPTIONS: { value: RecurringFrequency; label: string; sub: string }[] = [
   { value: 'manual',  label: 'Manual',  sub: 'Run on demand only' },
@@ -184,7 +184,7 @@ export function AgentRecurringTab({ C }: Props) {
       </div>
 
       {/* Balance notice */}
-      <div style={{ background: 'rgba(0,102,255,0.06)', border: '1px solid rgba(0,102,255,0.16)', borderRadius: 12, padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div style={{ background: 'rgba(8,102,245,0.06)', border: '1px solid rgba(8,102,245,0.16)', borderRadius: 12, padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <span style={{ fontSize: 12, color: C.t2 }}>Agent Wallet balance</span>
         <span style={{ fontSize: 13, fontWeight: 700, color: C.text, fontFamily: MONO }}>{balance.toFixed(4)} USDC</span>
       </div>
@@ -213,14 +213,14 @@ export function AgentRecurringTab({ C }: Props) {
           {/* Name */}
           <div>
             <input placeholder="Name (e.g. Weekly vendor payment)" value={newName} onChange={e => setNewName(e.target.value)}
-              style={{ width: '100%', padding: '10px 12px', border: `1px solid ${errors.name ? 'rgba(255,59,59,0.5)' : C.bdr}`, borderRadius: 10, fontFamily: F, fontSize: 13, outline: 'none', color: C.text, background: C.surf2, boxSizing: 'border-box' as const }} />
+              style={{ width: '100%', padding: '10px 12px', border: `1px solid ${errors.name ? 'rgba(239,68,68,0.5)' : C.bdr}`, borderRadius: 10, fontFamily: F, fontSize: 13, outline: 'none', color: C.text, background: C.surf2, boxSizing: 'border-box' as const }} />
             {errors.name && <div style={{ fontSize: 11, color: RED, marginTop: 3 }}>{errors.name}</div>}
           </div>
 
           {/* Recipient */}
           <div>
             <input placeholder="Recipient address (0x...)" value={newTo} onChange={e => setNewTo(e.target.value)}
-              style={{ width: '100%', padding: '10px 12px', border: `1px solid ${errors.to ? 'rgba(255,59,59,0.5)' : C.bdr}`, borderRadius: 10, fontFamily: MONO, fontSize: 12, outline: 'none', color: C.text, background: C.surf2, boxSizing: 'border-box' as const }} />
+              style={{ width: '100%', padding: '10px 12px', border: `1px solid ${errors.to ? 'rgba(239,68,68,0.5)' : C.bdr}`, borderRadius: 10, fontFamily: MONO, fontSize: 12, outline: 'none', color: C.text, background: C.surf2, boxSizing: 'border-box' as const }} />
             {errors.to && <div style={{ fontSize: 11, color: RED, marginTop: 3 }}>{errors.to}</div>}
           </div>
 
@@ -228,7 +228,7 @@ export function AgentRecurringTab({ C }: Props) {
           <div>
             <div style={{ position: 'relative' }}>
               <input placeholder="0.00" type="number" min="0" step="0.01" value={newAmt} onChange={e => setNewAmt(e.target.value)}
-                style={{ width: '100%', padding: '10px 52px 10px 12px', border: `1px solid ${errors.amt ? 'rgba(255,59,59,0.5)' : C.bdr}`, borderRadius: 10, fontFamily: F, fontSize: 14, fontWeight: 600, outline: 'none', color: C.text, background: C.surf2, boxSizing: 'border-box' as const }} />
+                style={{ width: '100%', padding: '10px 52px 10px 12px', border: `1px solid ${errors.amt ? 'rgba(239,68,68,0.5)' : C.bdr}`, borderRadius: 10, fontFamily: F, fontSize: 14, fontWeight: 600, outline: 'none', color: C.text, background: C.surf2, boxSizing: 'border-box' as const }} />
               <span style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 12, fontWeight: 600, color: C.t2 }}>USDC</span>
             </div>
             {errors.amt && <div style={{ fontSize: 11, color: RED, marginTop: 3 }}>{errors.amt}</div>}
@@ -240,7 +240,7 @@ export function AgentRecurringTab({ C }: Props) {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
               {FREQ_OPTIONS.map(opt => (
                 <button key={opt.value} onClick={() => setNewFreq(opt.value)}
-                  style={{ padding: '9px 12px', border: `1px solid ${newFreq === opt.value ? BLUE : C.bdr}`, borderRadius: 10, background: newFreq === opt.value ? 'rgba(0,102,255,0.10)' : C.surf2, color: newFreq === opt.value ? BLUE : C.t2, fontFamily: F, fontSize: 12, fontWeight: 600, cursor: 'pointer', textAlign: 'left' as const }}>
+                  style={{ padding: '9px 12px', border: `1px solid ${newFreq === opt.value ? BLUE : C.bdr}`, borderRadius: 10, background: newFreq === opt.value ? 'rgba(8,102,245,0.10)' : C.surf2, color: newFreq === opt.value ? BLUE : C.t2, fontFamily: F, fontSize: 12, fontWeight: 600, cursor: 'pointer', textAlign: 'left' as const }}>
                   <div>{opt.label}</div>
                   <div style={{ fontSize: 10, fontWeight: 400, color: newFreq === opt.value ? BLUE : C.t3, marginTop: 2 }}>{opt.sub}</div>
                 </button>
@@ -275,7 +275,7 @@ export function AgentRecurringTab({ C }: Props) {
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3, flexWrap: 'wrap' as const }}>
                   <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{displayName}</span>
-                  <span style={{ fontSize: 10, fontWeight: 600, color: task.active ? BLUE : C.t3, background: task.active ? 'rgba(0,102,255,0.10)' : C.surf2, padding: '2px 8px', borderRadius: 20, border: `1px solid ${task.active ? 'rgba(0,102,255,0.20)' : C.bdr}` }}>
+                  <span style={{ fontSize: 10, fontWeight: 600, color: task.active ? BLUE : C.t3, background: task.active ? 'rgba(8,102,245,0.10)' : C.surf2, padding: '2px 8px', borderRadius: 20, border: `1px solid ${task.active ? 'rgba(8,102,245,0.20)' : C.bdr}` }}>
                     {task.active ? 'Active' : 'Paused'}
                   </span>
                   <span style={{ fontSize: 10, fontWeight: 600, color: C.t3, background: C.surf2, padding: '2px 8px', borderRadius: 20, border: `1px solid ${C.bdr}` }}>

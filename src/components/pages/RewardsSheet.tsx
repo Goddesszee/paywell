@@ -214,8 +214,8 @@ export function RewardsSheet({ onClose }: { onClose: () => void }) {
         ) : claimed ? (
           /* ── SUCCESS STATE ── */
           <div style={{ textAlign: 'center', padding: '20px 0 10px' }}>
-            <div style={{ width: 72, height: 72, borderRadius: '50%', background: 'rgba(0,200,83,0.12)', border: '1px solid rgba(0,200,83,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
-              <CheckCircle2 size={36} color="#00C853" />
+            <div style={{ width: 72, height: 72, borderRadius: '50%', background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+              <CheckCircle2 size={36} color="#10B981" />
             </div>
             <div style={{ fontSize: 22, fontWeight: 800, color: C.text, marginBottom: 6, letterSpacing: '-0.03em' }}>
               ${claimed.amount} USDC claimed!
@@ -242,9 +242,9 @@ export function RewardsSheet({ onClose }: { onClose: () => void }) {
             {/* Balance card */}
             <div style={{
               background: hasReward
-                ? 'linear-gradient(135deg, rgba(0,102,255,0.12) 0%, rgba(80,0,255,0.07) 100%)'
+                ? 'linear-gradient(135deg, rgba(8,102,245,0.12) 0%, rgba(80,0,255,0.07) 100%)'
                 : C.surf,
-              border: `1px solid ${hasReward ? 'rgba(0,102,255,0.25)' : C.bdr}`,
+              border: `1px solid ${hasReward ? 'rgba(8,102,245,0.25)' : C.bdr}`,
               borderRadius: 16, padding: '20px', marginBottom: 16, textAlign: 'center',
             }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: C.t3, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>Claimable Balance</div>
@@ -271,7 +271,7 @@ export function RewardsSheet({ onClose }: { onClose: () => void }) {
             )}
 
             {error && (
-              <div style={{ background: 'rgba(255,59,59,0.08)', border: '1px solid rgba(255,59,59,0.20)', borderRadius: 10, padding: '10px 14px', fontSize: 13, color: '#FF3B3B', marginBottom: 16 }}>
+              <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.20)', borderRadius: 10, padding: '10px 14px', fontSize: 13, color: '#EF4444', marginBottom: 16 }}>
                 {error}
               </div>
             )}
@@ -286,7 +286,7 @@ export function RewardsSheet({ onClose }: { onClose: () => void }) {
                   border: 'none', color: claiming ? C.t2 : '#fff',
                   fontSize: 16, fontWeight: 800, cursor: claiming ? 'not-allowed' : 'pointer',
                   fontFamily: F, letterSpacing: '-0.01em',
-                  boxShadow: claiming ? 'none' : '0 6px 20px rgba(0,102,255,0.40)',
+                  boxShadow: claiming ? 'none' : '0 6px 20px rgba(8,102,245,0.40)',
                   transition: 'all 0.15s',
                 }}
               >
@@ -304,7 +304,7 @@ export function RewardsSheet({ onClose }: { onClose: () => void }) {
                 {/* Referral link box */}
                 {referral?.code && (
                   <div style={{
-                    background: C.surf2, border: `1px dashed rgba(0,102,255,0.30)`,
+                    background: C.surf2, border: `1px dashed rgba(8,102,245,0.30)`,
                     borderRadius: 12, padding: '10px 14px', marginBottom: 14,
                     display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
                   }}>
@@ -321,7 +321,7 @@ export function RewardsSheet({ onClose }: { onClose: () => void }) {
                       }}
                       style={{ width: 36, height: 36, borderRadius: 9, background: C.surf, border: `1px solid ${C.bdr}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}
                     >
-                      {linkCopied ? <CheckIcon size={14} color="#00C853" /> : <Copy size={14} color={C.t3} />}
+                      {linkCopied ? <CheckIcon size={14} color="#10B981" /> : <Copy size={14} color={C.t3} />}
                     </button>
                   </div>
                 )}
@@ -333,7 +333,7 @@ export function RewardsSheet({ onClose }: { onClose: () => void }) {
                     background: C.blue, border: 'none', color: '#fff',
                     fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: F,
                     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                    boxShadow: '0 5px 18px rgba(0,102,255,0.38)',
+                    boxShadow: '0 5px 18px rgba(8,102,245,0.38)',
                   }}
                 >
                   <Share2 size={16} /> Share my referral link

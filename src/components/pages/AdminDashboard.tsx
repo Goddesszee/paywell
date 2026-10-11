@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useAppStore } from '../../store/appStore'
 import { adminFetch, adminLogin, adminLogout, getAdminToken } from '../../lib/admin-api'
 import { AdminOverviewPanel, AdminUsersPanel } from './AdminInsights'
-import { BarChart3, Users, Zap, ArrowUpRight, ArrowDownLeft, RefreshCw, Shield, Globe, Cpu, CheckCircle, XCircle, Activity, ArrowLeft, Send, Plus, Trash2, Edit3, Save, X, Info, ChevronRight, ChevronLeft } from 'lucide-react'
+import { Zap, ArrowUpRight, ArrowDownLeft, RefreshCw, Shield, Globe, Cpu, CheckCircle, XCircle, ArrowLeft, Send, Save, ChevronRight, ChevronLeft } from 'lucide-react'
 
 // ── Admin Password Gate ────────────────────────────────────────────────────────
 // The password is checked on the server (ADMIN_PASSWORD env var in Vercel). The server returns a signed, expiring token.
@@ -43,8 +43,8 @@ function AdminPasswordGate({ onUnlock }: { onUnlock: () => void }) {
       }}>
         <style>{`@keyframes nan-shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-6px)}40%,80%{transform:translateX(6px)}}`}</style>
         <div style={{ textAlign: 'center', marginBottom: 24 }}>
-          <div style={{ width: 52, height: 52, borderRadius: 14, background: 'rgba(0,102,255,0.10)', border: '1px solid rgba(0,102,255,0.20)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px' }}>
-            <Shield size={22} color="#0066FF" />
+          <div style={{ width: 52, height: 52, borderRadius: 14, background: 'rgba(8,102,245,0.10)', border: '1px solid rgba(8,102,245,0.20)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px' }}>
+            <Shield size={22} color="#0866F5" />
           </div>
           <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--nan-text)', letterSpacing: '-0.02em' }}>Admin Access</div>
           <div style={{ fontSize: 13, color: 'var(--nan-text2)', marginTop: 4 }}>Enter the admin password to continue</div>
@@ -59,21 +59,21 @@ function AdminPasswordGate({ onUnlock }: { onUnlock: () => void }) {
           autoFocus
           style={{
             width: '100%', padding: '12px 14px', borderRadius: 11, boxSizing: 'border-box',
-            background: 'var(--nan-surface2)', border: `1px solid ${error ? '#FF3B3B' : 'var(--nan-bdr)'}`,
+            background: 'var(--nan-surface2)', border: `1px solid ${error ? '#EF4444' : 'var(--nan-bdr)'}`,
             color: 'var(--nan-text)', fontSize: 15, fontFamily: "'Inter', sans-serif", outline: 'none',
             marginBottom: error ? 8 : 16,
           }}
         />
-        {error && <div style={{ fontSize: 12, color: '#FF3B3B', marginBottom: 12, fontWeight: 500 }}>{error}</div>}
+        {error && <div style={{ fontSize: 12, color: '#EF4444', marginBottom: 12, fontWeight: 500 }}>{error}</div>}
         <button
           onClick={() => void attempt()} disabled={busy}
-          style={{ width: '100%', padding: '12px', borderRadius: 11, background: '#0066FF', color: '#fff', fontSize: 14, fontWeight: 600, border: 'none', cursor: 'pointer', fontFamily: "'Inter', sans-serif", marginBottom: 10 }}
+          style={{ width: '100%', padding: '12px', borderRadius: 11, background: '#0866F5', color: '#fff', fontSize: 14, fontWeight: 600, border: 'none', cursor: 'pointer', fontFamily: "'Inter', sans-serif", marginBottom: 10 }}
         >
           {busy ? 'Checking…' : 'Unlock Dashboard'}
         </button>
         <button
           onClick={() => setActiveView('setup')}
-          style={{ width: '100%', padding: '10px', borderRadius: 11, background: 'rgba(0,102,255,0.08)', color: '#0066FF', fontSize: 13, fontWeight: 600, border: '1px solid rgba(0,102,255,0.2)', cursor: 'pointer', fontFamily: "'Inter', sans-serif", marginBottom: 8 }}
+          style={{ width: '100%', padding: '10px', borderRadius: 11, background: 'rgba(8,102,245,0.08)', color: '#0866F5', fontSize: 13, fontWeight: 600, border: '1px solid rgba(8,102,245,0.2)', cursor: 'pointer', fontFamily: "'Inter', sans-serif", marginBottom: 8 }}
         >
           Mainnet Setup Wizard
         </button>
@@ -112,22 +112,7 @@ interface SupportTicket {
   hasUnreadCustomer: boolean
 }
 
-interface FaqItem {
-  id: string
-  category: string
-  question: string
-  answer: string
-  order: number
-}
 
-interface AboutContent {
-  headline: string
-  tagline: string
-  body: string
-  mission: string
-  contact: string
-  updatedAt: string
-}
 
 function fmtTime(iso: string): string {
   return new Date(iso).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
@@ -378,7 +363,7 @@ function StarRow({ rating }: { rating: number }) {
   return (
     <span style={{ display: 'inline-flex', gap: 1 }}>
       {[1,2,3,4,5].map(n => (
-        <span key={n} style={{ fontSize: 12, color: n <= rating ? '#F0A500' : 'var(--nan-text3)' }}>★</span>
+        <span key={n} style={{ fontSize: 12, color: n <= rating ? '#F59E0B' : 'var(--nan-text3)' }}>★</span>
       ))}
     </span>
   )
@@ -427,7 +412,7 @@ function AdminFeedbackPanel() {
           style={{ flex: 1, padding: '8px 12px', borderRadius: 9, background: S, border: `1px solid ${B}`, color: 'var(--nan-text)', fontSize: 13, fontFamily: SANS, outline: 'none' }} />
         {['all','unreviewed'].map(f => (
           <button key={f} onClick={() => setFilter(f as typeof filter)}
-            style={{ padding: '8px 14px', borderRadius: 9, border: `1px solid ${filter === f ? '#0066FF' : B}`, background: filter === f ? 'rgba(0,102,255,0.10)' : S, color: filter === f ? '#0066FF' : 'var(--nan-text2)', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: SANS, textTransform: 'capitalize' }}>
+            style={{ padding: '8px 14px', borderRadius: 9, border: `1px solid ${filter === f ? '#0866F5' : B}`, background: filter === f ? 'rgba(8,102,245,0.10)' : S, color: filter === f ? '#0866F5' : 'var(--nan-text2)', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: SANS, textTransform: 'capitalize' }}>
             {f}
           </button>
         ))}
@@ -450,7 +435,7 @@ function AdminFeedbackPanel() {
                 </div>
                 {!f.reviewed && (
                   <button onClick={() => { void markReviewed(f.id) }}
-                    style={{ fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 20, background: 'rgba(0,102,255,0.08)', border: '1px solid rgba(0,102,255,0.20)', color: '#0066FF', cursor: 'pointer', fontFamily: SANS }}>
+                    style={{ fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 20, background: 'rgba(8,102,245,0.08)', border: '1px solid rgba(8,102,245,0.20)', color: '#0866F5', cursor: 'pointer', fontFamily: SANS }}>
                     Mark reviewed
                   </button>
                 )}
@@ -472,10 +457,10 @@ interface SuggestionEntry { id: string; userEmail: string; title: string; descri
 
 const SUG_STATUSES: SuggestionStatus[] = ['new','reviewing','planned','implemented','closed']
 const SUG_STATUS_COLORS: Record<SuggestionStatus, { bg: string; color: string }> = {
-  new:         { bg: 'rgba(0,102,255,0.08)',   color: '#0066FF' },
-  reviewing:   { bg: 'rgba(240,165,0,0.08)',   color: '#F0A500' },
-  planned:     { bg: 'rgba(0,200,83,0.08)',    color: '#00C853' },
-  implemented: { bg: 'rgba(0,200,83,0.12)',    color: '#00C853' },
+  new:         { bg: 'rgba(8,102,245,0.08)',   color: '#0866F5' },
+  reviewing:   { bg: 'rgba(245,158,11,0.08)',   color: '#F59E0B' },
+  planned:     { bg: 'rgba(16,185,129,0.08)',    color: '#10B981' },
+  implemented: { bg: 'rgba(16,185,129,0.12)',    color: '#10B981' },
   closed:      { bg: 'rgba(128,128,128,0.08)', color: '#888' },
 }
 
@@ -567,7 +552,7 @@ function AdminSuggestionsPanel() {
                       <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
                         {SUG_STATUSES.map(st => (
                           <button key={st} onClick={() => { void update(sug.id, st) }}
-                            style={{ padding: '4px 10px', borderRadius: 20, border: `1px solid ${sug.status === st ? '#0066FF' : B}`, background: sug.status === st ? 'rgba(0,102,255,0.12)' : S, color: sug.status === st ? '#0066FF' : 'var(--nan-text2)', fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: SANS, textTransform: 'capitalize' }}>
+                            style={{ padding: '4px 10px', borderRadius: 20, border: `1px solid ${sug.status === st ? '#0866F5' : B}`, background: sug.status === st ? 'rgba(8,102,245,0.12)' : S, color: sug.status === st ? '#0866F5' : 'var(--nan-text2)', fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: SANS, textTransform: 'capitalize' }}>
                             {st}
                           </button>
                         ))}
@@ -578,7 +563,7 @@ function AdminSuggestionsPanel() {
                       <textarea value={note} onChange={e => setNote(e.target.value)} rows={2} placeholder="Internal note…"
                         style={{ width: '100%', padding: '8px 10px', borderRadius: 9, background: S, border: `1px solid ${B}`, color: 'var(--nan-text)', fontSize: 13, fontFamily: SANS, resize: 'none', outline: 'none', boxSizing: 'border-box' }} />
                       <button onClick={() => { void update(sug.id, undefined, note) }} disabled={saving}
-                        style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 5, padding: '6px 14px', borderRadius: 8, background: '#0066FF', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600, fontFamily: SANS, opacity: saving ? 0.7 : 1 }}>
+                        style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 5, padding: '6px 14px', borderRadius: 8, background: '#0866F5', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600, fontFamily: SANS, opacity: saving ? 0.7 : 1 }}>
                         <Save size={12} /> Save note
                       </button>
                     </div>
@@ -772,9 +757,9 @@ function AdminTxPanel() {
       {/* Volume summary cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 20, marginTop: 16 }}>
         {[
-          { label: 'Total Volume', value: report ? `$${report.totalVolume.toFixed(2)}` : '—', sub: `${report?.txCount ?? 0} transactions`, color: '#0066FF' },
-          { label: 'Main Wallet', value: report ? `$${report.mainVolume.toFixed(2)}` : '—', sub: 'User transactions', color: '#00C853' },
-          { label: 'Agent Wallet', value: report ? `$${report.agentVolume.toFixed(2)}` : '—', sub: 'Agent spend', color: '#F0A500' },
+          { label: 'Total Volume', value: report ? `$${report.totalVolume.toFixed(2)}` : '—', sub: `${report?.txCount ?? 0} transactions`, color: '#0866F5' },
+          { label: 'Main Wallet', value: report ? `$${report.mainVolume.toFixed(2)}` : '—', sub: 'User transactions', color: '#10B981' },
+          { label: 'Agent Wallet', value: report ? `$${report.agentVolume.toFixed(2)}` : '—', sub: 'Agent spend', color: '#F59E0B' },
         ].map(card => (
           <div key={card.label} style={{ background: S, border: `1px solid ${B}`, borderRadius: 12, padding: '14px 16px' }}>
             <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--nan-text3)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>{card.label}</div>
@@ -805,7 +790,7 @@ function AdminTxPanel() {
           style={{ flex: 1, minWidth: 160, padding: '8px 12px', borderRadius: 9, background: S, border: `1px solid ${B}`, color: 'var(--nan-text)', fontSize: 13, fontFamily: SANS, outline: 'none' }} />
         {(['all', 'main', 'agent'] as const).map(w => (
           <button key={w} onClick={() => setWalletFilter(w)}
-            style={{ padding: '8px 12px', borderRadius: 9, border: `1px solid ${walletFilter === w ? '#0066FF' : B}`, background: walletFilter === w ? 'rgba(0,102,255,0.10)' : S, color: walletFilter === w ? '#0066FF' : 'var(--nan-text2)', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: SANS, textTransform: 'capitalize' }}>{w}</button>
+            style={{ padding: '8px 12px', borderRadius: 9, border: `1px solid ${walletFilter === w ? '#0866F5' : B}`, background: walletFilter === w ? 'rgba(8,102,245,0.10)' : S, color: walletFilter === w ? '#0866F5' : 'var(--nan-text2)', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: SANS, textTransform: 'capitalize' }}>{w}</button>
         ))}
         <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}
           style={{ padding: '8px 10px', borderRadius: 9, background: S, border: `1px solid ${B}`, color: 'var(--nan-text)', fontSize: 12, fontFamily: SANS, cursor: 'pointer' }}>
@@ -830,7 +815,7 @@ function AdminTxPanel() {
           {visible.slice(0, 200).map((t, i) => (
             <div key={t.id} style={{ display: 'grid', gridTemplateColumns: '60px 1fr 80px 70px 90px', gap: 8, padding: '11px 16px', borderBottom: i < visible.length - 1 ? `1px solid ${B}` : 'none', alignItems: 'center' }}>
               <div>
-                <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 20, background: t.walletType === 'agent' ? 'rgba(240,165,0,0.12)' : 'rgba(0,102,255,0.10)', color: t.walletType === 'agent' ? '#F0A500' : '#0066FF' }}>
+                <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 20, background: t.walletType === 'agent' ? 'rgba(245,158,11,0.12)' : 'rgba(8,102,245,0.10)', color: t.walletType === 'agent' ? '#F59E0B' : '#0866F5' }}>
                   {t.walletType}
                 </span>
               </div>
@@ -841,7 +826,7 @@ function AdminTxPanel() {
                   {t.txHash ? ` · ${t.txHash.slice(0, 8)}…` : ''}
                 </div>
               </div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: t.type === 'received' ? '#00C853' : 'var(--nan-text)' }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: t.type === 'received' ? '#10B981' : 'var(--nan-text)' }}>
                 ${t.amount.toFixed(2)}
               </div>
               <div>

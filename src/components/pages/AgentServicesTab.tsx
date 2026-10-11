@@ -36,10 +36,10 @@ import type { MarketplaceService } from '../../lib/agent-registry'
 
 const F    = "'Inter', -apple-system, sans-serif"
 const MONO = "'JetBrains Mono', 'SF Mono', Menlo, monospace"
-const BLUE  = '#0066FF'
-const GREEN = '#00C853'
+const BLUE  = '#0866F5'
+const GREEN = '#10B981'
 const AMBER = '#FF9500'
-const RED   = '#FF3B3B'
+const RED   = '#EF4444'
 
 // ── Allowed display categories (no gambling / prediction markets) ─────────────
 
@@ -182,7 +182,7 @@ function ServiceCard({ svc, onView, C }: { svc: MarketplaceService; onView: (s: 
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
         <div style={{
           width: 38, height: 38, borderRadius: 11, flexShrink: 0,
-          background: 'rgba(0,102,255,0.10)', border: '1px solid rgba(0,102,255,0.16)',
+          background: 'rgba(8,102,245,0.10)', border: '1px solid rgba(8,102,245,0.16)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
           <CategoryIcon cat={svc.category} size={16} color={BLUE} strokeWidth={1.8} />
@@ -209,7 +209,7 @@ function ServiceCard({ svc, onView, C }: { svc: MarketplaceService; onView: (s: 
             </div>
             <span style={{
               fontSize: 10, fontWeight: 600, color: BLUE,
-              background: 'rgba(0,102,255,0.08)', border: '1px solid rgba(0,102,255,0.18)',
+              background: 'rgba(8,102,245,0.08)', border: '1px solid rgba(8,102,245,0.18)',
               borderRadius: 6, padding: '1px 6px',
             }}>{paymentShort(svc.payment_methods)}</span>
           </div>
@@ -294,7 +294,7 @@ function ServiceDetail({ svc, onBack, C }: {
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
           <div style={{
             width: 46, height: 46, borderRadius: 14, flexShrink: 0,
-            background: 'rgba(0,102,255,0.12)', border: '1px solid rgba(0,102,255,0.2)',
+            background: 'rgba(8,102,245,0.12)', border: '1px solid rgba(8,102,245,0.2)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
             <CategoryIcon cat={svc.category} size={20} color={BLUE} strokeWidth={1.7} />
@@ -308,7 +308,7 @@ function ServiceDetail({ svc, onBack, C }: {
           {selected && (
             <div style={{
               fontSize: 11, fontWeight: 700, color: GREEN,
-              background: 'rgba(0,200,83,0.1)', border: '1px solid rgba(0,200,83,0.28)',
+              background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.28)',
               borderRadius: 8, padding: '4px 10px', display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0,
             }}>
               <Check size={10} /> Selected
@@ -329,7 +329,7 @@ function ServiceDetail({ svc, onBack, C }: {
 
       {/* Payment mechanism explanation */}
       <div style={{
-        background: 'rgba(0,102,255,0.05)', border: '1px solid rgba(0,102,255,0.14)',
+        background: 'rgba(8,102,245,0.05)', border: '1px solid rgba(8,102,245,0.14)',
         borderRadius: 12, padding: '11px 14px',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 5 }}>
@@ -381,9 +381,9 @@ function ServiceDetail({ svc, onBack, C }: {
             </div>
             <div style={{
               fontSize: 11, fontWeight: 700, padding: '3px 9px', borderRadius: 6, flexShrink: 0,
-              background: ok ? 'rgba(0,200,83,0.10)' : 'rgba(255,59,59,0.08)',
+              background: ok ? 'rgba(16,185,129,0.10)' : 'rgba(239,68,68,0.08)',
               color: ok ? GREEN : RED,
-              border: `1px solid ${ok ? 'rgba(0,200,83,0.28)' : 'rgba(255,59,59,0.22)'}`,
+              border: `1px solid ${ok ? 'rgba(16,185,129,0.28)' : 'rgba(239,68,68,0.22)'}`,
             }}>
               {ok ? 'Ready' : 'Issue'}
             </div>
@@ -394,7 +394,7 @@ function ServiceDetail({ svc, onBack, C }: {
       {/* Compatibility problem callout */}
       {!isReady && compat.reason && (
         <div style={{
-          background: 'rgba(255,59,59,0.06)', border: '1px solid rgba(255,59,59,0.2)',
+          background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)',
           borderRadius: 12, padding: '11px 14px',
           display: 'flex', alignItems: 'flex-start', gap: 8,
         }}>
@@ -415,12 +415,12 @@ function ServiceDetail({ svc, onBack, C }: {
         onClick={handleUse}
         style={{
           width: '100%', height: 52,
-          background: selected ? C.surf : (isReady ? BLUE : 'rgba(0,102,255,0.45)'),
+          background: selected ? C.surf : (isReady ? BLUE : 'rgba(8,102,245,0.45)'),
           border: selected ? `2px solid ${GREEN}` : 'none',
           borderRadius: 16, fontSize: 15, fontWeight: 700,
           color: selected ? GREEN : '#fff',
           fontFamily: F, cursor: 'pointer',
-          boxShadow: selected || !isReady ? 'none' : '0 6px 22px rgba(0,102,255,0.38)',
+          boxShadow: selected || !isReady ? 'none' : '0 6px 22px rgba(8,102,245,0.38)',
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
           WebkitTapHighlightColor: 'transparent', transition: 'all 0.2s',
         }}
@@ -461,7 +461,7 @@ function SelectedStrip({ count }: { count: number; C?: ThemeColors }) {
   if (count === 0) return null
   return (
     <div style={{
-      background: 'rgba(0,200,83,0.08)', border: '1px solid rgba(0,200,83,0.22)',
+      background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.22)',
       borderRadius: 12, padding: '10px 14px',
       display: 'flex', alignItems: 'center', gap: 8,
     }}>
@@ -578,7 +578,7 @@ export function AgentServicesTab({ C }: Props) {
 
       {/* Header */}
       <div style={{
-        background: 'rgba(0,102,255,0.07)', border: '1px solid rgba(0,102,255,0.16)',
+        background: 'rgba(8,102,245,0.07)', border: '1px solid rgba(8,102,245,0.16)',
         borderRadius: 14, padding: '14px 16px',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5 }}>
@@ -592,7 +592,7 @@ export function AgentServicesTab({ C }: Props) {
           <button
             onClick={() => void load()}
             style={{
-              width: 28, height: 28, borderRadius: 8, background: 'rgba(0,102,255,0.12)',
+              width: 28, height: 28, borderRadius: 8, background: 'rgba(8,102,245,0.12)',
               border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center',
               cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
             }}
@@ -687,7 +687,7 @@ export function AgentServicesTab({ C }: Props) {
       {/* Error */}
       {!loading && error && (
         <div style={{
-          background: 'rgba(255,59,59,0.07)', border: '1px solid rgba(255,59,59,0.22)',
+          background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.22)',
           borderRadius: 12, padding: '14px 16px',
           display: 'flex', alignItems: 'flex-start', gap: 10,
         }}>

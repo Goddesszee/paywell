@@ -11,7 +11,7 @@ const BG   = 'var(--nan-bg)'
 const SURF = 'var(--nan-surface)'
 const SURF2= 'var(--nan-surface2)'
 const BDR  = 'var(--nan-bdr)'
-const BLUE = '#0066FF'
+const BLUE = '#0866F5'
 const TEXT = 'var(--nan-text)'
 const T2   = 'var(--nan-text2)'
 const T3   = 'var(--nan-text3)'
@@ -106,7 +106,7 @@ export function OnboardingPage() {
                   fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: F,
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
                 }}>
-                  {ck ? <><span style={{ width:7,height:7,borderRadius:'50%',background:'#00C853' }}/>Connected · {truncatedAddress}</> : 'Connect MetaMask / WalletConnect'}
+                  {ck ? <><span style={{ width:7,height:7,borderRadius:'50%',background:'#10B981' }}/>Connected · {truncatedAddress}</> : 'Connect MetaMask / WalletConnect'}
                 </button>
               )}
             </ConnectKitButton.Custom>
@@ -126,8 +126,8 @@ export function OnboardingPage() {
                   <button key={id} onClick={() => toggle(id)} style={{
                     display: 'flex', alignItems: 'center', gap: 14,
                     padding: '12px 14px', borderRadius: 12, cursor: 'pointer', textAlign: 'left',
-                    background: on ? 'rgba(0,102,255,0.10)' : SURF,
-                    border: `1px solid ${on ? 'rgba(0,102,255,0.25)' : BDR}`,
+                    background: on ? 'rgba(8,102,245,0.10)' : SURF,
+                    border: `1px solid ${on ? 'rgba(8,102,245,0.25)' : BDR}`,
                     transition: 'all 0.15s', fontFamily: F, color: TEXT,
                   }}>
                     <span style={{ fontSize: 18, flexShrink: 0, color: on ? BLUE : T2 }}>{icon}</span>

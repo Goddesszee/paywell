@@ -118,7 +118,7 @@ export function FaucetPage() {
         )}
 
         {!isConnected && (
-          <div style={{ marginBottom: 20, padding: 16, background: 'rgba(240,165,0,0.10)', borderRadius: 12, border: '1px solid rgba(240,165,0,0.25)', textAlign: 'center' }}>
+          <div style={{ marginBottom: 20, padding: 16, background: 'rgba(245,158,11,0.10)', borderRadius: 12, border: '1px solid rgba(245,158,11,0.25)', textAlign: 'center' }}>
             <p style={{ color: 'var(--nan-text)', fontSize: 14, margin: 0 }}>Connect your wallet on the Home screen first</p>
           </div>
         )}

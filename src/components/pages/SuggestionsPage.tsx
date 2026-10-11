@@ -15,10 +15,10 @@ const CATEGORIES = [
 ]
 
 const STATUS_COLORS: Record<string, { bg: string; color: string; label: string }> = {
-  new:         { bg: 'rgba(0,102,255,0.08)',   color: '#0066FF', label: 'New' },
-  reviewing:   { bg: 'rgba(240,165,0,0.08)',   color: '#F0A500', label: 'Reviewing' },
-  planned:     { bg: 'rgba(0,200,83,0.08)',    color: '#00C853', label: 'Planned' },
-  implemented: { bg: 'rgba(0,200,83,0.12)',    color: '#00C853', label: '✓ Implemented' },
+  new:         { bg: 'rgba(8,102,245,0.08)',   color: '#0866F5', label: 'New' },
+  reviewing:   { bg: 'rgba(245,158,11,0.08)',   color: '#F59E0B', label: 'Reviewing' },
+  planned:     { bg: 'rgba(16,185,129,0.08)',    color: '#10B981', label: 'Planned' },
+  implemented: { bg: 'rgba(16,185,129,0.12)',    color: '#10B981', label: '✓ Implemented' },
   closed:      { bg: 'rgba(128,128,128,0.08)', color: '#888',    label: 'Closed' },
 }
 
@@ -74,8 +74,8 @@ export function SuggestionsPage() {
 
   if (done) return (
     <div style={{ width: '100%', minHeight: '100%', fontFamily: F, paddingBottom: 80, display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 60 }}>
-      <div style={{ width: 64, height: 64, borderRadius: 20, background: 'rgba(0,200,83,0.10)', border: '1px solid rgba(0,200,83,0.20)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 20 }}>
-        <CheckCircle size={28} color="#00C853" />
+      <div style={{ width: 64, height: 64, borderRadius: 20, background: 'rgba(16,185,129,0.10)', border: '1px solid rgba(16,185,129,0.20)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 20 }}>
+        <CheckCircle size={28} color="#10B981" />
       </div>
       <div style={{ fontSize: 22, fontWeight: 700, color: C.text, letterSpacing: '-0.02em', marginBottom: 8 }}>Suggestion submitted!</div>
       <div style={{ fontSize: 14, color: C.t2, textAlign: 'center', maxWidth: 280, lineHeight: 1.6, marginBottom: 32 }}>
@@ -83,7 +83,7 @@ export function SuggestionsPage() {
       </div>
       <div style={{ display: 'flex', gap: 8 }}>
         <button onClick={() => { setDone(false); setView('list'); setTitle(''); setDescription(''); setCategory('feature') }}
-          style={{ padding: '12px 20px', borderRadius: 12, background: '#0066FF', color: '#fff', fontFamily: F, fontSize: 14, fontWeight: 600, border: 'none', cursor: 'pointer' }}>
+          style={{ padding: '12px 20px', borderRadius: 12, background: '#0866F5', color: '#fff', fontFamily: F, fontSize: 14, fontWeight: 600, border: 'none', cursor: 'pointer' }}>
           View my suggestions
         </button>
         <button onClick={() => setActiveView('home')}
@@ -112,7 +112,7 @@ export function SuggestionsPage() {
         </div>
         {view === 'list' && (
           <button onClick={() => setView('new')}
-            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 10, background: '#0066FF', color: '#fff', border: 'none', cursor: 'pointer', fontFamily: F, fontSize: 13, fontWeight: 600 }}>
+            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 10, background: '#0866F5', color: '#fff', border: 'none', cursor: 'pointer', fontFamily: F, fontSize: 13, fontWeight: 600 }}>
             <Plus size={14} /> New
           </button>
         )}
@@ -121,9 +121,9 @@ export function SuggestionsPage() {
       {view === 'list' ? (
         <div>
           {/* Hero card */}
-          <div style={{ background: 'linear-gradient(135deg, rgba(0,102,255,0.10) 0%, rgba(0,102,255,0.04) 100%)', border: '1px solid rgba(0,102,255,0.15)', borderRadius: 16, padding: '20px', marginBottom: 16, display: 'flex', gap: 16, alignItems: 'center' }}>
-            <div style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(0,102,255,0.12)', border: '1px solid rgba(0,102,255,0.22)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <Lightbulb size={20} color="#0066FF" />
+          <div style={{ background: 'linear-gradient(135deg, rgba(8,102,245,0.10) 0%, rgba(8,102,245,0.04) 100%)', border: '1px solid rgba(8,102,245,0.15)', borderRadius: 16, padding: '20px', marginBottom: 16, display: 'flex', gap: 16, alignItems: 'center' }}>
+            <div style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(8,102,245,0.12)', border: '1px solid rgba(8,102,245,0.22)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <Lightbulb size={20} color="#0866F5" />
             </div>
             <div>
               <div style={{ fontSize: 15, fontWeight: 700, color: C.text }}>Help make NAN better</div>
@@ -139,7 +139,7 @@ export function SuggestionsPage() {
               <div style={{ fontSize: 15, fontWeight: 600, color: C.text, marginBottom: 6 }}>No suggestions yet</div>
               <div style={{ fontSize: 13, color: C.t3, marginBottom: 20 }}>Be the first to share an idea!</div>
               <button onClick={() => setView('new')}
-                style={{ padding: '10px 20px', borderRadius: 10, background: '#0066FF', color: '#fff', border: 'none', cursor: 'pointer', fontFamily: F, fontSize: 13, fontWeight: 600 }}>
+                style={{ padding: '10px 20px', borderRadius: 10, background: '#0866F5', color: '#fff', border: 'none', cursor: 'pointer', fontFamily: F, fontSize: 13, fontWeight: 600 }}>
                 Submit a suggestion
               </button>
             </div>
@@ -173,9 +173,9 @@ export function SuggestionsPage() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {CATEGORIES.map(cat => (
                 <button key={cat.id} onClick={() => setCategory(cat.id)}
-                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', borderRadius: 10, border: `1px solid ${category === cat.id ? '#0066FF' : C.bdr}`, background: category === cat.id ? 'rgba(0,102,255,0.08)' : C.surf2, cursor: 'pointer', fontFamily: F, textAlign: 'left' }}>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: category === cat.id ? '#0066FF' : C.text }}>{cat.label}</span>
-                  {category === cat.id && <ChevronRight size={14} color="#0066FF" />}
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', borderRadius: 10, border: `1px solid ${category === cat.id ? '#0866F5' : C.bdr}`, background: category === cat.id ? 'rgba(8,102,245,0.08)' : C.surf2, cursor: 'pointer', fontFamily: F, textAlign: 'left' }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: category === cat.id ? '#0866F5' : C.text }}>{cat.label}</span>
+                  {category === cat.id && <ChevronRight size={14} color="#0866F5" />}
                 </button>
               ))}
             </div>
@@ -196,10 +196,10 @@ export function SuggestionsPage() {
             <div style={{ fontSize: 11, color: C.t3, textAlign: 'right', marginTop: 4 }}>{description.length}/2000</div>
           </div>
 
-          {error && <div style={{ background: 'rgba(255,59,59,0.08)', border: '1px solid rgba(255,59,59,0.18)', borderRadius: 10, padding: '10px 14px', fontSize: 13, color: '#FF3B3B', marginBottom: 12 }}>{error}</div>}
+          {error && <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.18)', borderRadius: 10, padding: '10px 14px', fontSize: 13, color: '#EF4444', marginBottom: 12 }}>{error}</div>}
 
           <button onClick={() => { void submit() }} disabled={submitting || !title.trim()}
-            style={{ width: '100%', padding: '14px', borderRadius: 12, background: title.trim() ? '#0066FF' : C.surf2, color: title.trim() ? '#fff' : C.t3, border: 'none', fontSize: 15, fontWeight: 600, cursor: title.trim() ? 'pointer' : 'not-allowed', fontFamily: F, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: submitting ? 0.7 : 1 }}>
+            style={{ width: '100%', padding: '14px', borderRadius: 12, background: title.trim() ? '#0866F5' : C.surf2, color: title.trim() ? '#fff' : C.t3, border: 'none', fontSize: 15, fontWeight: 600, cursor: title.trim() ? 'pointer' : 'not-allowed', fontFamily: F, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: submitting ? 0.7 : 1 }}>
             <Send size={15} /> {submitting ? 'Submitting…' : 'Submit Suggestion'}
           </button>
         </div>

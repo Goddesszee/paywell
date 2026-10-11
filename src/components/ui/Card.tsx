@@ -11,10 +11,10 @@ export function Card({ variant = 'default', padding = 'md', className = '', styl
   const base: React.CSSProperties = {
     borderRadius: 14,
     background: variant === 'glow'
-      ? 'rgba(0,102,255,0.06)'
+      ? 'rgba(8,102,245,0.06)'
       : 'var(--nan-surface)',
     border: variant === 'glow'
-      ? '1px solid rgba(0,102,255,0.18)'
+      ? '1px solid rgba(8,102,245,0.18)'
       : '1px solid var(--nan-bdr)',
     boxShadow: '0 2px 12px rgba(0,0,0,0.10)',
     ...style,

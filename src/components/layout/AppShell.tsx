@@ -18,7 +18,7 @@ import { useBackendSync } from '../../hooks/useBackendSync'
 
 const F = "'Inter',-apple-system,sans-serif"
 const ADMIN_ADDRESS = (import.meta.env.VITE_ADMIN_ADDRESS as string ?? '').toLowerCase()
-const BLUE = '#0066FF'
+const BLUE = '#0866F5'
 
 // ── Search result catalogue ────────────────────────────────────────────────────
 interface SearchResult {
@@ -27,8 +27,8 @@ interface SearchResult {
 }
 const ALL_RESULTS: SearchResult[] = [
   { id:'send',        title:'Send USDC',           subtitle:'Transfer to any wallet',             category:'Payments',    Icon:ArrowRight,     iconColor:BLUE,      action:'send' },
-  { id:'receive',     title:'Receive USDC',         subtitle:'Share your address',                 category:'Payments',    Icon:ArrowRight,     iconColor:'#00C853', action:'receive' },
-  { id:'swap',        title:'Swap tokens',          subtitle:'Exchange USDC for other tokens',     category:'Finance',     Icon:Repeat,         iconColor:'#F0A500', action:'swap' },
+  { id:'receive',     title:'Receive USDC',         subtitle:'Share your address',                 category:'Payments',    Icon:ArrowRight,     iconColor:'#10B981', action:'receive' },
+  { id:'swap',        title:'Swap tokens',          subtitle:'Exchange USDC for other tokens',     category:'Finance',     Icon:Repeat,         iconColor:'#F59E0B', action:'swap' },
   { id:'bridge',      title:'Bridge USDC',          subtitle:'Move USDC across chains',            category:'Finance',     Icon:ArrowLeftRight, iconColor:BLUE,      action:'bridge' },
   { id:'buy',         title:'Buy USDC',             subtitle:'Purchase with card or bank',         category:'Finance',     Icon:ShoppingBag,    iconColor:BLUE,      action:'onramp' },
   { id:'gateway',     title:'Gateway',              subtitle:'Unified cross-chain balance',        category:'Finance',     Icon:Layers,         iconColor:BLUE,      action:'gateway' },
@@ -44,10 +44,10 @@ const ALL_RESULTS: SearchResult[] = [
   { id:'profile',     title:'Profile',              subtitle:'Name, avatar & preferences',         category:'Account',     Icon:User,           iconColor:BLUE,      action:'profile' },
   { id:'settings',    title:'Settings',             subtitle:'Wallet & app settings',              category:'Account',     Icon:Settings,       iconColor:BLUE,      action:'settings' },
   { id:'favorites',   title:'Saved Items',          subtitle:'Your bookmarked content',            category:'Account',     Icon:Bookmark,       iconColor:BLUE,      action:'favorites' },
-  { id:'faq',         title:'FAQ',                  subtitle:'Common questions answered',          category:'Help',        Icon:HelpCircle,     iconColor:'#F0A500', action:'faq' },
+  { id:'faq',         title:'FAQ',                  subtitle:'Common questions answered',          category:'Help',        Icon:HelpCircle,     iconColor:'#F59E0B', action:'faq' },
   { id:'support',     title:'Support',              subtitle:'Get help from our team',             category:'Help',        Icon:MessageSquare,  iconColor:BLUE,      action:'support' },
-  { id:'feedback',    title:'Feedback',             subtitle:'Rate your experience',               category:'Help',        Icon:Star,           iconColor:'#F0A500', action:'feedback' },
-  { id:'suggestions', title:'Suggestions',          subtitle:'Share ideas to improve NAN',         category:'Help',        Icon:Lightbulb,      iconColor:'#00C853', action:'suggestions' },
+  { id:'feedback',    title:'Feedback',             subtitle:'Rate your experience',               category:'Help',        Icon:Star,           iconColor:'#F59E0B', action:'feedback' },
+  { id:'suggestions', title:'Suggestions',          subtitle:'Share ideas to improve NAN',         category:'Help',        Icon:Lightbulb,      iconColor:'#10B981', action:'suggestions' },
   { id:'about',       title:'About NAN',            subtitle:'Platform info & contact',            category:'Info',        Icon:Info,           iconColor:BLUE,      action:'about' },
 ]
 
@@ -169,8 +169,8 @@ function CommandPalette({ onClose, onGo }: { onClose: () => void; onGo: (action:
                     style={{
                       width: '100%', display: 'flex', alignItems: 'center', gap: 12,
                       padding: '9px 10px', borderRadius: 10,
-                      border: `1px solid ${active ? 'rgba(0,102,255,0.3)' : 'transparent'}`,
-                      background: active ? 'rgba(0,102,255,0.08)' : 'transparent',
+                      border: `1px solid ${active ? 'rgba(8,102,245,0.3)' : 'transparent'}`,
+                      background: active ? 'rgba(8,102,245,0.08)' : 'transparent',
                       cursor: 'pointer', fontFamily: F, textAlign: 'left', transition: 'all 0.08s',
                     }}
                   >
@@ -289,16 +289,16 @@ function SideNavBtn({
       style={{
         width: '100%', display: 'flex', alignItems: 'center', gap: 11,
         padding: '9px 12px', borderRadius: 10,
-        border: `1px solid ${isActive ? 'rgba(0,102,255,0.3)' : 'transparent'}`,
-        background: isActive ? 'rgba(0,102,255,0.1)' : 'transparent',
+        border: `1px solid ${isActive ? 'rgba(8,102,245,0.3)' : 'transparent'}`,
+        background: isActive ? 'rgba(8,102,245,0.1)' : 'transparent',
         cursor: 'pointer', transition: 'all 0.12s', fontFamily: F, marginBottom: 2,
         WebkitTapHighlightColor: 'transparent',
       }}
     >
       <div style={{
         width: 32, height: 32, borderRadius: 8, flexShrink: 0,
-        background: isActive ? 'rgba(0,102,255,0.18)' : C.surf2,
-        border: `1px solid ${isActive ? 'rgba(0,102,255,0.35)' : C.bdr}`,
+        background: isActive ? 'rgba(8,102,245,0.18)' : C.surf2,
+        border: `1px solid ${isActive ? 'rgba(8,102,245,0.35)' : C.bdr}`,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}>
         <Icon size={15} color={isActive ? BLUE : C.t2} />
@@ -307,7 +307,7 @@ function SideNavBtn({
         <div style={{ fontSize: 13, fontWeight: 600, color: isActive ? BLUE : C.text, lineHeight: 1.2 }}>{label}</div>
         {showDesc && <div style={{ fontSize: 11, color: C.t3, marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{desc}</div>}
       </div>
-      <ChevronRight size={12} color={isActive ? 'rgba(0,102,255,0.5)' : C.t3} />
+      <ChevronRight size={12} color={isActive ? 'rgba(8,102,245,0.5)' : C.t3} />
     </button>
   )
 }
@@ -395,31 +395,42 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <header style={{
           height: TOPBAR_H, flexShrink: 0, display: 'flex', alignItems: 'center',
           justifyContent: 'space-between',
-          paddingLeft: SIDEBAR_W, paddingRight: 28,
+          paddingLeft: SIDEBAR_W + 28, paddingRight: 28,
           background: C.isDark ? '#08090B' : '#FFFFFF',
           borderBottom: `1px solid ${C.bdr}`,
           zIndex: 200,
+          gap: 16,
         }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: C.t2, textTransform: 'capitalize' }}>
-            {activeView.charAt(0).toUpperCase() + activeView.slice(1)}
+          {/* Page title — human-readable */}
+          <div style={{
+            fontSize: 14, fontWeight: 600, color: C.text,
+            letterSpacing: '-0.01em',
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          }}>
+            {activeView === 'agent-wallet' ? 'Agent Wallet'
+              : activeView === 'nan-name' ? 'NAN Name'
+              : activeView === 'payment-requests' ? 'Payment Requests'
+              : activeView.charAt(0).toUpperCase() + activeView.slice(1)}
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            {/* Search bar — Vercel style */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+            {/* Search bar */}
             <button
               onClick={() => setPaletteOpen(true)}
+              aria-label="Search (⌘K)"
               style={{
                 display: 'flex', alignItems: 'center', gap: 8,
-                padding: '6px 12px', borderRadius: 8,
+                padding: '7px 13px', borderRadius: 8,
                 border: `1px solid ${C.bdr}`,
                 background: C.surf,
                 cursor: 'pointer', fontFamily: F,
                 color: C.t3, fontSize: 12,
-                transition: 'border-color 0.12s',
+                transition: 'border-color 0.15s, background 0.15s',
+                minWidth: 160,
               }}
             >
               <Search size={13} color={C.t3} />
-              <span>Search…</span>
-              <kbd style={{ background: C.surf2, border: `1px solid ${C.bdr}`, borderRadius: 4, padding: '1px 5px', fontSize: 10, fontFamily: 'monospace', color: C.t3 }}>⌘K</kbd>
+              <span style={{ flex: 1 }}>Search…</span>
+              <kbd style={{ background: C.surf2, border: `1px solid ${C.bdr}`, borderRadius: 4, padding: '1px 5px', fontSize: 10, fontFamily: 'monospace', color: C.t3, flexShrink: 0 }}>⌘K</kbd>
             </button>
             <NotificationBell color={C.t2} />
           </div>
@@ -468,11 +479,33 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <main style={{
             flex: 1, marginLeft: SIDEBAR_W,
             overflowY: 'auto', overflowX: 'hidden',
-            padding: '0',
             scrollbarWidth: 'thin',
             scrollbarColor: `${C.bdr} transparent`,
+            /* Pages that need full-bleed (agent) manage their own layout */
+            display: (activeView === 'agent' || activeView === 'agent-wallet') ? 'flex' : 'block',
+            flexDirection: (activeView === 'agent' || activeView === 'agent-wallet') ? 'column' : undefined,
           }}>
-            {children}
+            {/* Content wrapper: consistent horizontal padding + max-width constraint.
+                Full-bleed views (agent, dashboard) get no max-width cap. */}
+            <div style={{
+              padding: (activeView === 'agent' || activeView === 'agent-wallet')
+                ? '0'
+                : activeView === 'dashboard'
+                  ? '28px 32px 48px'
+                  : '24px 28px 48px',
+              maxWidth: (activeView === 'agent' || activeView === 'agent-wallet' || activeView === 'dashboard')
+                ? 'none'
+                : 900,
+              width: '100%',
+              margin: '0 auto',
+              boxSizing: 'border-box',
+              flex: (activeView === 'agent' || activeView === 'agent-wallet') ? 1 : undefined,
+              display: (activeView === 'agent' || activeView === 'agent-wallet') ? 'flex' : 'block',
+              flexDirection: (activeView === 'agent' || activeView === 'agent-wallet') ? 'column' : undefined,
+              minHeight: (activeView === 'agent' || activeView === 'agent-wallet') ? 0 : undefined,
+            }}>
+              {children}
+            </div>
           </main>
         </div>
       </div>
@@ -522,7 +555,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 const isActive = activeView === id
                 return (
                   <button key={`${id}-${label}`} onClick={() => go(id)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 11, padding: '9px 10px', borderRadius: 10, border: `1px solid ${isActive ? C.blueBd : 'transparent'}`, background: isActive ? C.blueDim : 'transparent', cursor: 'pointer', transition: 'all 0.12s', fontFamily: F, marginBottom: 2, WebkitTapHighlightColor: 'transparent' }}>
-                    <div style={{ width: 32, height: 32, borderRadius: 8, flexShrink: 0, background: isActive ? 'rgba(0,102,255,0.18)' : C.surf2, border: `1px solid ${isActive ? C.blueBd : C.bdr}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <div style={{ width: 32, height: 32, borderRadius: 8, flexShrink: 0, background: isActive ? 'rgba(8,102,245,0.18)' : C.surf2, border: `1px solid ${isActive ? C.blueBd : C.bdr}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       <Icon size={15} color={isActive ? C.blue : C.t2} />
                     </div>
                     <div style={{ flex: 1, textAlign: 'left', minWidth: 0 }}>

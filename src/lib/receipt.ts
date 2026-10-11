@@ -68,7 +68,7 @@ export function buildReceiptHtml(r: ReceiptData): string {
   const rowsHtml = detailRows.map(([label, value, mono], i, arr) => {
     const isLink = label === 'Explorer'
     const cellContent = isLink
-      ? `<a href="${value}" style="font-size:12px;font-weight:600;color:#0066FF;text-decoration:none;word-break:break-all;">View transaction ↗</a>`
+      ? `<a href="${value}" style="font-size:12px;font-weight:600;color:#0866F5;text-decoration:none;word-break:break-all;">View transaction ↗</a>`
       : `<span style="font-size:13px;font-weight:600;color:#111;text-align:right;word-break:break-all;${mono ? 'font-family:Menlo,Courier New,monospace;font-size:12px;' : ''}">${value}</span>`
     return `
     <div style="display:flex;justify-content:space-between;align-items:flex-start;padding:13px 0;border-bottom:${i < arr.length - 1 ? '1px solid #ebebeb' : 'none'};gap:16px;">
@@ -97,7 +97,7 @@ export function buildReceiptHtml(r: ReceiptData): string {
     <!-- ① Top bar: logo + name left, status badge right -->
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;">
       <div style="display:flex;align-items:center;gap:10px;">
-        <div style="width:36px;height:36px;border-radius:9px;background:#0066FF;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+        <div style="width:36px;height:36px;border-radius:9px;background:#0866F5;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 324 480" width="15" height="21">
             <path d="M255,0 L84,167 L71,163 L0,97 L0,378 L246,132 L255,110 Z" fill="#fff"/>
             <path d="M69,480 L240,313 L253,317 L324,383 L324,102 L78,348 L69,370 Z" fill="#fff"/>

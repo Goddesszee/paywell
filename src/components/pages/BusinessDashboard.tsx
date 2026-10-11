@@ -14,7 +14,7 @@ import { useAccount } from 'wagmi'
 import { toast } from 'sonner'
 
 const F = "'Inter', -apple-system, sans-serif"
-const BLUE = '#0066FF'
+const BLUE = '#0866F5'
 
 interface StatCardProps {
   label: string
@@ -120,7 +120,7 @@ export function BusinessDashboard() {
             {recentReceived.map((item, i) => (
               <div key={item.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderTop: i === 0 ? 'none' : `1px solid ${C.bdr}` }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <div style={{ width: 32, height: 32, borderRadius: 9, background: 'rgba(0,200,83,0.10)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <div style={{ width: 32, height: 32, borderRadius: 9, background: 'rgba(16,185,129,0.10)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     {item.status === 'confirmed' ? <CheckCircle2 size={15} color={C.green} /> : item.status === 'pending' ? <Clock size={15} color={C.gold} /> : <AlertCircle size={15} color={C.red} />}
                   </div>
                   <div>

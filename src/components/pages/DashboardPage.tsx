@@ -12,7 +12,7 @@ import { useNanTheme } from '../../hooks/useNanTheme'
 const F    = "'Inter', -apple-system, sans-serif"
 const MONO = "'JetBrains Mono', 'SF Mono', Menlo, monospace"
 const ARC  = 5042
-const BLUE = '#0066FF'
+const BLUE = '#0866F5'
 
 type PerfPeriod = '24H' | '7D' | '1M' | '3M' | '1Y'
 
@@ -156,14 +156,14 @@ export function DashboardPage() {
   ]
 
   const card: React.CSSProperties = {
-    background: C.isDark ? '#111318' : '#fff',
+    background: C.surf,
     border: `1px solid ${C.bdr}`,
     borderRadius: 16,
     padding: '20px 24px',
   }
 
   return (
-    <div style={{ fontFamily: F, padding: '28px 32px 48px', minHeight: '100%' }}>
+    <div style={{ fontFamily: F, minHeight: '100%' }}>
 
       {/* ── Header row ── */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, gap: 16 }}>
@@ -175,7 +175,7 @@ export function DashboardPage() {
             padding: '11px 22px', borderRadius: 50,
             background: BLUE, border: 'none',
             color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: F,
-            boxShadow: '0 4px 18px rgba(0,102,255,0.35)',
+            boxShadow: '0 4px 18px rgba(8,102,245,0.35)',
             letterSpacing: '-0.01em',
           }}
         >
@@ -219,7 +219,7 @@ export function DashboardPage() {
                 padding: '10px 22px', borderRadius: 10,
                 background: BLUE, border: 'none',
                 color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: F,
-                boxShadow: '0 4px 16px rgba(0,102,255,0.35)',
+                boxShadow: '0 4px 16px rgba(8,102,245,0.35)',
               }}
             >
               <ArrowDownLeft size={15} /> Deposit
@@ -241,7 +241,8 @@ export function DashboardPage() {
       </div>
 
       {/* ── Two column row ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 16 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,320px)', gap: 16 }}>
+
 
         {/* Portfolio Performance */}
         <div style={{ ...card }}>
@@ -315,12 +316,12 @@ export function DashboardPage() {
               }}>
                 <div style={{
                   width: 36, height: 36, borderRadius: 10, flexShrink: 0,
-                  background: isIn ? 'rgba(0,200,83,0.1)' : 'rgba(255,59,59,0.1)',
+                  background: isIn ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}>
                   {isIn
-                    ? <ArrowDownLeft size={16} color="#00C853" />
-                    : <ArrowUpRight size={16} color="#FF3B3B" />}
+                    ? <ArrowDownLeft size={16} color="#10B981" />
+                    : <ArrowUpRight size={16} color="#EF4444" />}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 13, fontWeight: 600, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tx.description}</div>
@@ -328,7 +329,7 @@ export function DashboardPage() {
                     {tx.counterparty || new Date(tx.timestamp).toLocaleDateString('en', { month: 'short', day: 'numeric', year: 'numeric' })}
                   </div>
                 </div>
-                <span style={{ fontFamily: MONO, fontSize: 13, fontWeight: 700, color: isIn ? '#00C853' : '#FF3B3B', flexShrink: 0 }}>
+                <span style={{ fontFamily: MONO, fontSize: 13, fontWeight: 700, color: isIn ? '#10B981' : '#EF4444', flexShrink: 0 }}>
                   {tx.sign}{tx.amount} USDC
                 </span>
               </div>
@@ -358,18 +359,18 @@ export function DashboardPage() {
               </button>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-              <div style={{ padding: '12px 14px', background: 'rgba(240,165,0,0.06)', border: '1px solid rgba(240,165,0,0.18)', borderRadius: 10 }}>
+              <div style={{ padding: '12px 14px', background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.18)', borderRadius: 10 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                  <Clock size={12} color='#F0A500' />
-                  <span style={{ fontSize: 11, fontWeight: 700, color: '#F0A500', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Pending</span>
+                  <Clock size={12} color='#F59E0B' />
+                  <span style={{ fontSize: 11, fontWeight: 700, color: '#F59E0B', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Pending</span>
                 </div>
                 <div style={{ fontSize: 20, fontWeight: 800, color: C.text, fontFamily: "'JetBrains Mono', monospace", letterSpacing: '-0.02em' }}>{pending.length}</div>
                 <div style={{ fontSize: 11, color: C.t3, marginTop: 2 }}>{pendingAmt.toFixed(2)} USDC outstanding</div>
               </div>
-              <div style={{ padding: '12px 14px', background: 'rgba(0,200,83,0.06)', border: '1px solid rgba(0,200,83,0.18)', borderRadius: 10 }}>
+              <div style={{ padding: '12px 14px', background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.18)', borderRadius: 10 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                  <CheckCircle2 size={12} color='#00C853' />
-                  <span style={{ fontSize: 11, fontWeight: 700, color: '#00C853', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Paid</span>
+                  <CheckCircle2 size={12} color='#10B981' />
+                  <span style={{ fontSize: 11, fontWeight: 700, color: '#10B981', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Paid</span>
                 </div>
                 <div style={{ fontSize: 20, fontWeight: 800, color: C.text, fontFamily: "'JetBrains Mono', monospace", letterSpacing: '-0.02em' }}>{paid.length}</div>
                 <div style={{ fontSize: 11, color: C.t3, marginTop: 2 }}>{paidAmt.toFixed(2)} USDC received</div>
@@ -388,7 +389,7 @@ export function DashboardPage() {
           padding: 24,
         }} onClick={() => setShowReceive(false)}>
           <div style={{
-            background: C.isDark ? '#0E1014' : '#fff',
+            background: C.isDark ? C.surf : '#fff',
             borderRadius: 24, padding: '32px 28px',
             width: '100%', maxWidth: 420,
             display: 'flex', flexDirection: 'column', alignItems: 'center',
@@ -448,7 +449,7 @@ export function DashboardPage() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, width: '100%' }}>
               <button onClick={copyAddress} style={{
                 width: '100%', height: 52, borderRadius: 100,
-                background: copied ? '#00C853' : BLUE,
+                background: copied ? '#10B981' : BLUE,
                 border: 'none', cursor: 'pointer',
                 fontSize: 15, fontWeight: 700, color: '#fff', fontFamily: F,
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,

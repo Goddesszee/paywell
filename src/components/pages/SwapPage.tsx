@@ -482,7 +482,7 @@ export function SwapPage() {
   if (phase === 'done') return (
     <div style={{ maxWidth: 480, margin: '0 auto', padding: '0 16px 100px', fontFamily: F }}>
       <div style={{ textAlign: 'center', padding: '56px 0 32px' }}>
-        <div style={{ width: 72, height: 72, borderRadius: 24, background: 'rgba(0,200,83,0.10)', border: '2px solid rgba(0,200,83,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+        <div style={{ width: 72, height: 72, borderRadius: 24, background: 'rgba(16,185,129,0.10)', border: '2px solid rgba(16,185,129,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
           <CheckCircle size={32} color={c.green} strokeWidth={1.6} />
         </div>
         <div style={{ fontSize: 24, fontWeight: 800, color: c.text, letterSpacing: '-0.03em', marginBottom: 6 }}>Swap complete</div>
@@ -493,7 +493,7 @@ export function SwapPage() {
             {txHash.slice(0, 14)}… <ExternalLink size={11} />
           </a>
         )}
-        <button onClick={reset} style={{ width: '100%', height: 54, background: c.blue, color: '#fff', border: 'none', borderRadius: 16, fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: F, boxShadow: '0 6px 24px rgba(0,102,255,0.32)' }}>
+        <button onClick={reset} style={{ width: '100%', height: 54, background: c.blue, color: '#fff', border: 'none', borderRadius: 16, fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: F, boxShadow: '0 6px 24px rgba(8,102,245,0.32)' }}>
           Swap again
         </button>
       </div>
@@ -524,9 +524,9 @@ export function SwapPage() {
             <span style={{ fontSize: 11, fontWeight: 700, color: c.t3, textTransform: 'uppercase' as const, letterSpacing: '0.08em' }}>You pay</span>
             {(isConnected || isCircleUser) && addrShort && (
               <span style={{ fontSize: 11, color: c.t3, display: 'flex', alignItems: 'center', gap: 4 }}>
-                <span style={{ width: 6, height: 6, borderRadius: '50%', background: isCircleUser ? '#00C853' : c.blue, display: 'inline-block', flexShrink: 0 }} />
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: isCircleUser ? '#10B981' : c.blue, display: 'inline-block', flexShrink: 0 }} />
                 <span style={{ fontFamily: MONO }}>{addrShort}</span>
-                {isCircleUser && <span style={{ fontSize: 10, color: '#00C853', fontWeight: 700 }}>Circle</span>}
+                {isCircleUser && <span style={{ fontSize: 10, color: '#10B981', fontWeight: 700 }}>Circle</span>}
               </span>
             )}
           </div>
@@ -569,7 +569,7 @@ export function SwapPage() {
             <span style={{ fontSize: 11, fontWeight: 700, color: c.t3, textTransform: 'uppercase' as const, letterSpacing: '0.08em' }}>You receive</span>
             {(isConnected || isCircleUser) && addrShort && (
               <span style={{ fontSize: 11, color: c.t3, display: 'flex', alignItems: 'center', gap: 4 }}>
-                <span style={{ width: 6, height: 6, borderRadius: '50%', background: isCircleUser ? '#00C853' : c.blue, display: 'inline-block', flexShrink: 0 }} />
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: isCircleUser ? '#10B981' : c.blue, display: 'inline-block', flexShrink: 0 }} />
                 <span style={{ fontFamily: MONO }}>{addrShort}</span>
               </span>
             )}
@@ -626,8 +626,8 @@ export function SwapPage() {
       {/* ── Error ── */}
       {phase === 'error' && errMsg && (
         errMsg === 'SESSION_EXPIRED' ? (
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '14px 16px', background: 'rgba(255,59,59,0.06)', border: '1px solid rgba(255,59,59,0.20)', borderRadius: 14, marginBottom: 14 }}>
-            <AlertCircle size={14} color="#FF3B3B" style={{ flexShrink: 0, marginTop: 1 }} />
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '14px 16px', background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.20)', borderRadius: 14, marginBottom: 14 }}>
+            <AlertCircle size={14} color="#EF4444" style={{ flexShrink: 0, marginTop: 1 }} />
             <div>
               <div style={{ fontSize: 13, fontWeight: 700, color: c.text, marginBottom: 4 }}>PIN required</div>
               <div style={{ fontSize: 12, color: c.t2, marginBottom: 10, lineHeight: 1.5 }}>Get a new quote and confirm with your Circle PIN. Your wallet and balance are safe.</div>
@@ -638,8 +638,8 @@ export function SwapPage() {
             </div>
           </div>
         ) : (
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '12px 14px', background: 'rgba(255,59,59,0.06)', border: '1px solid rgba(255,59,59,0.20)', borderRadius: 14, marginBottom: 14, fontSize: 13, color: c.t2, lineHeight: 1.5 }}>
-            <AlertCircle size={14} color="#FF3B3B" style={{ flexShrink: 0, marginTop: 1 }} /><span>{errMsg}</span>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '12px 14px', background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.20)', borderRadius: 14, marginBottom: 14, fontSize: 13, color: c.t2, lineHeight: 1.5 }}>
+            <AlertCircle size={14} color="#EF4444" style={{ flexShrink: 0, marginTop: 1 }} /><span>{errMsg}</span>
           </div>
         )
       )}
@@ -652,13 +652,13 @@ export function SwapPage() {
             <RefreshCw size={13} /> New quote
           </button>
           <button onClick={() => void executeSwap()}
-            style={{ flex: 2, height: 54, borderRadius: 16, border: 'none', background: c.blue, color: '#fff', fontSize: 15, fontWeight: 800, cursor: 'pointer', fontFamily: F, boxShadow: '0 6px 24px rgba(0,102,255,0.32)', WebkitTapHighlightColor: 'transparent' }}>
+            style={{ flex: 2, height: 54, borderRadius: 16, border: 'none', background: c.blue, color: '#fff', fontSize: 15, fontWeight: 800, cursor: 'pointer', fontFamily: F, boxShadow: '0 6px 24px rgba(8,102,245,0.32)', WebkitTapHighlightColor: 'transparent' }}>
             Confirm swap
           </button>
         </div>
       ) : (
         <button onClick={() => void reviewSwap()} disabled={!canReview || phase === 'estimating' || phase === 'swapping'}
-          style={{ width: '100%', height: 54, borderRadius: 16, border: 'none', background: canReview && phase !== 'estimating' && phase !== 'swapping' ? c.blue : c.surf2, color: canReview && phase !== 'estimating' && phase !== 'swapping' ? '#fff' : c.t3, fontSize: 15, fontWeight: 800, cursor: canReview ? 'pointer' : 'not-allowed', fontFamily: F, transition: 'all 0.15s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, boxShadow: canReview && phase === 'idle' ? '0 6px 24px rgba(0,102,255,0.30)' : 'none', WebkitTapHighlightColor: 'transparent' }}>
+          style={{ width: '100%', height: 54, borderRadius: 16, border: 'none', background: canReview && phase !== 'estimating' && phase !== 'swapping' ? c.blue : c.surf2, color: canReview && phase !== 'estimating' && phase !== 'swapping' ? '#fff' : c.t3, fontSize: 15, fontWeight: 800, cursor: canReview ? 'pointer' : 'not-allowed', fontFamily: F, transition: 'all 0.15s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, boxShadow: canReview && phase === 'idle' ? '0 6px 24px rgba(8,102,245,0.30)' : 'none', WebkitTapHighlightColor: 'transparent' }}>
           {phase === 'estimating'
             ? <><span className="nan-spinner" />Getting quote…</>
             : phase === 'swapping'

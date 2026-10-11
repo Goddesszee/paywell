@@ -9,7 +9,7 @@ const F     = "'Inter', -apple-system, sans-serif"
 const SURF  = 'var(--nan-surface)'
 const SURF2 = 'var(--nan-surface2)'
 const BDR   = 'var(--nan-bdr)'
-const BLUE  = '#0066FF'
+const BLUE  = '#0866F5'
 const TEXT  = 'var(--nan-text)'
 const T2    = 'var(--nan-text2)'
 const T3    = 'var(--nan-text3)'
@@ -217,7 +217,7 @@ export function OnrampPage() {
       {/* ── Header ── */}
       <div style={{ padding: '20px 0 18px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 2 }}>
-          <div style={{ width: 38, height: 38, borderRadius: 12, background: BLUE, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: '0 4px 12px rgba(0,102,255,0.30)' }}>
+          <div style={{ width: 38, height: 38, borderRadius: 12, background: BLUE, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: '0 4px 12px rgba(8,102,245,0.30)' }}>
             <ShoppingCart size={18} color="#fff" strokeWidth={2} />
           </div>
           <div>
@@ -230,7 +230,7 @@ export function OnrampPage() {
 
       {/* ── Not connected ── */}
       {!isReady && (
-        <div style={{ marginBottom: 16, padding: '14px 16px', background: 'rgba(0,102,255,0.06)', borderRadius: 14, border: '1px solid rgba(0,102,255,0.15)', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+        <div style={{ marginBottom: 16, padding: '14px 16px', background: 'rgba(8,102,245,0.06)', borderRadius: 14, border: '1px solid rgba(8,102,245,0.15)', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
           <AlertCircle size={15} color={BLUE} style={{ flexShrink: 0, marginTop: 1 }} />
           <p style={{ color: T2, fontSize: 13, margin: 0, lineHeight: 1.5 }}>Connect your wallet on the Home screen to continue.</p>
         </div>
@@ -251,7 +251,7 @@ export function OnrampPage() {
                   <div style={{ fontSize: 11, color: T3, marginTop: 3 }}>Arc · USDC · ERC-20</div>
                 </div>
                 <button onClick={copyAddress}
-                  style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 8, background: copied ? 'rgba(0,200,83,0.10)' : SURF2, border: `1px solid ${copied ? 'rgba(0,200,83,0.25)' : BDR}`, cursor: 'pointer', fontSize: 11, fontWeight: 700, color: copied ? '#00C853' : T2, fontFamily: F, transition: 'all 0.15s', flexShrink: 0 }}>
+                  style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 8, background: copied ? 'rgba(16,185,129,0.10)' : SURF2, border: `1px solid ${copied ? 'rgba(16,185,129,0.25)' : BDR}`, cursor: 'pointer', fontSize: 11, fontWeight: 700, color: copied ? '#10B981' : T2, fontFamily: F, transition: 'all 0.15s', flexShrink: 0 }}>
                   {copied ? <><Check size={11} /> Copied</> : 'Copy'}
                 </button>
               </div>
@@ -280,7 +280,7 @@ export function OnrampPage() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8 }}>
               {PRESETS.map(a => (
                 <button key={a} onClick={() => setAmt(a)}
-                  style={{ height: 44, borderRadius: 10, background: amount === a ? BLUE : SURF2, color: amount === a ? '#fff' : T2, border: `1px solid ${amount === a ? BLUE : BDR}`, fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: F, transition: 'all 0.15s', boxShadow: amount === a ? '0 2px 10px rgba(0,102,255,0.25)' : 'none', WebkitTapHighlightColor: 'transparent' }}>
+                  style={{ height: 44, borderRadius: 10, background: amount === a ? BLUE : SURF2, color: amount === a ? '#fff' : T2, border: `1px solid ${amount === a ? BLUE : BDR}`, fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: F, transition: 'all 0.15s', boxShadow: amount === a ? '0 2px 10px rgba(8,102,245,0.25)' : 'none', WebkitTapHighlightColor: 'transparent' }}>
                   ${a}
                 </button>
               ))}
@@ -318,7 +318,7 @@ export function OnrampPage() {
           <button
             onClick={() => { void fetchSession() }}
             disabled={!isReady || amount <= 0}
-            style={{ width: '100%', height: 54, borderRadius: 14, background: isReady && amount > 0 ? BLUE : SURF2, color: isReady && amount > 0 ? '#fff' : T2, border: 'none', cursor: isReady && amount > 0 ? 'pointer' : 'not-allowed', fontSize: 15, fontWeight: 800, fontFamily: F, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, transition: 'all 0.15s', boxShadow: isReady && amount > 0 ? '0 4px 16px rgba(0,102,255,0.30)' : 'none', letterSpacing: '-0.01em', WebkitTapHighlightColor: 'transparent' }}>
+            style={{ width: '100%', height: 54, borderRadius: 14, background: isReady && amount > 0 ? BLUE : SURF2, color: isReady && amount > 0 ? '#fff' : T2, border: 'none', cursor: isReady && amount > 0 ? 'pointer' : 'not-allowed', fontSize: 15, fontWeight: 800, fontFamily: F, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, transition: 'all 0.15s', boxShadow: isReady && amount > 0 ? '0 4px 16px rgba(8,102,245,0.30)' : 'none', letterSpacing: '-0.01em', WebkitTapHighlightColor: 'transparent' }}>
             {!isReady ? 'Connect wallet to continue' : `Buy $${amount} of USDC`}
           </button>
         </>
@@ -327,7 +327,7 @@ export function OnrampPage() {
       {/* ── LOADING ── */}
       {state === 'loading' && (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '64px 0', gap: 16 }}>
-          <div style={{ width: 64, height: 64, borderRadius: 20, background: 'rgba(0,102,255,0.10)', border: '1px solid rgba(0,102,255,0.20)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ width: 64, height: 64, borderRadius: 20, background: 'rgba(8,102,245,0.10)', border: '1px solid rgba(8,102,245,0.20)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Loader2 size={28} color={BLUE} style={{ animation: 'spin 1s linear infinite' }} />
           </div>
           <div style={{ fontSize: 16, fontWeight: 700, color: TEXT, letterSpacing: '-0.02em' }}>Opening Circle Onramp…</div>
@@ -363,7 +363,7 @@ export function OnrampPage() {
           </button>
           {!widgetReady && (
             <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: SURF, zIndex: 5, gap: 14 }}>
-              <div style={{ width: 52, height: 52, borderRadius: 16, background: 'rgba(0,102,255,0.10)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ width: 52, height: 52, borderRadius: 16, background: 'rgba(8,102,245,0.10)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <Loader2 size={24} color={BLUE} style={{ animation: 'spin 1s linear infinite' }} />
               </div>
               <div style={{ fontSize: 14, fontWeight: 700, color: TEXT }}>Loading Circle Onramp…</div>
@@ -404,9 +404,9 @@ export function OnrampPage() {
 
       {/* ── SUCCESS ── */}
       {state === 'success' && (
-        <div style={{ padding: '32px 20px', background: SURF, borderRadius: 18, border: '1px solid rgba(0,200,83,0.20)', textAlign: 'center' }}>
-          <div style={{ width: 64, height: 64, borderRadius: 20, background: 'rgba(0,200,83,0.10)', border: '2px solid rgba(0,200,83,0.20)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 18px' }}>
-            <Check size={28} color="#00C853" strokeWidth={2} />
+        <div style={{ padding: '32px 20px', background: SURF, borderRadius: 18, border: '1px solid rgba(16,185,129,0.20)', textAlign: 'center' }}>
+          <div style={{ width: 64, height: 64, borderRadius: 20, background: 'rgba(16,185,129,0.10)', border: '2px solid rgba(16,185,129,0.20)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 18px' }}>
+            <Check size={28} color="#10B981" strokeWidth={2} />
           </div>
           <div style={{ fontWeight: 800, fontSize: 20, color: TEXT, marginBottom: 8, letterSpacing: '-0.03em' }}>
             {depositInfo?.tokenSymbol
@@ -425,7 +425,7 @@ export function OnrampPage() {
           )}
           <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
             <button onClick={reset}
-              style={{ padding: '12px 28px', borderRadius: 12, background: BLUE, color: '#fff', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 700, fontFamily: F, boxShadow: '0 4px 12px rgba(0,102,255,0.25)' }}>
+              style={{ padding: '12px 28px', borderRadius: 12, background: BLUE, color: '#fff', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 700, fontFamily: F, boxShadow: '0 4px 12px rgba(8,102,245,0.25)' }}>
               Buy more USDC
             </button>
             <button onClick={() => { void fetchSession() }}

@@ -22,10 +22,10 @@ const sizeStyles: Record<Size, React.CSSProperties> = {
 
 function getVariantStyle(variant: Variant): React.CSSProperties {
   switch (variant) {
-    case 'primary':   return { background: '#0066FF', color: '#fff', border: 'none' }
+    case 'primary':   return { background: '#0866F5', color: '#fff', border: 'none' }
     case 'secondary': return { background: 'var(--nan-surface)', color: 'var(--nan-text)', border: '1px solid var(--nan-bdr)' }
     case 'ghost':     return { background: 'transparent', color: 'var(--nan-text)', border: '1px solid var(--nan-bdr)' }
-    case 'soft':      return { background: 'rgba(0,102,255,0.10)', color: '#0066FF', border: '1px solid rgba(0,102,255,0.20)' }
+    case 'soft':      return { background: 'rgba(8,102,245,0.10)', color: '#0866F5', border: '1px solid rgba(8,102,245,0.20)' }
     case 'danger':    return { background: '#DC2626', color: '#fff', border: 'none' }
     case 'success':   return { background: '#16A34A', color: '#fff', border: 'none' }
   }

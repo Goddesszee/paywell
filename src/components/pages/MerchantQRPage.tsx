@@ -13,7 +13,7 @@ import { toast } from 'sonner'
 import QRCode from 'qrcode'
 
 const F = "'Inter', -apple-system, sans-serif"
-const BLUE = '#0066FF'
+const BLUE = '#0866F5'
 
 /** Canvas-based QR — no external API, works fully offline */
 function QRCanvas({ value, size = 200, dark = '#000000', light = '#FFFFFF' }: { value: string; size?: number; dark?: string; light?: string }) {
@@ -72,11 +72,11 @@ export function MerchantQRPage() {
         <style>
           body { margin: 0; display: flex; align-items: center; justify-content: center; min-height: 100vh; background: #fff; font-family: -apple-system, sans-serif; }
           .card { border: 2px solid #e5e7eb; border-radius: 20px; padding: 40px; max-width: 340px; text-align: center; }
-          .logo { font-size: 28px; font-weight: 900; letter-spacing: -0.04em; color: #0066FF; margin-bottom: 6px; }
+          .logo { font-size: 28px; font-weight: 900; letter-spacing: -0.04em; color: #0866F5; margin-bottom: 6px; }
           .biz { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
           .addr { font-size: 11px; color: #888; font-family: monospace; margin-bottom: 20px; }
           .qr img { border-radius: 12px; }
-          .amt { font-size: 22px; font-weight: 800; color: #0066FF; margin: 16px 0 4px; }
+          .amt { font-size: 22px; font-weight: 800; color: #0866F5; margin: 16px 0 4px; }
           .note { font-size: 13px; color: #666; margin-bottom: 16px; }
           .url { font-size: 10px; color: #999; word-break: break-all; }
           @media print { body { -webkit-print-color-adjust: exact; } }

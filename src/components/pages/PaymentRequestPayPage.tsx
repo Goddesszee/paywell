@@ -18,7 +18,7 @@ import { NanLogo } from '../NanLogo'
 
 const F    = "'Inter', -apple-system, sans-serif"
 const MONO = "'JetBrains Mono', Menlo, monospace"
-const BLUE = '#0066FF'
+const BLUE = '#0866F5'
 const ARC_ID = 5042
 const USDC_ADDRESS   = '0x3600000000000000000000000000000000000000' as `0x${string}`
 const USDC_DECIMALS  = 6
@@ -171,7 +171,7 @@ function WalletPanel({
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, color: '#666', marginBottom: 14 }}>
-        <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#00C853', display: 'inline-block', flexShrink: 0 }} />
+        <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#10B981', display: 'inline-block', flexShrink: 0 }} />
         Connected: {address!.slice(0, 10)}…{address!.slice(-6)}
       </div>
 
@@ -202,7 +202,7 @@ function WalletPanel({
           border: 'none', color: '#fff', fontSize: 16, fontWeight: 700,
           cursor: isDisabled ? 'not-allowed' : 'pointer', fontFamily: F,
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-          boxShadow: isDisabled ? 'none' : '0 4px 20px rgba(0,102,255,0.30)',
+          boxShadow: isDisabled ? 'none' : '0 4px 20px rgba(8,102,245,0.30)',
           transition: 'all 0.15s',
         }}
       >
@@ -424,8 +424,8 @@ export function PaymentRequestPayPage({
       <div style={{ minHeight: '100dvh', background: '#f4f6fa', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px 16px', fontFamily: F }}>
         <div style={{ background: '#fff', borderRadius: 24, border: '1px solid #e4e4e4', padding: '40px 32px', maxWidth: 420, width: '100%', textAlign: 'center', boxShadow: '0 8px 40px rgba(0,0,0,0.10)' }}>
           <div style={{ marginBottom: 24 }}><NanLogo height={24} /></div>
-          <div style={{ width: 76, height: 76, borderRadius: '50%', background: 'rgba(0,200,83,0.10)', border: '2px solid rgba(0,200,83,0.20)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
-            <CheckCircle2 size={34} color='#00C853' />
+          <div style={{ width: 76, height: 76, borderRadius: '50%', background: 'rgba(16,185,129,0.10)', border: '2px solid rgba(16,185,129,0.20)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+            <CheckCircle2 size={34} color='#10B981' />
           </div>
           <h2 style={{ fontSize: 26, fontWeight: 800, color: '#111', letterSpacing: '-0.03em', marginBottom: 8 }}>Payment sent!</h2>
           <p style={{ fontSize: 14, color: '#555', lineHeight: 1.6, marginBottom: 24 }}>
@@ -434,7 +434,7 @@ export function PaymentRequestPayPage({
           <a
             href={`https://explorer.arc.io/tx/${successHash}`}
             target="_blank" rel="noreferrer"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, color: BLUE, fontWeight: 600, textDecoration: 'none', background: 'rgba(0,102,255,0.06)', padding: '8px 16px', borderRadius: 10 }}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, color: BLUE, fontWeight: 600, textDecoration: 'none', background: 'rgba(8,102,245,0.06)', padding: '8px 16px', borderRadius: 10 }}
           >
             <ExternalLink size={13} /> View on explorer
           </a>

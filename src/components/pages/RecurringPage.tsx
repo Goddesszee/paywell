@@ -20,7 +20,7 @@ const F     = "'Inter', -apple-system, sans-serif"
 const SURF  = 'var(--nan-surface)'
 const SURF2 = 'var(--nan-surface2)'
 const BDR   = 'var(--nan-bdr)'
-const BLUE  = '#0066FF'
+const BLUE  = '#0866F5'
 const TEXT  = 'var(--nan-text)'
 const T2    = 'var(--nan-text2)'
 const T3    = 'var(--nan-text3)'
@@ -338,7 +338,7 @@ export function RecurringPage() {
 
       {/* ── Wrong chain banner ──────────────────────────────────────────── */}
       {isWrongChain && (
-        <div style={{ background: 'rgba(0,102,255,0.06)', border: `1px solid rgba(0,102,255,0.15)`, borderRadius: 12, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+        <div style={{ background: 'rgba(8,102,245,0.06)', border: `1px solid rgba(8,102,245,0.15)`, borderRadius: 12, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
           <AlertCircle size={14} color={BLUE} style={{ flexShrink: 0 }} />
           <span style={{ fontSize: 12, color: TEXT, flex: 1 }}>Switch to Arc to run payments.</span>
           <button onClick={() => switchChain({ chainId: ARC })} style={{ fontSize: 12, fontWeight: 600, color: '#fff', background: BLUE, border: 'none', borderRadius: 8, padding: '5px 12px', cursor: 'pointer', fontFamily: F }}>Switch</button>
@@ -412,12 +412,12 @@ export function RecurringPage() {
               {FREQ_OPTIONS.map(opt => (
                 <button key={opt.value} onClick={() => setNewFreq(opt.value)} style={{
                   padding: '10px 12px', border: `1px solid ${newFreq === opt.value ? BLUE : BDR}`,
-                  borderRadius: 10, background: newFreq === opt.value ? 'rgba(0,102,255,0.10)' : SURF2,
+                  borderRadius: 10, background: newFreq === opt.value ? 'rgba(8,102,245,0.10)' : SURF2,
                   color: newFreq === opt.value ? BLUE : T2, fontFamily: F, fontSize: 13, fontWeight: 600,
                   cursor: 'pointer', textAlign: 'left',
                 }}>
                   <div>{opt.label}</div>
-                  <div style={{ fontSize: 10, fontWeight: 400, color: newFreq === opt.value ? 'rgba(0,102,255,0.7)' : T3, marginTop: 2 }}>{opt.sub}</div>
+                  <div style={{ fontSize: 10, fontWeight: 400, color: newFreq === opt.value ? 'rgba(8,102,245,0.7)' : T3, marginTop: 2 }}>{opt.sub}</div>
                 </button>
               ))}
             </div>
@@ -660,7 +660,7 @@ export function RecurringPage() {
             <button onClick={openForm} style={{
               width: '100%', height: 44, marginTop: 8,
               background: 'transparent', color: BLUE,
-              border: `1px dashed rgba(0,102,255,0.35)`,
+              border: `1px dashed rgba(8,102,245,0.35)`,
               borderRadius: 12, fontSize: 13, fontWeight: 600,
               cursor: 'pointer', fontFamily: F,
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,

@@ -13,6 +13,8 @@
   --nan-blue:     #0866F5;
   --nan-blue-dim: rgba(8,102,245,0.12);
   --nan-blue-bd:  rgba(8,102,245,0.24);
+  --nan-blue-glow:rgba(8,102,245,0.22);
+  --nan-blue-hover:#0555D4;
 
   /* Text */
   --nan-text:   #F5F7FB;
@@ -38,24 +40,45 @@
   /* Radius */
   --nan-r-sm:  8px;
   --nan-r:     12px;
+  --nan-r-md:  12px;
   --nan-r-lg:  16px;
   --nan-r-xl:  20px;
+
+  /* ── Bridge aliases: v4 names → v3 values ── */
+  /* nan-theme.css uses -2 suffix; components use without dash */
+  --nan-bg-2:       #0F1117;
+  --nan-surface-2:  #1D2029;
+  --nan-surface-3:  #232731;
+  --nan-border:     rgba(255,255,255,0.07);
+  --nan-border-2:   rgba(255,255,255,0.12);
+  --nan-text-2:     #A0A7B5;
+  --nan-text-3:     #5A6175;
+  --nan-white:      #FFFFFF;
 }
 
 /* ── Light mode token overrides ── */
 [data-theme="light"] {
   --nan-bg:        #F4F6FA;
+  --nan-bg-2:      #EEF1F7;
   --nan-surface:   #FFFFFF;
   --nan-surface2:  #EEF1F7;
   --nan-surface3:  #E5E9F2;
+  --nan-surface-2: #EEF1F7;
+  --nan-surface-3: #E5E9F2;
   --nan-blue:      #0866F5;
   --nan-blue-dim:  rgba(8,102,245,0.08);
   --nan-blue-bd:   rgba(8,102,245,0.18);
+  --nan-blue-glow: rgba(8,102,245,0.16);
+  --nan-blue-hover:#0555D4;
   --nan-text:      #0A0C14;
   --nan-text2:     #4A5068;
   --nan-text3:     #8A8FA8;
+  --nan-text-2:    #4A5068;
+  --nan-text-3:    #8A8FA8;
   --nan-bdr:       rgba(0,0,0,0.07);
   --nan-bdr2:      rgba(0,0,0,0.13);
+  --nan-border:    rgba(0,0,0,0.07);
+  --nan-border-2:  rgba(0,0,0,0.13);
   --nan-green:     #059669;
   --nan-red:       #DC2626;
   --nan-gold:      #D97706;
@@ -279,7 +302,7 @@ input, select, textarea {
   outline: none; transition: border-color 0.15s, box-shadow 0.15s;
   -webkit-appearance: none;
 }
-.nan-input:focus { border-color: var(--nan-blue); box-shadow: 0 0 0 3px rgba(0,102,255,0.15); }
+.nan-input:focus { border-color: var(--nan-blue); box-shadow: 0 0 0 3px rgba(8,102,245,0.15); }
 .nan-input::placeholder { color: var(--nan-text3); }
 .nan-input-big { font-size: 28px; font-weight: 700; letter-spacing: -0.02em; padding: 14px; font-family: var(--nan-mono); }
 .nan-input-error { border-color: var(--nan-red) !important; }
@@ -436,7 +459,7 @@ input, select, textarea {
 .nan-balance-card::before {
   content: ''; position: absolute; top: -40px; right: -40px;
   width: 180px; height: 180px; border-radius: 50%;
-  background: radial-gradient(circle, rgba(0,102,255,0.12) 0%, transparent 65%);
+  background: radial-gradient(circle, rgba(8,102,245,0.12) 0%, transparent 65%);
   pointer-events: none;
 }
 

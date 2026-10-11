@@ -19,11 +19,11 @@ const TEXT    = 'var(--nan-text)'
 const SURF    = 'var(--nan-surface)'
 const SURF2   = 'var(--nan-surface2)'
 const BDR     = 'var(--nan-bdr)'
-const BLUE    = '#0066FF'
+const BLUE    = '#0866F5'
 const TEXT2   = 'var(--nan-text2)'
 const TEXT3   = 'var(--nan-text3)'
-const SUCCESS = '#00C853'
-const DANGER  = '#FF3B3B'
+const SUCCESS = '#10B981'
+const DANGER  = '#EF4444'
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -97,7 +97,7 @@ export function BalanceCard({ data }: { data: BalanceCardData }) {
                 <Zap size={11} color={BLUE} />
                 <span style={{ fontSize:12, fontWeight:600, color:TEXT2 }}>Cross-chain USDC</span>
                 {nonZeroChains.length > 0 && (
-                  <span style={{ fontSize:10, fontWeight:700, color:BLUE, background:'rgba(0,102,255,0.1)', borderRadius:6, padding:'1px 6px' }}>
+                  <span style={{ fontSize:10, fontWeight:700, color:BLUE, background:'rgba(8,102,245,0.1)', borderRadius:6, padding:'1px 6px' }}>
                     {nonZeroChains.length} chain{nonZeroChains.length > 1 ? 's' : ''}
                   </span>
                 )}
@@ -215,7 +215,7 @@ export function PaymentCard({ data }: { data: PaymentCardData }) {
       </div>
 
       {insufficient && (
-        <div style={{ margin:'0 14px 12px', padding:'8px 12px', background:'rgba(255,59,59,0.06)', border:'1px solid rgba(255,59,59,0.18)', borderRadius:10, fontSize:12, color:DANGER }}>
+        <div style={{ margin:'0 14px 12px', padding:'8px 12px', background:'rgba(239,68,68,0.06)', border:'1px solid rgba(239,68,68,0.18)', borderRadius:10, fontSize:12, color:DANGER }}>
           Your Agent Wallet doesn't have enough USDC for this payment.
         </div>
       )}
@@ -231,7 +231,7 @@ export function PaymentCard({ data }: { data: PaymentCardData }) {
         <button
           onClick={data.onConfirm}
           disabled={insufficient || data.executing}
-          style={{ flex:2, height:42, background:insufficient?'rgba(0,102,255,0.3)':BLUE, color:'#fff', border:'none', borderRadius:11, fontSize:13, fontWeight:700, cursor:insufficient||data.executing?'not-allowed':'pointer', fontFamily:F, display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}
+          style={{ flex:2, height:42, background:insufficient?'rgba(8,102,245,0.3)':BLUE, color:'#fff', border:'none', borderRadius:11, fontSize:13, fontWeight:700, cursor:insufficient||data.executing?'not-allowed':'pointer', fontFamily:F, display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}
         >
           {data.executing
             ? <><Loader2 size={13} style={{ animation:'spin 1s linear infinite' }} /> Processing...</>
@@ -273,7 +273,7 @@ export function TransactionCard({ data }: { data: TransactionCardData }) {
   const StatusIcon = data.status === 'confirmed' || data.status === 'completed' ? CheckCircle2
     : data.status === 'failed' ? AlertCircle : Loader2
   return (
-    <div style={{ background: data.status==='failed' ? 'rgba(255,59,59,0.04)' : 'rgba(0,200,83,0.04)', border:`1px solid ${data.status==='failed'?'rgba(255,59,59,0.18)':'rgba(0,200,83,0.18)'}`, borderRadius:16, padding:'12px 14px' }}>
+    <div style={{ background: data.status==='failed' ? 'rgba(239,68,68,0.04)' : 'rgba(16,185,129,0.04)', border:`1px solid ${data.status==='failed'?'rgba(239,68,68,0.18)':'rgba(16,185,129,0.18)'}`, borderRadius:16, padding:'12px 14px' }}>
       <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:10 }}>
         <StatusIcon size={13} color={statusColor} style={data.status==='pending'?{ animation:'spin 1s linear infinite' }:undefined} />
         <span style={{ fontSize:12, fontWeight:700, color:statusColor }}>
@@ -355,7 +355,7 @@ export function QuoteCard({ data }: { data: QuoteCardData }) {
           <div style={{ fontSize:12, fontWeight:600, color:TEXT3, marginTop:2 }}>{data.fromSymbol}</div>
         </div>
         <ArrowRight size={16} color={TEXT3} style={{ flexShrink:0 }} />
-        <div style={{ flex:1, background:'rgba(0,102,255,0.06)', border:'1px solid rgba(0,102,255,0.15)', borderRadius:12, padding:'10px 12px', textAlign:'center' }}>
+        <div style={{ flex:1, background:'rgba(8,102,245,0.06)', border:'1px solid rgba(8,102,245,0.15)', borderRadius:12, padding:'10px 12px', textAlign:'center' }}>
           <div style={{ fontSize:18, fontWeight:800, color:BLUE, fontVariantNumeric:'tabular-nums' }}>{fmt2(data.toAmount)}</div>
           <div style={{ fontSize:12, fontWeight:600, color:TEXT3, marginTop:2 }}>{data.toSymbol}</div>
         </div>
@@ -389,7 +389,7 @@ export interface ErrorCardData {
 export function ErrorCard({ data }: { data: ErrorCardData }) {
   const [showDetails, setShowDetails] = useState(false)
   return (
-    <div style={{ background:'rgba(255,59,59,0.04)', border:'1px solid rgba(255,59,59,0.18)', borderRadius:14, padding:'12px 14px' }}>
+    <div style={{ background:'rgba(239,68,68,0.04)', border:'1px solid rgba(239,68,68,0.18)', borderRadius:14, padding:'12px 14px' }}>
       <div style={{ display:'flex', alignItems:'flex-start', gap:8 }}>
         <AlertCircle size={14} color={DANGER} style={{ flexShrink:0, marginTop:1 }} />
         <div style={{ flex:1 }}>
@@ -463,7 +463,7 @@ export interface PurchaseApprovalData {
 export function PurchaseApprovalCard({ data }: { data: PurchaseApprovalData }) {
   if (data.approved === true) {
     return (
-      <div style={{ display:'flex', alignItems:'center', gap:6, padding:'8px 12px', background:'rgba(0,200,83,0.06)', border:'1px solid rgba(0,200,83,0.18)', borderRadius:12, fontSize:12, fontWeight:600, color:SUCCESS }}>
+      <div style={{ display:'flex', alignItems:'center', gap:6, padding:'8px 12px', background:'rgba(16,185,129,0.06)', border:'1px solid rgba(16,185,129,0.18)', borderRadius:12, fontSize:12, fontWeight:600, color:SUCCESS }}>
         <CheckCircle2 size={13} color={SUCCESS} /> Approved
       </div>
     )

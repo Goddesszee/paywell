@@ -13,10 +13,10 @@ import { downloadReceipt, shareReceipt } from '../../lib/receipt'
 
 const F    = "'Inter', -apple-system, sans-serif"
 const MONO = "'JetBrains Mono', Menlo, monospace"
-const BLUE  = '#0066FF'
-const GREEN = '#00C853'
-const RED   = '#FF3B3B'
-const GOLD  = '#F0A500'
+const BLUE  = '#0866F5'
+const GREEN = '#10B981'
+const RED   = '#EF4444'
+const GOLD  = '#F59E0B'
 
 function explorerUrl(txHash: string, chain?: string): string {
   const key  = (chain ?? 'arc').toLowerCase()
@@ -48,11 +48,11 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 function typeIcon(type: string, sign: string, agentInitiated?: boolean) {
-  if (agentInitiated)                                         return { icon: <Bot size={16} color={BLUE} />,            bg: 'rgba(0,102,255,0.1)',  border: 'rgba(0,102,255,0.2)'  }
-  if (type === 'bridge')                                      return { icon: <ArrowLeftRight size={16} color={BLUE} />, bg: 'rgba(0,102,255,0.1)',  border: 'rgba(0,102,255,0.2)'  }
-  if (type === 'purchase' || type === 'agent_purchase')       return { icon: <ShoppingBag size={16} color={GOLD} />,    bg: 'rgba(240,165,0,0.1)',  border: 'rgba(240,165,0,0.2)'  }
-  if (sign === '+')                                           return { icon: <ArrowDownLeft size={16} color={GREEN} />, bg: 'rgba(0,200,83,0.1)',   border: 'rgba(0,200,83,0.2)'   }
-  return                                                             { icon: <ArrowUpRight size={16} color={RED} />,    bg: 'rgba(255,59,59,0.1)',  border: 'rgba(255,59,59,0.2)'  }
+  if (agentInitiated)                                         return { icon: <Bot size={16} color={BLUE} />,            bg: 'rgba(8,102,245,0.1)',  border: 'rgba(8,102,245,0.2)'  }
+  if (type === 'bridge')                                      return { icon: <ArrowLeftRight size={16} color={BLUE} />, bg: 'rgba(8,102,245,0.1)',  border: 'rgba(8,102,245,0.2)'  }
+  if (type === 'purchase' || type === 'agent_purchase')       return { icon: <ShoppingBag size={16} color={GOLD} />,    bg: 'rgba(245,158,11,0.1)',  border: 'rgba(245,158,11,0.2)'  }
+  if (sign === '+')                                           return { icon: <ArrowDownLeft size={16} color={GREEN} />, bg: 'rgba(16,185,129,0.1)',   border: 'rgba(16,185,129,0.2)'   }
+  return                                                             { icon: <ArrowUpRight size={16} color={RED} />,    bg: 'rgba(239,68,68,0.1)',  border: 'rgba(239,68,68,0.2)'  }
 }
 
 function dateLabel(date: Date): string {
@@ -135,8 +135,8 @@ function ReceiptModal({ item, onClose, ownAddress }: { item: ActivityItem; onClo
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px 12px', flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ width: 36, height: 36, borderRadius: 10, background: isIn ? 'rgba(0,200,83,0.12)' : 'rgba(255,59,59,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <FileText size={16} color={isIn ? '#00C853' : '#FF3B3B'} />
+            <div style={{ width: 36, height: 36, borderRadius: 10, background: isIn ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <FileText size={16} color={isIn ? '#10B981' : '#EF4444'} />
             </div>
             <div>
               <div style={{ fontSize: 15, fontWeight: 700, color: C.text }}>Payment Receipt</div>
@@ -150,7 +150,7 @@ function ReceiptModal({ item, onClose, ownAddress }: { item: ActivityItem; onClo
 
         {/* Amount hero */}
         <div style={{ textAlign: 'center', padding: '8px 20px 16px', borderBottom: `1px solid ${C.bdr}`, flexShrink: 0 }}>
-          <div style={{ fontSize: 36, fontWeight: 800, color: isIn ? '#00C853' : '#FF3B3B', fontFamily: "'JetBrains Mono', Menlo, monospace", letterSpacing: '-0.03em' }}>
+          <div style={{ fontSize: 36, fontWeight: 800, color: isIn ? '#10B981' : '#EF4444', fontFamily: "'JetBrains Mono', Menlo, monospace", letterSpacing: '-0.03em' }}>
             {item.sign}{item.amount} USDC
           </div>
           <div style={{ fontSize: 13, color: C.t3, marginTop: 4 }}>{item.description}</div>
@@ -170,8 +170,8 @@ function ReceiptModal({ item, onClose, ownAddress }: { item: ActivityItem; onClo
             <a href={txUrl} target="_blank" rel="noreferrer" style={{
               display: 'flex', alignItems: 'center', gap: 6, marginTop: 12,
               padding: '10px 14px', borderRadius: 10,
-              background: 'rgba(0,102,255,0.07)', border: '1px solid rgba(0,102,255,0.18)',
-              color: '#0066FF', fontSize: 12, fontWeight: 600, textDecoration: 'none',
+              background: 'rgba(8,102,245,0.07)', border: '1px solid rgba(8,102,245,0.18)',
+              color: '#0866F5', fontSize: 12, fontWeight: 600, textDecoration: 'none',
             }}>
               <ExternalLink size={13} /> View on Explorer
             </a>
@@ -183,9 +183,9 @@ function ReceiptModal({ item, onClose, ownAddress }: { item: ActivityItem; onClo
           <button onClick={handleDownload} style={{
             flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
             padding: '13px', borderRadius: 12,
-            background: '#0066FF', border: 'none', color: '#fff',
+            background: '#0866F5', border: 'none', color: '#fff',
             fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: "'Inter', sans-serif",
-            boxShadow: '0 4px 16px rgba(0,102,255,0.3)',
+            boxShadow: '0 4px 16px rgba(8,102,245,0.3)',
           }}>
             <Download size={15} /> Download
           </button>
@@ -448,7 +448,7 @@ export function ActivityPage() {
                                 fontSize: 11, color: BLUE, fontFamily: MONO,
                                 display: 'flex', alignItems: 'center', gap: 3,
                                 textDecoration: 'none', fontWeight: 600,
-                                background: 'rgba(0,102,255,0.08)',
+                                background: 'rgba(8,102,245,0.08)',
                                 padding: '3px 7px', borderRadius: 6,
                               }}
                             >

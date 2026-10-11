@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 
-const BLUE = '#0066FF'
+const BLUE = '#0866F5'
 
 interface Props { onDone: () => void }
 

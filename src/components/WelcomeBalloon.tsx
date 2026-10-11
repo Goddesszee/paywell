@@ -27,7 +27,7 @@ const FLOATERS = [
 ]
 
 const CONFETTI_COLORS = [
-  '#0066FF','#00C853','#FF6B35','#FFD600',
+  '#0866F5','#10B981','#FF6B35','#FFD600',
   '#E040FB','#00BCD4','#FF4081','#69F0AE',
 ]
 
@@ -119,12 +119,12 @@ export function WelcomeBalloon() {
       <div style={{
         position: 'relative', zIndex: 1,
         background: 'linear-gradient(155deg, #08102A 0%, #0D1A40 55%, #08102A 100%)',
-        border: '1.5px solid rgba(0,102,255,0.4)',
+        border: '1.5px solid rgba(8,102,245,0.4)',
         borderRadius: 32,
         padding: '48px 36px 36px',
         maxWidth: 340, width: '88%',
         textAlign: 'center',
-        boxShadow: '0 0 0 1px rgba(255,255,255,0.04), 0 40px 100px rgba(0,102,255,0.45)',
+        boxShadow: '0 0 0 1px rgba(255,255,255,0.04), 0 40px 100px rgba(8,102,245,0.45)',
         transform: cardIn ? 'scale(1) translateY(0)' : 'scale(0.6) translateY(50px)',
         opacity: cardIn ? 1 : 0,
         transition: 'transform 0.5s cubic-bezier(0.34,1.56,0.64,1), opacity 0.35s ease',
@@ -132,7 +132,7 @@ export function WelcomeBalloon() {
         {/* Animated glow border */}
         <div style={{
           position: 'absolute', inset: -1, borderRadius: 33,
-          background: 'linear-gradient(135deg, rgba(0,102,255,0.5), rgba(0,200,83,0.15), rgba(0,102,255,0.5))',
+          background: 'linear-gradient(135deg, rgba(8,102,245,0.5), rgba(16,185,129,0.15), rgba(8,102,245,0.5))',
           zIndex: -1,
           animation: 'wb-glow 2.5s ease-in-out infinite alternate',
         }} />
@@ -170,8 +170,8 @@ export function WelcomeBalloon() {
         {/* Name badge */}
         <div style={{
           display: 'inline-flex', alignItems: 'center', gap: 8,
-          background: 'rgba(0,102,255,0.18)',
-          border: '1px solid rgba(0,102,255,0.4)',
+          background: 'rgba(8,102,245,0.18)',
+          border: '1px solid rgba(8,102,245,0.4)',
           borderRadius: 50, padding: '9px 20px',
           marginBottom: 24,
         }}>
@@ -206,12 +206,12 @@ export function WelcomeBalloon() {
           onClick={e => { e.stopPropagation(); dismiss() }}
           style={{
             width: '100%', padding: '15px',
-            background: 'linear-gradient(135deg, #0066FF 0%, #0044CC 100%)',
+            background: 'linear-gradient(135deg, #0866F5 0%, #0044CC 100%)',
             border: 'none', borderRadius: 16,
             color: '#fff', fontSize: 16, fontWeight: 800,
             cursor: 'pointer', fontFamily: F,
             letterSpacing: '-0.02em',
-            boxShadow: '0 10px 30px rgba(0,102,255,0.55)',
+            boxShadow: '0 10px 30px rgba(8,102,245,0.55)',
           }}
         >
           Let's go 🚀

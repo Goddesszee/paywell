@@ -83,7 +83,7 @@ export function AdminOverviewPanel({ goTo }: { goTo: (tab: string) => void }) {
     void load()
   }
 
-  if (err) return <div style={{ ...card, color: '#FF3B3B', fontSize: 13 }}>{err} <button style={{ ...btn, marginLeft: 8 }} onClick={() => void load()}>Retry</button></div>
+  if (err) return <div style={{ ...card, color: '#EF4444', fontSize: 13 }}>{err} <button style={{ ...btn, marginLeft: 8 }} onClick={() => void load()}>Retry</button></div>
   if (!d) return <div style={{ textAlign: 'center', padding: 40, color: 'var(--nan-text2)', fontSize: 13 }}>Loading…</div>
 
   const s14 = d.series
@@ -98,7 +98,7 @@ export function AdminOverviewPanel({ goTo }: { goTo: (tab: string) => void }) {
       </div>
 
       {d.registryEmpty && (
-        <div style={{ ...card, marginBottom: 16, borderColor: '#F0A500' }}>
+        <div style={{ ...card, marginBottom: 16, borderColor: '#F59E0B' }}>
           <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4 }}>User registry is empty</div>
           <div style={{ fontSize: 12, color: 'var(--nan-text2)', marginBottom: 10, lineHeight: 1.5 }}>
             Users are recorded as they open the app after this update. To bring in people who signed in earlier, import them from stored sessions and the transaction ledger. This can only be run once.
@@ -119,32 +119,32 @@ export function AdminOverviewPanel({ goTo }: { goTo: (tab: string) => void }) {
 
       <H>Volume</H>
       <Grid cols={150}>
-        <Stat title="Total volume" value={usd(d.volume.total)} sub={`${d.volume.txCount} transactions`} accent="#0066FF" />
-        <Stat title="Main wallets" value={usd(d.volume.main)} accent="#00C853" />
-        <Stat title="Agent wallets" value={usd(d.volume.agent)} accent="#F0A500" />
+        <Stat title="Total volume" value={usd(d.volume.total)} sub={`${d.volume.txCount} transactions`} accent="#0866F5" />
+        <Stat title="Main wallets" value={usd(d.volume.main)} accent="#10B981" />
+        <Stat title="Agent wallets" value={usd(d.volume.agent)} accent="#F59E0B" />
       </Grid>
 
       <Grid cols={280}>
         <div style={card}>
           <div style={{ ...label, marginBottom: 10 }}>Volume · last 14 days</div>
-          <Bars data={s14.map(x => ({ label: x.date, value: x.volume }))} color="#0066FF" fmt={usd} />
+          <Bars data={s14.map(x => ({ label: x.date, value: x.volume }))} color="#0866F5" fmt={usd} />
           <div style={{ fontSize: 11, color: 'var(--nan-text3)', marginTop: 6 }}>{usd(s14.reduce((a, x) => a + x.volume, 0))} in period</div>
         </div>
         <div style={card}>
           <div style={{ ...label, marginBottom: 10 }}>New users · last 14 days</div>
-          <Bars data={s14.map(x => ({ label: x.date, value: x.newUsers }))} color="#00C853" fmt={n => `${n} new`} />
+          <Bars data={s14.map(x => ({ label: x.date, value: x.newUsers }))} color="#10B981" fmt={n => `${n} new`} />
           <div style={{ fontSize: 11, color: 'var(--nan-text3)', marginTop: 6 }}>{s14.reduce((a, x) => a + x.newUsers, 0)} signed up in period</div>
         </div>
         <div style={card}>
           <div style={{ ...label, marginBottom: 10 }}>Daily active users</div>
-          <Bars data={s14.map(x => ({ label: x.date, value: x.activeUsers }))} color="#F0A500" fmt={n => `${n} active`} />
+          <Bars data={s14.map(x => ({ label: x.date, value: x.activeUsers }))} color="#F59E0B" fmt={n => `${n} active`} />
           <div style={{ fontSize: 11, color: 'var(--nan-text3)', marginTop: 6 }}>Peak {Math.max(0, ...s14.map(x => x.activeUsers))}</div>
         </div>
       </Grid>
 
       <H>Support, feedback &amp; ideas</H>
       <Grid cols={150}>
-        <div onClick={() => goTo('support')} style={{ cursor: 'pointer' }}><Stat title="Support tickets" value={String(d.support.total)} sub={`${d.support.open} open · ${d.support.inProgress} in progress · ${d.support.unread} unread`} accent={d.support.unread ? '#FF3B3B' : undefined} /></div>
+        <div onClick={() => goTo('support')} style={{ cursor: 'pointer' }}><Stat title="Support tickets" value={String(d.support.total)} sub={`${d.support.open} open · ${d.support.inProgress} in progress · ${d.support.unread} unread`} accent={d.support.unread ? '#EF4444' : undefined} /></div>
         <div onClick={() => goTo('feedback')} style={{ cursor: 'pointer' }}><Stat title="Feedback" value={String(d.feedback.total)} sub={`${d.feedback.avgRating || '—'}/5 avg · ${d.feedback.unreviewed} to review`} /></div>
         <div onClick={() => goTo('suggestions')} style={{ cursor: 'pointer' }}><Stat title="Suggestions" value={String(d.suggestions.total)} sub={`${d.suggestions.open} open · ${d.suggestions.planned} planned · ${d.suggestions.implemented} shipped`} /></div>
         <div onClick={() => goTo('audit')} style={{ cursor: 'pointer' }}><Stat title="Admin actions" value={String(d.auditEntries)} sub="Logged in audit trail" /></div>
@@ -301,7 +301,7 @@ export function AdminUsersPanel() {
           <option value="volume">Volume</option><option value="txCount">Transactions</option>
         </select>
       </div>
-      {err && <div style={{ ...card, color: '#FF3B3B', fontSize: 13, marginBottom: 12 }}>{err}</div>}
+      {err && <div style={{ ...card, color: '#EF4444', fontSize: 13, marginBottom: 12 }}>{err}</div>}
       {loading ? <div style={{ textAlign: 'center', padding: 40, color: 'var(--nan-text2)', fontSize: 13 }}>Loading…</div>
         : rows.length === 0 ? <div style={{ ...card, textAlign: 'center', padding: '40px 20px', color: 'var(--nan-text2)', fontSize: 13 }}>
           {users.length ? 'No users match that search.' : 'No users registered yet. Open Overview to import existing ones.'}</div>

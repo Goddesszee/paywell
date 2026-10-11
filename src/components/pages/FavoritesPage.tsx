@@ -25,7 +25,7 @@ export function FavoritesPage() {
             Tap the bookmark icon on any item to save it here for quick access.
           </div>
           <button onClick={() => setActiveView('faq')}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '10px 18px', borderRadius: 10, background: C.blueDim, border: `1px solid ${C.blueBd}`, color: '#0066FF', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: F }}>
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '10px 18px', borderRadius: 10, background: C.blueDim, border: `1px solid ${C.blueBd}`, color: '#0866F5', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: F }}>
             Browse FAQs <ArrowRight size={13} />
           </button>
         </div>
@@ -34,7 +34,7 @@ export function FavoritesPage() {
           {favorites.map(fav => (
             <div key={fav.id} style={{ background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 14, padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
               <div style={{ width: 36, height: 36, borderRadius: 10, background: C.blueDim, border: `1px solid ${C.blueBd}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <Bookmark size={16} color="#0066FF" />
+                <Bookmark size={16} color="#0866F5" />
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 14, fontWeight: 600, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{fav.title}</div>
@@ -45,12 +45,12 @@ export function FavoritesPage() {
                 {fav.href && (
                   <button onClick={() => setActiveView(fav.href!)}
                     style={{ width: 30, height: 30, borderRadius: 8, background: C.blueDim, border: `1px solid ${C.blueBd}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-                    <ArrowRight size={13} color="#0066FF" />
+                    <ArrowRight size={13} color="#0866F5" />
                   </button>
                 )}
                 <button onClick={() => removeFavorite(fav.id)}
-                  style={{ width: 30, height: 30, borderRadius: 8, background: 'rgba(255,59,59,0.06)', border: '1px solid rgba(255,59,59,0.14)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-                  <Trash2 size={13} color="#FF3B3B" />
+                  style={{ width: 30, height: 30, borderRadius: 8, background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.14)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                  <Trash2 size={13} color="#EF4444" />
                 </button>
               </div>
             </div>

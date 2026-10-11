@@ -16,8 +16,8 @@ import { executeWithGuard } from '../../lib/circle-execute'
 
 const F    = "'Inter', -apple-system, sans-serif"
 const MONO = "'JetBrains Mono', 'SF Mono', Menlo, monospace"
-const BLUE = '#0066FF'
-const GREEN = '#00C853'
+const BLUE = '#0866F5'
+const GREEN = '#10B981'
 
 // CCTP V2 supported chains (same list as BridgePage)
 const CHAINS = [
@@ -216,7 +216,7 @@ export function AgentBridgeTab({ C }: Props) {
       </div>
 
       {/* Balance */}
-      <div style={{ background: 'rgba(0,102,255,0.06)', border: '1px solid rgba(0,102,255,0.16)', borderRadius: 12, padding: '10px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div style={{ background: 'rgba(8,102,245,0.06)', border: '1px solid rgba(8,102,245,0.16)', borderRadius: 12, padding: '10px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <span style={{ fontSize: 12, color: C.t2 }}>Agent Wallet balance</span>
         <span style={{ fontSize: 13, fontWeight: 700, color: C.text, fontFamily: MONO }}>{balance.toFixed(4)} USDC</span>
       </div>
@@ -298,7 +298,7 @@ export function AgentBridgeTab({ C }: Props) {
                 {step.status === 'done'   && <CheckCircle2 size={13} color="#fff" />}
                 {step.status === 'active' && <Loader2 size={13} color={BLUE} style={{ animation: 'spin 1s linear infinite' }} />}
                 {step.status === 'idle'   && <span style={{ fontSize: 10, color: C.t3 }}>{i + 1}</span>}
-                {step.status === 'error'  && <span style={{ fontSize: 10, color: '#FF3B3B', fontWeight: 700 }}>!</span>}
+                {step.status === 'error'  && <span style={{ fontSize: 10, color: '#EF4444', fontWeight: 700 }}>!</span>}
               </div>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 12, fontWeight: 500, color: C.text }}>{step.label}</div>
@@ -316,14 +316,14 @@ export function AgentBridgeTab({ C }: Props) {
 
       {/* Error */}
       {status === 'error' && errMsg && (
-        <div style={{ background: 'rgba(255,59,59,0.06)', border: '1px solid rgba(255,59,59,0.2)', borderRadius: 10, padding: '10px 14px', fontSize: 12, color: '#FF3B3B' }}>
+        <div style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 10, padding: '10px 14px', fontSize: 12, color: '#EF4444' }}>
           {errMsg}
         </div>
       )}
 
       {/* Success */}
       {status === 'done' && (
-        <div style={{ background: 'rgba(0,200,83,0.06)', border: '1px solid rgba(0,200,83,0.2)', borderRadius: 12, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div style={{ background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: 12, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
             <CheckCircle2 size={15} color={GREEN} />
             <span style={{ fontSize: 13, fontWeight: 700, color: GREEN }}>Bridge complete</span>

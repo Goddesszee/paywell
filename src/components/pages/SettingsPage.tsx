@@ -16,8 +16,8 @@ const BDR  = 'var(--nan-bdr)'
 const TEXT = 'var(--nan-text)'
 const T2   = 'var(--nan-text2)'
 const T3   = 'var(--nan-text3)'
-const BLUE = '#0066FF'
-const RED  = '#FF3B3B'
+const BLUE = '#0866F5'
+const RED  = '#EF4444'
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
@@ -54,7 +54,7 @@ function RowItem({
       onMouseEnter={e => { if (onClick) (e.currentTarget).style.background = 'var(--nan-surface2)' }}
       onMouseLeave={e => { if (onClick) (e.currentTarget).style.background = 'transparent' }}
     >
-      <div style={{ width:32, height:32, borderRadius:8, background:danger?'rgba(255,59,59,0.10)':SURF2, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+      <div style={{ width:32, height:32, borderRadius:8, background:danger?'rgba(239,68,68,0.10)':SURF2, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
         {React.cloneElement(icon as React.ReactElement, { size:16, color: danger ? RED : T2 })}
       </div>
       <div style={{ flex:1, minWidth:0 }}>
@@ -141,7 +141,7 @@ export function SettingsPage() {
           sub={editingLimits ? undefined : `${agentPermissions.dailyLimit} USDC/day`}
           right={editingLimits ? (
             <input type="number" value={daily} onChange={e => setDaily(e.target.value)}
-              style={{ width:90, padding:'6px 10px', border:`1px solid rgba(0,102,255,0.25)`, borderRadius:8, fontSize:13, fontFamily:MONO, color:TEXT, background:SURF2, outline:'none', textAlign:'right' }}
+              style={{ width:90, padding:'6px 10px', border:`1px solid rgba(8,102,245,0.25)`, borderRadius:8, fontSize:13, fontFamily:MONO, color:TEXT, background:SURF2, outline:'none', textAlign:'right' }}
               placeholder="USDC" />
           ) : undefined}
         />
@@ -151,13 +151,13 @@ export function SettingsPage() {
           sub={editingLimits ? undefined : `${agentPermissions.perTxLimit} USDC/tx`}
           right={editingLimits ? (
             <input type="number" value={perTx} onChange={e => setPerTx(e.target.value)}
-              style={{ width:90, padding:'6px 10px', border:`1px solid rgba(0,102,255,0.25)`, borderRadius:8, fontSize:13, fontFamily:MONO, color:TEXT, background:SURF2, outline:'none', textAlign:'right' }}
+              style={{ width:90, padding:'6px 10px', border:`1px solid rgba(8,102,245,0.25)`, borderRadius:8, fontSize:13, fontFamily:MONO, color:TEXT, background:SURF2, outline:'none', textAlign:'right' }}
               placeholder="USDC" />
           ) : undefined}
           noBorder
         />
         {saved && (
-          <div style={{ padding:'10px 16px', background:'rgba(0,200,83,0.08)', borderTop:`1px solid rgba(0,200,83,0.15)`, fontSize:12, fontWeight:600, color:'#00C853', textAlign:'center' }}>
+          <div style={{ padding:'10px 16px', background:'rgba(16,185,129,0.08)', borderTop:`1px solid rgba(16,185,129,0.15)`, fontSize:12, fontWeight:600, color:'#10B981', textAlign:'center' }}>
             ✓ Limits saved
           </div>
         )}

@@ -17,17 +17,17 @@ import { syncPrCreate, syncPrUpdate, syncPrDelete } from '../../hooks/useBackend
 
 const F    = "'Inter', -apple-system, sans-serif"
 const MONO = "'JetBrains Mono', Menlo, monospace"
-const BLUE = '#0066FF'
-const GREEN = '#00C853'
-const RED   = '#FF3B3B'
-const GOLD  = '#F0A500'
+const BLUE = '#0866F5'
+const GREEN = '#10B981'
+const RED   = '#EF4444'
+const GOLD  = '#F59E0B'
 
 // ── Status helpers ─────────────────────────────────────────────────────────────
 const STATUS_META: Record<PaymentRequestStatus, { label: string; color: string; bg: string; Icon: React.ElementType }> = {
-  pending:   { label: 'Pending',   color: GOLD,  bg: 'rgba(240,165,0,0.10)',   Icon: Clock },
-  viewed:    { label: 'Viewed',    color: BLUE,  bg: 'rgba(0,102,255,0.08)',   Icon: Eye },
-  paid:      { label: 'Paid',      color: GREEN, bg: 'rgba(0,200,83,0.10)',    Icon: CheckCircle2 },
-  expired:   { label: 'Expired',   color: RED,   bg: 'rgba(255,59,59,0.08)',   Icon: XCircle },
+  pending:   { label: 'Pending',   color: GOLD,  bg: 'rgba(245,158,11,0.10)',   Icon: Clock },
+  viewed:    { label: 'Viewed',    color: BLUE,  bg: 'rgba(8,102,245,0.08)',   Icon: Eye },
+  paid:      { label: 'Paid',      color: GREEN, bg: 'rgba(16,185,129,0.10)',    Icon: CheckCircle2 },
+  expired:   { label: 'Expired',   color: RED,   bg: 'rgba(239,68,68,0.08)',   Icon: XCircle },
   cancelled: { label: 'Cancelled', color: '#8A8FA8', bg: 'rgba(138,143,168,0.08)', Icon: XCircle },
 }
 
@@ -176,7 +176,7 @@ function ListView({
             padding: '10px 16px', borderRadius: 12,
             background: BLUE, border: 'none', color: '#fff',
             fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: F,
-            boxShadow: '0 4px 16px rgba(0,102,255,0.3)', flexShrink: 0,
+            boxShadow: '0 4px 16px rgba(8,102,245,0.3)', flexShrink: 0,
             WebkitTapHighlightColor: 'transparent',
           }}
         >
@@ -265,7 +265,7 @@ function ListView({
               padding: '13px 24px', borderRadius: 12,
               background: BLUE, border: 'none', color: '#fff',
               fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: F,
-              boxShadow: '0 4px 16px rgba(0,102,255,0.28)',
+              boxShadow: '0 4px 16px rgba(8,102,245,0.28)',
               WebkitTapHighlightColor: 'transparent',
             }}>
               <Plus size={15} /> Create Request
@@ -507,7 +507,7 @@ function CreateForm({
           <div style={{
             display: 'flex', alignItems: 'center', gap: 8,
             padding: '10px 14px', borderRadius: 10,
-            background: 'rgba(240,165,0,0.08)', border: '1px solid rgba(240,165,0,0.25)',
+            background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)',
             marginBottom: 14,
           }}>
             <AlertCircle size={14} color={GOLD} />
@@ -525,7 +525,7 @@ function CreateForm({
             background: BLUE, border: 'none', color: '#fff',
             fontSize: 15, fontWeight: 700, cursor: submitting ? 'not-allowed' : 'pointer',
             fontFamily: F, opacity: submitting ? 0.7 : 1,
-            boxShadow: '0 4px 16px rgba(0,102,255,0.3)',
+            boxShadow: '0 4px 16px rgba(8,102,245,0.3)',
           }}
         >
           {submitting ? 'Creating…' : 'Create Payment Request'}
@@ -632,12 +632,12 @@ function DetailView({
           <span style={{ fontSize: 20, fontWeight: 600, color: C.t3, marginLeft: 10 }}>{req.currency}</span>
         </div>
         {req.status === 'paid' && req.paidAt && (
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, color: GREEN, fontWeight: 600, background: 'rgba(0,200,83,0.10)', border: '1px solid rgba(0,200,83,0.2)', borderRadius: 20, padding: '4px 12px' }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, color: GREEN, fontWeight: 600, background: 'rgba(16,185,129,0.10)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: 20, padding: '4px 12px' }}>
             <CheckCircle2 size={12} /> Paid {new Date(req.paidAt).toLocaleDateString('en', { month: 'short', day: 'numeric', year: 'numeric' })}
           </div>
         )}
         {req.status === 'pending' && req.dueDate && (
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, color: GOLD, fontWeight: 600, background: 'rgba(240,165,0,0.10)', border: '1px solid rgba(240,165,0,0.2)', borderRadius: 20, padding: '4px 12px' }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, color: GOLD, fontWeight: 600, background: 'rgba(245,158,11,0.10)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: 20, padding: '4px 12px' }}>
             <Clock size={12} /> Due {new Date(req.dueDate).toLocaleDateString('en', { month: 'short', day: 'numeric', year: 'numeric' })}
           </div>
         )}
@@ -651,7 +651,7 @@ function DetailView({
             padding: '14px', borderRadius: 13,
             background: BLUE, border: 'none', color: '#fff',
             fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: F,
-            boxShadow: '0 4px 14px rgba(0,102,255,0.28)', WebkitTapHighlightColor: 'transparent',
+            boxShadow: '0 4px 14px rgba(8,102,245,0.28)', WebkitTapHighlightColor: 'transparent',
           }}>
             {copied ? <Check size={15} /> : <Copy size={15} />}
             {copied ? 'Copied!' : 'Copy Link'}
@@ -719,7 +719,7 @@ function DetailView({
         <button onClick={() => setActiveView('activity')} style={{
           width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
           padding: '13px', borderRadius: 12, marginBottom: 12,
-          background: 'rgba(0,200,83,0.08)', border: '1px solid rgba(0,200,83,0.25)',
+          background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.25)',
           color: GREEN, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: F,
           WebkitTapHighlightColor: 'transparent',
         }}>
@@ -741,7 +741,7 @@ function DetailView({
       {canDelete && (
         <button onClick={handleDelete} style={{
           width: '100%', padding: '13px', borderRadius: 12, marginTop: 8,
-          background: 'rgba(255,59,59,0.06)', border: '1px solid rgba(255,59,59,0.2)',
+          background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)',
           color: RED, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: F,
           WebkitTapHighlightColor: 'transparent',
         }}>

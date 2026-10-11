@@ -50,15 +50,15 @@ export function FeedbackPage() {
 
   if (done) return (
     <div style={{ width: '100%', minHeight: '100%', fontFamily: F, paddingBottom: 80, display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 60 }}>
-      <div style={{ width: 64, height: 64, borderRadius: 20, background: 'rgba(0,200,83,0.10)', border: '1px solid rgba(0,200,83,0.20)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 20 }}>
-        <CheckCircle size={28} color="#00C853" />
+      <div style={{ width: 64, height: 64, borderRadius: 20, background: 'rgba(16,185,129,0.10)', border: '1px solid rgba(16,185,129,0.20)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 20 }}>
+        <CheckCircle size={28} color="#10B981" />
       </div>
       <div style={{ fontSize: 22, fontWeight: 700, color: C.text, letterSpacing: '-0.02em', marginBottom: 8 }}>Thank you!</div>
       <div style={{ fontSize: 14, color: C.t2, textAlign: 'center', maxWidth: 280, lineHeight: 1.6, marginBottom: 32 }}>
         Your feedback helps us make NAN better for everyone.
       </div>
       <button onClick={() => setActiveView('home')}
-        style={{ padding: '12px 28px', borderRadius: 12, background: '#0066FF', color: '#fff', fontFamily: F, fontSize: 14, fontWeight: 600, border: 'none', cursor: 'pointer' }}>
+        style={{ padding: '12px 28px', borderRadius: 12, background: '#0866F5', color: '#fff', fontFamily: F, fontSize: 14, fontWeight: 600, border: 'none', cursor: 'pointer' }}>
         Back to Home
       </button>
     </div>
@@ -87,7 +87,7 @@ export function FeedbackPage() {
               onMouseLeave={() => setHovered(0)}
               onClick={() => setRating(n)}
               style={{ width: 46, height: 46, borderRadius: 12, border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'transform 0.1s', transform: hovered >= n || rating >= n ? 'scale(1.15)' : 'scale(1)' }}>
-              <Star size={28} color={(hovered || rating) >= n ? '#F0A500' : C.bdr2} fill={(hovered || rating) >= n ? '#F0A500' : 'transparent'} />
+              <Star size={28} color={(hovered || rating) >= n ? '#F59E0B' : C.bdr2} fill={(hovered || rating) >= n ? '#F59E0B' : 'transparent'} />
             </button>
           ))}
         </div>
@@ -102,7 +102,7 @@ export function FeedbackPage() {
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
           {CATEGORIES.map(cat => (
             <button key={cat.id} onClick={() => setCategory(cat.id)}
-              style={{ padding: '6px 14px', borderRadius: 20, border: `1px solid ${category === cat.id ? '#0066FF' : C.bdr}`, background: category === cat.id ? 'rgba(0,102,255,0.10)' : C.surf2, color: category === cat.id ? '#0066FF' : C.t2, fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: F, transition: 'all 0.15s' }}>
+              style={{ padding: '6px 14px', borderRadius: 20, border: `1px solid ${category === cat.id ? '#0866F5' : C.bdr}`, background: category === cat.id ? 'rgba(8,102,245,0.10)' : C.surf2, color: category === cat.id ? '#0866F5' : C.t2, fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: F, transition: 'all 0.15s' }}>
               {cat.label}
             </button>
           ))}
@@ -123,18 +123,18 @@ export function FeedbackPage() {
       </div>
 
       {error && (
-        <div style={{ background: 'rgba(255,59,59,0.08)', border: '1px solid rgba(255,59,59,0.18)', borderRadius: 10, padding: '10px 14px', fontSize: 13, color: '#FF3B3B', marginBottom: 12 }}>{error}</div>
+        <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.18)', borderRadius: 10, padding: '10px 14px', fontSize: 13, color: '#EF4444', marginBottom: 12 }}>{error}</div>
       )}
 
       <button onClick={() => { void submit() }} disabled={submitting || !rating}
-        style={{ width: '100%', padding: '14px', borderRadius: 12, background: rating ? '#0066FF' : C.surf2, color: rating ? '#fff' : C.t3, border: `1px solid ${rating ? '#0066FF' : C.bdr}`, fontSize: 15, fontWeight: 600, cursor: rating ? 'pointer' : 'not-allowed', fontFamily: F, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, transition: 'all 0.15s', opacity: submitting ? 0.7 : 1 }}>
+        style={{ width: '100%', padding: '14px', borderRadius: 12, background: rating ? '#0866F5' : C.surf2, color: rating ? '#fff' : C.t3, border: `1px solid ${rating ? '#0866F5' : C.bdr}`, fontSize: 15, fontWeight: 600, cursor: rating ? 'pointer' : 'not-allowed', fontFamily: F, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, transition: 'all 0.15s', opacity: submitting ? 0.7 : 1 }}>
         <Send size={15} />
         {submitting ? 'Submitting…' : 'Submit Feedback'}
       </button>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 16, justifyContent: 'center' }}>
         <MessageSquare size={13} color={C.t3} />
-        <span style={{ fontSize: 12, color: C.t3 }}>Have a problem? <button onClick={() => setActiveView('support')} style={{ color: '#0066FF', background: 'none', border: 'none', cursor: 'pointer', fontFamily: F, fontSize: 12, fontWeight: 600, padding: 0 }}>Contact support</button></span>
+        <span style={{ fontSize: 12, color: C.t3 }}>Have a problem? <button onClick={() => setActiveView('support')} style={{ color: '#0866F5', background: 'none', border: 'none', cursor: 'pointer', fontFamily: F, fontSize: 12, fontWeight: 600, padding: 0 }}>Contact support</button></span>
       </div>
     </div>
   )

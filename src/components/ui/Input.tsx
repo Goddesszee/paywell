@@ -49,8 +49,8 @@ export function Input({ label, error, helper, prefix, suffix, mono, className, s
             ...style,
           }}
           onFocus={(e) => {
-            e.target.style.borderColor = '#0066FF'
-            e.target.style.boxShadow = '0 0 0 3px rgba(0,102,255,0.12)'
+            e.target.style.borderColor = '#0866F5'
+            e.target.style.boxShadow = '0 0 0 3px rgba(8,102,245,0.12)'
             props.onFocus?.(e)
           }}
           onBlur={(e) => {
@@ -81,8 +81,8 @@ export function Textarea({ label, error, helper, style, ...props }: TextareaProp
           ...style,
         }}
         onFocus={(e) => {
-          e.target.style.borderColor = '#0066FF'
-          e.target.style.boxShadow = '0 0 0 3px rgba(0,102,255,0.12)'
+          e.target.style.borderColor = '#0866F5'
+          e.target.style.boxShadow = '0 0 0 3px rgba(8,102,245,0.12)'
         }}
         onBlur={(e) => {
           e.target.style.borderColor = error ? 'rgba(239,68,68,0.5)' : 'var(--nan-bdr)'

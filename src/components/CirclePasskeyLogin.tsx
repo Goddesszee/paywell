@@ -20,7 +20,7 @@ import { ArrowLeft, Fingerprint, LogIn } from 'lucide-react'
 import { getClientKey, clientKeyProblem, explainPasskeyError } from '../lib/circle-session'
 
 const F       = "'Inter', -apple-system, sans-serif"
-const BLUE    = '#0066FF'
+const BLUE    = '#0866F5'
 const TEXT    = 'var(--nan-text)'
 const TEXT2   = '#8A8F9E'
 const TEXT3   = '#50556A'

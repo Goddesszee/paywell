@@ -17,7 +17,7 @@ const MONO = "'JetBrains Mono', Menlo, monospace"
 const BLUE  = '#0866F5'
 const BDIM  = 'rgba(8,102,245,0.10)'
 const BBDR  = 'rgba(8,102,245,0.25)'
-const GREEN = '#00C853'
+const GREEN = '#10B981'
 
 function doCopy(text: string, onDone: () => void) {
   const fallback = () => {
@@ -209,7 +209,7 @@ export function ReferralPage() {
               onClick={handleCopyLink}
               style={{
                 flexShrink: 0,
-                background: copiedLink ? 'rgba(0,200,83,0.18)' : BLUE,
+                background: copiedLink ? 'rgba(16,185,129,0.18)' : BLUE,
                 border: 'none', borderRadius: 8,
                 padding: '7px 12px', cursor: 'pointer',
                 WebkitTapHighlightColor: 'transparent',

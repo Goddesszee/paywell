@@ -95,7 +95,7 @@ interface Props {
 
 export function TokenNetworkSheet({
   symbol, positions, totalQuantity, totalUsdValue,
-  gatewayAvailable, gatewayPending,
+  gatewayAvailable: _gatewayAvailable, gatewayPending: _gatewayPending,
   hidden, onClose,
 }: Props) {
   const C = useNanTheme()

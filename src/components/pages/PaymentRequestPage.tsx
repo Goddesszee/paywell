@@ -173,7 +173,7 @@ export function PaymentRequestPage({ params }: { params: PaymentParams }) {
           )}
           <button
             onClick={() => setActiveView('home')}
-            style={{ display: 'block', width: '100%', padding: '14px', background: '#0066FF', color: '#fff', borderRadius: 12, border: 'none', fontFamily: FONT, fontSize: 15, fontWeight: 700, cursor: 'pointer' }}
+            style={{ display: 'block', width: '100%', padding: '14px', background: '#0866F5', color: '#fff', borderRadius: 12, border: 'none', fontFamily: FONT, fontSize: 15, fontWeight: 700, cursor: 'pointer' }}
           >
             Back to NAN
           </button>
@@ -214,7 +214,7 @@ export function PaymentRequestPage({ params }: { params: PaymentParams }) {
         <div style={{ textAlign: 'center', padding: '48px 0' }}>
           <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--nan-text)', marginBottom: 12 }}>{msg.title}</div>
           <p style={{ fontSize: 14, color: TEXT2, marginBottom: 28 }}>{msg.body}</p>
-          <button onClick={() => setActiveView('home')} style={{ padding: '12px 28px', background: '#0066FF', color: '#fff', borderRadius: 12, border: 'none', fontFamily: FONT, fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
+          <button onClick={() => setActiveView('home')} style={{ padding: '12px 28px', background: '#0866F5', color: '#fff', borderRadius: 12, border: 'none', fontFamily: FONT, fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
             Go to NAN
           </button>
         </div>
@@ -242,7 +242,7 @@ export function PaymentRequestPage({ params }: { params: PaymentParams }) {
         )}
 
         {/* QR */}
-        <div style={{ width: 140, height: 140, background: '#0066FF', borderRadius: 14, margin: '0 auto 16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ width: 140, height: 140, background: '#0866F5', borderRadius: 14, margin: '0 auto 16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <QRCodeSVG value={params.to} size={120} bgColor="#08090B" fgColor="#ffffff" level="M" />
         </div>
 
@@ -278,7 +278,7 @@ export function PaymentRequestPage({ params }: { params: PaymentParams }) {
           <p style={{ fontSize: 12, color: TEXT2, marginBottom: 14 }}>You need a connected wallet to send USDC on Arc.</p>
           <button
             onClick={() => setActiveView('wallet')}
-            style={{ padding: '10px 24px', background: '#0066FF', color: '#fff', borderRadius: 10, border: 'none', fontFamily: FONT, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
+            style={{ padding: '10px 24px', background: '#0866F5', color: '#fff', borderRadius: 10, border: 'none', fontFamily: FONT, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
           >
             Connect wallet
           </button>
@@ -292,7 +292,7 @@ export function PaymentRequestPage({ params }: { params: PaymentParams }) {
           <p style={{ fontSize: 13, color: BLACK, flex: 1, fontFamily: FONT }}>Switch to Arc to send USDC.</p>
           <button
             onClick={() => switchChain({ chainId: ARC_ID })}
-            style={{ padding: '6px 14px', background: '#0066FF', color: '#fff', borderRadius: 8, border: 'none', fontFamily: FONT, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
+            style={{ padding: '6px 14px', background: '#0866F5', color: '#fff', borderRadius: 8, border: 'none', fontFamily: FONT, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
           >
             Switch
           </button>
@@ -320,7 +320,7 @@ export function PaymentRequestPage({ params }: { params: PaymentParams }) {
                 />
                 <button
                   onClick={() => setStep('review')}
-                  style={{ padding: '10px 16px', background: '#0066FF', color: '#fff', borderRadius: 10, border: 'none', fontFamily: FONT, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
+                  style={{ padding: '10px 16px', background: '#0866F5', color: '#fff', borderRadius: 10, border: 'none', fontFamily: FONT, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
                 >
                   Set
                 </button>
@@ -374,7 +374,7 @@ export function PaymentRequestPage({ params }: { params: PaymentParams }) {
           onClick={handleSend}
           disabled={!amount || isWrongChain || parseFloat(amount) <= 0}
           style={{
-            width: '100%', padding: '16px', background: (!amount || parseFloat(amount) <= 0) ? 'var(--nan-surface)' : '#0066FF',
+            width: '100%', padding: '16px', background: (!amount || parseFloat(amount) <= 0) ? 'var(--nan-surface)' : '#0866F5',
             color: (!amount || parseFloat(amount) <= 0) ? TEXT3 : '#fff',
             border: 'none', borderRadius: 14, fontFamily: FONT, fontSize: 16, fontWeight: 800,
             cursor: (!amount || parseFloat(amount) <= 0) ? 'default' : 'pointer',

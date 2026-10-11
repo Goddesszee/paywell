@@ -33,7 +33,7 @@ export class ErrorBoundary extends Component<Props, State> {
           </p>
           <button
             onClick={() => this.setState({ error: null })}
-            style={{ padding: '10px 22px', background: '#0066FF', color: '#fff', border: 'none', borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
+            style={{ padding: '10px 22px', background: '#0866F5', color: '#fff', border: 'none', borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
           >
             Try again
           </button>

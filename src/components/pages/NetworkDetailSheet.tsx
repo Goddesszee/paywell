@@ -237,7 +237,7 @@ export function NetworkDetailSheet({ network, onClose }: Props) {
                     >
                       <div style={{
                         width: 30, height: 30, borderRadius: 9, flexShrink: 0,
-                        background: isIn ? 'rgba(0,200,83,0.1)' : 'rgba(255,59,59,0.1)',
+                        background: isIn ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                       }}>
                         {isIn

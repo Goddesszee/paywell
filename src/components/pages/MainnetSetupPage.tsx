@@ -238,7 +238,7 @@ function FieldRow({ field, value, onChange }: {
         {filled && <CheckCircle size={11} color="#22c55e" />}
         {field.helpUrl && (
           <a href={field.helpUrl} target="_blank" rel="noopener noreferrer"
-            style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 3, fontSize: 11, color: '#0066FF', textDecoration: 'none' }}>
+            style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 3, fontSize: 11, color: '#0866F5', textDecoration: 'none' }}>
             Get key <ExternalLink size={10} />
           </a>
         )}
@@ -310,7 +310,7 @@ function GroupCard({ group, values, onChange }: {
           width: '100%', display: 'flex', alignItems: 'center', gap: 10,
           padding: '14px 16px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left',
         }}>
-        <span style={{ color: allRequired ? '#22c55e' : '#0066FF' }}>{group.icon}</span>
+        <span style={{ color: allRequired ? '#22c55e' : '#0866F5' }}>{group.icon}</span>
         <span style={{ flex: 1, fontSize: 13, fontWeight: 700, color: 'var(--nan-text)', fontFamily: "'DM Sans', sans-serif" }}>
           {group.title}
         </span>
@@ -412,10 +412,10 @@ export function MainnetSetupPage() {
             </div>
             <div style={{
               padding: '4px 10px', borderRadius: 20,
-              background: allRequiredFilled ? 'rgba(34,197,94,0.12)' : 'rgba(0,102,255,0.08)',
-              border: `1px solid ${allRequiredFilled ? 'rgba(34,197,94,0.3)' : 'rgba(0,102,255,0.2)'}`,
+              background: allRequiredFilled ? 'rgba(34,197,94,0.12)' : 'rgba(8,102,245,0.08)',
+              border: `1px solid ${allRequiredFilled ? 'rgba(34,197,94,0.3)' : 'rgba(8,102,245,0.2)'}`,
               fontSize: 11, fontWeight: 600,
-              color: allRequiredFilled ? '#22c55e' : '#0066FF',
+              color: allRequiredFilled ? '#22c55e' : '#0866F5',
             }}>
               {allRequiredFilled ? 'Ready' : 'In Progress'}
             </div>
@@ -424,7 +424,7 @@ export function MainnetSetupPage() {
           <div style={{ height: 3, background: 'var(--nan-bdr)', borderRadius: 99, marginBottom: 0, overflow: 'hidden' }}>
             <div style={{
               height: '100%', width: `${progress}%`,
-              background: allRequiredFilled ? '#22c55e' : '#0066FF',
+              background: allRequiredFilled ? '#22c55e' : '#0866F5',
               borderRadius: 99, transition: 'width 0.3s ease',
             }} />
           </div>
@@ -445,10 +445,10 @@ export function MainnetSetupPage() {
 
         {/* Step 2 — Vercel KV notice */}
         <div style={{
-          background: 'rgba(0,102,255,0.06)', border: '1px solid rgba(0,102,255,0.18)',
+          background: 'rgba(8,102,245,0.06)', border: '1px solid rgba(8,102,245,0.18)',
           borderRadius: 14, padding: '14px 16px', marginBottom: 16,
         }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: '#0066FF', marginBottom: 6 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: '#0866F5', marginBottom: 6 }}>
             Step 2 — Connect Redis (Vercel KV)
           </div>
           <p style={{ fontSize: 12, color: 'var(--nan-text)', margin: '0 0 10px', lineHeight: 1.5 }}>
@@ -466,7 +466,7 @@ export function MainnetSetupPage() {
             rel="noopener noreferrer"
             style={{
               marginTop: 10, display: 'inline-flex', alignItems: 'center', gap: 5,
-              fontSize: 12, fontWeight: 600, color: '#0066FF', textDecoration: 'none',
+              fontSize: 12, fontWeight: 600, color: '#0866F5', textDecoration: 'none',
             }}>
             Open Vercel Dashboard <ExternalLink size={11} />
           </a>
@@ -496,7 +496,7 @@ export function MainnetSetupPage() {
               style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
                 padding: '12px 20px', borderRadius: 10, textDecoration: 'none',
-                background: allRequiredFilled ? '#0066FF' : 'var(--nan-bdr)',
+                background: allRequiredFilled ? '#0866F5' : 'var(--nan-bdr)',
                 color: allRequiredFilled ? '#fff' : 'var(--nan-text2)',
                 fontSize: 13, fontWeight: 700, transition: 'background 0.15s',
               }}>

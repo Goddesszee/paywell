@@ -154,7 +154,7 @@ export function WalletPage({ initialSubView = 'main' }: { initialSubView?: Walle
   if (!hydrated) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 240 }}>
-        <div style={{ width: 32, height: 32, border: '3px solid rgba(0,102,255,0.2)', borderTopColor: '#0066FF', borderRadius: '50%', animation: 'nan-spin 0.8s linear infinite' }} />
+        <div style={{ width: 32, height: 32, border: '3px solid rgba(8,102,245,0.2)', borderTopColor: '#0866F5', borderRadius: '50%', animation: 'nan-spin 0.8s linear infinite' }} />
       </div>
     )
   }
@@ -166,7 +166,7 @@ export function WalletPage({ initialSubView = 'main' }: { initialSubView?: Walle
       // Circle user logged in but wallet not yet loaded — show loading
       return (
         <div style={{ width: '100%', padding: '48px 24px', textAlign: 'center', fontFamily: SANS }}>
-          <div style={{ width: 48, height: 48, border: '3px solid rgba(0,102,255,0.2)', borderTopColor: '#0066FF', borderRadius: '50%', animation: 'nan-spin 0.8s linear infinite', margin: '0 auto 20px' }} />
+          <div style={{ width: 48, height: 48, border: '3px solid rgba(8,102,245,0.2)', borderTopColor: '#0866F5', borderRadius: '50%', animation: 'nan-spin 0.8s linear infinite', margin: '0 auto 20px' }} />
           <p style={{ fontSize: 14, color: 'var(--nan-text2)' }}>Loading your wallet…</p>
         </div>
       )
@@ -248,7 +248,7 @@ export function WalletPage({ initialSubView = 'main' }: { initialSubView?: Walle
           <button
             onClick={() => setSubView('send')}
             style={{
-              flex: 1, padding: '12px', borderRadius: 10, background: '#0066FF', color: '#ffffff',
+              flex: 1, padding: '12px', borderRadius: 10, background: '#0866F5', color: '#ffffff',
               fontWeight: 700, fontSize: 14, border: 'none', cursor: 'pointer',
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
               fontFamily: SANS,
@@ -328,18 +328,18 @@ export function WalletPage({ initialSubView = 'main' }: { initialSubView?: Walle
               }}>
                 <div style={{
                   width: 36, height: 36, borderRadius: 10, flexShrink: 0,
-                  background: isIn ? 'rgba(0,200,83,0.10)' : 'rgba(255,59,59,0.10)',
+                  background: isIn ? 'rgba(16,185,129,0.10)' : 'rgba(239,68,68,0.10)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}>
                   {isIn
-                    ? <ArrowDownLeft size={15} color="#00C853" />
-                    : <ArrowUpRight size={15} color="#FF3B3B" />}
+                    ? <ArrowDownLeft size={15} color="#10B981" />
+                    : <ArrowUpRight size={15} color="#EF4444" />}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--nan-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.description}</div>
                   <div style={{ fontSize: 11, color: 'var(--nan-text3)', marginTop: 1 }}>{item.counterparty || new Date(item.timestamp).toLocaleDateString('en', { month: 'short', day: 'numeric' })}</div>
                 </div>
-                <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 13, fontWeight: 700, color: isIn ? '#00C853' : '#FF3B3B', flexShrink: 0 }}>
+                <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 13, fontWeight: 700, color: isIn ? '#10B981' : '#EF4444', flexShrink: 0 }}>
                   {item.sign}{item.amount}
                 </span>
               </div>
@@ -599,11 +599,11 @@ function SendFlow({
         <div style={{ maxWidth: 420, width: '100%', textAlign: 'center' }}>
           <div style={{
             width: 72, height: 72, borderRadius: '50%',
-            background: 'rgba(0,200,83,0.12)', border: '1px solid rgba(0,200,83,0.25)',
+            background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.25)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             margin: '0 auto 20px',
           }}>
-            <Check size={32} color="#00C853" />
+            <Check size={32} color="#10B981" />
           </div>
           <h2 style={{ fontSize: 26, fontWeight: 800, color: 'var(--nan-text)', letterSpacing: '-0.03em', marginBottom: 6 }}>Sent!</h2>
           <p style={{ fontSize: 14, color: 'var(--nan-text2)', marginBottom: 20 }}>
@@ -629,7 +629,7 @@ function SendFlow({
             {finalTxHash && (
               <div style={{ paddingTop: 8 }}>
                 <a href={buildTxExplorerUrl(ARC_ID, finalTxHash)} target="_blank" rel="noopener noreferrer"
-                  style={{ fontSize: 12, color: '#0066FF', display: 'flex', alignItems: 'center', gap: 5, fontWeight: 600 }}>
+                  style={{ fontSize: 12, color: '#0866F5', display: 'flex', alignItems: 'center', gap: 5, fontWeight: 600 }}>
                   <ExternalLink size={12} /> View on explorer
                 </a>
               </div>
@@ -642,10 +642,10 @@ function SendFlow({
               onClick={() => { void downloadReceipt(successReceiptData) }}
               style={{
                 flex: 1, height: 46, borderRadius: 12,
-                background: '#0066FF', border: 'none', color: '#fff',
+                background: '#0866F5', border: 'none', color: '#fff',
                 fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: SANS,
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
-                boxShadow: '0 4px 16px rgba(0,102,255,0.3)',
+                boxShadow: '0 4px 16px rgba(8,102,245,0.3)',
               }}
             >
               <Download size={15} /> Download Receipt
@@ -685,7 +685,7 @@ function SendFlow({
           background: 'var(--nan-surface)', border: '1px solid var(--nan-bdr)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
-          <div style={{ width: 28, height: 28, border: '2px solid #0066FF', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+          <div style={{ width: 28, height: 28, border: '2px solid #0866F5', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
         </div>
         <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--nan-text)', margin: 0 }}>
           {isCircleUser
@@ -745,7 +745,7 @@ function SendFlow({
             <div style={{ textAlign: 'center', fontSize: 13, color: 'var(--nan-text3)', marginBottom: 20 }}>
               {formatUSDC(rawNum)} {selectedToken.symbol} available
             </div>
-            {amountError && <p style={{ fontSize: 12, color: '#FF3B3B', textAlign: 'center', marginBottom: 8 }}>{amountError}</p>}
+            {amountError && <p style={{ fontSize: 12, color: '#EF4444', textAlign: 'center', marginBottom: 8 }}>{amountError}</p>}
 
             {/* Quick amounts */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 16 }}>
@@ -800,34 +800,34 @@ function SendFlow({
                   style={{
                     width: '100%', padding: '14px 44px 14px 16px', borderRadius: 12,
                     background: 'var(--nan-surface2)',
-                    border: `1px solid ${recipientError ? '#FF3B3B' : resolvedName ? 'rgba(0,200,83,0.5)' : recipient.startsWith('@') ? 'rgba(0,102,255,0.4)' : 'var(--nan-bdr)'}`,
+                    border: `1px solid ${recipientError ? '#EF4444' : resolvedName ? 'rgba(16,185,129,0.5)' : recipient.startsWith('@') ? 'rgba(8,102,245,0.4)' : 'var(--nan-bdr)'}`,
                     color: 'var(--nan-text)', fontSize: 14, fontFamily: 'JetBrains Mono, monospace',
                     outline: 'none', boxSizing: 'border-box', transition: 'border-color 0.15s',
                   }}
                 />
                 {nameResolving && (
                   <div style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)' }}>
-                    <div style={{ width: 16, height: 16, border: '2px solid #0066FF', borderTopColor: 'transparent', borderRadius: '50%', animation: 'nan-spin 0.7s linear infinite' }} />
+                    <div style={{ width: 16, height: 16, border: '2px solid #0866F5', borderTopColor: 'transparent', borderRadius: '50%', animation: 'nan-spin 0.7s linear infinite' }} />
                   </div>
                 )}
                 {resolvedName && !nameResolving && (
                   <div style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)' }}>
-                    <CheckCircle2 size={16} color="#00C853" />
+                    <CheckCircle2 size={16} color="#10B981" />
                   </div>
                 )}
               </div>
               {recipient.startsWith('@') && !nameResolving && !resolvedName && !recipientError && (
-                <div style={{ fontSize: 12, color: '#0066FF', marginTop: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
+                <div style={{ fontSize: 12, color: '#0866F5', marginTop: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
                   <AtSign size={11} /> NAN handle — will be resolved onchain
                 </div>
               )}
               {nameResolving && <p style={{ fontSize: 12, color: 'var(--nan-text3)', marginTop: 6 }}>Resolving {recipient}…</p>}
               {resolvedName && !recipientError && (
-                <div style={{ fontSize: 12, color: '#00C853', marginTop: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
+                <div style={{ fontSize: 12, color: '#10B981', marginTop: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
                   <CheckCircle2 size={12} /> {resolvedName} resolved
                 </div>
               )}
-              {recipientError && <p style={{ fontSize: 12, color: '#FF3B3B', marginTop: 6 }}>{recipientError}</p>}
+              {recipientError && <p style={{ fontSize: 12, color: '#EF4444', marginTop: 6 }}>{recipientError}</p>}
             </div>
 
             {/* Note (optional) */}
@@ -873,10 +873,10 @@ function SendFlow({
 
             {/* Wrong chain */}
             {isWrongChain && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(255,59,59,0.08)', border: '1px solid rgba(255,59,59,0.2)', borderRadius: 12, padding: '12px 16px' }}>
-                <AlertCircle size={15} color="#FF3B3B" />
-                <span style={{ fontSize: 13, color: '#FF3B3B', flex: 1 }}>Switch to Arc to send.</span>
-                <button onClick={() => switchChain({ chainId: ARC_ID })} style={{ fontSize: 12, fontWeight: 700, color: '#FF3B3B', background: 'none', border: 'none', cursor: 'pointer' }}>Switch</button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 12, padding: '12px 16px' }}>
+                <AlertCircle size={15} color="#EF4444" />
+                <span style={{ fontSize: 13, color: '#EF4444', flex: 1 }}>Switch to Arc to send.</span>
+                <button onClick={() => switchChain({ chainId: ARC_ID })} style={{ fontSize: 12, fontWeight: 700, color: '#EF4444', background: 'none', border: 'none', cursor: 'pointer' }}>Switch</button>
               </div>
             )}
 
@@ -888,11 +888,11 @@ function SendFlow({
               }}
               style={{
                 width: '100%', height: 56, borderRadius: 16,
-                background: canProceedAmount && recipient ? '#0066FF' : 'var(--nan-surface2)',
+                background: canProceedAmount && recipient ? '#0866F5' : 'var(--nan-surface2)',
                 border: 'none', cursor: canProceedAmount && recipient ? 'pointer' : 'not-allowed',
                 color: canProceedAmount && recipient ? '#fff' : 'var(--nan-text3)',
                 fontSize: 16, fontWeight: 700, fontFamily: SANS,
-                boxShadow: canProceedAmount && recipient ? '0 4px 20px rgba(0,102,255,0.35)' : 'none',
+                boxShadow: canProceedAmount && recipient ? '0 4px 20px rgba(8,102,245,0.35)' : 'none',
                 transition: 'all 0.15s',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
               }}
@@ -902,14 +902,14 @@ function SendFlow({
             </button>
 
             {displayStep === 'error' && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(255,59,59,0.08)', border: '1px solid rgba(255,59,59,0.2)', borderRadius: 12, padding: '12px 16px' }}>
-                <AlertCircle size={15} color="#FF3B3B" />
-                <span style={{ fontSize: 13, color: '#FF3B3B', flex: 1 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 12, padding: '12px 16px' }}>
+                <AlertCircle size={15} color="#EF4444" />
+                <span style={{ fontSize: 13, color: '#EF4444', flex: 1 }}>
                   {(isCircleUser || isPasskeyUser)
                     ? (circleError ?? 'Something went wrong. Please try again.')
                     : parseOnchainError(writeError)}
                 </span>
-                <button onClick={() => { reset(); circleTx.reset(); setStep('review') }} style={{ fontSize: 12, fontWeight: 700, color: '#FF3B3B', background: 'none', border: 'none', cursor: 'pointer', flexShrink: 0 }}>Retry</button>
+                <button onClick={() => { reset(); circleTx.reset(); setStep('review') }} style={{ fontSize: 12, fontWeight: 700, color: '#EF4444', background: 'none', border: 'none', cursor: 'pointer', flexShrink: 0 }}>Retry</button>
               </div>
             )}
           </div>
@@ -947,10 +947,10 @@ function SendFlow({
       </div>
 
       {isWrongChain && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(255,59,59,0.08)', border: '1px solid rgba(255,59,59,0.2)', borderRadius: 12, padding: '10px 14px', marginBottom: 14 }}>
-          <AlertCircle size={14} color="#FF3B3B" />
-          <span style={{ fontSize: 13, color: '#FF3B3B', flex: 1 }}>Switch to Arc first.</span>
-          <button onClick={() => switchChain({ chainId: ARC_ID })} style={{ fontSize: 12, fontWeight: 700, color: '#FF3B3B', background: 'none', border: 'none', cursor: 'pointer' }}>Switch</button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 12, padding: '10px 14px', marginBottom: 14 }}>
+          <AlertCircle size={14} color="#EF4444" />
+          <span style={{ fontSize: 13, color: '#EF4444', flex: 1 }}>Switch to Arc first.</span>
+          <button onClick={() => switchChain({ chainId: ARC_ID })} style={{ fontSize: 12, fontWeight: 700, color: '#EF4444', background: 'none', border: 'none', cursor: 'pointer' }}>Switch</button>
         </div>
       )}
 
@@ -965,12 +965,12 @@ function SendFlow({
                 <button key={tok.symbol} onClick={() => setSelectedToken(tok)} style={{
                   flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
                   padding: '10px 12px', borderRadius: 12,
-                  background: selectedToken.symbol === tok.symbol ? 'rgba(0,102,255,0.12)' : 'var(--nan-surface2)',
-                  border: `1.5px solid ${selectedToken.symbol === tok.symbol ? 'rgba(0,102,255,0.4)' : 'var(--nan-bdr)'}`,
+                  background: selectedToken.symbol === tok.symbol ? 'rgba(8,102,245,0.12)' : 'var(--nan-surface2)',
+                  border: `1.5px solid ${selectedToken.symbol === tok.symbol ? 'rgba(8,102,245,0.4)' : 'var(--nan-bdr)'}`,
                   cursor: 'pointer', fontFamily: SANS,
                 }}>
                   <TokenLogo symbol={tok.symbol} size={20} radius={6} />
-                  <span style={{ fontSize: 14, fontWeight: 700, color: selectedToken.symbol === tok.symbol ? '#0066FF' : 'var(--nan-text)' }}>{tok.symbol}</span>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: selectedToken.symbol === tok.symbol ? '#0866F5' : 'var(--nan-text)' }}>{tok.symbol}</span>
                 </button>
               ))}
             </div>
@@ -988,25 +988,25 @@ function SendFlow({
               style={{
                 width: '100%', padding: '14px 44px 14px 16px', borderRadius: 12, boxSizing: 'border-box',
                 background: 'var(--nan-surface2)',
-                border: `1.5px solid ${recipientError ? '#FF3B3B' : resolvedName ? 'rgba(0,200,83,0.5)' : recipient.startsWith('@') ? 'rgba(0,102,255,0.4)' : 'var(--nan-bdr)'}`,
+                border: `1.5px solid ${recipientError ? '#EF4444' : resolvedName ? 'rgba(16,185,129,0.5)' : recipient.startsWith('@') ? 'rgba(8,102,245,0.4)' : 'var(--nan-bdr)'}`,
                 color: 'var(--nan-text)', fontSize: 14, fontFamily: 'JetBrains Mono, monospace', outline: 'none',
                 transition: 'border-color 0.15s',
               }}
             />
             {nameResolving && (
               <div style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)' }}>
-                <div style={{ width: 16, height: 16, border: '2px solid #0066FF', borderTopColor: 'transparent', borderRadius: '50%', animation: 'nan-spin 0.7s linear infinite' }} />
+                <div style={{ width: 16, height: 16, border: '2px solid #0866F5', borderTopColor: 'transparent', borderRadius: '50%', animation: 'nan-spin 0.7s linear infinite' }} />
               </div>
             )}
             {resolvedName && !nameResolving && (
               <div style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)' }}>
-                <CheckCircle2 size={16} color="#00C853" />
+                <CheckCircle2 size={16} color="#10B981" />
               </div>
             )}
           </div>
           {/* NAN name hint */}
           {recipient.startsWith('@') && !nameResolving && !resolvedName && !recipientError && (
-            <div style={{ fontSize: 12, color: '#0066FF', marginTop: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
+            <div style={{ fontSize: 12, color: '#0866F5', marginTop: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
               <AtSign size={11} /> NAN handle — will be resolved onchain
             </div>
           )}
@@ -1014,16 +1014,16 @@ function SendFlow({
             <p style={{ fontSize: 12, color: 'var(--nan-text3)', marginTop: 6 }}>Resolving {recipient}…</p>
           )}
           {resolvedName && !recipientError && (
-            <div style={{ fontSize: 12, color: '#00C853', marginTop: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
+            <div style={{ fontSize: 12, color: '#10B981', marginTop: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
               <CheckCircle2 size={12} /> {resolvedName} resolved
             </div>
           )}
-          {recipientError && <p style={{ fontSize: 12, color: '#FF3B3B', marginTop: 6 }}>{recipientError}</p>}
+          {recipientError && <p style={{ fontSize: 12, color: '#EF4444', marginTop: 6 }}>{recipientError}</p>}
           <button
             onClick={() => { void (async () => { if (await validateRecipient()) setStep('amount') })() }}
             style={{
               width: '100%', height: 50, borderRadius: 12, marginTop: 16,
-              background: '#0066FF', border: 'none', color: '#fff',
+              background: '#0866F5', border: 'none', color: '#fff',
               fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: SANS,
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
             }}
@@ -1045,7 +1045,7 @@ function SendFlow({
               autoFocus
               style={{
                 width: '100%', padding: '14px 72px 14px 16px', borderRadius: 12, boxSizing: 'border-box',
-                background: 'var(--nan-surface2)', border: `1.5px solid ${amountError ? '#FF3B3B' : 'var(--nan-bdr)'}`,
+                background: 'var(--nan-surface2)', border: `1.5px solid ${amountError ? '#EF4444' : 'var(--nan-bdr)'}`,
                 color: 'var(--nan-text)', fontSize: 22, fontWeight: 700, fontFamily: 'JetBrains Mono, monospace', outline: 'none',
               }}
             />
@@ -1053,14 +1053,14 @@ function SendFlow({
               {selectedToken.symbol}
             </span>
           </div>
-          {amountError && <p style={{ fontSize: 12, color: '#FF3B3B', marginTop: 6 }}>{amountError}</p>}
+          {amountError && <p style={{ fontSize: 12, color: '#EF4444', marginTop: 6 }}>{amountError}</p>}
 
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 10, marginBottom: 12 }}>
             <span style={{ fontSize: 13, color: 'var(--nan-text3)' }}>
               Available: <strong style={{ color: 'var(--nan-text)' }}>{formatUSDC(rawNum)} {selectedToken.symbol}</strong>
             </span>
             <button onClick={() => { setAmount(rawNum.toFixed(6)); setAmountError('') }}
-              style={{ fontSize: 13, fontWeight: 700, color: '#0066FF', background: 'none', border: 'none', cursor: 'pointer', fontFamily: SANS }}>
+              style={{ fontSize: 13, fontWeight: 700, color: '#0866F5', background: 'none', border: 'none', cursor: 'pointer', fontFamily: SANS }}>
               MAX
             </button>
           </div>
@@ -1084,7 +1084,7 @@ function SendFlow({
             onClick={() => { if (validateAmount()) setStep('note') }}
             style={{
               width: '100%', height: 50, borderRadius: 12,
-              background: '#0066FF', border: 'none', color: '#fff',
+              background: '#0866F5', border: 'none', color: '#fff',
               fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: SANS,
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
             }}
@@ -1098,7 +1098,7 @@ function SendFlow({
           <Textarea label="Add a note (optional)" placeholder="What's this payment for?" value={note} onChange={(e) => setNote(e.target.value)} rows={3} />
           <button onClick={() => setStep('review')} style={{
             width: '100%', height: 50, borderRadius: 12, marginTop: 16,
-            background: '#0066FF', border: 'none', color: '#fff',
+            background: '#0866F5', border: 'none', color: '#fff',
             fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: SANS,
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
           }}>Review <ChevronRight size={16} /></button>
@@ -1127,7 +1127,7 @@ function SendFlow({
             disabled={isPending || isConfirming || isWrongChain}
             style={{
               width: '100%', height: 50, borderRadius: 12, marginTop: 16,
-              background: isPending || isConfirming ? 'var(--nan-surface2)' : '#0066FF',
+              background: isPending || isConfirming ? 'var(--nan-surface2)' : '#0866F5',
               border: 'none', color: isPending || isConfirming ? 'var(--nan-text3)' : '#fff',
               fontSize: 15, fontWeight: 700, cursor: isPending || isConfirming ? 'not-allowed' : 'pointer', fontFamily: SANS,
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
@@ -1140,18 +1140,18 @@ function SendFlow({
 
       {/* ── Step: error ── */}
       {displayStep === 'error' && (
-        <div style={{ background: 'rgba(255,59,59,0.08)', border: '1px solid rgba(255,59,59,0.2)', borderRadius: 16, padding: '16px 20px', marginBottom: 12 }}>
+        <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 16, padding: '16px 20px', marginBottom: 12 }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-            <AlertCircle size={16} color="#FF3B3B" style={{ flexShrink: 0, marginTop: 1 }} />
+            <AlertCircle size={16} color="#EF4444" style={{ flexShrink: 0, marginTop: 1 }} />
             <div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: '#FF3B3B', marginBottom: 4 }}>Transaction failed</div>
-              <div style={{ fontSize: 12, color: '#FF3B3B' }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: '#EF4444', marginBottom: 4 }}>Transaction failed</div>
+              <div style={{ fontSize: 12, color: '#EF4444' }}>
                 {(isCircleUser || isPasskeyUser)
                   ? (circleError ?? 'Something went wrong. Please try again.')
                   : parseOnchainError(writeError)}
               </div>
               {(isCircleUser || isPasskeyUser) && circleError?.toLowerCase().includes('session expired') && (
-                <div style={{ fontSize: 12, color: '#FF3B3B', marginTop: 6 }}>
+                <div style={{ fontSize: 12, color: '#EF4444', marginTop: 6 }}>
                   Your Circle session has expired. Please log out and log in again.
                 </div>
               )}
@@ -1247,7 +1247,7 @@ function ReceiveView({ address, onBack }: { address: string; onBack: () => void 
           onClick={copyAddress}
           style={{
             width: '100%', height: 54, borderRadius: 100,
-            background: copied ? '#00C853' : '#0066FF',
+            background: copied ? '#10B981' : '#0866F5',
             border: 'none', cursor: 'pointer',
             fontSize: 16, fontWeight: 700, color: '#fff',
             fontFamily: SANS, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,

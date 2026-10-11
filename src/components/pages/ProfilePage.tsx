@@ -134,8 +134,8 @@ export function ProfilePage() {
   }
 
   const iconCircle = (icon: React.ReactElement<{ size?: number; color?: string }>, danger = false) => (
-    <div style={{ width: 32, height: 32, borderRadius: 8, background: danger ? 'rgba(255,59,59,0.10)' : C.surf2, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-      {React.cloneElement(icon, { size: 16, color: danger ? '#FF3B3B' : C.t2 })}
+    <div style={{ width: 32, height: 32, borderRadius: 8, background: danger ? 'rgba(239,68,68,0.10)' : C.surf2, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+      {React.cloneElement(icon, { size: 16, color: danger ? '#EF4444' : C.t2 })}
     </div>
   )
 
@@ -150,7 +150,7 @@ export function ProfilePage() {
       style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 16px', cursor: 'pointer', borderBottom: last ? 'none' : `1px solid ${C.bdr}` }}>
       {iconCircle(opts.icon, opts.danger)}
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 14, fontWeight: 600, color: opts.danger ? '#FF3B3B' : C.text }}>{opts.label}</div>
+        <div style={{ fontSize: 14, fontWeight: 600, color: opts.danger ? '#EF4444' : C.text }}>{opts.label}</div>
         {opts.sub && <div style={{ fontSize: 12, color: C.t3, marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{opts.sub}</div>}
       </div>
       {opts.right ?? (opts.chevron === false ? null : <ChevronRight size={14} color={C.t3} />)}
@@ -205,7 +205,7 @@ export function ProfilePage() {
           <div style={{ minWidth: 0 }}>
             <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: '-0.02em', color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{nameShown}</div>
             {(nanHandle || auth?.email) && <div style={{ fontSize: 12, color: C.t3, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{nanHandle ? `@${nanHandle}` : auth?.email}</div>}
-            {saveError && <div style={{ fontSize: 12, color: '#FF3B3B', marginTop: 4 }}>{saveError}</div>}
+            {saveError && <div style={{ fontSize: 12, color: '#EF4444', marginTop: 4 }}>{saveError}</div>}
           </div>
         </div>
 
@@ -281,10 +281,10 @@ export function ProfilePage() {
                 style={{ width: '100%', padding: '10px 12px', background: C.surf2, border: `1px solid ${C.bdr}`, borderRadius: 10, color: C.text, fontSize: 13, fontFamily: F, resize: 'none', outline: 'none', boxSizing: 'border-box', lineHeight: 1.5 }} />
               <div style={{ fontSize: 11, color: C.t3, textAlign: 'right', marginTop: 2 }}>{bio.length}/300</div>
             </div>
-            {saveError && <div style={{ background: 'rgba(255,59,59,0.08)', borderRadius: 8, padding: '8px 12px', fontSize: 12, color: '#FF3B3B', marginBottom: 10 }}>{saveError}</div>}
-            {saved && <div style={{ background: 'rgba(0,200,83,0.08)', borderRadius: 8, padding: '8px 12px', fontSize: 12, color: '#00C853', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}><CheckCircle size={13} /> Saved!</div>}
+            {saveError && <div style={{ background: 'rgba(239,68,68,0.08)', borderRadius: 8, padding: '8px 12px', fontSize: 12, color: '#EF4444', marginBottom: 10 }}>{saveError}</div>}
+            {saved && <div style={{ background: 'rgba(16,185,129,0.08)', borderRadius: 8, padding: '8px 12px', fontSize: 12, color: '#10B981', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}><CheckCircle size={13} /> Saved!</div>}
             <button onClick={() => { void saveProfile() }} disabled={saving}
-              style={{ width: '100%', padding: '11px', borderRadius: 10, background: '#0066FF', color: '#fff', border: 'none', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, opacity: saving ? 0.7 : 1 }}>
+              style={{ width: '100%', padding: '11px', borderRadius: 10, background: '#0866F5', color: '#fff', border: 'none', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, opacity: saving ? 0.7 : 1 }}>
               <Save size={14} /> {saving ? 'Saving…' : 'Save changes'}
             </button>
           </div>
@@ -301,14 +301,14 @@ export function ProfilePage() {
                 <div style={{ fontSize: 14, fontWeight: 600, color: C.text }}>Email</div>
                 <div style={{ fontSize: 12, color: C.t3, marginTop: 1, fontFamily: MONO }}>{auth?.email ?? '—'}</div>
               </div>
-              <span style={{ fontSize: 11, fontWeight: 600, color: '#00C853', background: 'rgba(0,200,83,0.08)', border: '1px solid rgba(0,200,83,0.15)', padding: '2px 8px', borderRadius: 20 }}>Verified</span>
+              <span style={{ fontSize: 11, fontWeight: 600, color: '#10B981', background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.15)', padding: '2px 8px', borderRadius: 20 }}>Verified</span>
             </div>
             <div style={{ display: 'flex', gap: 12, alignItems: 'center', padding: '10px 0' }}>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 14, fontWeight: 600, color: C.text }}>Authentication</div>
                 <div style={{ fontSize: 12, color: C.t3, marginTop: 1 }}>One-time password (OTP) via email</div>
               </div>
-              <span style={{ fontSize: 11, fontWeight: 600, color: '#0066FF', background: 'rgba(0,102,255,0.08)', border: '1px solid rgba(0,102,255,0.18)', padding: '2px 8px', borderRadius: 20 }}>Active</span>
+              <span style={{ fontSize: 11, fontWeight: 600, color: '#0866F5', background: 'rgba(8,102,245,0.08)', border: '1px solid rgba(8,102,245,0.18)', padding: '2px 8px', borderRadius: 20 }}>Active</span>
             </div>
           </div>
 
@@ -323,7 +323,7 @@ export function ProfilePage() {
             ) : (
               sessions.slice(0, 5).map((s, i) => (
                 <div key={i} style={{ display: 'flex', gap: 12, padding: '10px 0', borderBottom: i < Math.min(sessions.length, 5) - 1 ? `1px solid ${C.bdr}` : 'none' }}>
-                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: i === 0 ? '#00C853' : C.t3, flexShrink: 0, marginTop: 5 }} />
+                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: i === 0 ? '#10B981' : C.t3, flexShrink: 0, marginTop: 5 }} />
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 12, fontWeight: 600, color: C.text }}>{i === 0 ? 'Current session' : 'Session'}</div>
                     <div style={{ fontSize: 11, color: C.t3, marginTop: 1 }}>{new Date(s.ts).toLocaleString('en', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
@@ -336,7 +336,7 @@ export function ProfilePage() {
 
           {isConnected && (
             <button onClick={() => disconnect()}
-              style={{ width: '100%', padding: '13px', borderRadius: 12, background: 'rgba(255,59,59,0.06)', border: '1px solid rgba(255,59,59,0.15)', color: '#FF3B3B', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+              style={{ width: '100%', padding: '13px', borderRadius: 12, background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.15)', color: '#EF4444', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
               <LogOut size={14} /> Disconnect wallet
             </button>
           )}
@@ -361,7 +361,7 @@ export function ProfilePage() {
                 </div>
                 <button
                   onClick={() => { void saveNotifPrefs({ ...profile.notifPrefs, [key]: !on }) }}
-                  style={{ width: 46, height: 26, borderRadius: 13, background: on ? '#0066FF' : C.surf2, border: `1px solid ${on ? '#0066FF' : C.bdr}`, position: 'relative', cursor: 'pointer', transition: 'all 0.25s', flexShrink: 0 }}>
+                  style={{ width: 46, height: 26, borderRadius: 13, background: on ? '#0866F5' : C.surf2, border: `1px solid ${on ? '#0866F5' : C.bdr}`, position: 'relative', cursor: 'pointer', transition: 'all 0.25s', flexShrink: 0 }}>
                   <div style={{ position: 'absolute', top: 3, left: on ? 22 : 3, width: 18, height: 18, borderRadius: 9, background: '#fff', transition: 'left 0.25s', boxShadow: '0 1px 4px rgba(0,0,0,0.3)' }} />
                 </button>
               </div>
@@ -386,14 +386,14 @@ export function ProfilePage() {
             return (
               <button key={id} onClick={() => setTheme(id as 'dark' | 'light')}
                 style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 14, padding: '14px 18px', borderLeft: 'none', borderRight: 'none', borderTop: i === 0 ? `1px solid ${C.bdr}` : 'none', borderBottom: i < 2 ? `1px solid ${C.bdr}` : 'none', background: active ? C.blueDim : 'transparent', cursor: 'pointer', fontFamily: F, textAlign: 'left' }}>
-                <div style={{ width: 36, height: 36, borderRadius: 10, background: active ? 'rgba(0,102,255,0.15)' : C.surf2, border: `1px solid ${active ? C.blueBd : C.bdr}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <Icon size={16} color={active ? '#0066FF' : C.t2} />
+                <div style={{ width: 36, height: 36, borderRadius: 10, background: active ? 'rgba(8,102,245,0.15)' : C.surf2, border: `1px solid ${active ? C.blueBd : C.bdr}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Icon size={16} color={active ? '#0866F5' : C.t2} />
                 </div>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: active ? '#0066FF' : C.text }}>{label}</div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: active ? '#0866F5' : C.text }}>{label}</div>
                   <div style={{ fontSize: 12, color: C.t3, marginTop: 1 }}>{sub}</div>
                 </div>
-                {active && <CheckCircle size={16} color="#0066FF" />}
+                {active && <CheckCircle size={16} color="#0866F5" />}
               </button>
             )
           })}

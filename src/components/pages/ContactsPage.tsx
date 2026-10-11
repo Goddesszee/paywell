@@ -14,7 +14,7 @@ import { toast } from 'sonner'
 
 const F = "'Inter', -apple-system, sans-serif"
 const MONO = "'JetBrains Mono', Menlo, monospace"
-const BLUE = '#0066FF'
+const BLUE = '#0866F5'
 
 function ContactAvatar({ contact, size = 44 }: { contact: Contact; size?: number }) {
   if (contact.avatarUrl) {
@@ -24,7 +24,7 @@ function ContactAvatar({ contact, size = 44 }: { contact: Contact; size?: number
   return (
     <div style={{
       width: size, height: size, borderRadius: size / 3, flexShrink: 0,
-      background: 'rgba(0,102,255,0.12)', border: '1px solid rgba(0,102,255,0.2)',
+      background: 'rgba(8,102,245,0.12)', border: '1px solid rgba(8,102,245,0.2)',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       fontSize: size * 0.38, fontWeight: 700, color: BLUE, fontFamily: F,
     }}>
@@ -138,13 +138,13 @@ export function ContactsPage() {
               </div>
               <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
                 <button onClick={() => handleCopy(c.id, c.address)} style={{ width: 30, height: 30, borderRadius: 8, background: C.surf2, border: `1px solid ${C.bdr}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-                  {copiedId === c.id ? <Check size={13} color="#00C853" /> : <Copy size={13} color={C.t3} />}
+                  {copiedId === c.id ? <Check size={13} color="#10B981" /> : <Copy size={13} color={C.t3} />}
                 </button>
                 <button onClick={() => { useAppStore.getState().setActiveView('send') }} style={{ width: 30, height: 30, borderRadius: 8, background: C.blueDim, border: `1px solid ${C.blueBd}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
                   <Send size={13} color={BLUE} />
                 </button>
-                <button onClick={() => removeContact(c.id)} style={{ width: 30, height: 30, borderRadius: 8, background: 'rgba(255,59,59,0.06)', border: '1px solid rgba(255,59,59,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-                  <Trash2 size={13} color="#FF3B3B" />
+                <button onClick={() => removeContact(c.id)} style={{ width: 30, height: 30, borderRadius: 8, background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                  <Trash2 size={13} color="#EF4444" />
                 </button>
               </div>
             </div>
