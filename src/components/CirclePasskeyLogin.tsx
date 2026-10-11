@@ -317,7 +317,7 @@ export async function sendFromPasskeyWallet({
   to: `0x${string}`
   amount: bigint
 }): Promise<string> {
-  const { encodeTransfer, ContractAddress } = await import('@circle-fin/modular-wallets-core')
+  const { encodeTransfer } = await import('@circle-fin/modular-wallets-core')
   const credential = getStoredCredential()
   if (!credential) throw new Error('No passkey credential found. Please log in first.')
 
@@ -329,7 +329,9 @@ export async function sendFromPasskeyWallet({
   })
   // Bind account to bundlerClient so it is always available for signing
   const bundlerClient = createBundlerClient({ account, chain: arc, transport: modularTransport })
-  const callData = encodeTransfer(to, ContractAddress.ArcTestnet_USDC, amount)
+  // Use the Arc USDC address directly — ContractAddress.ArcTestnet_USDC is testnet-only in the SDK
+  const ARC_USDC = '0x3600000000000000000000000000000000000000' as `0x${string}`
+  const callData = encodeTransfer(to, ARC_USDC, amount)
 
   // First try with Circle's gas sponsorship. If the bundler/paymaster rejects the
   // op with a generic JSON-RPC "Internal error" (-32603), retry once unsponsored:
