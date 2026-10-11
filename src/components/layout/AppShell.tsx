@@ -394,45 +394,61 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         {/* Desktop topbar */}
         <header style={{
           height: TOPBAR_H, flexShrink: 0, display: 'flex', alignItems: 'center',
-          justifyContent: 'space-between',
-          paddingLeft: SIDEBAR_W + 28, paddingRight: 28,
           background: C.isDark ? '#08090B' : '#FFFFFF',
           borderBottom: `1px solid ${C.bdr}`,
           zIndex: 200,
-          gap: 16,
         }}>
-          {/* Page title — human-readable */}
-          <div style={{
-            fontSize: 14, fontWeight: 600, color: C.text,
-            letterSpacing: '-0.01em',
-            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-          }}>
-            {activeView === 'agent-wallet' ? 'Agent Wallet'
-              : activeView === 'nan-name' ? 'NAN Name'
-              : activeView === 'payment-requests' ? 'Payment Requests'
-              : activeView.charAt(0).toUpperCase() + activeView.slice(1)}
+          {/* Logo zone — same width as sidebar so content area starts flush */}
+          <div
+            onClick={handleLogoTap}
+            style={{
+              width: SIDEBAR_W, flexShrink: 0,
+              display: 'flex', alignItems: 'center',
+              paddingLeft: 20, paddingRight: 12,
+              cursor: 'default',
+              borderRight: `1px solid ${C.bdr}`,
+              height: '100%',
+            }}
+          >
+            <NanLogo height={26} />
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
-            {/* Search bar */}
-            <button
-              onClick={() => setPaletteOpen(true)}
-              aria-label="Search (⌘K)"
-              style={{
-                display: 'flex', alignItems: 'center', gap: 8,
-                padding: '7px 13px', borderRadius: 8,
-                border: `1px solid ${C.bdr}`,
-                background: C.surf,
-                cursor: 'pointer', fontFamily: F,
-                color: C.t3, fontSize: 12,
-                transition: 'border-color 0.15s, background 0.15s',
-                minWidth: 160,
-              }}
-            >
-              <Search size={13} color={C.t3} />
-              <span style={{ flex: 1 }}>Search…</span>
-              <kbd style={{ background: C.surf2, border: `1px solid ${C.bdr}`, borderRadius: 4, padding: '1px 5px', fontSize: 10, fontFamily: 'monospace', color: C.t3, flexShrink: 0 }}>⌘K</kbd>
-            </button>
-            <NotificationBell color={C.t2} />
+
+          {/* Right side: page title + controls */}
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingLeft: 28, paddingRight: 28, gap: 16, minWidth: 0 }}>
+            {/* Page title */}
+            <div style={{
+              fontSize: 14, fontWeight: 600, color: C.text,
+              letterSpacing: '-0.01em',
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            }}>
+              {activeView === 'agent-wallet' ? 'Agent Wallet'
+                : activeView === 'nan-name' ? 'NAN Name'
+                : activeView === 'payment-requests' ? 'Payment Requests'
+                : activeView.charAt(0).toUpperCase() + activeView.slice(1)}
+            </div>
+
+            {/* Controls */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+              <button
+                onClick={() => setPaletteOpen(true)}
+                aria-label="Search (⌘K)"
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  padding: '7px 13px', borderRadius: 8,
+                  border: `1px solid ${C.bdr}`,
+                  background: C.surf,
+                  cursor: 'pointer', fontFamily: F,
+                  color: C.t3, fontSize: 12,
+                  transition: 'border-color 0.15s, background 0.15s',
+                  minWidth: 160,
+                }}
+              >
+                <Search size={13} color={C.t3} />
+                <span style={{ flex: 1 }}>Search…</span>
+                <kbd style={{ background: C.surf2, border: `1px solid ${C.bdr}`, borderRadius: 4, padding: '1px 5px', fontSize: 10, fontFamily: 'monospace', color: C.t3, flexShrink: 0 }}>⌘K</kbd>
+              </button>
+              <NotificationBell color={C.t2} />
+            </div>
           </div>
         </header>
 
@@ -445,19 +461,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             borderRight: `1px solid ${C.bdr}`,
             display: 'flex', flexDirection: 'column',
             overflow: 'hidden',
-            position: 'fixed', top: 0, left: 0, bottom: 0,
+            position: 'fixed', top: TOPBAR_H, left: 0, bottom: 0,
           }}>
-            {/* Sidebar top — plain nan logo, admin unlock on 5 taps */}
-            <div style={{
-              height: TOPBAR_H, flexShrink: 0, display: 'flex', alignItems: 'center',
-              paddingLeft: 20, paddingRight: 12,
-              borderBottom: `1px solid ${C.bdr}`,
-            }}>
-              <div onClick={handleLogoTap} style={{ cursor: 'default', lineHeight: 0 }}>
-                <NanLogo height={26} />
-              </div>
-            </div>
-            <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '8px 8px', scrollbarWidth: 'none' }}>
+            <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '8px 8px', scrollbarWidth: 'none', paddingTop: 12 }}>
               {SIDEBAR_SECTIONS.map(section => (
                 <div key={section.title} style={{ marginBottom: 4 }}>
                   <div style={{ fontSize: 10, fontWeight: 700, color: C.t3, textTransform: 'uppercase', letterSpacing: '0.09em', padding: '10px 10px 4px' }}>{section.title}</div>
