@@ -65,7 +65,7 @@ const CHAINS: BridgeChain[] = [
   { label:'Polygon',      kitName:'Polygon',          chainId:137,     cctpDomain:7,  explorer:'https://polygonscan.com/tx/',                        gasToken:'POL',  gasIsUsdc:false, paymasterSupported:true,  paymasterNote:'Paymaster v0.8 — pay gas in USDC (ERC-4337 wallet required)' },
   { label:'Avalanche',    kitName:'Avalanche',        chainId:43114,   cctpDomain:1,  explorer:'https://snowtrace.io/tx/',                           gasToken:'AVAX', gasIsUsdc:false, paymasterSupported:true,  paymasterNote:'Paymaster v0.8 — pay gas in USDC (ERC-4337 wallet required)' },
   { label:'Unichain',     kitName:'Unichain',         chainId:130,     cctpDomain:10, explorer:'https://uniscan.xyz/tx/',                            gasToken:'ETH',  gasIsUsdc:false, paymasterSupported:true,  paymasterNote:'Paymaster v0.8 — pay gas in USDC (ERC-4337 wallet required)' },
-  { label:'Linea',        kitName:'Linea',            chainId:59144,   cctpDomain:-1, explorer:'https://lineascan.build/tx/',                        gasToken:'ETH',  gasIsUsdc:false, paymasterSupported:false },
+  { label:'Linea',        kitName:'Linea',            chainId:59144,   cctpDomain:11, explorer:'https://lineascan.build/tx/',                        gasToken:'ETH',  gasIsUsdc:false, paymasterSupported:false },
   { label:'Sei',          kitName:'Sei',              chainId:1329,    cctpDomain:16, explorer:'https://seistream.app/tx/',                          gasToken:'SEI',  gasIsUsdc:false, paymasterSupported:false },
   { label:'World Chain',  kitName:'World_Chain',      chainId:480,     cctpDomain:14, explorer:'https://worldchain-mainnet.explorer.alchemy.com/tx/',gasToken:'ETH',  gasIsUsdc:false, paymasterSupported:false },
 ]
