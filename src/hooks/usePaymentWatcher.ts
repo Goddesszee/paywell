@@ -2,7 +2,7 @@
  * usePaymentWatcher
  *
  * Mounted ONCE at the AppShell level — runs on every screen.
- * Polls Arc Testnet for new incoming USDC transfers every 30 s.
+ * Polls Arc for new incoming USDC transfers every 30 s.
  * On detection: merges into the activity store + fires a local notification.
  * Also exposes a refresh() function stored in a module-level ref so the
  * ActivityPage can trigger an immediate re-poll without prop-drilling.

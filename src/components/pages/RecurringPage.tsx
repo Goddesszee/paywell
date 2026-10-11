@@ -23,7 +23,7 @@ const BLUE  = '#0066FF'
 const TEXT  = 'var(--nan-text)'
 const T2    = 'var(--nan-text2)'
 const T3    = 'var(--nan-text3)'
-const ARC   = 5042002
+const ARC   = 5042
 const GREEN = '#22C55E'
 const RED   = '#EF4444'
 
@@ -339,7 +339,7 @@ export function RecurringPage() {
       {isWrongChain && (
         <div style={{ background: 'rgba(0,102,255,0.06)', border: `1px solid rgba(0,102,255,0.15)`, borderRadius: 12, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
           <AlertCircle size={14} color={BLUE} style={{ flexShrink: 0 }} />
-          <span style={{ fontSize: 12, color: TEXT, flex: 1 }}>Switch to Arc Testnet to run payments.</span>
+          <span style={{ fontSize: 12, color: TEXT, flex: 1 }}>Switch to Arc to run payments.</span>
           <button onClick={() => switchChain({ chainId: ARC })} style={{ fontSize: 12, fontWeight: 600, color: '#fff', background: BLUE, border: 'none', borderRadius: 8, padding: '5px 12px', cursor: 'pointer', fontFamily: F }}>Switch</button>
         </div>
       )}

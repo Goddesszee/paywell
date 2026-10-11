@@ -530,7 +530,7 @@ export function parseAction(raw: Record<string, unknown>): NanAction | null {
       const name = s(params.name).replace(/^@/, '').toLowerCase()
       if (!name) return null
       const y = Number(params.years)
-      return { action: 'register_name', params: { name, ...(y === 1 || y === 2 || y === 5 ? { years: y as 1 | 2 | 5 } : {}) } }
+      return { action: 'register_name', params: { name, ...(y === 1 || y === 2 || y === 5 ? { years: y } : {}) } }
     }
     case 'add_contact': {
       const name = s(params.name)
@@ -762,7 +762,7 @@ export function describeAction(action: NanAction): { title: string; lines: Array
       const ready = Boolean(action.params.amount && action.params.toChain)
       return { title: 'Bridge USDC', lines: [
         ...(action.params.amount  ? [{ label: 'Amount',   value: `${action.params.amount} USDC` }] : []),
-        { label: 'From', value: 'Arc Testnet' },
+        { label: 'From', value: 'Arc' },
         ...(action.params.toChain ? [{ label: 'To Chain', value: action.params.toChain }] : []),
         { label: 'Via', value: 'Circle CCTP V2' },
         { label: 'Note', value: ready ? 'Runs here in chat — you approve the signature' : 'Opens Bridge tab pre-filled' },
@@ -820,7 +820,7 @@ export function describeAction(action: NanAction): { title: string; lines: Array
     case 'show_notifications':
       return { title: 'Notifications', lines: [{ label: 'Action', value: 'Open notifications' }] }
     case 'open_faucet':
-      return { title: 'Open Faucet', lines: [{ label: 'Action', value: 'Get free testnet USDC' }] }
+      return { title: 'Open Faucet', lines: [{ label: 'Action', value: 'Open faucet page' }] }
     case 'agent_wallet_send':
       return { title: 'Send from Agent Wallet', lines: [
         { label: 'To', value: action.params.toAddress },
@@ -963,7 +963,7 @@ function loginKind(ctx: ExecutorContext): 'passkey' | 'ucw' | 'wagmi' {
 function friendlyWagmiError(e: unknown): string {
   const err = e as { shortMessage?: string; message?: string } | undefined
   const msg = err?.shortMessage ?? err?.message ?? 'Transaction failed'
-  if (/internal error/i.test(msg)) return 'Your wallet\'s network returned an internal error. Make sure you are on Arc Testnet and hold USDC for gas, then retry.'
+  if (/internal error/i.test(msg)) return 'Your wallet\'s network returned an internal error. Make sure you are on Arc and hold USDC for gas, then retry.'
   if (/user rejected|denied/i.test(msg)) return 'Transaction was rejected in your wallet.'
   return msg
 }
@@ -994,7 +994,7 @@ async function sendMainWallet(params: { toAddress: string; amount: string; note?
   }
   if (!ctx.chainId) throw new Error('No chain connected.')
   const usdc = getUsdc(ctx.chainId)
-  if (!usdc) throw new Error(`USDC is not supported on chain ${ctx.chainId}. Switch to Arc Testnet.`)
+  if (!usdc) throw new Error(`USDC is not supported on chain ${ctx.chainId}. Switch to Arc.`)
   let txHash: `0x${string}`
   try {
     txHash = await ctx.writeContractAsync({
@@ -1412,7 +1412,7 @@ export async function executeAction(action: NanAction, ctx: ExecutorContext): Pr
     case 'check_name': {
       if (!NAME_REGISTRY) return 'The NAN name registry is not configured yet.'
       const q = action.params.name
-      if (!/^[a-z0-9-]{2,32}$/.test(q)) return 'NAN names are 2–32 characters: lowercase letters, numbers and hyphens only.'
+      if (!/^[a-z0-9-]{2,32}$/.test(q)) return 'NAN names are 2-32 characters: lowercase letters, numbers and hyphens only.'
       let avail: boolean
       try { avail = await readRegistry(null, 'isAvailable', [q]) as boolean } catch { return `I couldn't reach the name registry to check @${q}. Please try again in a moment.` }
       if (avail) return `@${q} is available! Prices: 1 year 2 USDC · 2 years 3 USDC · 5 years 8 USDC. Say "register @${q}" to claim it.`

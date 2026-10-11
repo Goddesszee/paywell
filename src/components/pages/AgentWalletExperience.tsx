@@ -629,7 +629,7 @@ function ManagePolicyModal({ onClose, C }: { onClose: () => void; C: ReturnType<
 
   const address   = agentWallet.address   ?? ''
   const blockchain = agentWallet.blockchain ?? ''
-  // Circle policies: mainnet only. Testnet = ARC-TESTNET, etc.
+  // Circle policies: mainnet only. Testnet = ARC, etc.
   const isTestnet  = /testnet|sepolia|amoy|fuji|devnet/i.test(blockchain) || !blockchain
   const chainKey   = blockchain.replace(/-TESTNET|-SEPOLIA|-AMOY|-FUJI|-DEVNET/i, '').toUpperCase() || 'ARC'
 
@@ -755,7 +755,7 @@ function ManagePolicyModal({ onClose, C }: { onClose: () => void; C: ReturnType<
               <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>Custom spending policies require Mainnet</span>
             </div>
             <div style={{ fontSize: 12, color: C.t2, lineHeight: 1.6 }}>
-              Your wallet is on <strong style={{ color: C.text }}>{blockchain || 'Arc Testnet'}</strong>.
+              Your wallet is on <strong style={{ color: C.text }}>{blockchain || 'Arc'}</strong>.
               Circle on-chain spending policies (per-tx, daily, weekly, monthly limits and allowlists) are supported for mainnet agent wallets only.
               Move your agent wallet to a supported mainnet to configure Circle-enforced limits.
             </div>
@@ -974,14 +974,14 @@ function ActionDrawer({ view, agentAddress, onClose, C }: {
     if (view === 'fund') return (
       <div>
         <div style={{ fontSize: 13, color: C.t2, marginBottom: 18, lineHeight: 1.5 }}>
-          Send USDC on Arc Testnet to this address to fund your Agent Wallet.
+          Send USDC on Arc to this address to fund your Agent Wallet.
         </div>
         <div style={{ background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 14, padding: 16, marginBottom: 14 }}>
           <div style={{ fontSize: 10, fontWeight: 700, color: C.t3, textTransform: 'uppercase' as const, letterSpacing: '0.07em', marginBottom: 8 }}>Agent Wallet Address</div>
           <div style={{ fontSize: 13, fontFamily: MONO, color: C.text, wordBreak: 'break-all' as const, lineHeight: 1.7 }}>{agentAddress}</div>
         </div>
         <div style={{ background: 'rgba(255,149,0,0.06)', border: '1px solid rgba(255,149,0,0.2)', borderRadius: 12, padding: '10px 14px', marginBottom: 18, fontSize: 12, color: C.t2, lineHeight: 1.5 }}>
-          Only send <strong style={{ color: C.text }}>USDC on Arc Testnet</strong>. Sending other tokens may result in permanent loss.
+          Only send <strong style={{ color: C.text }}>USDC on Arc</strong>. Sending other tokens may result in permanent loss.
         </div>
         <button onClick={copy} style={{ width: '100%', height: 48, background: BLUE, color: '#fff', border: 'none', borderRadius: 14, fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
           {copied ? <><Check size={16} /> Copied!</> : <><Copy size={16} /> Copy Address</>}
@@ -1146,7 +1146,7 @@ function DashboardScreen({ C, onDisconnect }: { C: ReturnType<typeof useNanTheme
 
   const chainLabel = agentWallet.blockchain
     ? agentWallet.blockchain.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
-    : 'Arc Testnet'
+    : 'Arc'
 
   const createdLabel = agentWallet.createDate
     ? new Date(agentWallet.createDate).toLocaleDateString('en', { year: 'numeric', month: 'short', day: 'numeric' })
@@ -1317,7 +1317,7 @@ function DashboardScreen({ C, onDisconnect }: { C: ReturnType<typeof useNanTheme
       {dashTab === 'activity' && (() => {
         // Agent Wallet activity only — main wallet activity lives in the main Activity page.
         // agentSpendLog = service payments; activity entries with agentInitiated = send/recurring txs.
-        const ARC_EXPLORER = 'https://explorer.testnet.arc.io'
+        const ARC_EXPLORER = 'https://explorer.arc.io'
 
         type AgentRow = {
           key: string

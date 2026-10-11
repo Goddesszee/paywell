@@ -238,7 +238,7 @@ export function ExportsPage() {
         status:         a.status,
         counterparty:   a.counterparty ?? '',
         txHash:         a.txHash ?? '',
-        chain:          a.chain ?? 'Arc Testnet',
+        chain:          a.chain ?? 'Arc',
         agentInitiated: a.agentInitiated ? 'yes' : 'no',
         serviceName:    '',
       })
@@ -256,7 +256,7 @@ export function ExportsPage() {
         status:         e.paid ? 'confirmed' : 'pending',
         counterparty:   e.service_id,
         txHash:         e.txId ?? '',
-        chain:          'Arc Testnet',
+        chain:          'Arc',
         agentInitiated: 'yes',
         serviceName:    e.service_name,
       })
@@ -275,7 +275,7 @@ export function ExportsPage() {
           status:         'confirmed',
           counterparty:   t.recipient,
           txHash:         t.lastTxHash,
-          chain:          'Arc Testnet',
+          chain:          'Arc',
           agentInitiated: 'no',
           serviceName:    '',
         })
@@ -294,7 +294,7 @@ export function ExportsPage() {
         status:         agentWallet.walletState ?? 'LIVE',
         counterparty:   agentWallet.address,
         txHash:         '',
-        chain:          agentWallet.blockchain ?? 'Arc Testnet',
+        chain:          agentWallet.blockchain ?? 'Arc',
         agentInitiated: 'yes',
         serviceName:    '',
       })
@@ -446,7 +446,7 @@ export function ExportsPage() {
 
     // ── Balance account rows ────────────────────────────────────────────────────
     const balRows = [
-      ['Main Wallet', mainBal.toFixed(2) + ' USDC', walletAddr ? shortAddr + ' · Arc Testnet' : 'Arc Testnet'],
+      ['Main Wallet', mainBal.toFixed(2) + ' USDC', walletAddr ? shortAddr + ' · Arc' : 'Arc'],
       ['Agent Wallet', agentBal.toFixed(2) + ' USDC', agentWallet.provisioned ? (agentWallet.address ? short(agentWallet.address) : 'LIVE') : 'Not provisioned'],
       ['Gateway (Unified)', gatewayBal.toFixed(2) + ' USDC', 'Circle Gateway'],
       ...otherChains.map(([name, bal]) => [name, parseFloat(bal).toFixed(2) + ' USDC', 'Cross-chain USDC']),

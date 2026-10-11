@@ -53,7 +53,7 @@ export function NetworkDetailSheet({ network, onClose }: Props) {
 
   // Recent txs touching this chain
   const recentTxs = [...activity]
-    .filter(tx => !tx.chain || tx.chain === network.chainName || network.chainName === 'Arc Testnet')
+    .filter(tx => !tx.chain || tx.chain === network.chainName || network.chainName === 'Arc')
     .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
     .slice(0, 5)
 

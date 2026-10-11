@@ -16,17 +16,17 @@ import type { TokenPosition } from '../../hooks/usePortfolioBalances'
 
 // ── Chain logo map — keyed by chainId ─────────────────────────────────────────
 const CHAIN_LOGOS: Record<number, string> = {
-  5042002:  'https://s2.coinmarketcap.com/static/img/coins/64x64/3408.png', // Arc (USDC)
-  11155111: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/info/logo.png', // Ethereum Sepolia
-  84532:    'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/base/info/logo.png',     // Base Sepolia
-  421614:   'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/arbitrum/info/logo.png', // Arbitrum Sepolia
-  11155420: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/optimism/info/logo.png', // OP Sepolia
-  80002:    'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/polygon/info/logo.png',  // Polygon Amoy
-  43113:    'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/avalanchec/info/logo.png', // Avalanche Fuji
-  1301:     'https://s2.coinmarketcap.com/static/img/coins/64x64/34413.png', // Unichain Sepolia
-  1328:     'https://s2.coinmarketcap.com/static/img/coins/64x64/23149.png', // Sei Testnet
-  4801:     'https://s2.coinmarketcap.com/static/img/coins/64x64/13502.png', // World Chain
-  59141:    'https://s2.coinmarketcap.com/static/img/coins/64x64/27657.png', // Linea Sepolia
+  5042:  'https://s2.coinmarketcap.com/static/img/coins/64x64/3408.png', // Arc (USDC)
+  1:      'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/info/logo.png', // Ethereum
+  8453:   'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/base/info/logo.png',     // Base
+  42161:  'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/arbitrum/info/logo.png', // Arbitrum One
+  10:     'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/optimism/info/logo.png', // OP Mainnet
+  137:    'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/polygon/info/logo.png',  // Polygon
+  43114:  'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/avalanchec/info/logo.png', // Avalanche
+  130:    'https://s2.coinmarketcap.com/static/img/coins/64x64/34413.png', // Unichain
+  1329:   'https://s2.coinmarketcap.com/static/img/coins/64x64/23149.png', // Sei
+  480:    'https://s2.coinmarketcap.com/static/img/coins/64x64/13502.png', // World Chain
+  59144:  'https://s2.coinmarketcap.com/static/img/coins/64x64/27657.png', // Linea
 }
 
 function ChainLogo({ chainId, size = 34, hasQty, C }: {
@@ -245,7 +245,7 @@ export function TokenNetworkSheet({
 
                       {/* Explorer link */}
                       <a
-                        href={`https://explorer.testnet.arc.io`}
+                        href={`https://explorer.arc.io`}
                         target="_blank"
                         rel="noopener noreferrer"
                         onClick={e => e.stopPropagation()}

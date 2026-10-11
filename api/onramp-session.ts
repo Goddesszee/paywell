@@ -6,7 +6,7 @@
  * before our error handling runs. This file has NO heavy top-level imports.
  *
  * Docs: https://docs.arc.io/app-kit/onramp · /app-kit/references/onramp-hosting-requirements
- * Arc Testnet => sandbox key + sandbox API + sandbox widget (defaults below).
+ * Arc => sandbox key + sandbox API + sandbox widget (defaults below).
  * Mainnet: ONRAMP_API_BASE_URL=https://api.circle.com, ONRAMP_WIDGET_BASE_URL=https://onramp.arc.io + production key.
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node'

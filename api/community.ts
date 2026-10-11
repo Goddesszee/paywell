@@ -528,7 +528,7 @@ async function routeHandler(req: VercelRequest, res: VercelResponse) {
       type, amount,
       description: String(b.description ?? type).slice(0, 300),
       counterparty: b.counterparty, txHash: b.txHash,
-      chain: b.chain ?? 'Arc Testnet',
+      chain: b.chain ?? 'Arc',
       timestamp: new Date().toISOString(),
     }
     await kv.lpush('tx:ledger', record)

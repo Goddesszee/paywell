@@ -4,17 +4,17 @@
  */
 
 const EXPLORER: Record<string, string> = {
-  'arc':          'https://explorer.testnet.arc.io',
-  'arc testnet':  'https://explorer.testnet.arc.io',
+  'arc':          'https://explorer.arc.io',
+  'arc testnet':  'https://explorer.arc.io',
   'arc mainnet':  'https://explorer.arc.io',
-  'eth':          'https://sepolia.etherscan.io',
-  'base':         'https://sepolia.basescan.org',
-  'base sepolia': 'https://sepolia.basescan.org',
-  'arbitrum':     'https://sepolia.arbiscan.io',
-  'polygon':      'https://amoy.polygonscan.com',
-  'avalanche':    'https://testnet.snowtrace.io',
-  'op':           'https://sepolia-optimistic.etherscan.io',
-  'unichain':     'https://sepolia.uniscan.xyz',
+  'eth':          'https://etherscan.io',
+  'base':         'https://basescan.org',
+  'base sepolia': 'https://basescan.org',
+  'arbitrum':     'https://arbiscan.io',
+  'polygon':      'https://polygonscan.com',
+  'avalanche':    'https://snowtrace.io',
+  'op':           'https://optimistic.etherscan.io',
+  'unichain':     'https://uniscan.xyz',
 }
 
 export interface ReceiptData {
@@ -41,7 +41,7 @@ export function buildReceiptHtml(r: ReceiptData): string {
 
   const ts      = new Date(r.timestamp)
   const dateStr = ts.toLocaleString('en', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-  const network = r.chain ?? 'Arc Testnet'
+  const network = r.chain ?? 'Arc'
   const token   = r.token ?? 'USDC'
   const shortTx = r.txHash ? `${r.txHash.slice(0, 8)}…${r.txHash.slice(-4)}` : null
   const idSuffix = r.id ? r.id.slice(-4).toUpperCase() : ts.getTime().toString(36).slice(-4).toUpperCase()

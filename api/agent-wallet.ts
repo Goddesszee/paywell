@@ -21,10 +21,10 @@ import { execFile } from 'child_process'
 import { promisify } from 'util'
 import { randomUUID } from 'crypto'
 
-// Arc Testnet USDC ERC-20 contract address
-const ARC_TESTNET_USDC = '0x3600000000000000000000000000000000000000'
-// CCTP V2 TokenMessengerV2 on Arc Testnet
-const ARC_TESTNET_TOKEN_MESSENGER_V2 = '0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA'
+// Arc USDC ERC-20 contract address
+const ARC_USDC = '0x3600000000000000000000000000000000000000'
+// CCTP V2 TokenMessengerV2 on Arc
+const ARC_TOKEN_MESSENGER_V2 = '0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA'
 
 const execFileAsync = promisify(execFile)
 
@@ -373,7 +373,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     try {
       const response = await client.createUserPinWithWallets({
         userToken,
-        blockchains: [Blockchain.ArcTestnet],
+        blockchains: [Blockchain.Arc],
         accountType: 'SCA',
       })
       const challengeId = response.data?.challengeId
@@ -395,8 +395,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const response = await client.listWallets({ userToken })
       const wallets = response.data?.wallets ?? []
       const wallet = wallets.find(w =>
-        w.blockchain?.toLowerCase().includes('arc') ||
-        w.blockchain?.toLowerCase().includes('testnet')
+        w.blockchain?.toLowerCase().includes('arc')
       ) ?? wallets[0]
       if (!wallet) return res.status(200).json({ provisioned: false })
 
@@ -412,7 +411,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         walletId:    wallet.id,
         address:     wallet.address,
         balance_usdc,
-        blockchain:  wallet.blockchain ?? 'ARC-TESTNET',
+        blockchain:  wallet.blockchain ?? 'ARC',
         accountType: wallet.accountType ?? 'SCA',
         custodyType: wallet.custodyType ?? 'ENDUSER',
         createDate:  wallet.createDate ?? null,
@@ -447,7 +446,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       try {
         const walletList = await client.listWallets({ userToken })
         const aw = (walletList.data?.wallets ?? []).find(w =>
-          w.blockchain?.toLowerCase().includes('arc') || w.blockchain?.toLowerCase().includes('testnet')
+          w.blockchain?.toLowerCase().includes('arc')
         ) ?? walletList.data?.wallets?.[0]
         if (aw) {
           const balRes = await client.getWalletTokenBalance({ walletId: aw.id, userToken })
@@ -556,8 +555,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         walletId,
         amounts: [sendAmount],
         destinationAddress: to,
-        tokenAddress: ARC_TESTNET_USDC,
-        blockchain: Blockchain.ArcTestnet,
+        tokenAddress: ARC_USDC,
+        blockchain: Blockchain.Arc,
         fee: { type: 'level', config: { feeLevel: 'MEDIUM' } },
         idempotencyKey: randomUUID(),
       })
@@ -569,25 +568,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   }
 
-  // ── swap-quote — LiFi quote (Arc Testnet has no DEX; honest not-available) ─
+  // ── swap-quote — LiFi quote (Arc has no DEX; honest not-available) ─
   if (action === 'swap-quote') {
     const { fromToken: ft, toToken: tt, amount: swapAmt } = body
     if (!ft || !tt || !swapAmt) return err(res, 400, 'fromToken, toToken, amount required')
-    // Arc Testnet has no live DEX liquidity — swap is not available for UCW agent wallets on this chain.
+    // Arc has no live DEX liquidity — swap is not available for UCW agent wallets on this chain.
     // Return a clear, honest message instead of a fake quote.
     return res.status(200).json({
       ok: false,
       not_available: true,
-      error: `Token swaps are not available for agent wallets on Arc Testnet. No DEX has live liquidity on this network. Use Bridge to move USDC to another chain where swaps are supported.`,
+      error: `Token swaps are not available for agent wallets on Arc. No DEX has live liquidity on this network. Use Bridge to move USDC to another chain where swaps are supported.`,
     })
   }
 
-  // ── swap — not available on Arc Testnet ───────────────────────────────────
+  // ── swap — not available on Arc ───────────────────────────────────
   if (action === 'swap') {
     return res.status(200).json({
       ok: false,
       not_available: true,
-      error: 'Token swaps are not available for agent wallets on Arc Testnet. Use Bridge to move USDC cross-chain.',
+      error: 'Token swaps are not available for agent wallets on Arc. Use Bridge to move USDC cross-chain.',
     })
   }
 
@@ -604,12 +603,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // CCTP V2 destination domains
     const DEST_DOMAINS: Record<string, number> = {
-      'ETH-SEPOLIA': 0, 'AVAX-FUJI': 1, 'OP-SEPOLIA': 2, 'ARB-SEPOLIA': 3,
-      'BASE-SEPOLIA': 6, 'MATIC-AMOY': 7, 'ARC-TESTNET': 26, 'UNI-SEPOLIA': 16,
+      'ETH': 0, 'ETHEREUM': 0, 'AVAX': 1, 'AVALANCHE': 1,
+      'OP': 2, 'OPTIMISM': 2, 'ARB': 3, 'ARBITRUM': 3,
+      'BASE': 6, 'MATIC': 7, 'POLYGON': 7, 'ARC': 26, 'UNI': 10, 'UNICHAIN': 10,
     }
     const destDomain = destinationDomain
       ? parseInt(destinationDomain, 10)
-      : (DEST_DOMAINS[(toChain ?? '').toUpperCase()] ?? 6) // default Base Sepolia
+      : (DEST_DOMAINS[(toChain ?? '').toUpperCase()] ?? 6) // default Base
 
     // Resolve agent wallet address
     let agentAddress: string | undefined
@@ -634,10 +634,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const approveRes = await client.createUserTransactionContractExecutionChallenge({
         userToken,
         walletId: resolvedWalletId,
-        contractAddress: ARC_TESTNET_USDC,
-        blockchain: Blockchain.ArcTestnet,
+        contractAddress: ARC_USDC,
+        blockchain: Blockchain.Arc,
         abiFunctionSignature: 'approve(address,uint256)',
-        abiParameters: [ARC_TESTNET_TOKEN_MESSENGER_V2, amountMicro],
+        abiParameters: [ARC_TOKEN_MESSENGER_V2, amountMicro],
         fee: { type: 'level', config: { feeLevel: 'MEDIUM' } },
         idempotencyKey: randomUUID(),
       })
@@ -668,10 +668,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const burnRes = await client.createUserTransactionContractExecutionChallenge({
         userToken,
         walletId,
-        contractAddress: ARC_TESTNET_TOKEN_MESSENGER_V2,
-        blockchain: Blockchain.ArcTestnet,
+        contractAddress: ARC_TOKEN_MESSENGER_V2,
+        blockchain: Blockchain.Arc,
         abiFunctionSignature: 'depositForBurn(uint256,uint32,bytes32,address)',
-        abiParameters: [amountMicro, destDomain, recipientBytes32, ARC_TESTNET_USDC],
+        abiParameters: [amountMicro, destDomain, recipientBytes32, ARC_USDC],
         fee: { type: 'level', config: { feeLevel: 'MEDIUM' } },
         idempotencyKey: randomUUID(),
       })
@@ -707,8 +707,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         walletId: resolvedWalletId,
         amounts: [sendUsdcAmount],
         destinationAddress: toAddress,
-        tokenAddress: ARC_TESTNET_USDC,
-        blockchain: Blockchain.ArcTestnet,
+        tokenAddress: ARC_USDC,
+        blockchain: Blockchain.Arc,
         fee: { type: 'level', config: { feeLevel: 'MEDIUM' } },
         idempotencyKey: randomUUID(),
       })

@@ -51,7 +51,7 @@ function normalizeChain(raw: string): string | null {
   if (/\blinea\b/.test(c)) return 'Linea Sepolia'
   if (/\bsei\b/.test(c)) return 'Sei Testnet'
   if (/\bworld\b/.test(c)) return 'World Chain Sepolia'
-  if (/\barc\b/.test(c)) return 'Arc Testnet'
+  if (/\barc\b/.test(c)) return 'Arc'
   if (/\bethereum\b|\beth\b|\bsepolia\b/.test(c)) return 'Ethereum Sepolia'
   return null
 }
@@ -114,7 +114,7 @@ function detectDirectAction(message: string): { reply: string; action: Record<st
     const chain = dest ? normalizeChain(dest[1]) : null
     if (chain) {
       return {
-        reply: `Ready to bridge ${bridge[1]} USDC from Arc Testnet to ${chain}. Please confirm below.`,
+        reply: `Ready to bridge ${bridge[1]} USDC from Arc to ${chain}. Please confirm below.`,
         action: { action: 'bridge_start', params: { amount: bridge[1], toChain: chain } },
       }
     }
@@ -354,7 +354,7 @@ function buildSystemPrompt(opts: {
   invoiceBlock: string
   agentStateBlock: string
 }): string {
-  return `You are NAN Agent — the built-in AI assistant for NAN (nanarc.xyz), an autonomous payment and DeFi platform built on Arc Testnet (Circle/USDC). Today is ${new Date().toDateString()}.
+  return `You are NAN Agent — the built-in AI assistant for NAN (nanarc.xyz), an autonomous payment and DeFi platform built on Arc (Circle/USDC). Today is ${new Date().toDateString()}.
 
 You have COMPLETE awareness of every NAN feature, every transaction, every setting, and every piece of data in the user's account. You are NOT a generic chatbot — you are the user's personal financial AI with real-time access to their entire NAN state.
 
@@ -392,7 +392,7 @@ Send USDC from Agent Wallet:
 
 **── BRIDGE ──**
 
-Bridge USDC from Arc Testnet (runs in chat after the user confirms; works for every login type):
+Bridge USDC from Arc (runs in chat after the user confirms; works for every login type):
 {"action":"bridge_start","params":{"amount":"<string>","toChain":"<chain name>"}}
 
 Bridge directly from Circle UCW (email/Google users, no tab switch):
@@ -594,15 +594,15 @@ The wallet block above shows the user's login type for context only; it does not
 ## NAN COMPLETE FEATURE MAP
 
 **AUTHENTICATION**
-- Email OTP login → Circle User-Controlled Wallet (UCW) on Arc Testnet
+- Email OTP login → Circle User-Controlled Wallet (UCW) on Arc
 - Google OAuth login → Circle UCW
 - MetaMask / WalletConnect → Wagmi EOA wallet
 - Passkey (WebAuthn) → Circle Modular Wallet (ERC-4337 SCA)
-- Arc Testnet: USDC is the native gas token — fees are fractions of a cent
+- Arc: USDC is the native gas token — fees are fractions of a cent
 
 **WALLET & PAYMENTS**
 - View balance (main wallet + cross-chain)
-- Send / Receive USDC on Arc Testnet
+- Send / Receive USDC on Arc
 - Request payment (generates link with QR code)
 - Activity history with explorer links
 - Faucet: get free testnet USDC
@@ -610,11 +610,11 @@ The wallet block above shows the user's login type for context only; it does not
 
 **DEFI**
 - Bridge: USDC via Circle CCTP V2 — Arc ↔ Ethereum ↔ Base ↔ Arbitrum ↔ Avalanche ↔ OP ↔ Polygon ↔ Unichain (~10 seconds)
-- Swap: via Circle App Kit — USDC, EURC, and other ERC-20s on Arc Testnet
+- Swap: via Circle App Kit — USDC, EURC, and other ERC-20s on Arc
 - Gateway: Circle Gateway — unified cross-chain USDC balance, instant transfers (<500ms) between chains
 
 **ESCROW**
-- PaywellEscrow contract deployed on Arc Testnet
+- PaywellEscrow contract deployed on Arc
 - Allows creating escrow agreements between two parties using USDC
 
 **AGENT STACK**
@@ -715,7 +715,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           amount: '0.001',
           currency: 'USDC',
           recipient: sellerAddr,
-          network: 'arc-testnet',
+          network: 'arc',
           description: 'NAN AI Agent — per message',
         },
       })
@@ -758,7 +758,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const walletBlock = `
 ## LIVE WALLET STATE (real-time, injected at request time)
 - User: ${ctx.displayName ? `**${ctx.displayName}**` : '(no display name set)'}
-- Main wallet: **${parseFloat(ctx.mainBalance ?? body.usdcBal ?? '0').toFixed(2)} USDC** on Arc Testnet
+- Main wallet: **${parseFloat(ctx.mainBalance ?? body.usdcBal ?? '0').toFixed(2)} USDC** on Arc
   Address: ${ctx.mainAddress ?? body.userAddress ?? 'not connected'}
 - Agent Wallet: **${parseFloat(ctx.agentBalance ?? '0').toFixed(2)} USDC** (${ctx.agentWalletProvisioned ? 'provisioned' : 'NOT set up'})
   ${ctx.agentAddress ? `Address: ${ctx.agentAddress}` : '(no address — not provisioned)'}

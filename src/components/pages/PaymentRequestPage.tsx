@@ -27,7 +27,7 @@ function usePrRequest(prId: string | null) {
   return req
 }
 
-const ARC_TESTNET_ID = 5042002
+const ARC_ID = 5042
 const FONT = "'Inter', -apple-system, sans-serif"
 const BLACK = 'var(--nan-text)'
 const SURFACE = 'var(--nan-surface)'
@@ -56,17 +56,17 @@ function parsePaymentParams(): PaymentParams | null {
 }
 
 function useUsdcBalance(address: string) {
-  const usdcFact = getUsdc(ARC_TESTNET_ID)
+  const usdcFact = getUsdc(ARC_ID)
   const { data: rawBalance } = useReadContract({
     address: usdcFact?.address as `0x${string}`,
     abi: erc20Abi,
     functionName: 'balanceOf',
     args: address ? [address as `0x${string}`] : undefined,
-    chainId: ARC_TESTNET_ID,
+    chainId: ARC_ID,
     query: { enabled: !!address && !!usdcFact },
   })
   if (rawBalance === undefined) return 0
-  return parseFloat(Amount.fromRaw(rawBalance, usdcDecimalsFor(ARC_TESTNET_ID)).toFixed(6))
+  return parseFloat(Amount.fromRaw(rawBalance, usdcDecimalsFor(ARC_ID)).toFixed(6))
 }
 
 type Step = 'review' | 'edit_amount' | 'submitting' | 'success' | 'error'
@@ -76,7 +76,7 @@ export function PaymentRequestPage({ params }: { params: PaymentParams }) {
   const { addActivity, setActiveView, markPaymentRequestPaid } = useAppStore()
   const balance = useUsdcBalance(address ?? '')
   const { switchChain } = useSwitchChain()
-  const usdcFact = getUsdc(ARC_TESTNET_ID)
+  const usdcFact = getUsdc(ARC_ID)
   // If this is a NAN payment request link, load the stored request
   const storedReq = usePrRequest(params.prId ?? null)
 
@@ -87,7 +87,7 @@ export function PaymentRequestPage({ params }: { params: PaymentParams }) {
 
   const { writeContract, data: txHash, isPending, error: writeError, reset } = useWriteContract()
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash: txHash })
-  const isWrongChain = !!chainId && chainId !== ARC_TESTNET_ID
+  const isWrongChain = !!chainId && chainId !== ARC_ID
   const displayStep: Step = (isPending || isConfirming) ? 'submitting' : step
 
   // Guard: expired or cancelled request
@@ -128,14 +128,14 @@ export function PaymentRequestPage({ params }: { params: PaymentParams }) {
     const n = parseFloat(amount)
     if (!amount || isNaN(n) || n <= 0) { setAmountError('Enter a valid amount'); return }
     if (n > balance) { setAmountError(`Insufficient balance (${formatUSDC(balance)} USDC)`); return }
-    if (isWrongChain) { switchChain({ chainId: ARC_TESTNET_ID }); return }
-    const parsed = parseAmount(ARC_TESTNET_ID, amount)
+    if (isWrongChain) { switchChain({ chainId: ARC_ID }); return }
+    const parsed = parseAmount(ARC_ID, amount)
     writeContract({
       address: usdcFact.address as `0x${string}`,
       abi: erc20Abi,
       functionName: 'transfer',
       args: [params.to, parsed.raw],
-      chainId: ARC_TESTNET_ID,
+      chainId: ARC_ID,
     })
   }
 
@@ -163,7 +163,7 @@ export function PaymentRequestPage({ params }: { params: PaymentParams }) {
           )}
           {txHash && (
             <a
-              href={buildTxExplorerUrl(ARC_TESTNET_ID, txHash)}
+              href={buildTxExplorerUrl(ARC_ID, txHash)}
               target="_blank"
               rel="noopener noreferrer"
               style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: BLACK, textDecoration: 'none', marginBottom: 28 }}
@@ -227,7 +227,7 @@ export function PaymentRequestPage({ params }: { params: PaymentParams }) {
       {/* NAN wordmark */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 28 }}>
         <span style={{ fontSize: 18, fontWeight: 800, color: 'var(--nan-text)' }}>NAN</span>
-        <span style={{ fontSize: 11, color: TEXT3, background: SURFACE, padding: '3px 10px', borderRadius: 20, fontWeight: 600 }}>Arc Testnet</span>
+        <span style={{ fontSize: 11, color: TEXT3, background: SURFACE, padding: '3px 10px', borderRadius: 20, fontWeight: 600 }}>Arc</span>
       </div>
 
       {/* Request card */}
@@ -275,7 +275,7 @@ export function PaymentRequestPage({ params }: { params: PaymentParams }) {
       {!address && (
         <div style={{ background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 14, padding: '16px', marginBottom: 16, textAlign: 'center' }}>
           <p style={{ fontSize: 14, color: BLACK, fontWeight: 600, fontFamily: FONT, marginBottom: 4 }}>Connect a wallet to pay</p>
-          <p style={{ fontSize: 12, color: TEXT2, marginBottom: 14 }}>You need a connected wallet to send USDC on Arc Testnet.</p>
+          <p style={{ fontSize: 12, color: TEXT2, marginBottom: 14 }}>You need a connected wallet to send USDC on Arc.</p>
           <button
             onClick={() => setActiveView('wallet')}
             style={{ padding: '10px 24px', background: '#0066FF', color: '#fff', borderRadius: 10, border: 'none', fontFamily: FONT, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
@@ -289,9 +289,9 @@ export function PaymentRequestPage({ params }: { params: PaymentParams }) {
       {address && isWrongChain && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 12, padding: '10px 14px', marginBottom: 14 }}>
           <AlertCircle size={14} color={BLACK} />
-          <p style={{ fontSize: 13, color: BLACK, flex: 1, fontFamily: FONT }}>Switch to Arc Testnet to send USDC.</p>
+          <p style={{ fontSize: 13, color: BLACK, flex: 1, fontFamily: FONT }}>Switch to Arc to send USDC.</p>
           <button
-            onClick={() => switchChain({ chainId: ARC_TESTNET_ID })}
+            onClick={() => switchChain({ chainId: ARC_ID })}
             style={{ padding: '6px 14px', background: '#0066FF', color: '#fff', borderRadius: 8, border: 'none', fontFamily: FONT, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
           >
             Switch

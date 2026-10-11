@@ -24,7 +24,7 @@ import { RewardsSheet } from './RewardsSheet'
 
 const F    = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif"
 const MONO = "'JetBrains Mono', 'SF Mono', Menlo, monospace"
-const ARC  = 5042002
+const ARC  = 5042
 
 // ─── Transaction row ──────────────────────────────────────────────────────────
 

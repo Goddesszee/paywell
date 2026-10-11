@@ -19,7 +19,7 @@ import { NanLogo } from '../NanLogo'
 const F    = "'Inter', -apple-system, sans-serif"
 const MONO = "'JetBrains Mono', Menlo, monospace"
 const BLUE = '#0066FF'
-const ARC_TESTNET_ID = 5042002
+const ARC_ID = 5042
 const USDC_ADDRESS   = '0x3600000000000000000000000000000000000000' as `0x${string}`
 const USDC_DECIMALS  = 6
 
@@ -106,7 +106,7 @@ function WalletPanel({
 
   const { writeContract, data: txHash, isPending, error: writeError, reset } = useWriteContract()
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash: txHash })
-  const onWrongChain = isConnected && chainId !== ARC_TESTNET_ID
+  const onWrongChain = isConnected && chainId !== ARC_ID
 
   useEffect(() => {
     if (isSuccess && txHash) {
@@ -119,7 +119,7 @@ function WalletPanel({
         status: 'confirmed',
         counterparty: address,
         txHash,
-        chain: 'Arc Testnet',
+        chain: 'Arc',
       })
       setPaying(false)
       onSuccess(txHash)
@@ -130,7 +130,7 @@ function WalletPanel({
 
   const handleSwitchChain = () => {
     setSwitchingChain(true)
-    switchChain({ chainId: ARC_TESTNET_ID }, { onSettled: () => setSwitchingChain(false) })
+    switchChain({ chainId: ARC_ID }, { onSettled: () => setSwitchingChain(false) })
   }
 
   const handlePay = () => {
@@ -156,7 +156,7 @@ function WalletPanel({
     return (
       <div style={{ textAlign: 'center', padding: '8px 0 4px' }}>
         <p style={{ fontSize: 13, color: '#666', marginBottom: 16, lineHeight: 1.5 }}>
-          Connect any EVM wallet to pay instantly with USDC on Arc Testnet.
+          Connect any EVM wallet to pay instantly with USDC on Arc.
         </p>
         <div style={{ display: 'flex', justifyContent: 'center' }}>
           <ConnectKitButton />
@@ -179,7 +179,7 @@ function WalletPanel({
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, background: '#fff8e1', border: '1px solid #ffe082', borderRadius: 10, padding: '10px 14px', marginBottom: 14 }}>
           <AlertCircle size={14} color='#b45309' style={{ flexShrink: 0, marginTop: 1 }} />
           <span style={{ fontSize: 12, color: '#b45309' }}>
-            Wrong network. Click Pay to switch to Arc Testnet automatically.
+            Wrong network. Click Pay to switch to Arc automatically.
           </span>
         </div>
       )}
@@ -206,7 +206,7 @@ function WalletPanel({
           transition: 'all 0.15s',
         }}
       >
-        {switchingChain ? 'Switching to Arc Testnet…' :
+        {switchingChain ? 'Switching to Arc…' :
          isPending ? 'Approve in wallet…' :
          isConfirming ? (
            <>
@@ -214,7 +214,7 @@ function WalletPanel({
              Confirming…
            </>
          ) : onWrongChain ? (
-           <><ArrowUpRight size={18} /> Switch to Arc Testnet &amp; Pay</>
+           <><ArrowUpRight size={18} /> Switch to Arc &amp; Pay</>
          ) : (
            <><ArrowUpRight size={18} /> Pay {fmt(req.amount)} {req.currency}</>
          )}
@@ -292,7 +292,7 @@ function CopyPanel({ req }: { req: PaymentRequest }) {
 
   const steps = [
     { n: '1', text: 'Open your wallet app or exchange' },
-    { n: '2', text: `Send exactly ${fmt(req.amount)} ${req.currency} (USDC on Arc Testnet)` },
+    { n: '2', text: `Send exactly ${fmt(req.amount)} ${req.currency} (USDC on Arc)` },
     { n: '3', text: 'Paste the address below as the recipient' },
   ]
 
@@ -327,7 +327,7 @@ function CopyPanel({ req }: { req: PaymentRequest }) {
 
       {/* Address row */}
       <div>
-        <div style={{ fontSize: 11, fontWeight: 600, color: '#888', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Recipient address (USDC · Arc Testnet)</div>
+        <div style={{ fontSize: 11, fontWeight: 600, color: '#888', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Recipient address (USDC · Arc)</div>
         {addr ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <div style={{ flex: 1, background: '#f7f8fa', border: '1px solid #e8e8e8', borderRadius: 10, padding: '10px 14px', fontFamily: MONO, fontSize: 12, color: '#111', wordBreak: 'break-all', lineHeight: 1.5 }}>
@@ -432,7 +432,7 @@ export function PaymentRequestPayPage({
             You successfully paid <strong>{fmt(req.amount)} {req.currency}</strong><br />for "{req.title}".
           </p>
           <a
-            href={`https://explorer.testnet.arc.io/tx/${successHash}`}
+            href={`https://explorer.arc.io/tx/${successHash}`}
             target="_blank" rel="noreferrer"
             style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, color: BLUE, fontWeight: 600, textDecoration: 'none', background: 'rgba(0,102,255,0.06)', padding: '8px 16px', borderRadius: 10 }}
           >
@@ -457,7 +457,7 @@ export function PaymentRequestPayPage({
         {/* Top header — NAN branding */}
         <div style={{ background: '#0057FF', padding: '18px 24px', borderRadius: '24px 24px 0 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <NanLogo height={22} />
-          <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.75)', fontFamily: MONO, letterSpacing: '0.04em' }}>Arc Testnet</span>
+          <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.75)', fontFamily: MONO, letterSpacing: '0.04em' }}>Arc</span>
         </div>
 
         {/* Request info */}

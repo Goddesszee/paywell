@@ -220,7 +220,7 @@ export function buildInvoiceHtml(inv: Invoice): string {
       <div style="font-size:10px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;">Payment Instructions</div>
       ${inv.paymentInstructions ? `<div style="font-size:13px;color:#374151;line-height:1.6;white-space:pre-wrap;margin-bottom:8px;">${inv.paymentInstructions}</div>` : ''}
       ${inv.payToAddress ? `
-      <div style="font-size:11px;color:#6B7280;margin-bottom:4px;">Pay to (USDC · Arc Testnet):</div>
+      <div style="font-size:11px;color:#6B7280;margin-bottom:4px;">Pay to (USDC · Arc):</div>
       <div style="font-size:11px;font-family:monospace;color:#1D4ED8;word-break:break-all;">${inv.payToAddress}</div>` : ''}
       ${inv.amountDue > 0 ? `
       <div class="no-print" style="margin-top:12px;">

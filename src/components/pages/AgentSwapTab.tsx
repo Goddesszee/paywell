@@ -23,7 +23,7 @@ const AMBER = '#FF9500'
 
 // Tokens supported by Circle / LiFi on testnet chains
 const TOKENS = [
-  { symbol: 'USDC',  name: 'USD Coin',       chain: 'Arc Testnet' },
+  { symbol: 'USDC',  name: 'USD Coin',       chain: 'Arc' },
   { symbol: 'USDC',  name: 'USD Coin',       chain: 'Base Sepolia' },
   { symbol: 'USDC',  name: 'USD Coin',       chain: 'Ethereum Sepolia' },
   { symbol: 'USDC',  name: 'USD Coin',       chain: 'Arbitrum Sepolia' },
@@ -91,7 +91,7 @@ export function AgentSwapTab({ C }: Props) {
       }
       if (d.not_available || d.not_configured) {
         setStatus('error')
-        setErrMsg(d.error ?? 'Swap is not available for Agent Wallets on Arc Testnet. Use Bridge to move USDC cross-chain.')
+        setErrMsg(d.error ?? 'Swap is not available for Agent Wallets on Arc. Use Bridge to move USDC cross-chain.')
         return
       }
       if (!r.ok || d.error || !d.quote) throw new Error(d.error ?? 'Quote failed')
@@ -140,7 +140,7 @@ export function AgentSwapTab({ C }: Props) {
       }
       if ((d as { not_available?: boolean }).not_available || d.not_configured) {
         setStatus('error')
-        setErrMsg((d as { error?: string }).error ?? 'Swap is not available for Agent Wallets on Arc Testnet. Use Bridge to move USDC cross-chain.')
+        setErrMsg((d as { error?: string }).error ?? 'Swap is not available for Agent Wallets on Arc. Use Bridge to move USDC cross-chain.')
         return
       }
       if (!r.ok || d.error) throw new Error(d.error ?? 'Swap failed')

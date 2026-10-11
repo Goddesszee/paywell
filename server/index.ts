@@ -350,7 +350,7 @@ app.post('/api/wallet/initialize', async (req, res) => {
     const client   = initiateUserControlledWalletsClient({ apiKey })
     const response = await client.createUserPinWithWallets({
       userToken,
-      blockchains: [Blockchain.ArcTestnet],
+      blockchains: [Blockchain.Arc],
       accountType: 'SCA',
     })
     res.json({ challengeId: response.data?.challengeId })
@@ -411,7 +411,7 @@ app.post('/api/wallet', async (req, res) => {
       }
       const response = await client.createTransaction({
         userToken, walletId, destinationAddress, amounts: [amount],
-        blockchain: (blockchain ?? 'ARC-TESTNET') as Parameters<typeof client.createTransaction>[0]['blockchain'],
+        blockchain: (blockchain ?? 'ARC') as Parameters<typeof client.createTransaction>[0]['blockchain'],
         tokenAddress: tokenAddress ?? '',
         fee: { type: 'level', config: { feeLevel: 'MEDIUM' } },
       })
@@ -734,20 +734,20 @@ async function circleTransfer(opts: {
 }) {
   // Uses the official Circle developer-controlled wallets SDK.
   // The SDK requires tokenId (Circle's internal token identifier), NOT tokenAddress.
-  // USDC tokenId on Arc Testnet is the canonical Circle ID for testnet USDC.
+  // USDC tokenId on Arc is the canonical Circle ID for testnet USDC.
   const { initiateDeveloperControlledWalletsClient } = await import('@circle-fin/developer-controlled-wallets')
   const client = initiateDeveloperControlledWalletsClient({
     apiKey: opts.apiKey,
     entitySecret: opts.entitySecret,
   })
 
-  // Arc Testnet USDC tokenId — obtain at runtime by listing wallet token balances
+  // Arc USDC tokenId — obtain at runtime by listing wallet token balances
   // if not known, or hard-code the well-known testnet value.
   // We pass tokenAddress here via the amounts array using the SDK's transfer method.
   const response = await client.createTransaction({
     walletId: opts.walletId,
     tokenId: opts.tokenSymbol === 'USDC'
-      ? 'f26e2fc3-3fc5-5b11-8fc8-0a5a9a71ad7a'   // Circle's testnet USDC token ID (Arc Testnet)
+      ? 'f26e2fc3-3fc5-5b11-8fc8-0a5a9a71ad7a'   // Circle's USDC token ID (Arc)
       : 'f26e2fc3-3fc5-5b11-8fc8-0a5a9a71ad7a',
     destinationAddress: opts.to,
     amounts: [opts.amount],
@@ -1053,8 +1053,8 @@ interface FaqItem {
 const FAQ_DEFAULTS: FaqItem[] = [
   { id: 'faq-1', category: 'Getting Started', question: 'What is NAN?', answer: 'NAN is an AI-powered financial platform that lets you give AI agents USDC budgets and permission rules so they can make payments on your behalf. You stay in control — agents only spend what you allow.', order: 0 },
   { id: 'faq-2', category: 'Getting Started', question: 'How do I create an account?', answer: 'Sign in with your email address. NAN uses a secure one-time password (OTP) sent to your inbox — no password required. Once verified, your account is ready instantly.', order: 1 },
-  { id: 'faq-3', category: 'Getting Started', question: 'What blockchain does NAN use?', answer: 'NAN runs on Arc Testnet, where USDC is the native gas token. This means every transaction costs USDC, with stable and predictable fees.', order: 2 },
-  { id: 'faq-4', category: 'Payments & Wallet', question: 'How do I get USDC?', answer: 'You can get free testnet USDC from the Faucet page. For real USDC, use the Buy section to onramp from your bank or card via Circle.', order: 3 },
+  { id: 'faq-3', category: 'Getting Started', question: 'What blockchain does NAN use?', answer: 'NAN runs on Arc, where USDC is the native gas token. This means every transaction costs USDC, with stable and predictable fees.', order: 2 },
+  { id: 'faq-4', category: 'Payments & Wallet', question: 'How do I get USDC?', answer: 'Use the Buy section to onramp USDC from your bank or card via Circle. You can also receive USDC from another wallet or exchange.', order: 3 },
   { id: 'faq-5', category: 'Payments & Wallet', question: 'How do I send USDC?', answer: 'Go to Wallet → Send. Enter the recipient wallet address and the amount you want to send. Review and confirm the transaction.', order: 4 },
   { id: 'faq-6', category: 'Payments & Wallet', question: 'Can I bridge USDC to other chains?', answer: 'Yes. The Bridge section lets you move USDC between Arc, Ethereum, Base, and Arbitrum using Circle\'s CCTP v2 protocol.', order: 5 },
   { id: 'faq-7', category: 'AI Agents', question: 'What can AI agents do?', answer: 'NAN agents can search for products, make purchases, send payments, and execute scheduled transactions — all within the spending limits and category rules you set.', order: 6 },
@@ -1119,7 +1119,7 @@ let aboutContent: AboutContent = {
   tagline: 'Give AI agents money and permissions. Stay in control.',
   body: `NAN is a next-generation financial platform built for the age of autonomous AI agents. We believe the future of money is not about managing transactions yourself — it's about giving intelligent agents the right budgets, the right permissions, and the right context to act on your behalf.
 
-NAN is built on Arc Testnet, where USDC is the native gas token. Every payment, every trade, every transfer happens with stable, predictable fees and sub-second finality.
+NAN is built on Arc, where USDC is the native gas token. Every payment, every trade, every transfer happens with stable, predictable fees and sub-second finality.
 
 Our platform lets you create AI agents, allocate USDC budgets, define spending rules by category, and approve or auto-approve transactions — all from a clean, minimal interface designed for both mobile and desktop.`,
   mission: 'Our mission is to make autonomous AI-powered finance accessible, secure, and genuinely useful for everyone.',
@@ -1363,7 +1363,7 @@ app.post('/api/tx-track', (req, res) => {
     description: String(body.description ?? body.type),
     counterparty: body.counterparty,
     txHash: body.txHash,
-    chain: body.chain ?? 'Arc Testnet',
+    chain: body.chain ?? 'Arc',
     timestamp: new Date().toISOString(),
   }
   txLedger.unshift(record)
@@ -1631,13 +1631,13 @@ app.get('/api/auth/google/callback', async (req, res) => {
 // These routes serve Circle users whose wallets are managed server-side.
 // Wagmi/browser wallet users call App Kit directly from the frontend.
 
-const APPKIT_CHAIN = 'Arc_Testnet'
+const APPKIT_CHAIN = 'Arc'
 // Token addresses come from env — never hardcoded in source.
 const APPKIT_USDC = process.env.VITE_USDC_ADDRESS
 const APPKIT_EURC = process.env.VITE_EURC_ADDRESS
 
 const BRIDGE_CHAIN_MAP: Record<string, string> = {
-  'Arc_Testnet':          'Arc_Testnet',
+  'Arc':          'Arc',
   'Ethereum_Sepolia':     'Ethereum_Sepolia',
   'Base_Sepolia':         'Base_Sepolia',
   'Arbitrum_Sepolia':     'Arbitrum_Sepolia',
@@ -1675,7 +1675,7 @@ app.post('/api/appkit/swap', async (req, res) => {
 
   const TOKEN_ADDRESSES: Record<string, string | undefined> = { USDC: APPKIT_USDC, EURC: APPKIT_EURC }
   if (!TOKEN_ADDRESSES[fromToken] || !TOKEN_ADDRESSES[toToken]) {
-    res.json({ success: false, error: `Unsupported token pair: ${fromToken} → ${toToken}. Only USDC and EURC are supported on Arc Testnet. (VITE_USDC_ADDRESS / VITE_EURC_ADDRESS may not be set in .env)` }); return
+    res.json({ success: false, error: `Unsupported token pair: ${fromToken} → ${toToken}. Only USDC and EURC are supported on Arc. (VITE_USDC_ADDRESS / VITE_EURC_ADDRESS may not be set in .env)` }); return
   }
 
   try {
@@ -1836,31 +1836,31 @@ async function sendPushToAddress(address: string, payload: object) {
   dead.forEach(r => subs.delete(r))
 }
 
-// ── Chain Watcher — polls Arc Testnet for incoming USDC transfers ─────────────
+// ── Chain Watcher — polls Arc for incoming USDC transfers ─────────────
 import { createPublicClient, http, parseAbiItem, formatUnits } from 'viem'
 
-// Build Arc Testnet RPC URL: prefer the provisioned proxy, fall back to the
+// Build Arc RPC URL: prefer the provisioned proxy, fall back to the
 // public endpoint read from the onchain-facts registry (never a typed literal).
 function buildArcRpcUrl(): string {
   const proxyBase   = process.env.RPC_PROXY_BASE_URL
   const proxyToken  = process.env.RPC_PROXY_TOKEN
   const proxyChains = (process.env.RPC_PROXY_CHAINS ?? '').split(',').map(s => s.trim())
-  const CHAIN_KEY   = 'Arc_Testnet'
+  const CHAIN_KEY   = 'Arc'
   if (proxyBase && proxyToken && proxyChains.includes(CHAIN_KEY)) {
     return `${proxyBase}/api/rpc/${CHAIN_KEY}?_rpc_token=${proxyToken}`
   }
   // Public fallback — rate limit unknown; may throttle under heavy load
-  console.log('  ⚠  Arc Testnet RPC proxy not available — using public endpoint for chain watcher')
-  return 'https://rpc.testnet.arc.io' // arc-studio-allow-onchain-literal
+  console.log('  ⚠  Arc RPC proxy not available — using public endpoint for chain watcher')
+  return 'https://rpc.mainnet.arc.io' // arc-studio-allow-onchain-literal
 }
 
-// USDC address on Arc Testnet — read from onchain-facts at runtime.
+// USDC address on Arc — read from onchain-facts at runtime.
 // We inline the import statically to avoid a dynamic import in a hot path.
 import { getUsdc } from '../src/onchain-facts.js'
 
-const ARC_CHAIN_ID  = 5042002
+const ARC_CHAIN_ID  = 5042
 const usdcFact      = getUsdc(ARC_CHAIN_ID)
-if (!usdcFact) throw new Error('USDC facts not found for Arc Testnet')
+if (!usdcFact) throw new Error('USDC facts not found for Arc')
 const USDC_ADDR     = usdcFact.address as `0x${string}`
 const USDC_DEC      = usdcFact.decimals
 const WATCHER_INTERVAL = 30_000
@@ -1872,7 +1872,7 @@ function buildArcClient() {
   return createPublicClient({
     chain: {
       id: ARC_CHAIN_ID,
-      name: 'Arc Testnet',
+      name: 'Arc',
       nativeCurrency: { name: 'USDC', symbol: 'USDC', decimals: 18 },
       rpcUrls: { default: { http: [rpc] } },
     },
@@ -1928,7 +1928,7 @@ function startChainWatcher() {
     console.log('  ⚠  Chain watcher disabled (VAPID keys missing)')
     return
   }
-  console.log('  ✓  Chain watcher started (Arc Testnet, 30 s interval)')
+  console.log('  ✓  Chain watcher started (Arc, 30 s interval)')
   void runWatcher()
   setInterval(() => { void runWatcher() }, WATCHER_INTERVAL)
 }
@@ -2077,7 +2077,7 @@ app.delete('/api/recurring-tasks/:id', (req, res) => {
 // ── Circle Services — onramp session minting ─────────────────────────────────
 // Mirrors api/circle-services.ts (Vercel). Route: POST /api/circle-services?service=onramp
 // Docs: https://docs.arc.io/app-kit/onramp · /app-kit/references/onramp-hosting-requirements
-// Keys are environment-bound: Arc Testnet => sandbox key + sandbox API/widget (defaults below).
+// Keys are environment-bound: Arc => sandbox key + sandbox API/widget (defaults below).
 // For mainnet set ONRAMP_API_BASE_URL=https://api.circle.com and
 // ONRAMP_WIDGET_BASE_URL=https://onramp.arc.io with a production key.
 
@@ -2169,7 +2169,7 @@ app.use(express.static(DIST))
 // ── Gateway REST proxy ────────────────────────────────────────────────────────
 // Mirrors api/gateway-proxy.ts (Vercel) for the local Express dev server.
 // Passkey transfer path in GatewayPage.tsx calls /api/gateway-proxy to avoid CORS.
-const GATEWAY_API_BASE = 'https://gateway-api-testnet.circle.com/v1'
+const GATEWAY_API_BASE = 'https://gateway-api.circle.com/v1'
 const gwBigintReplacer = (_k: string, v: unknown): unknown =>
   typeof v === 'bigint' ? v.toString() : v
 

@@ -711,7 +711,7 @@ function DetailView({
             <Copy size={13} color={C.t2} />
           </button>
         </div>
-        <div style={{ fontSize: 11, color: C.t3, marginTop: 8 }}>Arc Testnet · USDC</div>
+        <div style={{ fontSize: 11, color: C.t3, marginTop: 8 }}>Arc · USDC</div>
       </div>
 
       {/* ── If paid — view activity ── */}

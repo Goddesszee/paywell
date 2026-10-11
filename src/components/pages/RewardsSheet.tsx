@@ -224,7 +224,7 @@ export function RewardsSheet({ onClose }: { onClose: () => void }) {
               Sent to your wallet
             </div>
             <a
-              href={`https://explorer.testnet.arc.io/tx/${claimed.txHash}`}
+              href={`https://explorer.arc.io/tx/${claimed.txHash}`}
               target="_blank" rel="noopener noreferrer"
               style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: C.blue, textDecoration: 'none', fontWeight: 600 }}
             >

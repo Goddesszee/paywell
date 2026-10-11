@@ -59,13 +59,13 @@ interface OnchainFacts {
 const FACTS: OnchainFacts = {
   "chains": [
     {
-      "chainId": 5042002,
-      "name": "Arc Testnet",
+      "chainId": 5042,
+      "name": "Arc",
       "isTestnet": true,
       "family": "arc",
-      "explorerBase": "https://explorer.testnet.arc.io",
+      "explorerBase": "https://explorer.arc.io",
       "rpcUrls": [
-        "https://rpc.testnet.arc.io"
+        "https://rpc.mainnet.arc.io"
       ],
       "nativeCurrency": {
         "symbol": "USDC",
@@ -78,7 +78,7 @@ const FACTS: OnchainFacts = {
         "decimals": 6
       },
       "cctpDomain": 26,
-      "scpBlockchain": "ARC-TESTNET"
+      "scpBlockchain": "ARC"
     },
     {
       "chainId": 5042,

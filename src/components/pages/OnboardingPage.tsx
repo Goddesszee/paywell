@@ -89,7 +89,7 @@ export function OnboardingPage() {
             <div style={{ fontSize: 11, letterSpacing: '0.07em', textTransform: 'uppercase', color: T3, marginBottom: 8, fontWeight: 600 }}>Step 01</div>
             <h2 style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.025em', marginBottom: 8, color: TEXT }}>Welcome to NAN</h2>
             <p style={{ color: T2, fontSize: 14, lineHeight: 1.6, marginBottom: 24 }}>
-              Sign in with your email — a Circle wallet is created automatically on Arc Testnet.
+              Sign in with your email — a Circle wallet is created automatically on Arc.
             </p>
             <CircleEmailLogin onSuccess={() => { setStep('usecases') }} />
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '20px 0' }}>

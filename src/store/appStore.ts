@@ -52,7 +52,7 @@ export interface ActivityItem {
   counterparty?: string
   txHash?: string
   agentInitiated?: boolean
-  /** Chain name for explorer URL routing (e.g. "Arc Testnet", "Base Sepolia") */
+  /** Chain name for explorer URL routing (e.g. "Arc", "Base Sepolia") */
   chain?: string
 }
 
@@ -388,7 +388,7 @@ export interface AppState {
    */
   refreshCircleToken: () => Promise<string | undefined>
 
-  /** USDC balance on each chain keyed by chain name, e.g. { "Arc Testnet": "12.50", "Base Sepolia": "0.00" } */
+  /** USDC balance on each chain keyed by chain name, e.g. { "Arc": "12.50", "Base Sepolia": "0.00" } */
   crossChainBalances: Record<string, string>
   setCrossChainBalances: (balances: Record<string, string>) => void
 
@@ -485,7 +485,7 @@ export const useAppStore = create<AppState>()(
             description: item.description,
             counterparty: item.counterparty,
             txHash: (item as Partial<ActivityItem>).txHash,
-            chain: (item as Partial<ActivityItem>).chain ?? 'Arc Testnet',
+            chain: (item as Partial<ActivityItem>).chain ?? 'Arc',
           }),
         }).catch(() => {})
       },
@@ -501,7 +501,7 @@ export const useAppStore = create<AppState>()(
       agentMessages: [{
         id: 'msg-welcome',
         role: 'agent',
-        content: "Hi! I'm NAN — your AI financial assistant on Arc Testnet.\n\nI have full access to your platform state: balances, transactions, recurring payments, invoices, payment requests, agent wallet, and spending policy.\n\nI can send USDC, bridge across chains, swap tokens, set up recurring payments, create invoices and payment requests, manage your agent policy, and connect you to the Circle Agent Marketplace.\n\nWhat would you like to do?",
+        content: "Hi! I'm NAN — your AI financial assistant on Arc.\n\nI have full access to your platform state: balances, transactions, recurring payments, invoices, payment requests, agent wallet, and spending policy.\n\nI can send USDC, bridge across chains, swap tokens, set up recurring payments, create invoices and payment requests, manage your agent policy, and connect you to the Circle Agent Marketplace.\n\nWhat would you like to do?",
         timestamp: new Date(Date.now() - 1000 * 60 * 5),
       }],
       addAgentMessage: (msg) =>
@@ -736,7 +736,7 @@ export const useAppStore = create<AppState>()(
             amount: e.amount_usdc,
             description: e.service_name,
             txHash: e.txId,
-            chain: 'Arc Testnet',
+            chain: 'Arc',
           }),
         }).catch(() => {})
       },

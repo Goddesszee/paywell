@@ -48,7 +48,7 @@ async function getSession(authHeader: string | undefined): Promise<SessionRecord
 // - Sessions are minted via POST {baseUrl}/v1/stablecoinKits/sessions. The SDK builds the wire body
 //   (it maps destinationAddress -> walletAddress), so we call server.onramp.createSession().
 //   createSessionRouteHandler is Fetch-only, but createSession() works in any Node runtime.
-// - API keys are environment-bound. Arc Testnet => SANDBOX key + sandbox base URL + sandbox widget.
+// - API keys are environment-bound. Arc => SANDBOX key + sandbox base URL + sandbox widget.
 //   Set ONRAMP_API_BASE_URL=https://api.circle.com and ONRAMP_WIDGET_BASE_URL=https://onramp.arc.io
 //   (plus a production key) only when going to mainnet.
 // - Use the key exactly as issued from the Console (prefix included).

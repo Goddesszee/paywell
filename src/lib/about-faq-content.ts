@@ -38,7 +38,7 @@ You choose how to sign in: an email or Google account with a Circle wallet prote
 
 NAN is built on Circle's developer stack: Circle wallets for secure key management, CCTP V2 for cross-chain USDC transfers, Circle Gateway for a single balance across chains, Circle's onramp for buying USDC, and Circle's agent tools so your AI agent can pay for services.
 
-NAN currently runs on Arc Testnet. Testnet USDC has no real-world value, so it is a safe place to try everything.`,
+NAN currently runs on Arc. Testnet USDC has no real-world value, so it is a safe place to try everything.`,
   mission: 'To make money simple and programmable, so anyone, and any AI agent acting for them, can send, receive and automate payments anywhere in the world, quickly and at low cost.',
   contact: 'Need help? Open Support from the menu and submit a ticket. To report a bug, use Feedback. Have an idea? Share it on Suggestions. We read all of them.',
 }
@@ -58,7 +58,7 @@ export const FAQS: FaqItem[] = [
   // ── Getting Started ──
   { id: 'gs1', category: 'Getting Started', order: 1, question: 'What is NAN?', answer: 'NAN is a stablecoin app on Arc. You can send and receive USDC, swap tokens, bridge to other blockchains, set up recurring payments, and ask the built-in NAN Agent to do these things for you in plain language.' },
   { id: 'gs2', category: 'Getting Started', order: 2, question: 'How do I sign in?', answer: 'You have three options: (1) Email or Google, which creates a Circle wallet protected by your PIN; (2) Passkey, which uses your phone or computer biometrics; or (3) connect an existing wallet such as MetaMask. Email and passkey wallets need no seed phrase.' },
-  { id: 'gs3', category: 'Getting Started', order: 3, question: 'Is NAN on testnet or mainnet?', answer: 'NAN currently runs on Arc Testnet. Testnet USDC has no real-world value and is meant for trying things out. You can get free testnet USDC from the Faucet page.' },
+  { id: 'gs3', category: 'Getting Started', order: 3, question: 'Is NAN on testnet or mainnet?', answer: 'NAN currently runs on Arc. Testnet USDC has no real-world value and is meant for trying things out. You can get free testnet USDC from the Faucet page.' },
   { id: 'gs4', category: 'Getting Started', order: 4, question: 'What is Arc?', answer: 'Arc is a blockchain built by Circle where USDC is the native gas token. That means network fees are paid in USDC and stay small and predictable, with no need to hold another coin for gas.' },
   { id: 'gs5', category: 'Getting Started', order: 5, question: 'What is USDC?', answer: 'USDC is a dollar-backed stablecoin issued by Circle. 1 USDC is designed to always be worth 1 US dollar. NAN also supports EURC, a euro-backed stablecoin.' },
   { id: 'gs6', category: 'Getting Started', order: 6, question: 'Does NAN charge fees?', answer: 'Sending USDC on Arc only costs the tiny network fee. Swaps and bridges include a small NAN service fee, and bridges may also include Circle\'s network fee. The fees are shown before you confirm anything.' },
@@ -79,22 +79,22 @@ export const FAQS: FaqItem[] = [
 
   // ── NAN Agent ──
   { id: 'ag1', category: 'NAN Agent', order: 1, question: 'What is the NAN Agent?', answer: 'The NAN Agent is an AI assistant built into the app. It can see your balances, recent activity, recurring payments and requests, answer questions about them, and carry out actions for you when you ask.' },
-  { id: 'ag2', category: 'NAN Agent', order: 2, question: 'What can I ask it to do?', answer: 'Examples: "What\'s my balance?", "Send 10 USDC to 0x…", "Swap 10 EURC to USDC", "Bridge 10 USDC to Base Sepolia", "Deposit 5 USDC into Gateway", "Set up a monthly payment", "Create a payment request for 20 USDC", "Show my recent transactions".' },
+  { id: 'ag2', category: 'NAN Agent', order: 2, question: 'What can I ask it to do?', answer: 'Examples: "What\'s my balance?", "Send 10 USDC to 0x…", "Swap 10 EURC to USDC", "Bridge 10 USDC to Base", "Deposit 5 USDC into Gateway", "Set up a monthly payment", "Create a payment request for 20 USDC", "Show my recent transactions".' },
   { id: 'ag3', category: 'NAN Agent', order: 3, question: 'Will the agent spend my money without asking?', answer: 'No. For anything that moves money, the agent shows a confirmation card with the details and waits for you to confirm. You then approve with your PIN, passkey or wallet. Nothing is sent until you do.' },
   { id: 'ag4', category: 'NAN Agent', order: 4, question: 'What is the Agent Wallet?', answer: 'The Agent Wallet is a separate Circle wallet for your agent. You fund it with USDC, and the agent can use it to pay for services and automated payments within the spending limits you set. It cannot touch your Main Wallet balance.' },
-  { id: 'ag5', category: 'NAN Agent', order: 5, question: 'What tokens and chains can the agent handle?', answer: 'Swaps support USDC, EURC and cirBTC on Arc Testnet. Bridges start from Arc and can go to Ethereum Sepolia, Base Sepolia, Arbitrum Sepolia, OP Sepolia, Polygon Amoy, Avalanche Fuji, Unichain Sepolia, Sei Testnet or World Chain Sepolia.' },
+  { id: 'ag5', category: 'NAN Agent', order: 5, question: 'What tokens and chains can the agent handle?', answer: 'Swaps support USDC, EURC and cirBTC on Arc. Bridges start from Arc and can go to Ethereum Sepolia, Base Sepolia, Arbitrum Sepolia, OP Sepolia, Polygon Amoy, Avalanche Fuji, Unichain Sepolia, Sei Testnet or World Chain Sepolia.' },
 
   // ── Bridge, Swap & Gateway ──
   { id: 'bs1', category: 'Bridge, Swap & Gateway', order: 1, question: 'What is the Bridge?', answer: 'The Bridge moves USDC from one blockchain to another using Circle CCTP V2, which burns USDC on the source chain and mints it on the destination. Your funds are not held by a third party along the way.' },
   { id: 'bs2', category: 'Bridge, Swap & Gateway', order: 2, question: 'How long does a bridge take?', answer: 'Usually a few minutes. It depends on the chains involved. You can follow each step (approve, burn, attestation, mint) on the Bridge page.' },
-  { id: 'bs3', category: 'Bridge, Swap & Gateway', order: 3, question: 'What can I swap?', answer: 'On Arc Testnet you can swap between USDC, EURC and cirBTC. You get a live quote with the expected output and fees before you confirm. The default price tolerance (slippage) is 3%.' },
-  { id: 'bs4', category: 'Bridge, Swap & Gateway', order: 4, question: 'My swap says there is no route. Why?', answer: 'Testnet liquidity is limited and sometimes unavailable. Wait a few seconds and try again, or try a smaller amount.' },
+  { id: 'bs3', category: 'Bridge, Swap & Gateway', order: 3, question: 'What can I swap?', answer: 'On Arc you can swap between USDC, EURC and cirBTC. You get a live quote with the expected output and fees before you confirm. The default price tolerance (slippage) is 3%.' },
+  { id: 'bs4', category: 'Bridge, Swap & Gateway', order: 4, question: 'My swap says there is no route. Why?', answer: 'Swap liquidity can be temporarily unavailable. Wait a few seconds and try again, or try a smaller amount.' },
   { id: 'bs5', category: 'Bridge, Swap & Gateway', order: 5, question: 'What is Gateway?', answer: 'Circle Gateway gives you one unified USDC balance across supported chains. Deposit USDC once, then transfer it to another chain in about a second without waiting for a full bridge.' },
 
   // ── Buy & Faucet ──
   { id: 'of1', category: 'Buy USDC & Faucet', order: 1, question: 'How do I buy USDC?', answer: 'Open Buy USDC (Onramp), choose an amount and continue. The Circle onramp opens so you can pay by card or bank transfer. Circle handles identity checks and compliance.' },
-  { id: 'of2', category: 'Buy USDC & Faucet', order: 2, question: 'What is the Faucet?', answer: 'The Faucet gives you free testnet USDC so you can try NAN. It has no real-world value.' },
-  { id: 'of3', category: 'Buy USDC & Faucet', order: 3, question: 'How often can I use the Faucet?', answer: 'There is a 24-hour cooldown for each wallet address. If you run out, wait for the cooldown or use another address.' },
+  { id: 'of2', category: 'Buy USDC & Faucet', order: 2, question: 'How do I get USDC?', answer: 'Use the Buy USDC (Onramp) to purchase USDC with a card or bank transfer.' },
+  { id: 'of3', category: 'Buy USDC & Faucet', order: 3, question: 'Are there any purchase limits?', answer: 'Purchase limits are set by Circle\'s compliance requirements and may vary by region. Contact support if you need higher limits.' },
 
   // ── Security & Privacy ──
   { id: 'sp1', category: 'Security & Privacy', order: 1, question: 'Who controls my keys?', answer: 'Email and Google wallets are Circle wallets protected by your PIN, and Circle\'s infrastructure secures the keys. Passkey wallets are secured by your device biometrics. If you connect MetaMask or another wallet, you keep your own keys.' },

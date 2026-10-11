@@ -57,7 +57,7 @@ function CopyButton({ value }: { value: string }) {
 export interface BalanceCardData {
   mainBalance: string      // human-readable e.g. "42.50"
   agentBalance: string
-  /** Per-chain USDC balances, e.g. { "Arc Testnet": "12.50", "Base Sepolia": "3.00" } */
+  /** Per-chain USDC balances, e.g. { "Arc": "12.50", "Base Sepolia": "3.00" } */
   crossChainBalances?: Record<string, string>
   onViewWallet?: () => void
 }

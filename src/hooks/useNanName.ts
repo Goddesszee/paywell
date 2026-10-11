@@ -12,8 +12,8 @@ import { usePublicClient } from 'wagmi'
 import { createPublicClient, http } from 'viem'
 
 export const NAME_REGISTRY = (import.meta.env.VITE_NAME_REGISTRY as string | undefined) ?? ''
-const ARC_RPC = 'https://rpc.testnet.arc.io'
-const ARC_CHAIN_ID = 5042002
+const ARC_RPC = 'https://rpc.mainnet.arc.io'
+const ARC_CHAIN_ID = 5042
 
 export const REGISTRY_ABI = [
   { name: 'register',           type: 'function', stateMutability: 'nonpayable', inputs: [{ name: 'name', type: 'string' }, { name: 'duration', type: 'uint8' }], outputs: [] },
@@ -44,10 +44,10 @@ export const PRICES: Record<1 | 2 | 5, bigint> = {
 // who have no injected wallet connected).
 const ARC_CHAIN = {
   id: ARC_CHAIN_ID,
-  name: 'Arc Testnet',
+  name: 'Arc',
   nativeCurrency: { name: 'USDC', symbol: 'USDC', decimals: 18 },
   rpcUrls: { default: { http: [ARC_RPC] }, public: { http: [ARC_RPC] } },
-  blockExplorers: { default: { name: 'Arc Explorer', url: 'https://explorer.testnet.arc.io' } },
+  blockExplorers: { default: { name: 'Arc Explorer', url: 'https://explorer.arc.io' } },
 } as const
 
 let _fallbackClient: ReturnType<typeof createPublicClient> | null = null
@@ -66,7 +66,7 @@ export async function readRegistry<
   args: unknown[],
 ): Promise<unknown> {
   const c = client ?? getFallbackClient()
-  // Arc Testnet RPC requires gas in eth_call — pass it via stateOverride workaround.
+  // Arc RPC requires gas in eth_call — pass it via stateOverride workaround.
   // We do this by wrapping in a try/catch: if the wagmi client throws (Arc RPC quirk),
   // fall back to the fallback client with explicit gas in the call object.
   try {

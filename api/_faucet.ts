@@ -5,7 +5,7 @@ import { isAddress } from 'viem'
 // use via the SDK's requestTestnetTokens(). We hit it directly here since this route
 // only ever needs one call, not the full Developer-Controlled Wallets client.
 const FAUCET_URL = 'https://api.circle.com/v1/faucet/drips'
-const BLOCKCHAIN = 'ARC-TESTNET'
+const BLOCKCHAIN = 'ARC'
 
 // In-memory per-address cooldown so one wallet can't hammer Circle's faucet (and
 // so we give a fast, friendly response instead of relaying Circle's rate-limit error).

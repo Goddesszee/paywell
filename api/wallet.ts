@@ -172,7 +172,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         walletId,
         destinationAddress,
         amounts: [amount],
-        blockchain: (blockchain ?? 'ARC-TESTNET') as Parameters<typeof client.createTransaction>[0]['blockchain'],
+        blockchain: (blockchain ?? 'ARC') as Parameters<typeof client.createTransaction>[0]['blockchain'],
         tokenAddress: tokenAddress ?? '',
         fee: { type: 'level', config: { feeLevel: 'MEDIUM' } },
       })
@@ -268,11 +268,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         userToken,
         walletId,
         walletAddress: walletAddress as `0x${string}`,
-        chain: 'Arc_Testnet',
+        chain: 'Arc',
         accountType: 'SCA',
       })
       const estimate = await kit.estimateSwap({
-        from: { adapter, chain: 'Arc_Testnet' },
+        from: { adapter, chain: 'Arc' },
         tokenIn, tokenOut, amountIn,
         // SCA wallets (UCW) must use 'approve' — USDC permit uses ecrecover which rejects SCA signatures
         config: { slippageBps: slippageBps ? Number(slippageBps) : 300, allowanceStrategy: 'approve' },
@@ -307,14 +307,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         userToken,
         walletId,
         walletAddress: walletAddress as `0x${string}`,
-        chain: 'Arc_Testnet',
+        chain: 'Arc',
         accountType: 'SCA',
         onChallenge: ({ challengeId }: { challengeId: string }) => { resolveChallenge(challengeId) },
       })
 
       // Fire swap (will pause at onChallenge)
       void kit.swap({
-        from: { adapter, chain: 'Arc_Testnet' },
+        from: { adapter, chain: 'Arc' },
         tokenIn, tokenOut, amountIn,
         // SCA wallets (UCW) must use 'approve' — USDC permit uses ecrecover which rejects SCA signatures
         config: { slippageBps: slippageBps ? Number(slippageBps) : 300, allowanceStrategy: 'approve' },
@@ -343,7 +343,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const tx = await pollTransaction(userToken, transactionId)
       if (!tx) return err(res, 408, 'Swap timed out — check explorer for status')
       if (tx.state === 'COMPLETE')
-        return res.json({ result: { txHash: tx.txHash, explorerUrl: `https://explorer.testnet.arc.io/tx/${tx.txHash}` } })
+        return res.json({ result: { txHash: tx.txHash, explorerUrl: `https://explorer.arc.io/tx/${tx.txHash}` } })
       return err(res, 400, `Swap ${tx.state ?? 'failed'}: ${tx.errorReason ?? ''}`)
     } catch (e) {
       return err(res, 500, e instanceof Error ? e.message : 'Swap confirm failed')
@@ -371,14 +371,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         userToken,
         walletId,
         walletAddress: walletAddress as `0x${string}`,
-        chain: 'Arc_Testnet',
+        chain: 'Arc',
         accountType: 'SCA',
         onChallenge: ({ challengeId }: { challengeId: string }) => { resolveChallenge(challengeId) },
       })
 
       // Fire bridge (will pause at onChallenge)
       void kit.bridge({
-        from: { adapter, chain: 'Arc_Testnet' as const },
+        from: { adapter, chain: 'Arc' as const },
         to: {
           chain: destChain as Parameters<InstanceType<typeof AppKit>['bridge']>[0]['to']['chain'],
           recipientAddress: walletAddress,
@@ -409,7 +409,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const tx = await pollTransaction(userToken, transactionId)
       if (!tx) return err(res, 408, 'Bridge timed out — check explorer for status')
       if (tx.state === 'COMPLETE')
-        return res.json({ success: true, txHash: tx.txHash, explorerUrl: `https://explorer.testnet.arc.io/tx/${tx.txHash}` })
+        return res.json({ success: true, txHash: tx.txHash, explorerUrl: `https://explorer.arc.io/tx/${tx.txHash}` })
       return err(res, 400, `Bridge ${tx.state ?? 'failed'}: ${tx.errorReason ?? ''}`)
     } catch (e) {
       return err(res, 500, e instanceof Error ? e.message : 'Bridge confirm failed')

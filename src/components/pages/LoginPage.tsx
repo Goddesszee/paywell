@@ -90,7 +90,7 @@ export function LoginPage() {
         {children}
       </div>
       <p style={{ fontSize: 11, color: TEXT3, marginTop: 24, textAlign: 'center' }}>
-        Arc · Circle USDC · Testnet
+        Arc · Circle USDC
       </p>
     </div>
   )

@@ -21,14 +21,14 @@ const GREEN = '#00C853'
 
 // CCTP V2 supported chains (same list as BridgePage)
 const CHAINS = [
-  { label: 'Arc Testnet',       kitName: 'Arc_Testnet',       chainId: 5042002,  cctpDomain: 26, explorer: 'https://testnet.arcscan.app/tx/' },
-  { label: 'Ethereum Sepolia',  kitName: 'Ethereum_Sepolia',  chainId: 11155111, cctpDomain: 0,  explorer: 'https://sepolia.etherscan.io/tx/' },
-  { label: 'Base Sepolia',      kitName: 'Base_Sepolia',      chainId: 84532,    cctpDomain: 6,  explorer: 'https://sepolia.basescan.org/tx/' },
-  { label: 'Arbitrum Sepolia',  kitName: 'Arbitrum_Sepolia',  chainId: 421614,   cctpDomain: 3,  explorer: 'https://sepolia.arbiscan.io/tx/' },
-  { label: 'OP Sepolia',        kitName: 'Optimism_Sepolia',  chainId: 11155420, cctpDomain: 2,  explorer: 'https://sepolia-optimism.etherscan.io/tx/' },
-  { label: 'Polygon Amoy',      kitName: 'Polygon_Amoy',      chainId: 80002,    cctpDomain: 7,  explorer: 'https://www.oklink.com/amoy/tx/' },
-  { label: 'Avalanche Fuji',    kitName: 'Avalanche_Fuji',    chainId: 43113,    cctpDomain: 1,  explorer: 'https://testnet.snowtrace.io/tx/' },
-  { label: 'Unichain Sepolia',  kitName: 'Unichain_Sepolia',  chainId: 1301,     cctpDomain: 10, explorer: 'https://sepolia.uniscan.xyz/tx/' },
+  { label: 'Arc',          kitName: 'Arc',        chainId: 5042,   cctpDomain: 26, explorer: 'https://explorer.arc.io/tx/' },
+  { label: 'Ethereum',     kitName: 'Ethereum',   chainId: 1,      cctpDomain: 0,  explorer: 'https://etherscan.io/tx/' },
+  { label: 'Base',         kitName: 'Base',       chainId: 8453,   cctpDomain: 6,  explorer: 'https://basescan.org/tx/' },
+  { label: 'Arbitrum One', kitName: 'Arbitrum',   chainId: 42161,  cctpDomain: 3,  explorer: 'https://arbiscan.io/tx/' },
+  { label: 'OP Mainnet',   kitName: 'Optimism',   chainId: 10,     cctpDomain: 2,  explorer: 'https://optimistic.etherscan.io/tx/' },
+  { label: 'Polygon',      kitName: 'Polygon',    chainId: 137,    cctpDomain: 7,  explorer: 'https://polygonscan.com/tx/' },
+  { label: 'Avalanche',    kitName: 'Avalanche',  chainId: 43114,  cctpDomain: 1,  explorer: 'https://snowtrace.io/tx/' },
+  { label: 'Unichain',     kitName: 'Unichain',   chainId: 130,    cctpDomain: 10, explorer: 'https://uniscan.xyz/tx/' },
 ]
 
 type StepKey = 'approve' | 'burn' | 'attest' | 'mint'
@@ -40,7 +40,7 @@ const INITIAL_STEPS: Step[] = [
   { key: 'mint',    label: 'Mint on destination',  status: 'idle' },
 ]
 
-const CCTP_FEE_API = 'https://iris-api-sandbox.circle.com/v2/burn/USDC/fees'
+const CCTP_FEE_API = 'https://iris-api.circle.com/v2/burn/USDC/fees'
 
 interface Props {
   C: {

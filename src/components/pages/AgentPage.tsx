@@ -620,7 +620,7 @@ function InlineChatSwap({ fromToken, toToken, amount, agentUserToken, agentAddre
         const r = await fetch('/api/agent-wallet', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'swap-quote', fromToken, toToken, fromChain: 'Arc Testnet', toChain: 'Arc Testnet', amount, agentAddress }),
+          body: JSON.stringify({ action: 'swap-quote', fromToken, toToken, fromChain: 'Arc', toChain: 'Arc', amount, agentAddress }),
         })
         const d = await r.json() as { ok?: boolean; error?: string; not_configured?: boolean; quote?: { fromAmount: string; toAmount: string; rate: string; fee?: string; provider: string } }
         if (cancelled) return
@@ -643,7 +643,7 @@ function InlineChatSwap({ fromToken, toToken, amount, agentUserToken, agentAddre
       const r = await fetch('/api/agent-wallet', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-user-token': agentUserToken },
-        body: JSON.stringify({ action: 'swap', userToken: agentUserToken, fromToken, toToken, fromChain: 'Arc Testnet', toChain: 'Arc Testnet', amount, agentAddress }),
+        body: JSON.stringify({ action: 'swap', userToken: agentUserToken, fromToken, toToken, fromChain: 'Arc', toChain: 'Arc', amount, agentAddress }),
       })
       const d = await r.json() as { ok?: boolean; error?: string; not_configured?: boolean; txHash?: string; toAmount?: string }
       if (d.not_configured) { setErrMsg('Swap backend not configured.'); setPhase('error'); return }
@@ -777,7 +777,7 @@ function AgentChat({ onNavigate }: { onNavigate?: (page: string, query?: string)
         destinationAddress: toAddress,
         amount,
         tokenAddress: '0x3600000000000000000000000000000000000000',
-        blockchain: 'ARC-TESTNET',
+        blockchain: 'ARC',
       })
       if (!hash) throw new Error(circleTx.getLastError() ?? 'Circle transfer was cancelled or did not complete.')
       return hash
@@ -1110,7 +1110,7 @@ function AgentChat({ onNavigate }: { onNavigate?: (page: string, query?: string)
         agentWalletUserToken: agentWallet.userToken,
         writeContractAsync,
         connectedAddress: address,
-        chainId: chainId ?? 5042002,
+        chainId: chainId ?? 5042,
         isCircleUcwUser,
         isPasskeyUser,
         triggerCircleSend,
@@ -1132,7 +1132,7 @@ function AgentChat({ onNavigate }: { onNavigate?: (page: string, query?: string)
               addAgentMessage({ role: 'agent', content: `Transaction signing failed: ${(err as { message?: string })?.message ?? 'Unknown error'}`, action: 'info' })
             } else {
               const tx = (res as { txHash?: string })?.txHash ?? ''
-              addAgentMessage({ role: 'agent', content: `Sent **${amt} USDC** to ${toAddr.slice(0,6)}...${toAddr.slice(-4)}!${tx ? ` [View on explorer](https://explorer.testnet.arc.io/tx/${tx})` : ''}${note ? ` — "${note}"` : ''}`, action: 'info' })
+              addAgentMessage({ role: 'agent', content: `Sent **${amt} USDC** to ${toAddr.slice(0,6)}...${toAddr.slice(-4)}!${tx ? ` [View on explorer](https://explorer.arc.io/tx/${tx})` : ''}${note ? ` — "${note}"` : ''}`, action: 'info' })
               useAppStore.getState().addActivity({ type: 'sent', description: `Agent Send → ${toAddr.slice(0,8)}…${toAddr.slice(-4)}`, amount: parseFloat(amt), sign: '-', status: 'confirmed', counterparty: toAddr, txHash: tx || undefined, agentInitiated: true })
             }
           })
@@ -1347,7 +1347,7 @@ function AgentChat({ onNavigate }: { onNavigate?: (page: string, query?: string)
                   agentWalletUserToken: agentWallet.userToken,
                   writeContractAsync,
                   connectedAddress: address,
-                  chainId: chainId ?? 5042002,
+                  chainId: chainId ?? 5042,
                   isCircleUcwUser,
                   isPasskeyUser,
                   triggerCircleSend,
@@ -1397,7 +1397,7 @@ function AgentChat({ onNavigate }: { onNavigate?: (page: string, query?: string)
       const agentBal2 = parseFloat(agentWallet.balance_usdc || '0').toFixed(2)
 
       if (/balance|how much|my usdc/.test(lower)) {
-        addAgentMessage({ role: 'agent', content: `Your main wallet has **${mainBal} USDC** on Arc Testnet. Your Agent Wallet has **${agentBal2} USDC**.`, action: 'info' })
+        addAgentMessage({ role: 'agent', content: `Your main wallet has **${mainBal} USDC** on Arc. Your Agent Wallet has **${agentBal2} USDC**.`, action: 'info' })
       } else if (/recent|activity|transaction|history/.test(lower)) {
         const acts = storeSnap2.activity.slice(0, 5)
         if (acts.length > 0) {
@@ -1775,7 +1775,7 @@ function sanitiseContent(text: string): string {
     .replace(/your current balances are as follows[:\s]*/gi, '')
     // Bare wallet addresses (only strip if not at start of message where user asked)
     .replace(/\(address:\s*0x[0-9a-fA-F]{40}\)/gi, '')
-    // "Network: arc-testnet / chain id: 5042002" etc.
+    // "Network: arc / chain id: 5042" etc.
     .replace(/network:\s*[^\n]+/gi, '')
     .replace(/chain\s*id:\s*\d+/gi, '')
     // Remove double blank lines left by substitutions
@@ -2349,7 +2349,7 @@ function MultiAgentOrchestrator() {
             taskId: task.id, subtaskId: st.id,
             agentId: st.agentRef.agentId, agentName: st.agentRef.capabilityName,
             capability: st.agentRef.capabilityId, amount_usdc: st.agentRef.price_usdc,
-            currency: 'USDC', network: 'arc-testnet',
+            currency: 'USDC', network: 'arc',
             payment_status: 'confirmed', policy_decision: 'allowed',
             approval_status: 'auto_approved', timestamp: new Date().toISOString(),
             request_id: `req-${st.id}`,
@@ -2515,7 +2515,7 @@ function MultiAgentOrchestrator() {
 // Register Agent Form
 
 function RegisterAgentForm() {
-  const [form, setForm] = useState({ name:'', description:'', endpoint:'', provider:'', price:'', currency:'USDC', payment_method:'usdc_arc', networks:'arc-testnet', category:'research' })
+  const [form, setForm] = useState({ name:'', description:'', endpoint:'', provider:'', price:'', currency:'USDC', payment_method:'usdc_arc', networks:'arc', category:'research' })
   const [capabilities, setCapabilities] = useState([{ name:'', description:'', keywords:'' }])
   const [submitted, setSubmitted] = useState(false)
   const [errors, setErrors] = useState<string[]>([])
@@ -2632,7 +2632,7 @@ function RegisterAgentForm() {
 
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
         {field('Price per call (USDC)', 'price', '0.01')}
-        {field('Supported networks', 'networks', 'arc-testnet, arc, base')}
+        {field('Supported networks', 'networks', 'arc, arc, base')}
       </div>
 
       <div>

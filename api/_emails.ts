@@ -77,7 +77,7 @@ export function newUserEmail(email: string, code: string): { subject: string; ht
   const subject = `${code} — Welcome to NAN, your intelligent payment wallet`
 
   const features = [
-    ['💸', 'Send & Receive USDC', 'Instant payments to anyone, anywhere on Arc Testnet'],
+    ['💸', 'Send & Receive USDC', 'Instant payments to anyone, anywhere on Arc'],
     ['🌉', 'Bridge', 'Move USDC across chains with CCTP V2 in seconds'],
     ['🔄', 'Swap', 'Exchange tokens directly from your wallet'],
     ['🏦', 'Gateway', 'Unified cross-chain USDC balance — one pool, all chains'],
@@ -146,7 +146,7 @@ export function returningUserEmail(email: string, code: string): { subject: stri
     ${otpBox(code)}
 
     <p style="margin:20px 0 0;font-size:13px;color:${TEXT2};line-height:1.55;text-align:center;">
-      Good to have you back. Your Circle wallet on Arc Testnet is ready.
+      Good to have you back. Your Circle wallet on Arc is ready.
     </p>
 
     <a href="https://nanarc.xyz" style="display:block;margin-top:20px;padding:14px;background:${NAN_BLUE};

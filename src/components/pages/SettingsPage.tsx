@@ -7,7 +7,7 @@ import { formatAddress } from '../../utils/format'
 import { requireChain } from '@/onchain-facts'
 import { Badge } from '../ui/Badge'
 
-const ARC  = 5042002
+const ARC  = 5042
 const MONO = "'JetBrains Mono', Menlo, monospace"
 const F    = "'Inter', -apple-system, sans-serif"
 const SURF = 'var(--nan-surface)'
@@ -96,7 +96,7 @@ export function SettingsPage() {
   return (
     <div style={{ width: '100%', minHeight: '100%', fontFamily:F, paddingBottom:80 }}>
       <h1 style={{ fontSize:22, fontWeight:700, letterSpacing:'-0.025em', color:TEXT, marginBottom:2 }}>Settings</h1>
-      <p style={{ fontSize:13, color:T3, marginBottom:16 }}>NAN · Arc Testnet · Circle USDC</p>
+      <p style={{ fontSize:13, color:T3, marginBottom:16 }}>NAN · Arc · Circle USDC</p>
 
       {!isConnected && (
         <div style={{ background:SURF, border:`1px solid ${BDR}`, borderRadius:14, padding:'16px', marginTop:16 }}>
@@ -166,7 +166,7 @@ export function SettingsPage() {
       <SectionLabel>Resources</SectionLabel>
       <CardBlock>
         <RowItem icon={<HelpCircle />} label="Arc documentation" sub="docs.arc.io" onClick={() => window.open('https://docs.arc.io','_blank')} />
-        <RowItem icon={<ExternalLink />} label="Arc Testnet explorer" sub={chain.explorerBase} onClick={() => window.open(chain.explorerBase,'_blank')} noBorder />
+        <RowItem icon={<ExternalLink />} label="Arc explorer" sub={chain.explorerBase} onClick={() => window.open(chain.explorerBase,'_blank')} noBorder />
       </CardBlock>
 
       <SectionLabel>Account</SectionLabel>

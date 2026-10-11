@@ -25,9 +25,9 @@ export const PORTFOLIO_CHAINS = ONCHAIN_CHAINS.filter(
 )
 
 // ── Well-known testnet token addresses ───────────────────────────────────────
-// EURC only exists on Arc Testnet and Ethereum Sepolia for now
+// EURC only exists on Arc and Ethereum Sepolia for now
 const EURC_BY_CHAIN: Record<number, `0x${string}`> = {
-  5042002:  '0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a', // Arc Testnet
+  5042:  '0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a', // Arc
   11155111: '0x08210F9170F89Ab7658F0B5E3fF39b0E03C2Bfa4', // Ethereum Sepolia (Circle testnet EURC)
 }
 
@@ -78,7 +78,7 @@ export interface PortfolioSummary {
   /** Per-chain summaries, sorted: chains with balances first */
   networks: NetworkSummary[]
   /**
-   * Per-token roll-up scoped to Arc Testnet only.
+   * Per-token roll-up scoped to Arc only.
    * Used by the USDC and EURC home-screen cards.
    */
   byToken: Record<'USDC' | 'EURC' | 'USDT', { quantity: string; usdValue: string }>
@@ -104,7 +104,7 @@ export interface PortfolioSummary {
   refetch: () => void
 }
 
-const GATEWAY_API = 'https://gateway-api-testnet.circle.com/v1'
+const GATEWAY_API = 'https://gateway-api.circle.com/v1'
 
 async function fetchGatewayBalance(address: string): Promise<{ available: string; pending: string }> {
   try {
@@ -244,7 +244,7 @@ export function usePortfolioBalances(address: string | undefined): PortfolioSumm
   }, [data, contracts, eurRate])
 
   // ── Aggregate ─────────────────────────────────────────────────────────────
-  const ARC_CHAIN_ID = 5042002
+  const ARC_CHAIN_ID = 5042
 
   const {
     networks, byToken, totalUsd, totalUsdc, totalEurc, totalUsdt,

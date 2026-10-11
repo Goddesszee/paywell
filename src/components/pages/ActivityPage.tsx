@@ -72,17 +72,17 @@ function timeStr(date: Date): string {
 
 // ── Receipt modal ──────────────────────────────────────────────────────────────
 const EXPLORER: Record<string, string> = {
-  'arc':          'https://explorer.testnet.arc.io',
-  'arc testnet':  'https://explorer.testnet.arc.io',
+  'arc':          'https://explorer.arc.io',
+  'arc testnet':  'https://explorer.arc.io',
   'arc mainnet':  'https://explorer.arc.io',
-  'eth':          'https://sepolia.etherscan.io',
-  'base':         'https://sepolia.basescan.org',
-  'base sepolia': 'https://sepolia.basescan.org',
-  'arbitrum':     'https://sepolia.arbiscan.io',
-  'polygon':      'https://amoy.polygonscan.com',
-  'avalanche':    'https://testnet.snowtrace.io',
-  'op':           'https://sepolia-optimistic.etherscan.io',
-  'unichain':     'https://sepolia.uniscan.xyz',
+  'eth':          'https://etherscan.io',
+  'base':         'https://basescan.org',
+  'base sepolia': 'https://basescan.org',
+  'arbitrum':     'https://arbiscan.io',
+  'polygon':      'https://polygonscan.com',
+  'avalanche':    'https://snowtrace.io',
+  'op':           'https://optimistic.etherscan.io',
+  'unichain':     'https://uniscan.xyz',
 }
 
 function ReceiptModal({ item, onClose, ownAddress }: { item: ActivityItem; onClose: () => void; ownAddress?: string }) {

@@ -46,16 +46,16 @@ export async function resolveActionRecipients(action: NanAction, store: Pick<App
     case 'agent_send':
     case 'ucw_send': {
       const r = await resolveRecipient(action.params.toAddress, store)
-      return { ...action, params: { ...action.params, toAddress: r.address, toLabel: r.label } } as NanAction
+      return { ...action, params: { ...action.params, toAddress: r.address, toLabel: r.label } }
     }
     case 'add_recurring':
     case 'add_agent_recurring': {
       const r = await resolveRecipient(action.params.recipient, store)
-      return { ...action, params: { ...action.params, recipient: r.address, toLabel: r.label } } as NanAction
+      return { ...action, params: { ...action.params, recipient: r.address, toLabel: r.label } }
     }
     case 'add_contact': {
       const r = await resolveRecipient(action.params.address, store)
-      return { ...action, params: { ...action.params, address: r.address } } as NanAction
+      return { ...action, params: { ...action.params, address: r.address } }
     }
     default:
       return action

@@ -334,7 +334,7 @@ export function buildPaymentRecord(opts: {
     capability: opts.subtask.agentRef?.capabilityName ?? opts.subtask.label,
     amount_usdc: amount,
     currency: 'USDC',
-    network: 'arc-testnet',
+    network: 'arc',
     payment_status: amount === 0 ? 'not_required' : (opts.tx_id ? 'confirmed' : 'pending'),
     tx_id: opts.tx_id,
     policy_decision: opts.policy_decision,

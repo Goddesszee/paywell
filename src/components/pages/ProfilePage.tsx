@@ -181,7 +181,7 @@ export function ProfilePage() {
           </button>
           <div>
             <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.025em', color: C.text }}>Profile</div>
-            <div style={{ fontSize: 13, color: C.t3 }}>NAN · Arc Testnet · Circle USDC</div>
+            <div style={{ fontSize: 13, color: C.t3 }}>NAN · Arc · Circle USDC</div>
           </div>
         </div>
 

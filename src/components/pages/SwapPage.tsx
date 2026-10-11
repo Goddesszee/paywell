@@ -11,17 +11,17 @@ import { swapFee, SWAP_FEE_BPS, bpsToPercent } from '../../lib/fees'
 import { W3SSdk } from '@circle-fin/w3s-pw-web-sdk'
 import { useNanTheme } from '../../hooks/useNanTheme'
 
-const CHAIN_ID  = 5042002
-const CHAIN_KEY = 'Arc_Testnet'
+const CHAIN_ID  = 5042
+const CHAIN_KEY = 'Arc'
 
 // ── Token registry with logos + addresses ─────────────────────────────────────
-// Addresses on Arc Testnet (chainId 5042002). null = native/no ERC-20 on this chain.
+// Addresses on Arc Mainnet (chainId 5042). null = native/no ERC-20 on this chain.
 const TOKEN_META: Record<string, { label: string; color: string; address: `0x${string}` | null; decimals: number; logo: string; arcUnsupported?: boolean }> = {
   USDC:  { label: 'USD Coin',        color: '#2775CA', address: '0x3600000000000000000000000000000000000000', decimals: 6,  logo: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48/logo.png' },
   EURC:  { label: 'Euro Coin',        color: '#0099CC', address: '0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a', decimals: 6,  logo: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x1aBaEA1f7C830bD89Acc67eC4af516284b1bC33c/logo.png' },
-  // cirBTC is live on Arc Testnet — confirmed address from Circle docs
+  // cirBTC is live on Arc — confirmed address from Circle docs
   cirBTC:{ label: 'Circle Wrapped BTC', color: '#F7931A', address: '0xf0C4a4CE82A5746AbAAd9425360Ab04fbBA432BF', decimals: 8, logo: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599/logo.png' },
-  // Tokens below have no deployed contract on Arc Testnet — they are shown in
+  // Tokens below have no deployed contract on Arc — they are shown in
   // the selector for cross-chain awareness but flagged as unavailable on this chain.
   USDT:  { label: 'Tether USD',       color: '#26A17B', address: null, decimals: 6,  logo: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xdAC17F958D2ee523a2206206994597C13D831ec7/logo.png',  arcUnsupported: true },
   PYUSD: { label: 'PayPal USD',       color: '#0070BA', address: null, decimals: 6,  logo: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x6c3ea9036406852006290770BEdFcAbA0e23A0e8/logo.png',  arcUnsupported: true },
@@ -128,7 +128,7 @@ function TokenModal({ current, exclude, onSelect, onClose, c }: {
                   <div style={{ fontSize: 14, fontWeight: 700, color: t === current ? c.blue : c.text }}>{t}</div>
                   <div style={{ fontSize: 11, color: c.t3 }}>
                     {TOKEN_META[t].label}
-                    {TOKEN_META[t].arcUnsupported && <span style={{ marginLeft: 6, fontSize: 10, color: '#F59E0B', fontWeight: 600 }}>· Not on Arc Testnet</span>}
+                    {TOKEN_META[t].arcUnsupported && <span style={{ marginLeft: 6, fontSize: 10, color: '#F59E0B', fontWeight: 600 }}>· Not on Arc</span>}
                   </div>
                 </div>
               </div>
@@ -277,7 +277,7 @@ export function SwapPage() {
   const arcNoPair = (tokenIn === 'USDC' && tokenOut === 'NATIVE') || (tokenIn === 'NATIVE' && tokenOut === 'USDC')
   const sameToken = tokenIn === tokenOut
   const arcUnsupportedPair = !!(TOKEN_META[tokenIn]?.arcUnsupported || TOKEN_META[tokenOut]?.arcUnsupported)
-  // All 3 Arc Testnet tokens (USDC, EURC, cirBTC) route in both directions per Circle docs.
+  // All 3 Arc tokens (USDC, EURC, cirBTC) route in both directions per Circle docs.
   const invalid   = sameToken || arcNoPair || arcUnsupportedPair
   // Passkey users sign client-side; Circle email/Google users go server-side
   const canReview = (isConnected || isCircleUser || isPasskeyUser) && !!amountIn && parseFloat(amountIn) > 0 && !invalid
@@ -306,7 +306,7 @@ export function SwapPage() {
       return getPasskeyAdapter({ clientKey })
     }
     if (!connector) throw new Error('Wallet not connected')
-    // Switch wallet to Arc Testnet before creating the adapter
+    // Switch wallet to Arc before creating the adapter
     if (chainId !== CHAIN_ID) await switchChainAsync({ chainId: CHAIN_ID })
     const provider = (await connector.getProvider()) as EIP1193Provider
     return createViemAdapterFromProvider({ provider })
@@ -418,7 +418,7 @@ export function SwapPage() {
   const friendlySwapError = (e: unknown): string => {
     const msg = e instanceof Error ? e.message : String(e)
     if (msg.toLowerCase().includes('no route') || msg.toLowerCase().includes('route or resource not found') || msg.toLowerCase().includes('no swap route'))
-      return `No swap route available for ${tokenIn} → ${tokenOut} on Arc Testnet right now. Circle's swap liquidity is occasionally unavailable on testnet — please wait a few seconds and try again.`
+      return `No swap route available for ${tokenIn} → ${tokenOut} on Arc right now. Please wait a few seconds and try again.`
     if (msg.toLowerCase().includes('insufficient')) return `Insufficient balance to swap ${amountIn} ${tokenIn}.`
     if (msg.toLowerCase().includes('slippage')) return `Price moved too much. Try raising the slippage tolerance in settings.`
     if (msg.toLowerCase().includes('validation failed') && msg.toLowerCase().includes('apikey')) return `Swap configuration error. Please refresh the page and try again.`
@@ -487,7 +487,7 @@ export function SwapPage() {
         <div style={{ fontSize: 24, fontWeight: 800, color: c.text, letterSpacing: '-0.03em', marginBottom: 6 }}>Swap complete</div>
         <div style={{ fontSize: 14, color: c.t2, marginBottom: 28 }}>Your tokens have been exchanged.</div>
         {txHash && (
-          <a href={explorerUrl || `https://explorer.testnet.arc.io/tx/${txHash}`} target="_blank" rel="noreferrer"
+          <a href={explorerUrl || `https://explorer.arc.io/tx/${txHash}`} target="_blank" rel="noreferrer"
             style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: c.blue, textDecoration: 'none', background: c.blueDim, border: `1px solid ${c.blueBd}`, borderRadius: 10, padding: '8px 16px', marginBottom: 28, fontFamily: MONO }}>
             {txHash.slice(0, 14)}… <ExternalLink size={11} />
           </a>
@@ -507,7 +507,7 @@ export function SwapPage() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 0 18px' }}>
         <div>
           <div style={{ fontSize: 22, fontWeight: 800, color: c.text, letterSpacing: '-0.03em', lineHeight: 1.1 }}>Swap</div>
-          <div style={{ fontSize: 12, color: c.t3, marginTop: 3 }}>Circle App Kit · Arc Testnet</div>
+          <div style={{ fontSize: 12, color: c.t3, marginTop: 3 }}>Circle App Kit · Arc</div>
         </div>
         <button onClick={() => setShowSlippage(true)}
           style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 14px', borderRadius: 12, border: `1px solid ${c.bdr}`, background: c.surf, cursor: 'pointer', transition: 'all 0.15s', WebkitTapHighlightColor: 'transparent' }}>
@@ -599,7 +599,7 @@ export function SwapPage() {
           <span>
             {arcNoPair ? 'USDC and NATIVE are the same asset on Arc.'
               : sameToken ? 'Choose different tokens to swap.'
-              : `${TOKEN_META[tokenIn]?.arcUnsupported ? tokenIn : tokenOut} is not available on Arc Testnet. Only USDC, EURC, and cirBTC can be swapped here.`}
+              : `${TOKEN_META[tokenIn]?.arcUnsupported ? tokenIn : tokenOut} is not available on Arc. Only USDC, EURC, and cirBTC can be swapped here.`}
           </span>
         </div>
       )}
@@ -664,7 +664,7 @@ export function SwapPage() {
             ? <><span className="nan-spinner" />Swapping…</>
             : !isConnected && !isCircleUser && !isPasskeyUser ? 'Connect wallet to swap'
             : !amountIn || parseFloat(amountIn) === 0 ? 'Enter an amount'
-            : arcUnsupportedPair ? 'Token not on Arc Testnet'
+            : arcUnsupportedPair ? 'Token not on Arc'
             : invalid ? 'Select different tokens'
             : 'Get quote'}
         </button>

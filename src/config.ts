@@ -4,80 +4,76 @@
  */
 
 import { http, createConfig } from 'wagmi'
-import { mainnet, sepolia, baseSepolia, arbitrumSepolia, optimismSepolia, polygonAmoy, avalancheFuji } from 'wagmi/chains'
-import { arcTestnet } from 'viem/chains'
+import { mainnet, base, arbitrum, optimism, polygon, avalanche } from 'wagmi/chains'
+import { arc } from 'viem/chains'
 import { injected } from 'wagmi/connectors'
 import { registerChain } from './tracing'
 
-// Unichain Sepolia (chainId 1301) and Linea Sepolia (59141) are not in wagmi/chains yet —
-// define them manually so switchChain works for bridge flows.
-const unichainSepolia = {
-  id: 1301,
-  name: 'Unichain Sepolia',
+// Unichain Mainnet (chainId 130) — not yet in wagmi/chains, define manually.
+const unichain = {
+  id: 130,
+  name: 'Unichain',
   nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
-  rpcUrls: { default: { http: ['https://sepolia.unichain.org'] } },
-  blockExplorers: { default: { name: 'Uniscan', url: 'https://sepolia.uniscan.xyz' } },
-  testnet: true,
+  rpcUrls: { default: { http: ['https://mainnet.unichain.org'] } },
+  blockExplorers: { default: { name: 'Uniscan', url: 'https://uniscan.xyz' } },
 } as const
 
-const lineaSepolia = {
-  id: 59141,
-  name: 'Linea Sepolia',
+// Linea Mainnet (chainId 59144)
+const linea = {
+  id: 59144,
+  name: 'Linea',
   nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
-  rpcUrls: { default: { http: ['https://rpc.sepolia.linea.build'] } },
-  blockExplorers: { default: { name: 'LineaScan', url: 'https://sepolia.lineascan.build' } },
-  testnet: true,
+  rpcUrls: { default: { http: ['https://rpc.linea.build'] } },
+  blockExplorers: { default: { name: 'LineaScan', url: 'https://lineascan.build' } },
 } as const
 
-const seiTestnet = {
-  id: 1328,
-  name: 'Sei Testnet',
+// Sei Mainnet (chainId 1329)
+const sei = {
+  id: 1329,
+  name: 'Sei',
   nativeCurrency: { name: 'Sei', symbol: 'SEI', decimals: 18 },
-  rpcUrls: { default: { http: ['https://evm-rpc-testnet.sei-apis.com'] } },
+  rpcUrls: { default: { http: ['https://evm-rpc.sei-apis.com'] } },
   blockExplorers: { default: { name: 'SeiStream', url: 'https://seistream.app' } },
-  testnet: true,
 } as const
 
-const worldChainSepolia = {
-  id: 4801,
-  name: 'World Chain Sepolia',
+// World Chain Mainnet (chainId 480)
+const worldChain = {
+  id: 480,
+  name: 'World Chain',
   nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
-  rpcUrls: { default: { http: ['https://worldchain-sepolia.g.alchemy.com/public'] } },
-  blockExplorers: { default: { name: 'World Chain Explorer', url: 'https://worldchain-sepolia.explorer.alchemy.com' } },
-  testnet: true,
+  rpcUrls: { default: { http: ['https://worldchain-mainnet.g.alchemy.com/public'] } },
+  blockExplorers: { default: { name: 'World Chain Explorer', url: 'https://worldchain-mainnet.explorer.alchemy.com' } },
 } as const
 
-// Pre-register chain RPC URLs so trace events show correct chain names immediately
-registerChain(arcTestnet.id, arcTestnet.rpcUrls.default.http[0])
+// Pre-register Arc Mainnet RPC URL so trace events show correct chain names immediately
+registerChain(arc.id, 'https://rpc.mainnet.arc.io')
 
 export const config = createConfig({
   chains: [
-    arcTestnet,
-    mainnet,       // ENS resolution
-    sepolia,
-    baseSepolia,
-    arbitrumSepolia,
-    optimismSepolia,
-    polygonAmoy,
-    avalancheFuji,
-    unichainSepolia,
-    lineaSepolia,
-    seiTestnet,
-    worldChainSepolia,
+    arc,
+    mainnet,      // ENS resolution
+    base,
+    arbitrum,
+    optimism,
+    polygon,
+    avalanche,
+    unichain,
+    linea,
+    sei,
+    worldChain,
   ],
   connectors: [injected()],
   transports: {
-    [arcTestnet.id]:        http('https://rpc.testnet.arc.io'),
-    [mainnet.id]:           http(),
-    [sepolia.id]:           http(),
-    [baseSepolia.id]:       http(),
-    [arbitrumSepolia.id]:   http(),
-    [optimismSepolia.id]:   http(),
-    [polygonAmoy.id]:       http(),
-    [avalancheFuji.id]:     http(),
-    [unichainSepolia.id]:   http(),
-    [lineaSepolia.id]:      http(),
-    [seiTestnet.id]:        http(),
-    [worldChainSepolia.id]: http(),
+    [arc.id]:         http('https://rpc.mainnet.arc.io'),
+    [mainnet.id]:     http(),
+    [base.id]:        http(),
+    [arbitrum.id]:    http(),
+    [optimism.id]:    http(),
+    [polygon.id]:     http(),
+    [avalanche.id]:   http(),
+    [unichain.id]:    http(),
+    [linea.id]:       http(),
+    [sei.id]:         http(),
+    [worldChain.id]:  http(),
   },
 })

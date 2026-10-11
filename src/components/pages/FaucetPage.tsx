@@ -103,7 +103,7 @@ export function FaucetPage() {
         </div>
 
         <p style={{ textAlign: 'center', fontSize: 14, color: PW_TEXT_2, marginBottom: 20, lineHeight: 1.5 }}>
-          Get free testnet USDC on Arc Testnet — funds both your gas balance and your
+          Get free testnet USDC on Arc — funds both your gas balance and your
           spendable balance, since Arc's gas token is USDC itself.
         </p>
 
@@ -114,7 +114,7 @@ export function FaucetPage() {
             <div style={{ fontSize: 13, fontWeight: 600, color: PW_TEXT, fontFamily: 'monospace' }}>
               {address.slice(0, 10)}...{address.slice(-8)}
             </div>
-            <div style={{ fontSize: 12, color: PW_TEXT_2, marginTop: 2 }}>Arc Testnet · USDC</div>
+            <div style={{ fontSize: 12, color: PW_TEXT_2, marginTop: 2 }}>Arc · USDC</div>
           </div>
         )}
 
@@ -168,7 +168,7 @@ export function FaucetPage() {
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
             }}
           >
-            {loading ? 'Requesting…' : 'Claim Testnet USDC →'}
+            {loading ? 'Requesting…' : 'Claim USDC →'}
           </button>
         )}
 

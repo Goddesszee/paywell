@@ -27,7 +27,7 @@ interface BridgeResult { steps?: BridgeStep[]; state?: string }
 type AppKitChain = Parameters<InstanceType<typeof AppKit>['bridge']>[0]['from']['chain']
 
 // ── CCTP V2 Sandbox fee endpoint ──────────────────────────────────────────────
-const CCTP_FEE_API = 'https://iris-api-sandbox.circle.com/v2/burn/USDC/fees'
+const CCTP_FEE_API = 'https://iris-api.circle.com/v2/burn/USDC/fees'
 
 interface BridgeChain {
   label: string
@@ -42,21 +42,21 @@ interface BridgeChain {
   paymasterNote?: string
 }
 
-// CCTP V2 supported testnets. cctpDomain values from onchain-facts.ts.
+// CCTP V2 supported mainnets. cctpDomain values from Circle CCTP registry.
 // Paymaster v0.8 supports Arbitrum, Avalanche, Base, Ethereum, Optimism, Polygon, Unichain.
 // 10% surcharge applies only on Arbitrum and Base.
 const CHAINS: BridgeChain[] = [
-  { label:'Arc Testnet',        kitName:'Arc_Testnet',        chainId:5042002,  cctpDomain:26, explorer:'https://testnet.arcscan.app/tx/',                    gasToken:'USDC', gasIsUsdc:true,  paymasterSupported:false },
-  { label:'Ethereum Sepolia',   kitName:'Ethereum_Sepolia',   chainId:11155111, cctpDomain:0,  explorer:'https://sepolia.etherscan.io/tx/',                    gasToken:'ETH',  gasIsUsdc:false, paymasterSupported:true,  paymasterNote:'Paymaster v0.8 — pay gas in USDC (ERC-4337 wallet required)' },
-  { label:'Base Sepolia',       kitName:'Base_Sepolia',       chainId:84532,    cctpDomain:6,  explorer:'https://sepolia.basescan.org/tx/',                    gasToken:'ETH',  gasIsUsdc:false, paymasterSupported:true,  paymasterNote:'Paymaster v0.7 + v0.8 — pay gas in USDC (10% surcharge, ERC-4337 required)' },
-  { label:'Arbitrum Sepolia',   kitName:'Arbitrum_Sepolia',   chainId:421614,   cctpDomain:3,  explorer:'https://sepolia.arbiscan.io/tx/',                     gasToken:'ETH',  gasIsUsdc:false, paymasterSupported:true,  paymasterNote:'Paymaster v0.7 + v0.8 — pay gas in USDC (10% surcharge, ERC-4337 required)' },
-  { label:'OP Sepolia',         kitName:'Optimism_Sepolia',   chainId:11155420, cctpDomain:2,  explorer:'https://sepolia-optimism.etherscan.io/tx/',           gasToken:'ETH',  gasIsUsdc:false, paymasterSupported:true,  paymasterNote:'Paymaster v0.8 — pay gas in USDC (ERC-4337 wallet required)' },
-  { label:'Polygon Amoy',       kitName:'Polygon_Amoy_Testnet',chainId:80002,   cctpDomain:7,  explorer:'https://www.oklink.com/amoy/tx/',                     gasToken:'POL',  gasIsUsdc:false, paymasterSupported:true,  paymasterNote:'Paymaster v0.8 — pay gas in USDC (ERC-4337 wallet required)' },
-  { label:'Avalanche Fuji',     kitName:'Avalanche_Fuji',     chainId:43113,    cctpDomain:1,  explorer:'https://testnet.snowtrace.io/tx/',                    gasToken:'AVAX', gasIsUsdc:false, paymasterSupported:true,  paymasterNote:'Paymaster v0.8 — pay gas in USDC (ERC-4337 wallet required)' },
-  { label:'Unichain Sepolia',   kitName:'Unichain_Sepolia',   chainId:1301,     cctpDomain:10, explorer:'https://sepolia.uniscan.xyz/tx/',                     gasToken:'ETH',  gasIsUsdc:false, paymasterSupported:true,  paymasterNote:'Paymaster v0.8 — pay gas in USDC (ERC-4337 wallet required)' },
-  { label:'Linea Sepolia',      kitName:'Linea_Sepolia',      chainId:59141,    cctpDomain:-1, explorer:'https://sepolia.lineascan.build/tx/',                 gasToken:'ETH',  gasIsUsdc:false, paymasterSupported:false },
-  { label:'Sei Testnet',        kitName:'Sei_Testnet',        chainId:1328,     cctpDomain:16, explorer:'https://seistream.app/tx/',                           gasToken:'SEI',  gasIsUsdc:false, paymasterSupported:false },
-  { label:'World Chain Sepolia',kitName:'World_Chain_Sepolia',chainId:4801,     cctpDomain:14, explorer:'https://worldchain-sepolia.explorer.alchemy.com/tx/', gasToken:'ETH',  gasIsUsdc:false, paymasterSupported:false },
+  { label:'Arc',          kitName:'Arc',              chainId:5042,    cctpDomain:26, explorer:'https://explorer.arc.io/tx/',                       gasToken:'USDC', gasIsUsdc:true,  paymasterSupported:false },
+  { label:'Ethereum',     kitName:'Ethereum',         chainId:1,       cctpDomain:0,  explorer:'https://etherscan.io/tx/',                           gasToken:'ETH',  gasIsUsdc:false, paymasterSupported:true,  paymasterNote:'Paymaster v0.8 — pay gas in USDC (ERC-4337 wallet required)' },
+  { label:'Base',         kitName:'Base',             chainId:8453,    cctpDomain:6,  explorer:'https://basescan.org/tx/',                           gasToken:'ETH',  gasIsUsdc:false, paymasterSupported:true,  paymasterNote:'Paymaster v0.7 + v0.8 — pay gas in USDC (10% surcharge, ERC-4337 required)' },
+  { label:'Arbitrum One', kitName:'Arbitrum',         chainId:42161,   cctpDomain:3,  explorer:'https://arbiscan.io/tx/',                            gasToken:'ETH',  gasIsUsdc:false, paymasterSupported:true,  paymasterNote:'Paymaster v0.7 + v0.8 — pay gas in USDC (10% surcharge, ERC-4337 required)' },
+  { label:'OP Mainnet',   kitName:'Optimism',         chainId:10,      cctpDomain:2,  explorer:'https://optimistic.etherscan.io/tx/',                gasToken:'ETH',  gasIsUsdc:false, paymasterSupported:true,  paymasterNote:'Paymaster v0.8 — pay gas in USDC (ERC-4337 wallet required)' },
+  { label:'Polygon',      kitName:'Polygon',          chainId:137,     cctpDomain:7,  explorer:'https://polygonscan.com/tx/',                        gasToken:'POL',  gasIsUsdc:false, paymasterSupported:true,  paymasterNote:'Paymaster v0.8 — pay gas in USDC (ERC-4337 wallet required)' },
+  { label:'Avalanche',    kitName:'Avalanche',        chainId:43114,   cctpDomain:1,  explorer:'https://snowtrace.io/tx/',                           gasToken:'AVAX', gasIsUsdc:false, paymasterSupported:true,  paymasterNote:'Paymaster v0.8 — pay gas in USDC (ERC-4337 wallet required)' },
+  { label:'Unichain',     kitName:'Unichain',         chainId:130,     cctpDomain:10, explorer:'https://uniscan.xyz/tx/',                            gasToken:'ETH',  gasIsUsdc:false, paymasterSupported:true,  paymasterNote:'Paymaster v0.8 — pay gas in USDC (ERC-4337 wallet required)' },
+  { label:'Linea',        kitName:'Linea',            chainId:59144,   cctpDomain:-1, explorer:'https://lineascan.build/tx/',                        gasToken:'ETH',  gasIsUsdc:false, paymasterSupported:false },
+  { label:'Sei',          kitName:'Sei',              chainId:1329,    cctpDomain:16, explorer:'https://seistream.app/tx/',                          gasToken:'SEI',  gasIsUsdc:false, paymasterSupported:false },
+  { label:'World Chain',  kitName:'World_Chain',      chainId:480,     cctpDomain:14, explorer:'https://worldchain-mainnet.explorer.alchemy.com/tx/',gasToken:'ETH',  gasIsUsdc:false, paymasterSupported:false },
 ]
 
 type StepName = 'approve' | 'burn' | 'fetchAttestation' | 'mint'
@@ -173,7 +173,7 @@ export function BridgePage() {
     if (isCircleUser && wagmiAddress === undefined) {
       const authState = useAppStore.getState().auth
       if (!authState?.userToken) { setErrMsg('Session expired — please log in again.'); setStatus('error'); return }
-      if (fromChain.chainId !== 5042002) { setErrMsg('Circle wallet bridge is only supported from Arc Testnet. Connect a browser wallet to bridge from other chains.'); setStatus('error'); return }
+      if (fromChain.chainId !== 5042) { setErrMsg('Circle wallet bridge is only supported from Arc. Connect a browser wallet to bridge from other chains.'); setStatus('error'); return }
 
       // Resolve walletId + address — fetch fresh if not cached (handles older login sessions)
       let resolvedWalletId = authState.circleWalletId
@@ -267,7 +267,7 @@ export function BridgePage() {
     const clientUrl = import.meta.env.VITE_CLIENT_URL as string | undefined
     if (isPasskeyUser) {
       if (!clientKey || !clientUrl) { setErrMsg('Modular Wallets not configured (VITE_CLIENT_KEY missing)'); setStatus('error'); return }
-      if (fromChain.chainId !== 5042002) { setErrMsg('Passkey wallet bridge is only supported from Arc Testnet currently.'); setStatus('error'); return }
+      if (fromChain.chainId !== 5042) { setErrMsg('Passkey wallet bridge is only supported from Arc currently.'); setStatus('error'); return }
       try {
         updateStep('approve', { status: 'active' })
         const adapter = await getPasskeyAdapter({ clientKey })

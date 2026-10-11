@@ -2,17 +2,17 @@ import { createPublicClient, http, parseAbiItem, formatUnits } from 'viem'
 import { getUsdc, requireChain } from '@/onchain-facts'
 import { ActivityItem } from '../store/appStore'
 
-const ARC_TESTNET_ID = 5042002
+const ARC_ID = 5042
 export const ACTIVITY_POLL_INTERVAL = 30_000
 
 // ── Public client (module-level singleton, recreated only when needed) ────────
 let _client: ReturnType<typeof createPublicClient> | null = null
 function getClient() {
   if (_client) return _client
-  const chain = requireChain(ARC_TESTNET_ID)
+  const chain = requireChain(ARC_ID)
   _client = createPublicClient({
     chain: {
-      id: ARC_TESTNET_ID,
+      id: ARC_ID,
       name: chain.name,
       nativeCurrency: { name: 'USDC', symbol: 'USDC', decimals: chain.nativeCurrency.decimals },
       rpcUrls: { default: { http: [chain.rpcUrls[0]] } },
@@ -30,8 +30,8 @@ export async function fetchOnchainActivity(
   /** True on the very first call — seeds seenSet without firing onNewReceived. */
   isFirst: boolean,
 ): Promise<{ items: ActivityItem[]; newReceived: ActivityItem[] }> {
-  const usdc = getUsdc(ARC_TESTNET_ID)
-  if (!usdc) throw new Error('USDC not found for Arc Testnet')
+  const usdc = getUsdc(ARC_ID)
+  if (!usdc) throw new Error('USDC not found for Arc')
 
   const client = getClient()
   const addr = address.toLowerCase() as `0x${string}`
@@ -40,7 +40,7 @@ export async function fetchOnchainActivity(
 
   const latest = await client.getBlockNumber()
 
-  // Arc Testnet RPC rejects ranges > ~1 000 blocks with "requested range too large".
+  // Arc RPC rejects ranges > ~1 000 blocks with "requested range too large".
   // Paginate over up to 5 pages of 1 000 blocks each (5 000 blocks of history).
   const PAGE_SIZE = 1_000n
   const MAX_PAGES = 5
@@ -84,7 +84,7 @@ export async function fetchOnchainActivity(
     }),
   )
 
-  const chain = requireChain(ARC_TESTNET_ID)
+  const chain = requireChain(ARC_ID)
 
   const toItem = (log: typeof sentLogs[0], isIn: boolean): ActivityItem => {
     const val = log.args.value ?? 0n

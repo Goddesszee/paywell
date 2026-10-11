@@ -18,14 +18,14 @@ const BLUE_BD  = 'rgba(8,102,245,0.20)'
 const TEXT = 'var(--nan-text)'
 const T2   = 'var(--nan-text2)'
 const T3   = 'var(--nan-text3)'
-const ARC  = 5042002
+const ARC  = 5042
 
 // ── Gateway addresses from onchain-facts ─────────────────────────────────────
 const GATEWAY_WALLET = getProtocolContractByName('GatewayWallet', 'testnet')!.address as `0x${string}`
 const GATEWAY_MINTER = getProtocolContractByName('GatewayMinter', 'testnet')!.address as `0x${string}`
 
 // ── Gateway REST API ──────────────────────────────────────────────────────────
-const GATEWAY_API = 'https://gateway-api-testnet.circle.com/v1'
+const GATEWAY_API = 'https://gateway-api.circle.com/v1'
 
 // ── Correct Gateway ABIs ──────────────────────────────────────────────────────
 // deposit(address token, uint256 value) — credits the caller's unified balance
@@ -98,23 +98,21 @@ function randomHex32(): `0x${string}` {
   return `0x${Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('')}`
 }
 
-// Chains with Gateway testnet support
+// Chains with Gateway mainnet support
 const GATEWAY_CHAINS = ONCHAIN_CHAINS.filter(c =>
-  c.isTestnet && c.usdc && [5042002, 11155111, 84532, 421614, 43113, 80002, 11155420, 1301].includes(c.chainId)
+  !c.isTestnet && c.usdc && [5042, 1, 8453, 42161, 43114, 137, 10, 130].includes(c.chainId)
 )
 
-// Domain IDs for testnet — must match Circle's CCTP domain registry exactly.
-// Arbitrum Sepolia is domain 3 but has no cctpDomain in onchain-facts; add it here
-// so DOMAIN_MAP[421614] is never undefined when it is chosen as the destination.
+// Domain IDs for mainnet — must match Circle's CCTP domain registry exactly.
 const DOMAIN_MAP: Record<number, number> = {
-  11155111: 0,  // Ethereum Sepolia
-  43113:    1,  // Avalanche Fuji
-  11155420: 2,  // OP Sepolia
-  421614:   3,  // Arbitrum Sepolia
-  84532:    6,  // Base Sepolia
-  80002:    7,  // Polygon Amoy
-  1301:     10, // Unichain Sepolia
-  5042002:  26, // Arc Testnet
+  1:      0,  // Ethereum
+  43114:  1,  // Avalanche
+  10:     2,  // OP Mainnet
+  42161:  3,  // Arbitrum One
+  8453:   6,  // Base
+  137:    7,  // Polygon
+  130:    10, // Unichain
+  5042:   26, // Arc
 }
 
 // ── Gateway REST API helpers ──────────────────────────────────────────────────
@@ -355,7 +353,7 @@ export function GatewayPage() {
         {address && (
           <div style={{ marginTop:16, paddingTop:14, borderTop:`1px solid ${BDR}`, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
             <span style={{ fontSize:11, color:T3, fontFamily:MONO }}>{address.slice(0,8)}…{address.slice(-6)}</span>
-            <span style={{ fontSize:11, color:T3 }}>Arc Testnet</span>
+            <span style={{ fontSize:11, color:T3 }}>Arc</span>
           </div>
         )}
       </div>
@@ -637,11 +635,11 @@ function PasskeyDepositTab({ address, walletBalance, usdcFact, onSuccess }: {
       const { toWebAuthnAccount, createBundlerClient } = await import('viem/account-abstraction')
       const { toCircleSmartAccount, toModularTransport, toWebAuthnCredential, WebAuthnMode } = await import('@circle-fin/modular-wallets-core')
       const { createPublicClient } = await import('viem')
-      const { arcTestnet } = await import('viem/chains')
+      const { arc } = await import('viem/chains')
 
       const MODULAR_URL = 'https://modular-sdk.circle.com/v1/rpc/w3s/buidl'
-      const modularTransport = toModularTransport(`${MODULAR_URL}/arcTestnet`, clientKey)
-      const publicClient = createPublicClient({ chain: arcTestnet, transport: modularTransport })
+      const modularTransport = toModularTransport(`${MODULAR_URL}/arc`, clientKey)
+      const publicClient = createPublicClient({ chain: arc, transport: modularTransport })
 
       // Re-authenticate passkey to get a fresh credential for signing
       const passkeyTransport = (await import('@circle-fin/modular-wallets-core')).toPasskeyTransport(MODULAR_URL, clientKey)
@@ -654,7 +652,7 @@ function PasskeyDepositTab({ address, walletBalance, usdcFact, onSuccess }: {
 
       const bundlerClient = createBundlerClient({
         account,
-        chain: arcTestnet,
+        chain: arc,
         transport: modularTransport,
       })
 
@@ -761,7 +759,7 @@ function PasskeyDepositTab({ address, walletBalance, usdcFact, onSuccess }: {
   )
 }
 
-// Multicall3 on Arc Testnet — kept for reference
+// Multicall3 on Arc — kept for reference
 const _MULTICALL3 = '0xcA11bde05977b3631167028862bE2a173976CA11' as const
 void _MULTICALL3
 const _MULTICALL3_ABI = [{
@@ -905,7 +903,7 @@ function DestChainSelector({ chains, value, onChange, disabled }: {
 
 // ── Transfer tab (EVM-to-EVM via Gateway burn intent + gatewayMint) ────────────
 // Per Circle docs, the Forwarding Service handles the dest-chain mint —
-// the user only needs Arc Testnet native tokens (USDC) to sign.
+// the user only needs Arc native tokens (USDC) to sign.
 // No dest-chain gas required at all.
 type TransferPhase = 'idle' | 'estimating' | 'signing' | 'submitting' | 'minting' | 'forwarding' | 'done' | 'error'
 
@@ -913,7 +911,7 @@ function TransferTab({ address, gatewayBalance, onSuccess }: {
   address: `0x${string}`; gatewayBalance: string|null; onSuccess: () => void
 }) {
   const [amount, setAmount] = useState('')
-  const [destChainId, setDestChainId] = useState<number>(84532)
+  const [destChainId, setDestChainId] = useState<number>(8453)
   useGatewayPrefill('transfer', setAmount, setDestChainId)
   const [phase, setPhase] = useState<TransferPhase>('idle')
   const [errMsg, setErrMsg] = useState('')
@@ -1098,7 +1096,7 @@ function TransferTab({ address, gatewayBalance, onSuccess }: {
         <div style={{ padding:'12px 16px', borderBottom:`1px solid ${BDR}`, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
           <div>
             <div style={{ fontSize:10, fontWeight:700, color:T3, letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:3 }}>From</div>
-            <div style={{ fontSize:14, fontWeight:600, color:TEXT }}>Arc Testnet</div>
+            <div style={{ fontSize:14, fontWeight:600, color:TEXT }}>Arc</div>
           </div>
           <div style={{ textAlign:'right' }}>
             <div style={{ fontSize:10, fontWeight:700, color:T3, letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:3 }}>Gateway Balance</div>
@@ -1145,7 +1143,7 @@ function TransferTab({ address, gatewayBalance, onSuccess }: {
               </div>
               <span style={{ fontSize:13, color: s.active ? TEXT : s.done ? TEXT : T2 }}>{s.label}</span>
               {s.done && i===3 && transferId && (
-                <a href={`https://gateway-api-testnet.circle.com/v1/transfer/${transferId}`} target="_blank" rel="noreferrer" style={{ marginLeft:'auto', fontSize:11, color:T2, display:'flex', alignItems:'center', gap:3 }}>Details <ExternalLink size={10} /></a>
+                <a href={`https://gateway-api.circle.com/v1/transfer/${transferId}`} target="_blank" rel="noreferrer" style={{ marginLeft:'auto', fontSize:11, color:T2, display:'flex', alignItems:'center', gap:3 }}>Details <ExternalLink size={10} /></a>
               )}
             </div>
           ))}
@@ -1203,7 +1201,7 @@ function CircleTransferTab({ address, gatewayBalance, onSuccess }: {
   const { auth } = useAppStore()
   const isPasskey = !!auth?.isPasskeyUser
   const [amount, setAmount]           = useState('')
-  const [destChainId, setDestChainId] = useState<number>(84532)
+  const [destChainId, setDestChainId] = useState<number>(8453)
   useGatewayPrefill('transfer', setAmount, setDestChainId)
   const [phase, setPhase]             = useState<TransferPhase>('idle')
   const [errMsg, setErrMsg]           = useState('')
@@ -1275,13 +1273,13 @@ function CircleTransferTab({ address, gatewayBalance, onSuccess }: {
         const viemChains = await import('viem/chains')
 
         const MODULAR_URL = 'https://modular-sdk.circle.com/v1/rpc/w3s/buidl'
-        const arcChain = viemChains.arcTestnet ?? { id: ARC, name: 'Arc Testnet', nativeCurrency: { name: 'USDC', symbol: 'USDC', decimals: 18 }, rpcUrls: { default: { http: ['https://rpc.testnet.arc.io'] } } }
+        const arcChain = viemChains.arc ?? { id: ARC, name: 'Arc', nativeCurrency: { name: 'USDC', symbol: 'USDC', decimals: 18 }, rpcUrls: { default: { http: ['https://rpc.mainnet.arc.io'] } } }
 
         // Use a plain HTTP public client for chain reads (nonce, receipts).
         // toModularTransport is only needed for user-op bundler calls — we pass
         // it to toCircleSmartAccount so signTypedData goes via the bundler correctly.
-        const arcHttpClient = mkPublic({ chain: arcChain, transport: httpTransport('https://rpc.testnet.arc.io') })
-        const arcModularTransport = toModularTransport(`${MODULAR_URL}/arcTestnet`, clientKey)
+        const arcHttpClient = mkPublic({ chain: arcChain, transport: httpTransport('https://rpc.mainnet.arc.io') })
+        const arcModularTransport = toModularTransport(`${MODULAR_URL}/arc`, clientKey)
         const arcBundlerClient   = mkPublic({ chain: arcChain, transport: arcModularTransport })
 
         // Authenticate the passkey — toPasskeyTransport calls WebAuthn (browser-native,
@@ -1419,7 +1417,7 @@ function CircleTransferTab({ address, gatewayBalance, onSuccess }: {
         <div style={{ padding:'12px 16px', borderBottom:`1px solid ${BDR}`, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
           <div>
             <div style={{ fontSize:10, fontWeight:700, color:T3, letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:3 }}>From</div>
-            <div style={{ fontSize:14, fontWeight:600, color:TEXT }}>Arc Testnet</div>
+            <div style={{ fontSize:14, fontWeight:600, color:TEXT }}>Arc</div>
           </div>
           <div style={{ textAlign:'right' }}>
             <div style={{ fontSize:10, fontWeight:700, color:T3, letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:3 }}>Gateway Balance</div>

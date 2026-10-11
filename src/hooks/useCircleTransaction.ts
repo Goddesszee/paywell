@@ -31,7 +31,7 @@ export interface TransferParams {
   destinationAddress: string
   amount: string
   tokenAddress?: string        // empty string = native (USDC on Arc)
-  blockchain?: string          // default: ARC-TESTNET
+  blockchain?: string          // default: ARC
 }
 
 export interface ContractExecParams {
@@ -245,7 +245,7 @@ export function useCircleTransaction() {
         destinationAddress: params.destinationAddress,
         amount: params.amount,
         tokenAddress: params.tokenAddress ?? '',
-        blockchain: params.blockchain ?? 'ARC-TESTNET',
+        blockchain: params.blockchain ?? 'ARC',
       })
       if (!transactionId) return undefined
       return _poll(transactionId)

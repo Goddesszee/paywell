@@ -24,7 +24,7 @@ import { AnimatedNumber } from '../ui/AnimatedNumber'
 import { haptic } from '../../hooks/useHaptics'
 import { useNanName } from '../../hooks/useNanName'
 
-const ARC_TESTNET_ID = 5042002
+const ARC_ID = 5042
 const SANS = 'Inter, -apple-system, sans-serif'
 
 // ── Supported send tokens ─────────────────────────────────────────────────────
@@ -40,7 +40,7 @@ function useTokenBalance(tokenAddress: `0x${string}`, decimals: number, address:
     abi: erc20Abi,
     functionName: 'balanceOf',
     args: address ? [address as `0x${string}`] : undefined,
-    chainId: ARC_TESTNET_ID,
+    chainId: ARC_ID,
     query: { enabled: !!address },
   })
   const rawNum = rawBalance !== undefined ? Number(rawBalance) / 10 ** decimals : 0
@@ -49,20 +49,20 @@ function useTokenBalance(tokenAddress: `0x${string}`, decimals: number, address:
 }
 
 function useWalletBalance(address: string) {
-  const usdcFact = getUsdc(ARC_TESTNET_ID)
+  const usdcFact = getUsdc(ARC_ID)
   const { data: rawBalance, isLoading, refetch } = useReadContract({
     address: usdcFact?.address as `0x${string}`,
     abi: erc20Abi,
     functionName: 'balanceOf',
     args: address ? [address as `0x${string}`] : undefined,
-    chainId: ARC_TESTNET_ID,
+    chainId: ARC_ID,
     query: { enabled: !!address && !!usdcFact },
   })
   const rawNum = rawBalance !== undefined
-    ? parseFloat(Amount.fromRaw(rawBalance, usdcDecimalsFor(ARC_TESTNET_ID)).toFixed(6))
+    ? parseFloat(Amount.fromRaw(rawBalance, usdcDecimalsFor(ARC_ID)).toFixed(6))
     : 0
   const balance = rawBalance !== undefined
-    ? Amount.fromRaw(rawBalance, usdcDecimalsFor(ARC_TESTNET_ID)).toFixed(2)
+    ? Amount.fromRaw(rawBalance, usdcDecimalsFor(ARC_ID)).toFixed(2)
     : null
   return { balance, rawNum, isLoading, refetch }
 }
@@ -93,7 +93,7 @@ export function WalletPage({ initialSubView = 'main' }: { initialSubView?: Walle
   useEffect(() => { setHydrated(true) }, [])
   /* eslint-enable react/set-state-in-effect */
 
-  const chain = requireChain(ARC_TESTNET_ID)
+  const chain = requireChain(ARC_ID)
   const { balance, rawNum, isLoading, refetch } = useWalletBalance(address ?? '')
 
   // Keep global store in sync so Agent Chat always has the real main wallet balance
@@ -394,7 +394,7 @@ function SendFlow({
   const { rawNum } = useTokenBalance(selectedToken.address, selectedToken.decimals, _address)
   const { writeContract, data: txHash, isPending, error: writeError, reset } = useWriteContract()
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash: txHash })
-  const isWrongChain = chainId !== undefined && chainId !== ARC_TESTNET_ID
+  const isWrongChain = chainId !== undefined && chainId !== ARC_ID
   // Circle user-controlled wallet send path
   const circleTx = useCircleTransaction()
   const circleStatus  = circleTx.status
@@ -512,7 +512,7 @@ function SendFlow({
         destinationAddress: recipient,
         amount,
         tokenAddress: selectedToken.address,
-        blockchain: 'ARC-TESTNET',
+        blockchain: 'ARC',
       }).then(hash => {
         if (hash) {
           haptic('success')
@@ -540,14 +540,14 @@ function SendFlow({
       })
       return
     }
-    if (isWrongChain) { switchChain({ chainId: ARC_TESTNET_ID }); return }
+    if (isWrongChain) { switchChain({ chainId: ARC_ID }); return }
     const rawAmount = BigInt(Math.round(parseFloat(amount) * 10 ** selectedToken.decimals))
     writeContract({
       address: selectedToken.address,
       abi: erc20Abi,
       functionName: 'transfer',
       args: [recipient as `0x${string}`, rawAmount],
-      chainId: ARC_TESTNET_ID,
+      chainId: ARC_ID,
     })
   }
 
@@ -572,7 +572,7 @@ function SendFlow({
       description: note ? note : `Sent ${formatUSDC(parseFloat(amount))} ${selectedToken.symbol}`,
       status: 'confirmed',
       timestamp: new Date().toISOString(),
-      chain: 'Arc Testnet',
+      chain: 'Arc',
       counterparty: recipient,   // receiver
       sender: _address,          // own wallet = sender
       txHash: finalTxHash,
@@ -604,7 +604,7 @@ function SendFlow({
             {[
               { label: 'Amount', value: `${formatUSDC(parseFloat(amount))} ${selectedToken.symbol}` },
               { label: 'To', value: formatAddress(recipient) },
-              { label: 'Network', value: 'Arc Testnet' },
+              { label: 'Network', value: 'Arc' },
               { label: 'Fee', value: '~0.00 USDC' },
             ].map(({ label, value }) => (
               <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid var(--nan-bdr)' }}>
@@ -614,7 +614,7 @@ function SendFlow({
             ))}
             {finalTxHash && (
               <div style={{ paddingTop: 8 }}>
-                <a href={buildTxExplorerUrl(ARC_TESTNET_ID, finalTxHash)} target="_blank" rel="noopener noreferrer"
+                <a href={buildTxExplorerUrl(ARC_ID, finalTxHash)} target="_blank" rel="noopener noreferrer"
                   style={{ fontSize: 12, color: '#0066FF', display: 'flex', alignItems: 'center', gap: 5, fontWeight: 600 }}>
                   <ExternalLink size={12} /> View on explorer
                 </a>
@@ -861,8 +861,8 @@ function SendFlow({
             {isWrongChain && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(255,59,59,0.08)', border: '1px solid rgba(255,59,59,0.2)', borderRadius: 12, padding: '12px 16px' }}>
                 <AlertCircle size={15} color="#FF3B3B" />
-                <span style={{ fontSize: 13, color: '#FF3B3B', flex: 1 }}>Switch to Arc Testnet to send.</span>
-                <button onClick={() => switchChain({ chainId: ARC_TESTNET_ID })} style={{ fontSize: 12, fontWeight: 700, color: '#FF3B3B', background: 'none', border: 'none', cursor: 'pointer' }}>Switch</button>
+                <span style={{ fontSize: 13, color: '#FF3B3B', flex: 1 }}>Switch to Arc to send.</span>
+                <button onClick={() => switchChain({ chainId: ARC_ID })} style={{ fontSize: 12, fontWeight: 700, color: '#FF3B3B', background: 'none', border: 'none', cursor: 'pointer' }}>Switch</button>
               </div>
             )}
 
@@ -935,8 +935,8 @@ function SendFlow({
       {isWrongChain && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(255,59,59,0.08)', border: '1px solid rgba(255,59,59,0.2)', borderRadius: 12, padding: '10px 14px', marginBottom: 14 }}>
           <AlertCircle size={14} color="#FF3B3B" />
-          <span style={{ fontSize: 13, color: '#FF3B3B', flex: 1 }}>Switch to Arc Testnet first.</span>
-          <button onClick={() => switchChain({ chainId: ARC_TESTNET_ID })} style={{ fontSize: 12, fontWeight: 700, color: '#FF3B3B', background: 'none', border: 'none', cursor: 'pointer' }}>Switch</button>
+          <span style={{ fontSize: 13, color: '#FF3B3B', flex: 1 }}>Switch to Arc first.</span>
+          <button onClick={() => switchChain({ chainId: ARC_ID })} style={{ fontSize: 12, fontWeight: 700, color: '#FF3B3B', background: 'none', border: 'none', cursor: 'pointer' }}>Switch</button>
         </div>
       )}
 
@@ -1099,7 +1099,7 @@ function SendFlow({
             { label: 'Token', value: selectedToken.symbol },
             { label: 'Recipient', value: formatAddress(recipient) },
             { label: 'Amount', value: `${formatUSDC(parseFloat(amount || '0'))} ${selectedToken.symbol}` },
-            { label: 'Network', value: 'Arc Testnet' },
+            { label: 'Network', value: 'Arc' },
             ...(note ? [{ label: 'Note', value: note }] : []),
             { label: 'Fee', value: '~0.00 (gas-free)' },
           ].map(({ label, value }) => (
@@ -1171,7 +1171,7 @@ function ReceiveView({ address, onBack }: { address: string; onBack: () => void 
   const nativeShare = () => {
     void navigator.share?.({
       title: 'My NAN Wallet',
-      text: `Send me USDC on Arc Testnet: ${address}`,
+      text: `Send me USDC on Arc: ${address}`,
       url: window.location.href,
     })
   }
@@ -1219,11 +1219,11 @@ function ReceiveView({ address, onBack }: { address: string; onBack: () => void 
         {/* Network + address */}
         <div style={{ marginTop: 28, textAlign: 'center' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 4 }}>
-            <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--nan-text)' }}>Arc Testnet</span>
+            <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--nan-text)' }}>Arc</span>
             <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--nan-text3)', display: 'inline-block' }} />
             <span style={{ fontSize: 16, fontWeight: 500, color: 'var(--nan-text3)', fontFamily: 'JetBrains Mono, monospace' }}>{shortAddr}</span>
           </div>
-          <p style={{ fontSize: 12, color: 'var(--nan-text3)' }}>Only send USDC on Arc Testnet to this address</p>
+          <p style={{ fontSize: 12, color: 'var(--nan-text3)' }}>Only send USDC on Arc to this address</p>
         </div>
       </div>
 

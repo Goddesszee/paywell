@@ -11,7 +11,7 @@ import { useNanTheme } from '../../hooks/useNanTheme'
 
 const F    = "'Inter', -apple-system, sans-serif"
 const MONO = "'JetBrains Mono', 'SF Mono', Menlo, monospace"
-const ARC  = 5042002
+const ARC  = 5042
 const BLUE = '#0066FF'
 
 type PerfPeriod = '24H' | '7D' | '1M' | '3M' | '1Y'
@@ -435,13 +435,13 @@ export function DashboardPage() {
             {/* Network + address */}
             <div style={{ textAlign: 'center', marginBottom: 28 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 4 }}>
-                <span style={{ fontSize: 16, fontWeight: 700, color: C.text }}>Arc Testnet</span>
+                <span style={{ fontSize: 16, fontWeight: 700, color: C.text }}>Arc</span>
                 <span style={{ width: 5, height: 5, borderRadius: '50%', background: C.t3, display: 'inline-block' }} />
                 <span style={{ fontSize: 14, color: C.t3, fontFamily: MONO }}>
                   {address ? `${address.slice(0,8)}...${address.slice(-6)}` : '—'}
                 </span>
               </div>
-              <p style={{ fontSize: 12, color: C.t3 }}>Only send USDC on Arc Testnet to this address</p>
+              <p style={{ fontSize: 12, color: C.t3 }}>Only send USDC on Arc to this address</p>
             </div>
 
             {/* Buttons */}

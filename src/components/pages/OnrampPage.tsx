@@ -13,7 +13,7 @@ const TEXT  = 'var(--nan-text)'
 const T2    = 'var(--nan-text2)'
 const T3    = 'var(--nan-text3)'
 
-// Widget origins for postMessage security. Sandbox is used with Arc Testnet; production for mainnet.
+// Widget origins for postMessage security. Sandbox is used with Arc; production for mainnet.
 // Per https://docs.arc.io/app-kit/references/onramp-hosting-requirements the origin must match
 // what the server minted the session against, so we also derive it from session.widgetUrl.
 const WIDGET_ORIGINS = ['https://onramp-sandbox.arc.io', 'https://onramp.arc.io']
@@ -221,7 +221,7 @@ export function OnrampPage() {
           </div>
           <div>
             <div style={{ fontSize: 20, fontWeight: 800, color: TEXT, letterSpacing: '-0.03em', lineHeight: 1.1 }}>Buy USDC</div>
-            <div style={{ fontSize: 12, color: T2, marginTop: 1 }}>Powered by Circle · Arc Testnet</div>
+            <div style={{ fontSize: 12, color: T2, marginTop: 1 }}>Powered by Circle · Arc</div>
           </div>
           {/* Testnet badge */}
           <div style={{ marginLeft: 'auto', padding: '3px 10px', borderRadius: 20, background: 'rgba(255,149,0,0.10)', border: '1px solid rgba(255,149,0,0.25)', fontSize: 10, fontWeight: 700, color: '#F59E0B', letterSpacing: '0.05em', textTransform: 'uppercase' as const }}>
@@ -250,7 +250,7 @@ export function OnrampPage() {
                   <div style={{ fontSize: 13, fontWeight: 600, color: TEXT, fontFamily: 'var(--nan-mono, monospace)', letterSpacing: '0.01em' }}>
                     {address.slice(0, 8)}…{address.slice(-6)}
                   </div>
-                  <div style={{ fontSize: 11, color: T3, marginTop: 3 }}>Arc Testnet · USDC · ERC-20</div>
+                  <div style={{ fontSize: 11, color: T3, marginTop: 3 }}>Arc · USDC · ERC-20</div>
                 </div>
                 <button onClick={copyAddress}
                   style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 8, background: copied ? 'rgba(0,200,83,0.10)' : SURF2, border: `1px solid ${copied ? 'rgba(0,200,83,0.25)' : BDR}`, cursor: 'pointer', fontSize: 11, fontWeight: 700, color: copied ? '#00C853' : T2, fontFamily: F, transition: 'all 0.15s', flexShrink: 0 }}>
@@ -294,7 +294,7 @@ export function OnrampPage() {
             {[
               { label: 'You pay',             value: `$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD` },
               { label: 'Est. USDC received',  value: `≈ ${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDC`, note: 'Rate provided by Circle at checkout' },
-              { label: 'Destination network', value: 'Arc Testnet' },
+              { label: 'Destination network', value: 'Arc' },
               { label: 'Provider fees',       value: 'Shown at checkout', note: 'Circle discloses fees before confirmation' },
             ].map(({ label, value, note }, i, arr) => (
               <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '10px 0', borderBottom: i < arr.length - 1 ? `1px solid ${BDR}` : 'none', gap: 8 }}>
@@ -311,7 +311,7 @@ export function OnrampPage() {
           <div style={{ marginBottom: 12, padding: '10px 14px', background: 'rgba(255,149,0,0.06)', borderRadius: 12, border: '1px solid rgba(255,149,0,0.18)', display: 'flex', gap: 8, alignItems: 'flex-start' }}>
             <AlertCircle size={13} color="#F59E0B" style={{ flexShrink: 0, marginTop: 1 }} />
             <p style={{ color: T2, fontSize: 12, margin: 0, lineHeight: 1.5 }}>
-              This is <strong style={{ color: TEXT }}>Arc Testnet</strong>. Tokens received are test USDC and have no real-world value.
+              This is <strong style={{ color: TEXT }}>Arc</strong>. Tokens received are test USDC and have no real-world value.
             </p>
           </div>
 
@@ -425,7 +425,7 @@ export function OnrampPage() {
           <div style={{ fontSize: 13, color: T2, marginBottom: 16, lineHeight: 1.6, maxWidth: 280, margin: '0 auto 16px' }}>
             {depositInfo?.settlementExpected === false
               ? 'USDC will arrive in your wallet shortly.'
-              : 'Your purchase was submitted. USDC will arrive on Arc Testnet once settled by Circle.'}
+              : 'Your purchase was submitted. USDC will arrive on Arc once settled by Circle.'}
           </div>
           {depositInfo?.transactionHash && (
             <div style={{ fontSize: 11, color: T3, fontFamily: 'var(--nan-mono, monospace)', marginBottom: 20, wordBreak: 'break-all', padding: '8px 12px', background: SURF2, borderRadius: 8 }}>

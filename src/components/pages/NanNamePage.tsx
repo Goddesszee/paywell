@@ -25,7 +25,7 @@ import { buildAddressExplorerUrl } from '../../onchain-facts'
 
 const NAME_REGISTRY = (import.meta.env.VITE_NAME_REGISTRY as string | undefined) ?? ''
 const USDC_ADDRESS  = '0x3600000000000000000000000000000000000000'
-const ARC_CHAIN_ID  = 5042002
+const ARC_CHAIN_ID  = 5042
 
 const F    = "'Inter', -apple-system, sans-serif"
 const MONO = "'JetBrains Mono', Menlo, monospace"
@@ -103,7 +103,7 @@ function BalloonCelebration({ handle, onDone }: { handle: string; onDone: () => 
           @{handle}
         </div>
         <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.65)', lineHeight: 1.5 }}>
-          Registered onchain on Arc Testnet.<br />
+          Registered onchain on Arc.<br />
           Anyone can send you USDC at @{handle}.
         </div>
         <div style={{ marginTop: 20, fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>
@@ -318,19 +318,19 @@ export function NanNamePage() {
     setStep('approving')
     try {
       const { createPublicClient } = await import('viem')
-      const { arcTestnet } = await import('viem/chains')
+      const { arc } = await import('viem/chains')
       const { toCircleSmartAccount, toModularTransport, toPasskeyTransport, toWebAuthnCredential, WebAuthnMode } = await import('@circle-fin/modular-wallets-core')
       const { createBundlerClient, toWebAuthnAccount } = await import('viem/account-abstraction')
       const MODULAR_URL = 'https://modular-sdk.circle.com/v1/rpc/w3s/buidl'
-      const modularTransport = toModularTransport(`${MODULAR_URL}/arcTestnet`, clientKey)
-      const publicClient = createPublicClient({ chain: arcTestnet, transport: modularTransport })
+      const modularTransport = toModularTransport(`${MODULAR_URL}/arc`, clientKey)
+      const publicClient = createPublicClient({ chain: arc, transport: modularTransport })
 
       // Fresh passkey assertion (same approach as Gateway deposit) — does not depend on a credential
       // that may be missing/stale in localStorage.
       const passkeyTransport = toPasskeyTransport(MODULAR_URL, clientKey)
       const credential = await toWebAuthnCredential({ transport: passkeyTransport, mode: WebAuthnMode.Login })
       const account = await toCircleSmartAccount({ client: publicClient, owner: toWebAuthnAccount({ credential }) })
-      const bundler = createBundlerClient({ account, chain: arcTestnet, transport: modularTransport })
+      const bundler = createBundlerClient({ account, chain: arc, transport: modularTransport })
 
       // approve + register as ONE user operation (one passkey prompt). For a smart account the batched
       // calls all execute with the account as msg.sender, so the approval is valid for the register call.
@@ -678,7 +678,7 @@ export function NanNamePage() {
       <div style={{ background: C.surf2, border: `1px solid ${C.bdr}`, borderRadius: 14, padding: '14px 16px' }}>
         <div style={{ fontSize: 12, fontWeight: 700, color: C.t2, marginBottom: 6 }}>About NAN Names</div>
         <div style={{ fontSize: 12, color: C.t3, lineHeight: 1.6 }}>
-          NAN Names are onchain handles stored on Arc Testnet. Your @handle resolves to your wallet address — anyone can send you USDC without a long hex address. Registration costs 2 USDC/yr and requires two wallet approvals (approve + register).
+          NAN Names are onchain handles stored on Arc. Your @handle resolves to your wallet address — anyone can send you USDC without a long hex address. Registration costs 2 USDC/yr and requires two wallet approvals (approve + register).
         </div>
       </div>
 

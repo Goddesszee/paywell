@@ -98,8 +98,8 @@ async function executeNanopayment(
         },
       })
 
-      const chain = CHAIN_CONFIGS.arcTestnet
-      if (!chain) throw new Error('arcTestnet not found in CHAIN_CONFIGS')
+      const chain = CHAIN_CONFIGS.arc
+      if (!chain) throw new Error('arc not found in CHAIN_CONFIGS')
 
       const initial = await fetch(service_url, { method: 'GET', signal: AbortSignal.timeout(5000) })
       if (initial.status === 402) {

@@ -17,7 +17,7 @@ import { SERVICE_REGISTRY } from '../src/lib/agent-registry'
 
 // ── faucet config ─────────────────────────────────────────────────────────────
 const FAUCET_URL  = 'https://api.circle.com/v1/faucet/drips'
-const BLOCKCHAIN  = 'ARC-TESTNET'
+const BLOCKCHAIN  = 'ARC'
 const COOLDOWN_MS = 24 * 60 * 60 * 1000
 const lastRequestByAddress = new Map<string, number>()
 
@@ -102,7 +102,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (route === 'gateway') {
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
 
-    const GATEWAY_API = 'https://gateway-api-testnet.circle.com/v1'
+    const GATEWAY_API = 'https://gateway-api.circle.com/v1'
     const MODULAR_SDK = 'https://modular-sdk.circle.com/v1/rpc/w3s/buidl'
     const action = req.query.action as string | undefined
 
@@ -173,7 +173,7 @@ NAN integrates deeply with the Circle stack: Circle Agent Stack for agent paymen
         { id: 'gs1', category: 'Getting Started', order: 1, question: 'What is NAN?', answer: 'NAN is an AI-powered financial platform built on Arc. It gives you a smart USDC wallet with an AI agent that can make payments, automate transfers, and manage your money — all within limits you control.' },
         { id: 'gs2', category: 'Getting Started', order: 2, question: 'How do I create an account?', answer: 'Tap "Sign up" on the landing page and log in with your email using a one-time passcode (OTP). No password required. Your wallet is created automatically after you verify your email.' },
         { id: 'gs3', category: 'Getting Started', order: 3, question: 'What blockchain does NAN use?', answer: 'NAN is built on Arc — a blockchain by Circle where USDC is the native gas token. This means you pay transaction fees in USDC, not ETH or another volatile asset. NAN also supports Ethereum, Base, Arbitrum, Optimism, Polygon, Avalanche, and more via bridging.' },
-        { id: 'gs4', category: 'Getting Started', order: 4, question: 'Is NAN on testnet or mainnet?', answer: 'NAN currently runs on Arc Testnet. Testnet USDC has no real monetary value and is used for testing and development. You can get free testnet USDC from the Faucet page in the app.' },
+        { id: 'gs4', category: 'Getting Started', order: 4, question: 'Is NAN on testnet or mainnet?', answer: 'NAN currently runs on Arc. Testnet USDC has no real monetary value and is used for testing and development. You can get free testnet USDC from the Faucet page in the app.' },
         { id: 'gs5', category: 'Getting Started', order: 5, question: 'What currency does NAN use?', answer: 'NAN uses USDC — a regulated, dollar-backed stablecoin issued by Circle. 1 USDC = $1 USD. On Arc, USDC is also the native gas token used to pay transaction fees.' },
 
         // ── Wallet & Balances ──
@@ -185,10 +185,10 @@ NAN integrates deeply with the Circle stack: Circle Agent Stack for agent paymen
 
         // ── Sending & Receiving ──
         { id: 'sr1', category: 'Sending & Receiving', order: 1, question: 'How do I send USDC?', answer: 'From the Home screen, tap "Send". Enter the recipient\'s wallet address and the amount in USDC, then confirm. For Circle email wallet users, a Circle PIN popup will appear to authorize the transaction.' },
-        { id: 'sr2', category: 'Sending & Receiving', order: 2, question: 'How do I receive USDC?', answer: 'Tap "Receive" on the Home screen to see your wallet address and QR code. Share your address with the sender. USDC sent to your address on Arc Testnet will appear in your balance once confirmed.' },
+        { id: 'sr2', category: 'Sending & Receiving', order: 2, question: 'How do I receive USDC?', answer: 'Tap "Receive" on the Home screen to see your wallet address and QR code. Share your address with the sender. USDC sent to your address on Arc will appear in your balance once confirmed.' },
         { id: 'sr3', category: 'Sending & Receiving', order: 3, question: 'How do I request money from someone?', answer: 'Go to Payment Requests and tap "New Request". Enter the amount, description, and optional due date. NAN generates a shareable payment link. When the recipient opens the link, they can pay directly.' },
         { id: 'sr4', category: 'Sending & Receiving', order: 4, question: 'Can I set up recurring payments?', answer: 'Yes. Go to Recurring from the side drawer. You can schedule automatic USDC payments — daily, weekly, or monthly — to any address. The AI agent can also manage recurring payments on your behalf from the Agent Wallet.' },
-        { id: 'sr5', category: 'Sending & Receiving', order: 5, question: 'What is the minimum send amount?', answer: 'There is no minimum enforced by NAN, but Arc Testnet transactions require enough USDC to cover the gas fee. In practice, sending 0.01 USDC or more is reliable. Very small amounts may fail if the balance is too low to cover fees.' },
+        { id: 'sr5', category: 'Sending & Receiving', order: 5, question: 'What is the minimum send amount?', answer: 'There is no minimum enforced by NAN, but Arc transactions require enough USDC to cover the gas fee. In practice, sending 0.01 USDC or more is reliable. Very small amounts may fail if the balance is too low to cover fees.' },
 
         // ── NAN Agent ──
         { id: 'ag1', category: 'NAN Agent', order: 1, question: 'What is the NAN Agent?', answer: 'The NAN Agent is an AI assistant powered by OpenAI GPT-4o. It knows your wallet balances, transaction history, recurring payments, and payment requests. You can ask it questions, request transfers, check your balance, and manage your finances using natural language.' },
@@ -198,9 +198,9 @@ NAN integrates deeply with the Circle stack: Circle Agent Stack for agent paymen
         { id: 'ag5', category: 'NAN Agent', order: 5, question: 'Is the agent talking to a real AI?', answer: 'Yes. NAN Agent uses OpenAI GPT-4o as the primary AI model. Every message is sent with your live account data — balance, recent transactions, recurring payments, and more — so the agent always answers with real, up-to-date information.' },
 
         // ── Bridge & Swap ──
-        { id: 'bs1', category: 'Bridge & Swap', order: 1, question: 'What is the Bridge?', answer: 'The Bridge lets you move USDC from one blockchain to another — for example, from Arc Testnet to Ethereum Sepolia or Base Sepolia. NAN uses Circle\'s CCTP v2 (Cross-Chain Transfer Protocol) for fast, secure cross-chain transfers.' },
+        { id: 'bs1', category: 'Bridge & Swap', order: 1, question: 'What is the Bridge?', answer: 'The Bridge lets you move USDC from one blockchain to another — for example, from Arc to Ethereum Sepolia or Base Sepolia. NAN uses Circle\'s CCTP v2 (Cross-Chain Transfer Protocol) for fast, secure cross-chain transfers.' },
         { id: 'bs2', category: 'Bridge & Swap', order: 2, question: 'How long does a bridge transfer take?', answer: 'CCTP v2 bridges typically complete in under 2 minutes. The exact time depends on the source and destination chains. NAN shows real-time status updates during the transfer.' },
-        { id: 'bs3', category: 'Bridge & Swap', order: 3, question: 'What chains does the Bridge support?', answer: 'NAN Bridge supports Arc Testnet, Ethereum Sepolia, Base Sepolia, Arbitrum Sepolia, OP Sepolia, Polygon Amoy, and Avalanche Fuji — all on testnet. Mainnet chains will be available when NAN launches on mainnet.' },
+        { id: 'bs3', category: 'Bridge & Swap', order: 3, question: 'What chains does the Bridge support?', answer: 'NAN Bridge supports Arc, Ethereum Sepolia, Base Sepolia, Arbitrum Sepolia, OP Sepolia, Polygon Amoy, and Avalanche Fuji — all on testnet. Mainnet chains will be available when NAN launches on mainnet.' },
         { id: 'bs4', category: 'Bridge & Swap', order: 4, question: 'What is the Swap page?', answer: 'Swap lets you exchange one token for another within the same chain — for example, USDT to USDC or EURC to USDC. NAN uses Circle\'s Swap Kit for on-chain token swaps with real-time rate estimates.' },
         { id: 'bs5', category: 'Bridge & Swap', order: 5, question: 'What is Gateway?', answer: 'Gateway is Circle\'s cross-chain liquidity layer. Depositing USDC into Gateway lets you move funds across chains instantly (under 500ms) without waiting for a full bridge transfer. NAN\'s Gateway page lets you deposit, manage, and transfer via Circle Gateway.' },
 
@@ -216,7 +216,7 @@ NAN integrates deeply with the Circle stack: Circle Agent Stack for agent paymen
         { id: 'sp4', category: 'Security & Privacy', order: 4, question: 'Can the NAN Agent spend money without my approval?', answer: 'Only from the Agent Wallet, and only within the spending limits you have set. The agent cannot touch your main NAN wallet balance. Every agent transaction goes through Circle\'s wallet infrastructure and is visible in your Activity feed.' },
 
         // ── Troubleshooting ──
-        { id: 'tr1', category: 'Troubleshooting', order: 1, question: 'My transaction is stuck or pending — what do I do?', answer: 'Check the Activity page for the transaction status. On Arc Testnet, transactions normally confirm in under 2 seconds. If it stays pending for more than a minute, the network may be congested. Refresh your balance and try again. Contact Support if the issue persists.' },
+        { id: 'tr1', category: 'Troubleshooting', order: 1, question: 'My transaction is stuck or pending — what do I do?', answer: 'Check the Activity page for the transaction status. On Arc, transactions normally confirm in under 2 seconds. If it stays pending for more than a minute, the network may be congested. Refresh your balance and try again. Contact Support if the issue persists.' },
         { id: 'tr2', category: 'Troubleshooting', order: 2, question: 'The NAN Agent says "I\'m having trouble reaching the AI backend" — why?', answer: 'This means the AI backend is temporarily unavailable. Basic questions about your balance, transactions, and recurring payments are answered directly from your account data without the AI. Full AI responses will resume automatically when the service recovers.' },
         { id: 'tr3', category: 'Troubleshooting', order: 3, question: 'My Circle PIN popup is not appearing — what do I do?', answer: 'Circle PIN popups can be blocked by browser popup blockers. Make sure nanarc.xyz is allowed to open popups in your browser settings. On mobile, the popup opens as an in-app overlay. If it still does not appear, try refreshing the page and retrying.' },
         { id: 'tr4', category: 'Troubleshooting', order: 4, question: 'How do I contact support?', answer: 'Go to Support from the side drawer. Submit a ticket with your issue description and wallet address. The NAN team will respond as quickly as possible. You can also use the Feedback page to report bugs or suggest improvements.' },

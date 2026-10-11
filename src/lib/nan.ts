@@ -179,13 +179,13 @@ export async function getAgentWallet(
       wallets?: Record<string, { address: string; walletId: string }>
       balances?: Record<string, string>
     }>('/api/agent-wallets', { action: 'get', userAddress }, sessionToken)
-    const arcWallet = data.wallets?.['ARC-TESTNET']
+    const arcWallet = data.wallets?.['ARC']
     if (!arcWallet) return null
     return {
       walletAddress: arcWallet.address,
       walletId: arcWallet.walletId,
-      balance: data.balances?.['ARC-TESTNET'] ?? '0.00',
-      blockchain: 'ARC-TESTNET',
+      balance: data.balances?.['ARC'] ?? '0.00',
+      blockchain: 'ARC',
     }
   } catch {
     return null

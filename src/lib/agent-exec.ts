@@ -19,9 +19,9 @@ import { useAppStore } from '../store/appStore'
 import { executeWithGuard } from './circle-execute'
 import { ensureCircleCreds, getChallengeTransactionId, SESSION_EXPIRED_MSG } from './circle-session'
 
-const ARC_CHAIN_ID = 5042002
-const ARC_KIT_NAME = 'Arc_Testnet'
-const ARC_TX_URL = 'https://testnet.arcscan.app/tx/'
+const ARC_CHAIN_ID = 5042
+const ARC_KIT_NAME = 'Arc'
+const ARC_TX_URL = 'https://explorer.arc.io/tx/'
 
 /** Browser-wallet environment captured from wagmi hooks in the chat component. */
 export interface WagmiEnv {
@@ -45,29 +45,27 @@ function signerKind(env: WagmiEnv): SignerKind {
 
 // ── Chains (labels and kit names match BridgePage CHAINS) ─────────────────────
 const DEST_CHAINS: Array<{ label: string; kitName: string; aliases: string[] }> = [
-  { label: 'Ethereum Sepolia',    kitName: 'Ethereum_Sepolia',     aliases: ['ethereum', 'eth', 'sepolia'] },
-  { label: 'Base Sepolia',        kitName: 'Base_Sepolia',         aliases: ['base'] },
-  { label: 'Arbitrum Sepolia',    kitName: 'Arbitrum_Sepolia',     aliases: ['arbitrum', 'arb'] },
-  { label: 'OP Sepolia',          kitName: 'Optimism_Sepolia',     aliases: ['op', 'optimism'] },
-  { label: 'Polygon Amoy',        kitName: 'Polygon_Amoy_Testnet', aliases: ['polygon', 'amoy', 'pol'] },
-  { label: 'Avalanche Fuji',      kitName: 'Avalanche_Fuji',       aliases: ['avalanche', 'fuji', 'avax'] },
-  { label: 'Unichain Sepolia',    kitName: 'Unichain_Sepolia',     aliases: ['unichain'] },
-  { label: 'Sei Testnet',         kitName: 'Sei_Testnet',          aliases: ['sei'] },
-  { label: 'World Chain Sepolia', kitName: 'World_Chain_Sepolia',  aliases: ['world'] },
+  { label: 'Ethereum',     kitName: 'Ethereum',   aliases: ['ethereum', 'eth'] },
+  { label: 'Base',         kitName: 'Base',        aliases: ['base'] },
+  { label: 'Arbitrum One', kitName: 'Arbitrum',   aliases: ['arbitrum', 'arb'] },
+  { label: 'OP Mainnet',   kitName: 'Optimism',   aliases: ['op', 'optimism'] },
+  { label: 'Polygon',      kitName: 'Polygon',    aliases: ['polygon', 'pol'] },
+  { label: 'Avalanche',    kitName: 'Avalanche',  aliases: ['avalanche', 'avax'] },
+  { label: 'Unichain',     kitName: 'Unichain',   aliases: ['unichain'] },
+  { label: 'Sei',          kitName: 'Sei',        aliases: ['sei'] },
+  { label: 'World Chain',  kitName: 'World_Chain',aliases: ['world'] },
 ]
 
 export function resolveBridgeDestination(input: string): { label: string; kitName: string } {
   const q = input.toLowerCase().replace(/[^a-z ]/g, ' ').replace(/\s+/g, ' ').trim()
-  if (/\blinea\b/.test(q)) throw new Error('Bridging to Linea Sepolia is not supported yet.')
-  if (/\barc\b/.test(q)) throw new Error('You are already on Arc Testnet. Pick a different destination chain.')
+  if (/\blinea\b/.test(q)) throw new Error('Bridging to Linea is not supported yet.')
+  if (/\barc\b/.test(q)) throw new Error('You are already on Arc. Pick a different destination chain.')
   const exact = DEST_CHAINS.find(c => c.label.toLowerCase() === q)
   if (exact) return exact
-  // Specific chain names win over the generic "sepolia" alias (which means Ethereum Sepolia)
   const words = q.split(' ')
-  const specific = DEST_CHAINS.find(c => c.aliases.filter(a => a !== 'sepolia').some(a => words.includes(a)))
+  const specific = DEST_CHAINS.find(c => c.aliases.some(a => words.includes(a)))
   if (specific) return specific
-  if (words.includes('sepolia')) return DEST_CHAINS[0]
-  throw new Error(`I don't recognise "${input}" as a supported destination. Try Ethereum Sepolia, Base Sepolia, Arbitrum Sepolia, OP Sepolia, Polygon Amoy, Avalanche Fuji, Unichain Sepolia, Sei Testnet or World Chain Sepolia.`)
+  throw new Error(`I don't recognise "${input}" as a supported destination. Try Ethereum, Base, Arbitrum, OP Mainnet, Polygon, Avalanche, Unichain, Sei or World Chain.`)
 }
 
 function requireAmount(amount: string): number {
@@ -115,9 +113,9 @@ async function postWallet<T>(body: Record<string, unknown>): Promise<T> {
 async function getWagmiAdapter(env: WagmiEnv) {
   if (!env.connector) throw new Error('Wallet not connected.')
   if (env.chainId !== ARC_CHAIN_ID) {
-    if (!env.switchChainAsync) throw new Error('Please switch your wallet to Arc Testnet and try again.')
+    if (!env.switchChainAsync) throw new Error('Please switch your wallet to Arc and try again.')
     try { await env.switchChainAsync({ chainId: ARC_CHAIN_ID }) }
-    catch { throw new Error('Please switch your wallet to Arc Testnet and try again.') }
+    catch { throw new Error('Please switch your wallet to Arc and try again.') }
   }
   const provider = (await env.connector.getProvider()) as EIP1193Provider
   return createViemAdapterFromProvider({ provider })
@@ -183,7 +181,7 @@ export async function runAgentBridge(
       finalHash = confirm.txHash ?? txId
     }
     record(finalHash)
-    return `Bridged ${params.amount} USDC from Arc Testnet to ${dest.label}.${finalHash ? ` [View transaction](${ARC_TX_URL}${finalHash})` : ''}`
+    return `Bridged ${params.amount} USDC from Arc to ${dest.label}.${finalHash ? ` [View transaction](${ARC_TX_URL}${finalHash})` : ''}`
   }
 
   // Passkey and browser wallet: App Kit signs client-side
@@ -213,7 +211,7 @@ export async function runAgentBridge(
   record(mint?.txHash ?? burn?.txHash)
   const link = burn?.explorerUrl ?? (burn?.txHash ? `${ARC_TX_URL}${burn.txHash}` : '')
   const pending = result.state === 'pending' ? ' It is still finishing on the destination chain and should arrive shortly.' : ''
-  return `Bridged ${params.amount} USDC from Arc Testnet to ${dest.label}.${pending}${link ? ` [View transaction](${link})` : ''}`
+  return `Bridged ${params.amount} USDC from Arc to ${dest.label}.${pending}${link ? ` [View transaction](${link})` : ''}`
 }
 
 // ── Swap ──────────────────────────────────────────────────────────────────────
@@ -222,7 +220,7 @@ const SLIPPAGE_BPS = 300 // 3%, per Circle App Kit docs (same default as the Swa
 
 function normalizeSwapToken(t: string): string {
   const found = SWAP_TOKENS.find(x => x.toLowerCase() === t.trim().toLowerCase())
-  if (!found) throw new Error(`${t.toUpperCase()} can't be swapped on Arc Testnet. Supported tokens: USDC, EURC and cirBTC.`)
+  if (!found) throw new Error(`${t.toUpperCase()} can't be swapped on Arc. Supported tokens: USDC, EURC and cirBTC.`)
   return found
 }
 
@@ -230,7 +228,7 @@ function friendlySwapError(e: unknown, tokenIn: string, tokenOut: string, amount
   const msg = e instanceof Error ? e.message : String(e)
   const m = msg.toLowerCase()
   if (m.includes('no route') || m.includes('route or resource not found') || m.includes('no swap route'))
-    return new Error(`No swap route is available for ${tokenIn} → ${tokenOut} on Arc Testnet right now. Testnet liquidity is occasionally unavailable — please try again in a few seconds.`)
+    return new Error(`No swap route is available for ${tokenIn} → ${tokenOut} on Arc right now. Testnet liquidity is occasionally unavailable — please try again in a few seconds.`)
   if (m.includes('insufficient')) return new Error(`Insufficient balance to swap ${amount} ${tokenIn}.`)
   if (m.includes('slippage')) return new Error('The price moved too much. Please try again.')
   return new Error(msg)
