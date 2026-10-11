@@ -68,6 +68,44 @@ function useWalletBalance(address: string) {
   return { balance, rawNum, isLoading, refetch }
 }
 
+// ── Live token list: USDC (passed in) + EURC (live read) ─────────────────────
+const EURC_ADDRESS = '0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a' as `0x${string}`
+
+function TokenList({ address, usdcBalance }: { address: string; usdcBalance: string }) {
+  const { balance: eurcBalance, isLoading: eurcLoading } = useTokenBalance(EURC_ADDRESS, 6, address)
+  const tokens = [
+    { name: 'USD Coin',  symbol: 'USDC', balance: usdcBalance,          color: '#2775CA' },
+    { name: 'Euro Coin', symbol: 'EURC', balance: eurcBalance ?? '0.00', color: '#0099CC', loading: eurcLoading },
+  ]
+  return (
+    <div style={{ background: 'var(--nan-surface)', border: '1px solid var(--nan-bdr)', borderRadius: 16, overflow: 'hidden' }}>
+      <div style={{ padding: '12px 16px 8px', fontSize: 12, fontWeight: 700, color: 'var(--nan-text3)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+        Assets
+      </div>
+      {tokens.map((token, i) => (
+        <div key={token.symbol} style={{
+          display: 'flex', alignItems: 'center', gap: 12,
+          padding: '12px 16px',
+          borderTop: i === 0 ? 'none' : '1px solid var(--nan-bdr)',
+        }}>
+          <TokenLogo symbol={token.symbol} size={38} radius={12} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--nan-text)', marginBottom: 2 }}>{token.name}</div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: token.color }}>{token.symbol}</div>
+          </div>
+          <div style={{ textAlign: 'right', flexShrink: 0 }}>
+            {'loading' in token && token.loading
+              ? <div style={{ width: 48, height: 14, borderRadius: 6, background: 'var(--nan-surface2)', animation: 'nan-pulse 1.2s ease-in-out infinite' }} />
+              : <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--nan-text)', fontFamily: 'JetBrains Mono, monospace' }}>{token.balance}</div>
+            }
+            <div style={{ fontSize: 11, color: 'var(--nan-text3)' }}>{token.symbol}</div>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 type WalletSubView = 'main' | 'send' | 'send_confirm' | 'send_success' | 'receive'
 
 export function WalletPage({ initialSubView = 'main' }: { initialSubView?: WalletSubView }) {
@@ -264,32 +302,7 @@ export function WalletPage({ initialSubView = 'main' }: { initialSubView?: Walle
       </Card>
 
       {/* Token list */}
-      <div style={{ background: 'var(--nan-surface)', border: '1px solid var(--nan-bdr)', borderRadius: 16, overflow: 'hidden' }}>
-        <div style={{ padding: '12px 16px 8px', fontSize: 12, fontWeight: 700, color: 'var(--nan-text3)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-          Assets
-        </div>
-        {[
-          { name: 'USD Coin',  symbol: 'USDC', balance: balance ?? '0.00', color: '#2775CA' },
-          { name: 'Euro Coin', symbol: 'EURC', balance: '0.00',            color: '#0099CC' },
-          { name: 'Tether',    symbol: 'USDT', balance: '0.00',            color: '#26A17B' },
-        ].map((token, i) => (
-          <div key={token.symbol} style={{
-            display: 'flex', alignItems: 'center', gap: 12,
-            padding: '12px 16px',
-            borderTop: i === 0 ? 'none' : '1px solid var(--nan-bdr)',
-          }}>
-            <TokenLogo symbol={token.symbol} size={38} radius={12} />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--nan-text)', marginBottom: 2 }}>{token.name}</div>
-              <div style={{ fontSize: 11, fontWeight: 600, color: token.color }}>{token.symbol}</div>
-            </div>
-            <div style={{ textAlign: 'right', flexShrink: 0 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--nan-text)', fontFamily: 'JetBrains Mono, monospace' }}>{token.balance}</div>
-              <div style={{ fontSize: 11, color: 'var(--nan-text3)' }}>{token.symbol}</div>
-            </div>
-          </div>
-        ))}
-      </div>
+      <TokenList address={address} usdcBalance={balance ?? '0.00'} />
 
       {/* Recent transactions */}
       <div style={{ background: 'var(--nan-surface)', border: '1px solid var(--nan-bdr)', borderRadius: 16, overflow: 'hidden' }}>

@@ -14,9 +14,9 @@ import { useReadContracts } from 'wagmi'
 import { erc20Abi } from 'viem'
 import { ONCHAIN_CHAINS } from '../onchain-facts'
 
-/** Chains we actively poll. Testnet-only to match the app's default testnet mode. */
+/** Chains we actively poll — mainnet chains with USDC. */
 const POLL_CHAINS = ONCHAIN_CHAINS.filter(
-  (c) => c.isTestnet && !!c.usdc,
+  (c) => !c.isTestnet && !!c.usdc,
 )
 
 export interface ChainBalance {

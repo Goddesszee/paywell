@@ -21,7 +21,7 @@ import { useFxRates } from './useFxRates'
 
 // ── Supported chains for NAN (must have USDC) ────────────────────────────────
 export const PORTFOLIO_CHAINS = ONCHAIN_CHAINS.filter(
-  (c) => c.isTestnet && !!c.usdc,
+  (c) => !c.isTestnet && !!c.usdc,
 )
 
 // ── Well-known testnet token addresses ───────────────────────────────────────
