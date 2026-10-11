@@ -53,7 +53,7 @@ function err(res: VercelResponse, status: number, message: string) {
 
 const TERMINAL_STATES = new Set(['COMPLETE', 'FAILED', 'DENIED', 'CANCELLED'])
 
-async function pollTransaction(userToken: string, transactionId: string, timeoutMs = 120_000) {
+async function pollTransaction(userToken: string, transactionId: string, timeoutMs = 45_000) {
   const client = ucwClient()
   const deadline = Date.now() + timeoutMs
   while (Date.now() < deadline) {
@@ -360,7 +360,7 @@ async function handleWallet(req: VercelRequest, res: VercelResponse) {
       return err(res, 400, 'userToken and transactionId required')
     try {
       const tx = await pollTransaction(userToken, transactionId)
-      if (!tx) return err(res, 408, 'Swap timed out — check explorer for status')
+      if (!tx) return res.status(202).json({ pending: true })
       if (tx.state === 'COMPLETE')
         return res.json({ result: { txHash: tx.txHash, explorerUrl: `https://explorer.arc.io/tx/${tx.txHash}` } })
       return err(res, 400, `Swap ${tx.state ?? 'failed'}: ${tx.errorReason ?? ''}`)
@@ -430,7 +430,7 @@ async function handleWallet(req: VercelRequest, res: VercelResponse) {
       return err(res, 400, 'userToken and transactionId required')
     try {
       const tx = await pollTransaction(userToken, transactionId)
-      if (!tx) return err(res, 408, 'Bridge timed out — check explorer for status')
+      if (!tx) return res.status(202).json({ pending: true })
       if (tx.state === 'COMPLETE')
         return res.json({ success: true, txHash: tx.txHash, explorerUrl: `https://explorer.arc.io/tx/${tx.txHash}` })
       return err(res, 400, `Bridge ${tx.state ?? 'failed'}: ${tx.errorReason ?? ''}`)

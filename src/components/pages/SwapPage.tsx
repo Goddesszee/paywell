@@ -6,6 +6,7 @@ import { createViemAdapterFromProvider } from '@circle-fin/adapter-viem-v2'
 import { erc20Abi, type EIP1193Provider } from 'viem'
 import { ArrowDown, Settings, CheckCircle, ExternalLink, RefreshCw, AlertCircle, X, Search } from 'lucide-react'
 import { safeJson } from '../../lib/safe-json'
+import { confirmWithRetry } from '../../lib/poll-confirm'
 import { useAppStore } from '../../store/appStore'
 import { executeWithGuard } from '../../lib/circle-execute'
 import { getPasskeyAdapter } from '../CirclePasskeyLogin'
@@ -428,13 +429,8 @@ export function SwapPage({ inCard = false }: { inCard?: boolean }) {
 
       // Step 3 — confirm: poll until terminal
       if (txId) {
-        const confirmResp = await fetch('/api/wallet', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'ucw-swap-confirm', userToken: auth.userToken, transactionId: txId }),
-        })
-        const confirmData = await safeJson<{ result?: { txHash?: string; explorerUrl?: string }; error?: string }>(confirmResp)
-        if (!confirmResp.ok || confirmData.error) throw new Error(confirmData.error ?? 'Swap confirm failed')
+        const confirmData = await confirmWithRetry<{ result?: { txHash?: string; explorerUrl?: string }; error?: string; pending?: boolean }>({ action: 'ucw-swap-confirm', userToken: auth.userToken, transactionId: txId })
+        if (confirmData.error) throw new Error(confirmData.error)
         const rHash = confirmData.result?.txHash ?? ''
         setTxHash(rHash); setExplorerUrl(confirmData.result?.explorerUrl ?? '')
       }
