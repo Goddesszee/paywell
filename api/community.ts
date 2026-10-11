@@ -254,36 +254,42 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 }
 
 async function routeHandler(req: VercelRequest, res: VercelResponse) {
-  const kv = getRedis()
-  if (!kv) return res.status(503).json(REDIS_NOT_CONFIGURED)
-
   // route comes from vercel.json destination query string
   const routeParam = ((req.query.route ?? req.query.path ?? '') as string)
   const route = routeParam.replace(/^\/+/, '')
+
+  // ── admin login: deliberately handled BEFORE the Redis check and fully defensive,
+  // so a storage problem can never lock the owner out of the dashboard.
+  if (route === 'admin/login') {
+    if (req.method === 'GET') {
+      // Diagnostic: open /api/admin/login in a browser to see whether the server is set up
+      return res.status(200).json({ success: true, passwordConfigured: Boolean(adminPassword()), storageConfigured: Boolean(getRedis()) })
+    }
+    if (req.method !== 'POST') return res.status(405).json({ success: false, error: 'Method not allowed' })
+    if (!adminPassword()) return res.status(503).json({ success: false, error: 'Admin is not configured. Set ADMIN_PASSWORD in your Vercel environment variables and redeploy.' })
+    const rk = getRedis()
+    const ip = String(req.headers['x-forwarded-for'] ?? 'unknown').split(',')[0].trim()
+    const failKey = `admin:fail:${ip}`
+    try { if (rk && num(await rk.get(failKey)) >= 5) return res.status(429).json({ success: false, error: 'Too many attempts. Try again in 15 minutes.' }) } catch { /* rate limit is best-effort */ }
+    let body: { password?: unknown } = {}
+    try { body = (typeof req.body === 'string' ? JSON.parse(req.body || '{}') : req.body ?? {}) as { password?: unknown } } catch { /* bad body → treated as empty */ }
+    const ok = crypto.timingSafeEqual(sha256(String(body.password ?? '').trim()), sha256(adminPassword()))
+    if (!ok) {
+      if (rk) { try { await rk.incr(failKey); await rk.expire(failKey, 900); await auditLog(rk, 'login_failed', `Failed admin login from ${ip}`) } catch { /* ignore */ } }
+      return res.status(401).json({ success: false, error: 'Incorrect password.' })
+    }
+    if (rk) { try { await rk.del(failKey); await auditLog(rk, 'login', `Admin signed in from ${ip}`) } catch { /* ignore */ } }
+    return res.status(200).json({ success: true, token: signAdminToken(), expiresInMs: ADMIN_TTL_MS })
+  }
+
+  const kv = getRedis()
+  if (!kv) return res.status(503).json(REDIS_NOT_CONFIGURED)
   // _id is the interpolated :id param from Vercel rewrites (cannot be put inline in query strings)
   const id = (req.query._id as string | undefined) ?? ''
   const auth = req.headers.authorization as string | undefined
   const sess = await resolveSession(auth, kv)
 
-  // ── admin: login + gate ──────────────────────────────────────────────────────
-  if (route === 'admin/login' && req.method === 'POST') {
-    if (!adminPassword()) return res.status(503).json({ success: false, error: 'Admin is not configured. Set ADMIN_PASSWORD in your Vercel environment variables and redeploy.' })
-    const ip = String(req.headers['x-forwarded-for'] ?? 'unknown').split(',')[0].trim()
-    const failKey = `admin:fail:${ip}`
-    const fails = num(await kv.get(failKey))
-    if (fails >= 5) return res.status(429).json({ success: false, error: 'Too many attempts. Try again in 15 minutes.' })
-    const { password = '' } = (req.body ?? {}) as { password?: string }
-    const ok = crypto.timingSafeEqual(sha256(String(password).trim()), sha256(adminPassword()))
-    if (!ok) {
-      await kv.incr(failKey); await kv.expire(failKey, 900)
-      await auditLog(kv, 'login_failed', `Failed admin login from ${ip}`)
-      return res.status(401).json({ success: false, error: 'Incorrect password.' })
-    }
-    await kv.del(failKey)
-    await auditLog(kv, 'login', `Admin signed in from ${ip}`)
-    return res.status(200).json({ success: true, token: signAdminToken(), expiresInMs: ADMIN_TTL_MS })
-  }
-
+  // ── admin: gate ──────────────────────────────────────────────────────────────
   if (route.startsWith('admin/')) {
     const denied = adminGate(req)
     if (denied) return res.status(denied.status).json({ success: false, error: denied.error })

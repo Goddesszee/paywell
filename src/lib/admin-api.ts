@@ -7,9 +7,13 @@ export const setAdminToken = (t: string) => { try { if (t) { sessionStorage.setI
 export async function adminLogin(password: string): Promise<{ ok: true } | { ok: false; error: string }> {
   try {
     const r = await fetch('/api/admin/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ password }) })
-    const d = await r.json().catch(() => ({})) as { success?: boolean; token?: string; error?: string }
+    const raw = await r.text().catch(() => '')
+    let d: { token?: string; error?: string } = {}
+    try { d = JSON.parse(raw) } catch { /* non-JSON body (platform error page) */ }
     if (r.ok && d.token) { setAdminToken(d.token); return { ok: true } }
-    return { ok: false, error: d.error ?? `Login failed (${r.status})` }
+    if (d.error) return { ok: false, error: d.error }
+    const snippet = raw.replace(/\s+/g, ' ').trim().slice(0, 140)
+    return { ok: false, error: `Server error ${r.status}${snippet ? `: ${snippet}` : ''}` }
   } catch { return { ok: false, error: 'Could not reach the server.' } }
 }
 

@@ -68,6 +68,14 @@ export function OnrampPage() {
   const iframeRef = useRef<HTMLIFrameElement>(null)
   // Dedupe DEPOSIT_SUBMITTED + DEPOSIT_SETTLED
   const credited = useRef(false)
+  const [slowLoad, setSlowLoad] = useState(false)
+
+  // If the widget hasn't reported ready after a while, offer an escape hatch instead of an endless spinner
+  useEffect(() => {
+    if (state !== 'widget' || widgetReady) { setSlowLoad(false); return }
+    const t = setTimeout(() => setSlowLoad(true), 12000)
+    return () => clearTimeout(t)
+  }, [state, widgetReady, session])
 
   // Clear prefill after first render so it doesn't persist if the user reopens this page
   useEffect(() => {
@@ -369,17 +377,37 @@ export function OnrampPage() {
               </div>
               <div style={{ fontSize: 14, fontWeight: 700, color: TEXT }}>Loading Circle Onramp…</div>
               <div style={{ fontSize: 12, color: T2 }}>KYC and compliance handled by Circle</div>
+              {slowLoad && (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, marginTop: 6, padding: '0 20px', textAlign: 'center' }}>
+                  <div style={{ fontSize: 12, color: T2, lineHeight: 1.5 }}>Taking longer than expected.</div>
+                  <button onClick={() => window.open(session.widgetUrl, '_blank', 'noopener,noreferrer')}
+                    style={{ padding: '10px 18px', borderRadius: 10, background: BLUE, color: '#fff', border: 'none', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: F }}>
+                    Open Circle Onramp in browser
+                  </button>
+                  <button onClick={() => { void fetchSession() }}
+                    style={{ padding: '8px 14px', borderRadius: 10, background: 'transparent', color: T2, border: `1px solid ${BDR}`, fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: F }}>
+                    Try again
+                  </button>
+                </div>
+              )}
             </div>
           )}
           <iframe
             ref={iframeRef}
             src={session.widgetUrl}
             title="Circle Onramp"
+            onLoad={() => setWidgetReady(true)}
             allow="camera; microphone; payment; clipboard-write"
             referrerPolicy="strict-origin-when-cross-origin"
             style={{ width: '100%', height: 720, border: 'none', display: 'block' }}
           />
         </div>
+          <div style={{ textAlign: 'center', marginTop: 10 }}>
+            <button onClick={() => window.open(session.widgetUrl, '_blank', 'noopener,noreferrer')}
+              style={{ background: 'none', border: 'none', color: BLUE, fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: F }}>
+              Widget blank or stuck? Open in browser
+            </button>
+          </div>
         </div>
       )}
 
