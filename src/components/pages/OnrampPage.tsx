@@ -223,10 +223,7 @@ export function OnrampPage() {
             <div style={{ fontSize: 20, fontWeight: 800, color: TEXT, letterSpacing: '-0.03em', lineHeight: 1.1 }}>Buy USDC</div>
             <div style={{ fontSize: 12, color: T2, marginTop: 1 }}>Powered by Circle · Arc</div>
           </div>
-          {/* Testnet badge */}
-          <div style={{ marginLeft: 'auto', padding: '3px 10px', borderRadius: 20, background: 'rgba(255,149,0,0.10)', border: '1px solid rgba(255,149,0,0.25)', fontSize: 10, fontWeight: 700, color: '#F59E0B', letterSpacing: '0.05em', textTransform: 'uppercase' as const }}>
-            Testnet
-          </div>
+
         </div>
       </div>
 

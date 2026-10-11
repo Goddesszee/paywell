@@ -228,7 +228,7 @@ function friendlySwapError(e: unknown, tokenIn: string, tokenOut: string, amount
   const msg = e instanceof Error ? e.message : String(e)
   const m = msg.toLowerCase()
   if (m.includes('no route') || m.includes('route or resource not found') || m.includes('no swap route'))
-    return new Error(`No swap route is available for ${tokenIn} → ${tokenOut} on Arc right now. Testnet liquidity is occasionally unavailable — please try again in a few seconds.`)
+    return new Error(`No swap route is available for ${tokenIn} → ${tokenOut} on Arc right now. Please try again in a few seconds.`)
   if (m.includes('insufficient')) return new Error(`Insufficient balance to swap ${amount} ${tokenIn}.`)
   if (m.includes('slippage')) return new Error('The price moved too much. Please try again.')
   return new Error(msg)

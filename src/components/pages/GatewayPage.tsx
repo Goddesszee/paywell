@@ -21,8 +21,8 @@ const T3   = 'var(--nan-text3)'
 const ARC  = 5042
 
 // ── Gateway addresses from onchain-facts ─────────────────────────────────────
-const GATEWAY_WALLET = getProtocolContractByName('GatewayWallet', 'testnet')!.address as `0x${string}`
-const GATEWAY_MINTER = getProtocolContractByName('GatewayMinter', 'testnet')!.address as `0x${string}`
+const GATEWAY_WALLET = getProtocolContractByName('GatewayWallet', 'mainnet')!.address as `0x${string}`
+const GATEWAY_MINTER = getProtocolContractByName('GatewayMinter', 'mainnet')!.address as `0x${string}`
 
 // ── Gateway REST API ──────────────────────────────────────────────────────────
 const GATEWAY_API = 'https://gateway-api.circle.com/v1'

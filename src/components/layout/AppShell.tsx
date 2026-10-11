@@ -34,7 +34,7 @@ const ALL_RESULTS: SearchResult[] = [
   { id:'gateway',     title:'Gateway',              subtitle:'Unified cross-chain balance',        category:'Finance',     Icon:Layers,         iconColor:BLUE,      action:'gateway' },
 
   { id:'recurring',   title:'Recurring Payments',   subtitle:'Schedule automatic transfers',       category:'Finance',     Icon:Repeat,         iconColor:'#8B5CF6', action:'recurring' },
-  { id:'faucet',      title:'Faucet',               subtitle:'Free testnet USDC',                  category:'Finance',     Icon:Droplet,        iconColor:'#00C853', action:'faucet' },
+
   { id:'agent',        title:'AI Agents',            subtitle:'Autonomous service & payment agent', category:'Agents',      Icon:Bot,            iconColor:BLUE,      action:'agent' },
   { id:'agent-wallet', title:'Agent Wallet',         subtitle:'Swap, bridge & recurring via agent', category:'Agents',      Icon:Wallet,         iconColor:BLUE,      action:'agent-wallet' },
   { id:'payment-requests', title:'Payment Requests', subtitle:'Create and track payment requests',   category:'Payments',    Icon:FileText,       iconColor:BLUE,      action:'payment-requests' },
@@ -234,7 +234,6 @@ const SIDEBAR_SECTIONS = [
     { id: 'bridge',    label: 'Bridge',    Icon: ArrowLeftRight, desc: 'Move USDC across chains' },
     { id: 'swap',      label: 'Swap',      Icon: ArrowUpDown,    desc: 'Exchange tokens' },
     { id: 'gateway',   label: 'Gateway',   Icon: Layers,         desc: 'Unified cross-chain balance' },
-    { id: 'faucet',    label: 'Faucet',    Icon: Droplet,        desc: 'Free testnet USDC' },
   ]},
   { title: 'Automation', items: [
     { id: 'agent',        label: 'AI Agents',     Icon: Bot,    desc: 'Create and manage agents' },

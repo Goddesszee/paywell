@@ -1271,7 +1271,7 @@ export async function executeAction(action: NanAction, ctx: ExecutorContext): Pr
 
     case 'open_faucet': {
       navigate('faucet')
-      return 'Opening the faucet — you can get free testnet USDC there.'
+      return 'Opening the faucet page.'
     }
 
     case 'agent_wallet_balance': {
@@ -1412,7 +1412,7 @@ export async function executeAction(action: NanAction, ctx: ExecutorContext): Pr
     case 'check_name': {
       if (!NAME_REGISTRY) return 'The NAN name registry is not configured yet.'
       const q = action.params.name
-      if (!/^[a-z0-9-]{2,32}$/.test(q)) return 'NAN names are 2-32 characters: lowercase letters, numbers and hyphens only.'
+      if (!/^[a-z0-9-]{2,32}$/.test(q)) return 'NAN names are 2-32 characters: lowercase letters, numbers andercase letters, numbers and hyphens only.'
       let avail: boolean
       try { avail = await readRegistry(null, 'isAvailable', [q]) as boolean } catch { return `I couldn't reach the name registry to check @${q}. Please try again in a moment.` }
       if (avail) return `@${q} is available! Prices: 1 year 2 USDC · 2 years 3 USDC · 5 years 8 USDC. Say "register @${q}" to claim it.`
