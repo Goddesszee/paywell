@@ -258,6 +258,20 @@ export function NanNamePage() {
     setStoreHandle(handle)   // update global store so ProfilePage shows it immediately
     setShowCelebration(true)
     setStep('success')
+    // Report the registration (price = revenue) to the admin ledger — fire-and-forget
+    try {
+      const st = useAppStore.getState()
+      const price = Number(PRICES[duration]) / 1e6
+      void fetch('/api/tx-track', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', ...(st.auth?.sessionToken ? { authorization: `Bearer ${st.auth.sessionToken}` } : {}) },
+        body: JSON.stringify({
+          walletType: 'main', userEmail: st.auth?.email ?? '',
+          walletAddress: st.auth?.walletAddress ?? st.auth?.circleWalletAddress ?? st.mainWalletAddress ?? '',
+          type: 'name_registration', amount: price, description: `Registered @${handle} (${duration}y)`, chain: 'Arc',
+        }),
+      }).catch(() => {})
+    } catch { /* never block the UI */ }
     approveWrite.reset()
     registerWrite.reset()
   // eslint-disable-next-line react-hooks/exhaustive-deps

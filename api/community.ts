@@ -620,6 +620,21 @@ async function routeHandler(req: VercelRequest, res: VercelResponse) {
           .filter(u => u.volume > 0).sort((a, b) => b.volume - a.volume).slice(0, 8),
       },
       volume: { total: r2(num(st.volume)), main: r2(num(st.mainVolume)), agent: r2(num(st.agentVolume)), txCount: num(st.txCount) },
+      fees: (() => {
+        // Estimated from reported volume using the fee schedule in src/lib/fees.ts (env-overridable).
+        const bps = (name: string, d: number) => { const v = Number(process.env[name] ?? process.env[`VITE_${name}`] ?? d); return Number.isFinite(v) ? v : d }
+        const swapVol = num(st['type:swap:volume']), swapN = num(st['type:swap:count'])
+        const brVol = num(st['type:bridge:volume']), brN = num(st['type:bridge:count'])
+        const nameRev = num(st['type:name_registration:volume']), nameN = num(st['type:name_registration:count'])
+        const swapFees = swapVol * bps('FEE_SWAP_BPS', 30) / 10000
+        const bridgeFees = Math.max(brVol * bps('FEE_BRIDGE_BPS', 50) / 10000, brN * bps('FEE_BRIDGE_MIN_USDC', 0.1))
+        return {
+          swap: { volume: r2(swapVol), count: swapN, fees: r2(swapFees) },
+          bridge: { volume: r2(brVol), count: brN, fees: r2(bridgeFees) },
+          names: { count: nameN, revenue: r2(nameRev) },
+          total: r2(swapFees + bridgeFees + nameRev),
+        }
+      })(),
       series: days.map((d, i) => ({ date: d, volume: r2(num(dayStats[i]?.volume)), txCount: num(dayStats[i]?.txCount), newUsers: num(dayStats[i]?.newUsers), activeUsers: num(dayActive[i]) })),
       support: {
         total: tickets.length,

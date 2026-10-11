@@ -18,6 +18,7 @@ interface Overview {
   generatedAt: string; registryEmpty: boolean; auditEntries: number
   users: { total: number; wallets: number; agentWallets: number; active24h: number; active7d: number; new7d: number; byLogin: Record<string, number>; recent: UserRow[]; top: { key: string; email: string; mainWallet: string; volume: number; txCount: number }[] }
   volume: { total: number; main: number; agent: number; txCount: number }
+  fees?: { swap: { volume: number; count: number; fees: number }; bridge: { volume: number; count: number; fees: number }; names: { count: number; revenue: number }; total: number }
   series: { date: string; volume: number; txCount: number; newUsers: number; activeUsers: number }[]
   support: { total: number; open: number; inProgress: number; resolved: number; unread: number }
   feedback: { total: number; avgRating: number; unreviewed: number; ratingDist: number[] }
@@ -123,6 +124,21 @@ export function AdminOverviewPanel({ goTo }: { goTo: (tab: string) => void }) {
         <Stat title="Main wallets" value={usd(d.volume.main)} accent="#10B981" />
         <Stat title="Agent wallets" value={usd(d.volume.agent)} accent="#F59E0B" />
       </Grid>
+
+      {d.fees && (
+        <>
+          <H>Platform fees</H>
+          <Grid cols={150}>
+            <Stat title="Total fees" value={usd(d.fees.total)} sub="swap + bridge + names" accent="#10B981" />
+            <Stat title="Swap fees" value={usd(d.fees.swap.fees)} sub={`${d.fees.swap.count} swaps · ${usd(d.fees.swap.volume)} volume`} />
+            <Stat title="Bridge fees" value={usd(d.fees.bridge.fees)} sub={`${d.fees.bridge.count} bridges · ${usd(d.fees.bridge.volume)} volume`} />
+            <Stat title="NAN names" value={usd(d.fees.names.revenue)} sub={`${d.fees.names.count} registered`} />
+          </Grid>
+          <div style={{ fontSize: 11, color: 'var(--nan-text3)', marginTop: 6 }}>
+            Swap and bridge fees are estimated from reported volume (0.3% and 0.5%, min $0.10 per bridge). NAN name revenue is the registration price paid. Names registered before this update are not counted.
+          </div>
+        </>
+      )}
 
       <Grid cols={280}>
         <div style={card}>
