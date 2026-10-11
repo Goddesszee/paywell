@@ -63,7 +63,7 @@ async function pollTransaction(userToken: string, transactionId: string, timeout
 
 // ── main handler ─────────────────────────────────────────────────────────────
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+async function handleWallet(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-user-token')
@@ -506,4 +506,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   return err(res, 400, `Unknown action: ${action ?? '(none)'}`)
+}
+
+// Always answer with JSON, even on an unexpected crash, so the client never sees a plain-text error page.
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  try {
+    return await handleWallet(req, res)
+  } catch (e) {
+    console.error('[api/wallet] unhandled', e)
+    if (!res.headersSent) return res.status(500).json({ error: e instanceof Error ? e.message : 'Wallet service error' })
+  }
 }

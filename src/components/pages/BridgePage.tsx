@@ -27,6 +27,7 @@ import {
   Info, X, ChevronDown,
 } from 'lucide-react'
 import { ConnectKitButton } from 'connectkit'
+import { safeJson } from '../../lib/safe-json'
 import { useAppStore } from '../../store/appStore'
 import { executeWithGuard } from '../../lib/circle-execute'
 import { getPasskeyAdapter } from '../CirclePasskeyLogin'
@@ -381,7 +382,7 @@ export function BridgePage({ inCard = false }: { inCard?: boolean }) {
       if (!resolvedWalletId || !resolvedAddress) {
         try {
           const wr = await fetch('/api/wallet', { headers: { 'x-user-token': authState.userToken } })
-          const wd = await wr.json() as { wallets?: { id: string; address: string }[] }
+          const wd = await safeJson<{ wallets?: { id: string; address: string }[]; error?: string }>(wr)
           const w  = wd.wallets?.[0]
           resolvedWalletId = w?.id
           resolvedAddress  = w?.address
@@ -401,7 +402,7 @@ export function BridgePage({ inCard = false }: { inCard?: boolean }) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ action: 'ucw-bridge-start', userToken: authState.userToken, walletAddress: userAddress, walletId, destChain: toChain.kitName, amount }),
         })
-        const startData = await startResp.json() as { challengeId?: string; error?: string }
+        const startData = await safeJson<{ challengeId?: string; error?: string }>(startResp)
         if (!startResp.ok || startData.error || !startData.challengeId) throw new Error(startData.error ?? 'Bridge start failed')
 
         updateStep('approve', { status: 'done' })
@@ -432,7 +433,7 @@ export function BridgePage({ inCard = false }: { inCard?: boolean }) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ action: 'ucw-bridge-confirm', userToken: authState.userToken, transactionId: txId }),
           })
-          const confirmData = await confirmResp.json() as { success?: boolean; txHash?: string; error?: string }
+          const confirmData = await safeJson<{ success?: boolean; txHash?: string; error?: string }>(confirmResp)
           if (!confirmResp.ok || confirmData.error) throw new Error(confirmData.error ?? 'Bridge confirm failed')
           updateStep('fetchAttestation', { status: 'done' })
           updateStep('mint', { status: 'done', txHash: confirmData.txHash })

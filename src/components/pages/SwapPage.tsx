@@ -4,6 +4,7 @@ import { AppKit, type SwapEstimate } from '@circle-fin/app-kit'
 import { createViemAdapterFromProvider } from '@circle-fin/adapter-viem-v2'
 import { erc20Abi, type EIP1193Provider } from 'viem'
 import { ArrowDown, Settings, CheckCircle, ExternalLink, RefreshCw, AlertCircle, X, Search } from 'lucide-react'
+import { safeJson } from '../../lib/safe-json'
 import { useAppStore } from '../../store/appStore'
 import { executeWithGuard } from '../../lib/circle-execute'
 import { getPasskeyAdapter } from '../CirclePasskeyLogin'
@@ -371,7 +372,7 @@ export function SwapPage({ inCard = false }: { inCard?: boolean }) {
           slippageBps,
         }),
       })
-      const data = await resp.json() as { estimate?: SwapEstimate; error?: string }
+      const data = await safeJson<{ estimate?: SwapEstimate; error?: string }>(resp)
       if (!resp.ok || data.error || !data.estimate) throw new Error(data.error ?? 'Estimation failed')
       setReviewed({ estimate: data.estimate, tokenIn, tokenOut, amountIn, slippageBps, account: circleWalletAddress })
       setPhase('reviewed')
@@ -403,7 +404,7 @@ export function SwapPage({ inCard = false }: { inCard?: boolean }) {
           slippageBps: reviewed.slippageBps,
         }),
       })
-      const data = await resp.json() as { challengeId?: string; error?: string }
+      const data = await safeJson<{ challengeId?: string; error?: string }>(resp)
       if (!resp.ok || data.error || !data.challengeId) throw new Error(data.error ?? 'Could not start swap')
 
       // Step 2 — open Circle PIN popup.
@@ -431,7 +432,7 @@ export function SwapPage({ inCard = false }: { inCard?: boolean }) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ action: 'ucw-swap-confirm', userToken: auth.userToken, transactionId: txId }),
         })
-        const confirmData = await confirmResp.json() as { result?: { txHash?: string; explorerUrl?: string }; error?: string }
+        const confirmData = await safeJson<{ result?: { txHash?: string; explorerUrl?: string }; error?: string }>(confirmResp)
         if (!confirmResp.ok || confirmData.error) throw new Error(confirmData.error ?? 'Swap confirm failed')
         const rHash = confirmData.result?.txHash ?? ''
         setTxHash(rHash); setExplorerUrl(confirmData.result?.explorerUrl ?? '')
