@@ -5,7 +5,7 @@ import {
   Layers, Repeat, Bot, Wallet,
   MessageSquare, HelpCircle, Info, User, Search, Bookmark,
   Star, Lightbulb, ArrowRight, Clock, ShoppingBag, FileDown,
-  FileText,
+  FileText, AtSign, Sparkles,
 } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
 import { useAccount } from 'wagmi'
@@ -15,6 +15,7 @@ import { NanLogo } from '../NanLogo'
 import { usePaymentWatcher } from '../../hooks/usePaymentWatcher'
 import { usePushNotifications } from '../../hooks/usePushNotifications'
 import { useBackendSync } from '../../hooks/useBackendSync'
+import { useNanName } from '../../hooks/useNanName'
 
 const F = "'Inter',-apple-system,sans-serif"
 const ADMIN_ADDRESS = (import.meta.env.VITE_ADMIN_ADDRESS as string ?? '').toLowerCase()
@@ -50,6 +51,82 @@ const ALL_RESULTS: SearchResult[] = [
   { id:'suggestions', title:'Suggestions',          subtitle:'Share ideas to improve NAN',         category:'Help',        Icon:Lightbulb,      iconColor:'#10B981', action:'suggestions' },
   { id:'about',       title:'About NAN',            subtitle:'Platform info & contact',            category:'Info',        Icon:Info,           iconColor:BLUE,      action:'about' },
 ]
+
+// ── NAN Name badge (desktop topbar only) ──────────────────────────────────────
+// Shows @handle if the user has one, or a "Claim @name" CTA if they don't.
+function NanNameBadge({ onClaim, C }: { onClaim: () => void; C: ReturnType<typeof useNanTheme> }) {
+  const auth = useAppStore(s => s.auth)
+  const { address: wagmiAddress } = useAccount()
+  const { resolveName } = useNanName()
+
+  const address = wagmiAddress ?? auth?.circleWalletAddress ?? auth?.walletAddress ?? ''
+  const [name, setName] = useState<string | null>(null)  // null = loading, '' = none
+  const [loaded, setLoaded] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    const addr = address
+    if (!addr) {
+      Promise.resolve().then(() => { if (!cancelled) { setName(''); setLoaded(true) } }).catch(() => { /* ignore */ })
+    } else {
+      resolveName(addr)
+        .then(n => { if (!cancelled) { setName(n ?? ''); setLoaded(true) } })
+        .catch(() => { if (!cancelled) { setName(''); setLoaded(true) } })
+    }
+    return () => { cancelled = true }
+  }, [address, resolveName])
+
+  if (!loaded) return null
+  if (!address) return null
+
+  if (name) {
+    // User has a NAN name — display it as a pill
+    return (
+      <button
+        onClick={onClaim}
+        title="Manage your NAN name"
+        style={{
+          display: 'flex', alignItems: 'center', gap: 6,
+          padding: '6px 12px',
+          borderRadius: 20,
+          border: `1px solid rgba(8,102,245,0.30)`,
+          background: 'rgba(8,102,245,0.08)',
+          cursor: 'pointer',
+          fontFamily: F,
+          WebkitTapHighlightColor: 'transparent',
+          transition: 'all 0.15s',
+          flexShrink: 0,
+        }}
+      >
+        <AtSign size={12} color={BLUE} strokeWidth={2.5} />
+        <span style={{ fontSize: 13, fontWeight: 700, color: BLUE, letterSpacing: '-0.01em' }}>{name}</span>
+      </button>
+    )
+  }
+
+  // No name — show CTA
+  return (
+    <button
+      onClick={onClaim}
+      title="Claim your NAN name"
+      style={{
+        display: 'flex', alignItems: 'center', gap: 6,
+        padding: '6px 12px',
+        borderRadius: 20,
+        border: `1px solid ${C.bdr2}`,
+        background: C.surf2,
+        cursor: 'pointer',
+        fontFamily: F,
+        WebkitTapHighlightColor: 'transparent',
+        transition: 'all 0.15s',
+        flexShrink: 0,
+      }}
+    >
+      <Sparkles size={12} color={C.t2} strokeWidth={2} />
+      <span style={{ fontSize: 12, fontWeight: 600, color: C.t2 }}>Claim @name</span>
+    </button>
+  )
+}
 
 // ── Command Palette ────────────────────────────────────────────────────────────
 function CommandPalette({ onClose, onGo }: { onClose: () => void; onGo: (action: string) => void }) {
@@ -429,6 +506,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
             {/* Controls */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+              <NanNameBadge onClaim={() => go('nan-name')} C={C} />
               <button
                 onClick={() => setPaletteOpen(true)}
                 aria-label="Search (⌘K)"
