@@ -10,6 +10,7 @@ import { getPasskeyAdapter } from '../CirclePasskeyLogin'
 import { swapFee, SWAP_FEE_BPS, bpsToPercent } from '../../lib/fees'
 import { W3SSdk } from '@circle-fin/w3s-pw-web-sdk'
 import { useNanTheme } from '../../hooks/useNanTheme'
+import { getClientKey } from '../../lib/circle-session'
 
 const CHAIN_ID  = 5042
 const CHAIN_KEY = 'Arc'
@@ -300,7 +301,7 @@ export function SwapPage() {
   const getAdapter = async () => {
     // Passkey (MSCA) path — sign client-side via Circle Modular Wallets
     if (isPasskeyUser) {
-      const clientKey = import.meta.env.VITE_CLIENT_KEY as string | undefined
+      const clientKey = getClientKey()
       const clientUrl = import.meta.env.VITE_CLIENT_URL as string | undefined
       if (!clientKey || !clientUrl) throw new Error('Modular Wallets not configured (VITE_CLIENT_KEY missing)')
       return getPasskeyAdapter({ clientKey })

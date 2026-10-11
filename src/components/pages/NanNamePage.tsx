@@ -22,6 +22,7 @@ import { useNanName, REGISTRY_ABI, ERC20_APPROVE_ABI, PRICES } from '../../hooks
 import { useNanTheme } from '../../hooks/useNanTheme'
 import { useCircleTransaction } from '../../hooks/useCircleTransaction'
 import { buildAddressExplorerUrl } from '../../onchain-facts'
+import { getClientKey } from '../../lib/circle-session'
 
 const NAME_REGISTRY = (import.meta.env.VITE_NAME_REGISTRY as string | undefined) ?? ''
 const USDC_ADDRESS  = '0x3600000000000000000000000000000000000000'
@@ -312,7 +313,7 @@ export function NanNamePage() {
 
   // ── Passkey path: two sequential UserOperations ────────────────────────────
   const submitPasskey = useCallback(async (h: string, dur: Dur) => {
-    const clientKey = import.meta.env.VITE_CLIENT_KEY as string | undefined
+    const clientKey = getClientKey()
     if (!clientKey) { toast.error('VITE_CLIENT_KEY is not set'); return }
     setAltBusy(true)
     setStep('approving')

@@ -10,6 +10,7 @@ import { useAppStore } from '../../store/appStore'
 import { executeWithGuard } from '../../lib/circle-execute'
 import { getPasskeyAdapter } from '../CirclePasskeyLogin'
 import { bridgeFee, BRIDGE_FEE_BPS, bpsToPercent } from '../../lib/fees'
+import { getClientKey } from '../../lib/circle-session'
 
 
 const S  = 'var(--nan-surface)'
@@ -263,7 +264,7 @@ export function BridgePage() {
     }
 
     // ── Passkey (MSCA) path — sign client-side via Circle Modular Wallets ──────
-    const clientKey = import.meta.env.VITE_CLIENT_KEY as string | undefined
+    const clientKey = getClientKey()
     const clientUrl = import.meta.env.VITE_CLIENT_URL as string | undefined
     if (isPasskeyUser) {
       if (!clientKey || !clientUrl) { setErrMsg('Modular Wallets not configured (VITE_CLIENT_KEY missing)'); setStatus('error'); return }

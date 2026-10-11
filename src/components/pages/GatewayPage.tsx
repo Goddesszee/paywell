@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import { getUsdc, getProtocolContractByName, buildTxExplorerUrl, ONCHAIN_CHAINS } from '@/onchain-facts'
 import { useAppStore } from '../../store/appStore'
 import { useCircleTransaction } from '../../hooks/useCircleTransaction'
+import { getClientKey } from '../../lib/circle-session'
 
 const F    = "'Inter', -apple-system, sans-serif"
 const MONO = "'JetBrains Mono', Menlo, monospace"
@@ -617,7 +618,7 @@ function PasskeyDepositTab({ address, walletBalance, usdcFact, onSuccess }: {
     setErrMsg('')
     setPhase('busy')
     try {
-      const clientKey = import.meta.env.VITE_CLIENT_KEY as string | undefined
+      const clientKey = getClientKey()
       if (!clientKey) throw new Error('VITE_CLIENT_KEY not set — passkey transactions require a Circle Client Key.')
 
       const { encodeFunctionData, erc20Abi: abi, parseUnits: pu } = await import('viem')
@@ -1264,7 +1265,7 @@ function CircleTransferTab({ address, gatewayBalance, onSuccess }: {
         // The modular SDK makes JSON-RPC calls to modular-sdk.circle.com which
         // requires the app domain to be whitelisted in Circle Console.
         // We route those calls through /api/gateway-proxy to avoid CORS failures.
-        const clientKey = import.meta.env.VITE_CLIENT_KEY as string | undefined
+        const clientKey = getClientKey()
         if (!clientKey) throw new Error('VITE_CLIENT_KEY not set — add it to your Vercel environment variables.')
 
         const { toWebAuthnAccount } = await import('viem/account-abstraction')

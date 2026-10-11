@@ -17,7 +17,7 @@ import type { EIP1193Provider } from 'viem'
 import { getPasskeyAdapter } from '../components/CirclePasskeyLogin'
 import { useAppStore } from '../store/appStore'
 import { executeWithGuard } from './circle-execute'
-import { ensureCircleCreds, getChallengeTransactionId, SESSION_EXPIRED_MSG } from './circle-session'
+import { ensureCircleCreds, getChallengeTransactionId, SESSION_EXPIRED_MSG, getClientKey } from './circle-session'
 
 const ARC_CHAIN_ID = 5042
 const ARC_KIT_NAME = 'Arc'
@@ -123,7 +123,7 @@ async function getWagmiAdapter(env: WagmiEnv) {
 
 async function getAppKitAdapter(kind: SignerKind, env: WagmiEnv) {
   if (kind === 'passkey') {
-    const clientKey = import.meta.env.VITE_CLIENT_KEY as string | undefined
+    const clientKey = getClientKey()
     if (!clientKey) throw new Error('Modular Wallets not configured (VITE_CLIENT_KEY missing).')
     return getPasskeyAdapter({ clientKey })
   }

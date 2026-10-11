@@ -21,6 +21,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import { W3SSdk } from '@circle-fin/w3s-pw-web-sdk'
 import { useAppStore } from '../store/appStore'
 import { executeWithGuard } from '../lib/circle-execute'
+import { fetchPrimaryWallet } from '../lib/circle-session'
 import { ArrowLeft, ArrowRight, Loader, Mail } from 'lucide-react'
 
 const F     = "'Inter', -apple-system, sans-serif"
@@ -84,17 +85,11 @@ export function CircleEmailLogin({ onBack, onSuccess }: Props) {
     setStatusMsg('Loading your wallet…')
     if (encryptionKey) encKeyRef.current = encryptionKey
     try {
-      const res  = await fetch('/api/wallet', {
-        headers: { 'x-user-token': userToken },
-      })
-      const data = await res.json() as {
-        wallets?: { id: string; address: string }[]
-        error?: string
-      }
-      if (data.error) throw new Error(data.error)
-      const wallet = data.wallets?.[0]
-      const addr   = wallet?.address ?? ''
-      const wid    = wallet?.id      ?? ''
+      // First-time users: the wallet is created asynchronously — wait for it to show up.
+      const wallet = await fetchPrimaryWallet(userToken)
+      if (!wallet) throw new Error('Your wallet is still being created. Please wait a few seconds and tap Try again.')
+      const addr   = wallet.address
+      const wid    = wallet.id
       const ek     = encKeyRef.current
       const em     = emailRef.current
       const refreshToken = loginResultRef.current?.refreshToken

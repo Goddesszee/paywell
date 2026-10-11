@@ -46,10 +46,11 @@ export function LoginPage() {
   const onCircleSuccess = (walletAddress: string, userToken: string, email: string, encryptionKey?: string) => {
     const existing = useAppStore.getState().auth
     setAuth({
+      ...existing,   // keep refreshToken / deviceId saved by the login step
       email,
       sessionToken: userToken,
       userToken,
-      encryptionKey,
+      encryptionKey: encryptionKey ?? existing?.encryptionKey,
       walletAddress,
       walletId: existing?.walletId ?? walletAddress,
       circleWalletAddress: walletAddress,

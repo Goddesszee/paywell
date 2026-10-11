@@ -49,6 +49,7 @@ import { runAgentBridge, runAgentSwap } from '../../lib/agent-exec'
 import { resolveActionRecipients } from '../../lib/agent-resolve'
 import { executeWithGuard } from '../../lib/circle-execute'
 import { AgentWalletExperience } from './AgentWalletExperience'
+import { getClientKey } from '../../lib/circle-session'
 
 const F       = "'Inter', -apple-system, sans-serif"
 const TEXT    = 'var(--nan-text)'
@@ -765,7 +766,7 @@ function AgentChat({ onNavigate }: { onNavigate?: (page: string, query?: string)
   // Always throws on failure so the agent never reports a send that did not happen.
   const triggerCircleSend = useCallback(async ({ toAddress, amount, note: _note }: { toAddress: string; amount: string; note?: string }) => {
     if (isPasskeyUser) {
-      const clientKey = import.meta.env.VITE_CLIENT_KEY as string | undefined
+      const clientKey = getClientKey()
       if (!clientKey) throw new Error('VITE_CLIENT_KEY is not configured.')
       const rawAmount = BigInt(Math.round(parseFloat(amount) * 1e6))
       const hash = await sendFromPasskeyWallet({ clientKey, to: toAddress as `0x${string}`, amount: rawAmount })

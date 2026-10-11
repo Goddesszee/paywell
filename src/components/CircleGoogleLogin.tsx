@@ -16,6 +16,7 @@ import { W3SSdk } from '@circle-fin/w3s-pw-web-sdk'
 import { SocialLoginProvider } from '@circle-fin/w3s-pw-web-sdk/dist/src/types'
 import { useAppStore } from '../store/appStore'
 import { executeWithGuard } from '../lib/circle-execute'
+import { fetchPrimaryWallet } from '../lib/circle-session'
 import { ArrowLeft, Loader } from 'lucide-react'
 
 const F     = "'Inter', -apple-system, sans-serif"
@@ -52,17 +53,16 @@ export function CircleGoogleLogin({ onBack, onSuccess }: Props) {
   // ── load wallets and finish auth ────────────────────────────────────────────
   const finishAuth = useCallback(async (userToken: string, encryptionKey?: string, refreshToken?: string) => {
     try {
-      const res  = await fetch('/api/wallet', { headers: { 'x-user-token': userToken } })
-      const data = await res.json() as { wallets?: { address: string; id: string }[] }
-      const wallet = data.wallets?.[0]
-      const addr   = wallet?.address ?? ''
+      const wallet = await fetchPrimaryWallet(userToken)
+      if (!wallet) throw new Error('wallet pending')
+      const addr   = wallet.address
       let deviceId: string | undefined
       try { deviceId = await sdkRef.current?.getDeviceId() } catch { /* optional */ }
       setAuth({ email: '', sessionToken: userToken, userToken, encryptionKey, refreshToken, deviceId, circleWalletAddress: addr, circleWalletId: wallet?.id ?? '', walletAddress: addr, walletId: wallet?.id ?? '' })
       setStep('done')
       onSuccess(addr, userToken, '')
     } catch {
-      setError('Could not load your wallet. Please try again.')
+      setError('Your wallet is still being created. Please wait a few seconds and tap Try again.')
       setStep('error')
     }
   }, [onSuccess, setAuth])

@@ -14,6 +14,7 @@ import { parseAmount } from '@/onchain-money'
 import { formatAddress } from '../../utils/format'
 import { sendFromPasskeyWallet } from '../CirclePasskeyLogin'
 import { useCircleTransaction } from '../../hooks/useCircleTransaction'
+import { getClientKey } from '../../lib/circle-session'
 
 const F     = "'Inter', -apple-system, sans-serif"
 const SURF  = 'var(--nan-surface)'
@@ -212,7 +213,7 @@ export function RecurringPage() {
 
     // ── Passkey (ERC-4337) path ───────────────────────────────────────────
     if (isPasskeyUser) {
-      const clientKey = import.meta.env.VITE_CIRCLE_CLIENT_KEY as string ?? ''
+      const clientKey = getClientKey() ?? ''
       sendFromPasskeyWallet({
         clientKey,
         to: task.recipient as `0x${string}`,

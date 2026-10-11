@@ -17,6 +17,7 @@ import {
 } from '@circle-fin/modular-wallets-core'
 import type { BundlerClient } from 'viem/account-abstraction'
 import { ArrowLeft, Fingerprint, LogIn } from 'lucide-react'
+import { getClientKey, clientKeyProblem, explainPasskeyError } from '../lib/circle-session'
 
 const F       = "'Inter', -apple-system, sans-serif"
 const BLUE    = '#0066FF'
@@ -62,7 +63,7 @@ export function CirclePasskeyLogin({ onBack, onSuccess }: Props) {
   // Initialise directly from storage — avoids a setState inside a useEffect
   const [hasExisting, setHasExisting] = useState(() => !!getStoredCredential())
 
-  const clientKey = ((import.meta.env.VITE_CLIENT_KEY as string | undefined) ?? '').trim().replace(/^["']|["']$/g, '').trim() || undefined
+  const clientKey = getClientKey()
   // VITE_CLIENT_URL must be https://modular-sdk.circle.com/v1/rpc/w3s/buidl
   // Fall back to the canonical URL so the env var being wrong/missing doesn't break passkey.
   const clientUrl = (import.meta.env.VITE_CLIENT_URL as string | undefined)
@@ -81,8 +82,9 @@ export function CirclePasskeyLogin({ onBack, onSuccess }: Props) {
   }
 
   async function handleRegister() {
-    if (!clientKey || !clientUrl) {
-      setErrorMsg('VITE_CLIENT_KEY is not set. Complete the Circle Console setup first.')
+    const keyProblem = clientKeyProblem(clientKey)
+    if (keyProblem || !clientKey || !clientUrl) {
+      setErrorMsg(keyProblem ?? 'VITE_CLIENT_KEY is not set. Complete the Circle Console setup first.')
       setStatus('error')
       return
     }
@@ -108,15 +110,16 @@ export function CirclePasskeyLogin({ onBack, onSuccess }: Props) {
       } else if (msg.includes('InvalidStateError')) {
         setErrorMsg('A passkey is already registered. Use "Sign in" instead.')
       } else {
-        setErrorMsg(msg)
+        setErrorMsg(explainPasskeyError(msg))
       }
       setStatus('error')
     }
   }
 
   async function handleLogin() {
-    if (!clientKey || !clientUrl) {
-      setErrorMsg('VITE_CLIENT_KEY is not set. Complete the Circle Console setup first.')
+    const keyProblem = clientKeyProblem(clientKey)
+    if (keyProblem || !clientKey || !clientUrl) {
+      setErrorMsg(keyProblem ?? 'VITE_CLIENT_KEY is not set. Complete the Circle Console setup first.')
       setStatus('error')
       return
     }
@@ -137,7 +140,7 @@ export function CirclePasskeyLogin({ onBack, onSuccess }: Props) {
       if (msg.includes('NotAllowedError') || msg.includes('cancelled')) {
         setErrorMsg('Passkey prompt was cancelled. Try again.')
       } else {
-        setErrorMsg(msg)
+        setErrorMsg(explainPasskeyError(msg))
       }
       setStatus('error')
     }

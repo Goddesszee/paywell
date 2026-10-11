@@ -1,7 +1,7 @@
 import { lazy, Suspense, useState, useMemo, useEffect, type ComponentType } from 'react'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { useAppStore } from './store/appStore'
-import { getCircleCreds } from './lib/circle-session'
+import { getCircleCreds, fetchPrimaryWallet } from './lib/circle-session'
 import { PaymentRequestPayPage } from './components/pages/PaymentRequestPayPage'
 import { SplashScreen } from './components/SplashScreen'
 import { AppShell } from './components/layout/AppShell'
@@ -87,6 +87,16 @@ export default function App() {
     const a0 = useAppStore.getState().auth
     if (a0?.userToken && !a0.isPasskeyUser && !a0.circleWalletId && a0.walletId) {
       useAppStore.getState().setAuth({ ...a0, circleWalletId: a0.walletId })
+    }
+    // Sessions saved before the wallet existed (first-time email login race) have no address —
+    // fetch it now so the app doesn't ask the user to "connect a wallet".
+    if (a0?.userToken && !a0.isPasskeyUser && !a0.circleWalletAddress) {
+      void fetchPrimaryWallet(a0.userToken, { attempts: 4 }).then(w => {
+        if (!w) return
+        const cur = useAppStore.getState().auth
+        if (!cur || cur.userToken !== a0.userToken) return
+        useAppStore.getState().setAuth({ ...cur, email: cur.email ?? '', circleWalletAddress: w.address, walletAddress: w.address, circleWalletId: w.id, walletId: w.id })
+      })
     }
     const restore = () => {
       const a = useAppStore.getState().auth

@@ -23,6 +23,7 @@ import { downloadReceipt, shareReceipt } from '../../lib/receipt'
 import { AnimatedNumber } from '../ui/AnimatedNumber'
 import { haptic } from '../../hooks/useHaptics'
 import { useNanName } from '../../hooks/useNanName'
+import { getClientKey } from '../../lib/circle-session'
 
 const ARC_ID = 5042
 const SANS = 'Inter, -apple-system, sans-serif'
@@ -472,7 +473,7 @@ function SendFlow({
   const handleSend = () => {
     if (isPasskeyUser) {
       // Circle Modular Wallet (passkey/WebAuthn) path — uses sendFromPasskeyWallet
-      const clientKey = import.meta.env.VITE_CLIENT_KEY as string | undefined
+      const clientKey = getClientKey()
       if (!clientKey) {
         setStep('error')
         toast.error('VITE_CLIENT_KEY is not set')
