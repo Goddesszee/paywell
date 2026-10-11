@@ -1,17 +1,14 @@
 import React, { useState, useEffect } from 'react'
-import { useAccount, useReadContract } from 'wagmi'
-import { erc20Abi } from 'viem'
+import { useAccount } from 'wagmi'
 import { Eye, EyeOff, ArrowUpRight, ArrowDownLeft, X, Copy, Check, Share2, FileText, Clock, CheckCircle2 } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { toast } from 'sonner'
 import { useAppStore } from '../../store/appStore'
-import { getUsdc } from '../../onchain-facts'
-import { Amount, usdcDecimalsFor } from '../../onchain-money'
 import { useNanTheme } from '../../hooks/useNanTheme'
+import { usePortfolioBalances } from '../../hooks/usePortfolioBalances'
 
 const F    = "'Inter', -apple-system, sans-serif"
 const MONO = "'JetBrains Mono', 'SF Mono', Menlo, monospace"
-const ARC  = 5042
 const BLUE = '#0866F5'
 
 type PerfPeriod = '24H' | '7D' | '1M' | '3M' | '1Y'
@@ -106,28 +103,19 @@ export function DashboardPage() {
     toast.success('Address copied')
   }
 
-  const usdcFact = getUsdc(ARC)
-  const { data: rawBalance, isLoading } = useReadContract({
-    address: usdcFact?.address as `0x${string}`,
-    abi: erc20Abi,
-    functionName: 'balanceOf',
-    args: address ? [address] : undefined,
-    chainId: ARC,
-    query: { enabled: !!address && !!usdcFact, refetchInterval: 15_000 },
-  })
+  // Use the same portfolio hook as HomePage/SwapPage — single source of truth
+  const portfolio  = usePortfolioBalances(address)
+  const isLoading  = portfolio.isLoading
+  const formatted  = portfolio.byToken.USDC.quantity   // Arc USDC, 2 dp
+  const numVal     = parseFloat(formatted)
 
-  const formatted = rawBalance !== undefined
-    ? Amount.fromRaw(rawBalance, usdcDecimalsFor(ARC)).toFixed(2)
-    : '0.00'
-  const numVal = parseFloat(formatted)
-
-  // Sync live balance into the global store so AgentChat can read it
+  // Sync into global store so AgentChat can read the balance
   const setMainWalletBalance = useAppStore(s => s.setMainWalletBalance)
   useEffect(() => {
-    if (rawBalance !== undefined && address) {
+    if (!portfolio.isLoading && address && formatted !== '0.00') {
       setMainWalletBalance(formatted, address)
     }
-  }, [formatted, address, rawBalance, setMainWalletBalance])
+  }, [formatted, address, portfolio.isLoading, setMainWalletBalance])
 
   // Build sparkline from activity history (fallback: empty → shows placeholder)
   const [sparkPoints, setSparkPoints] = useState<number[]>([])
