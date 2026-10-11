@@ -310,8 +310,7 @@ export function SwapPage({ inCard = false }: { inCard?: boolean }) {
     // Passkey (MSCA) path — sign client-side via Circle Modular Wallets
     if (isPasskeyUser) {
       const clientKey = getClientKey()
-      const clientUrl = import.meta.env.VITE_CLIENT_URL as string | undefined
-      if (!clientKey || !clientUrl) throw new Error('Modular Wallets not configured (VITE_CLIENT_KEY missing)')
+      if (!clientKey) throw new Error('Modular Wallets not configured (VITE_CLIENT_KEY missing)')
       return getPasskeyAdapter({ clientKey })
     }
     if (!connector) throw new Error('Wallet not connected')

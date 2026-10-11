@@ -265,9 +265,8 @@ export function BridgePage({ inCard = false }: { inCard?: boolean }) {
 
     // ── Passkey (MSCA) path — sign client-side via Circle Modular Wallets ──────
     const clientKey = getClientKey()
-    const clientUrl = import.meta.env.VITE_CLIENT_URL as string | undefined
     if (isPasskeyUser) {
-      if (!clientKey || !clientUrl) { setErrMsg('Modular Wallets not configured (VITE_CLIENT_KEY missing)'); setStatus('error'); return }
+      if (!clientKey) { setErrMsg('Modular Wallets not configured (VITE_CLIENT_KEY missing)'); setStatus('error'); return }
       if (fromChain.chainId !== 5042) { setErrMsg('Passkey wallet bridge is only supported from Arc currently.'); setStatus('error'); return }
       try {
         updateStep('approve', { status: 'active' })
