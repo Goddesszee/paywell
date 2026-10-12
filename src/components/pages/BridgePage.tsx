@@ -1028,7 +1028,7 @@ export function BridgePage({ inCard = false }: { inCard?: boolean }) {
       </div>
 
       {/* ── Gas token notice ── */}
-      {!fromChain.gasIsUsdc && (
+      {!fromChain.gasIsUsdc && !isCircleUser && (
         <div style={{
           display: 'flex', gap: 8, alignItems: 'flex-start',
           background: c.surf2, border: `1px solid ${c.bdr}`, borderRadius: 11,
@@ -1045,7 +1045,7 @@ export function BridgePage({ inCard = false }: { inCard?: boolean }) {
       )}
 
       {/* ── Paymaster notice ── */}
-      {!fromChain.gasIsUsdc && fromChain.paymasterSupported && (
+      {!fromChain.gasIsUsdc && !isCircleUser && fromChain.paymasterSupported && (
         <div style={{
           display: 'flex', gap: 8, alignItems: 'flex-start',
           background: c.blueDim, border: `1px solid ${c.blueBd}`, borderRadius: 11,

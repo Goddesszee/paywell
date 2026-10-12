@@ -450,6 +450,13 @@ async function handleWallet(req: VercelRequest, res: VercelResponse) {
         onChallenge: ({ challengeId }: { challengeId: string }) => { resolveChallenge(challengeId) },
       })
 
+      let lastStage = 'starting'
+      try { (kit as unknown as { on: (a: string, h: (p: unknown) => void) => void }).on('*', (p: unknown) => {
+        const m = p as { method?: string; values?: { name?: string } }
+        lastStage = m?.method ?? m?.values?.name ?? lastStage
+        console.log('[ucw-bridge]', srcChain, '->', dstChain, lastStage)
+      }) } catch { /* events are best-effort */ }
+
       // Fire bridge — same adapter for both from and to per Circle docs
       // useForwarder:false so SDK issues a TRANSACTION challenge instead of signTypedData
       void kit.bridge({
@@ -469,7 +476,7 @@ async function handleWallet(req: VercelRequest, res: VercelResponse) {
       const challengeId = await Promise.race([
         challengePromise,
         new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('Timed out waiting for the bridge approval request. Please try again.')), 40_000)
+          setTimeout(() => reject(new Error(`Timed out waiting for the bridge approval request (stuck at: ${lastStage}). Please try again.`)), 40_000)
         ),
       ])
 
