@@ -357,6 +357,11 @@ export function SwapPage({ inCard = false }: { inCard?: boolean }) {
   // ── Circle UCW user path: estimate → PIN popup → confirm ──────────────────
   const reviewSwapCircle = async () => {
     if (!circleWalletAddress) return
+    // On Arc, NATIVE and USDC are the same asset — reject before estimation
+    if ((tokenIn === 'USDC' && tokenOut === 'NATIVE') || (tokenIn === 'NATIVE' && tokenOut === 'USDC')) {
+      setErrMsg('USDC and native gas are the same asset on Arc — no swap needed.')
+      return
+    }
     const auth = useAppStore.getState().auth
     if (!auth?.userToken || !auth?.circleWalletId) {
       setPhase('error'); setErrMsg('SESSION_EXPIRED'); return
@@ -459,6 +464,11 @@ export function SwapPage({ inCard = false }: { inCard?: boolean }) {
   // ── EIP-1193 browser wallet path ──────────────────────────────────────────
   const reviewSwap = async () => {
     if (!canReview) return
+    // On Arc, NATIVE and USDC are the same asset — reject before estimation
+    if ((tokenIn === 'USDC' && tokenOut === 'NATIVE') || (tokenIn === 'NATIVE' && tokenOut === 'USDC')) {
+      setErrMsg('USDC and native gas are the same asset on Arc — no swap needed.')
+      return
+    }
     if (isCircleUser) { await reviewSwapCircle(); return }
     setPhase('estimating'); setErrMsg('')
     try {
