@@ -32,3 +32,21 @@ export function bridgeCustomFee(amountUsdc: number): { customFee?: { value: stri
   if (!to || !(BRIDGE_FEE_BPS > 0) || !(amountUsdc > 0)) return {}
   return { customFee: { value: bridgeFee(amountUsdc).toFixed(6), recipientAddress: to } }
 }
+
+/**
+ * Run an App Kit call with the platform fee; if the SDK rejects the request because of the fee
+ * (validation happens before anything is submitted on-chain), retry once without it so the user's
+ * bridge/swap is never blocked by fee configuration. Other errors are re-thrown unchanged.
+ */
+export async function withFeeFallback<T>(run: (withFee: boolean) => Promise<T>): Promise<T> {
+  try {
+    return await run(true)
+  } catch (e) {
+    const m = e instanceof Error ? e.message : String(e)
+    if (/custom ?fee|fee ?recipient|INPUT_VALIDATION|invalid.*fee|fee.*invalid/i.test(m)) {
+      console.warn('[fees] customFee rejected, retrying without platform fee:', m)
+      return run(false)
+    }
+    throw e
+  }
+}

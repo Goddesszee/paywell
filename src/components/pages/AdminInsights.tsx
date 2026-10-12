@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { adminJson } from '../../lib/admin-api'
+import { AdminTreasury } from './AdminTreasury'
 
 const SANS = "'Inter', -apple-system, sans-serif"
 const S = 'var(--nan-surface)'
@@ -139,6 +140,8 @@ export function AdminOverviewPanel({ goTo }: { goTo: (tab: string) => void }) {
           </div>
         </>
       )}
+
+      <AdminTreasury />
 
       <Grid cols={280}>
         <div style={card}>
