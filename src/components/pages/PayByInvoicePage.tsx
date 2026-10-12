@@ -19,6 +19,7 @@ import { useAppStore, type Invoice } from '../../store/appStore'
 import { buildTxExplorerUrl } from '@/onchain-facts'
 import { useNanName } from '../../hooks/useNanName'
 import { usePublicPage } from '../../hooks/usePublicPage'
+import { CircleEmailLogin } from '../CircleEmailLogin'
 
 const F     = "'Inter', -apple-system, sans-serif"
 const BLUE  = '#0866F5'
@@ -102,6 +103,7 @@ export function PayByInvoicePage({ invoiceId }: Props) {
 
   // ── NAN name resolution ──────────────────────────────────────────────────
   const { resolveHandle } = useNanName()
+  const { auth, setAuth } = useAppStore()
   const [tab, setTab] = useState<Tab>('address')
   const [showQr, setShowQr] = useState(false)
 
@@ -111,11 +113,15 @@ export function PayByInvoicePage({ invoiceId }: Props) {
   const [nanResolved, setNanResolved] = useState<{ name: string; address: string } | null>(null)
   const [nanError, setNanError] = useState('')
   const [nanPaid, setNanPaid] = useState(false)
+  const [nanShowLogin, setNanShowLogin] = useState(false)
+  const [nanSending, setNanSending] = useState(false)
   const nanRef = useRef<HTMLInputElement>(null)
 
   // success state
   const [paid, setPaid] = useState(false)
   const [paidTx, setPaidTx] = useState('')
+
+  const isNanLoggedIn = !!(auth?.userToken && (auth?.circleWalletAddress || auth?.walletAddress))
 
   const resolveNan = async () => {
     const raw = nanInput.trim().replace(/\.nan$/i, '').toLowerCase()
@@ -134,6 +140,32 @@ export function PayByInvoicePage({ invoiceId }: Props) {
       setNanError('Could not resolve name — check spelling')
     } finally {
       setNanResolving(false)
+    }
+  }
+
+  // Send USDC from the logged-in Circle wallet to the merchant
+  const sendFromNanWallet = async () => {
+    if (!invoice || !invoice.payToAddress || !auth?.userToken) return
+    setNanSending(true)
+    try {
+      const res = await fetch('/api/wallet', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'transfer',
+          userToken: auth.userToken,
+          to: invoice.payToAddress,
+          amount: String(invoice.amountDue),
+          tokenSymbol: invoice.currency ?? 'USDC',
+        }),
+      })
+      const data = await res.json() as { txHash?: string; txId?: string; error?: string }
+      if (!res.ok || data.error) throw new Error(data.error ?? `Transfer failed (${res.status})`)
+      markPaid(data.txHash ?? data.txId ?? '')
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Transfer failed — please try again')
+    } finally {
+      setNanSending(false)
     }
   }
 
@@ -332,13 +364,42 @@ export function PayByInvoicePage({ invoiceId }: Props) {
         {/* ── Tab 2: Pay with NAN name ── */}
         {tab === 'nan' && (
           <div style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.10)', borderRadius: 16, padding: 20 }}>
-            <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', lineHeight: 1.5, marginBottom: 16 }}>
-              Have a NAN wallet? Enter your <strong style={{ color: '#fff' }}>.nan</strong> name to pay directly — no address needed.
-            </div>
 
-            {!nanResolved ? (
+            {/* Step 1: not logged in — prompt to create / login */}
+            {!isNanLoggedIn && !nanShowLogin && (
               <>
-                {/* Name input */}
+                <div style={{ fontSize: 14, fontWeight: 700, color: '#fff', marginBottom: 6 }}>Pay with your NAN wallet</div>
+                <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.55)', lineHeight: 1.55, marginBottom: 20 }}>
+                  New to NAN? Create a free wallet in 30 seconds with just your email. Already have one? Sign in and pay instantly.
+                </div>
+                <button onClick={() => setNanShowLogin(true)}
+                  style={{ width: '100%', height: 50, background: BLUE, border: 'none', borderRadius: 12, color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                  Create wallet / Sign in to pay
+                </button>
+              </>
+            )}
+
+            {/* Inline email login */}
+            {!isNanLoggedIn && nanShowLogin && (
+              <>
+                <button onClick={() => setNanShowLogin(false)}
+                  style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: 12, cursor: 'pointer', fontFamily: F, marginBottom: 16, padding: 0 }}>
+                  <ArrowLeft size={13} /> Back
+                </button>
+                <CircleEmailLogin onSuccess={(walletAddress, userToken, email, encryptionKey) => {
+                  const existing = useAppStore.getState().auth
+                  setAuth({ ...existing, email, sessionToken: userToken, userToken, encryptionKey: encryptionKey ?? existing?.encryptionKey, walletAddress, walletId: existing?.walletId ?? walletAddress, circleWalletAddress: walletAddress, circleWalletId: existing?.circleWalletId ?? walletAddress })
+                  setNanShowLogin(false)
+                }} />
+              </>
+            )}
+
+            {/* Step 2: logged in — show name input */}
+            {isNanLoggedIn && !nanResolved && (
+              <>
+                <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', lineHeight: 1.5, marginBottom: 14 }}>
+                  Enter your <strong style={{ color: '#fff' }}>.nan</strong> name to confirm your identity and pay instantly.
+                </div>
                 <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
                   <div style={{ flex: 1, position: 'relative' }}>
                     <input
@@ -358,57 +419,40 @@ export function PayByInvoicePage({ invoiceId }: Props) {
                 </div>
                 {nanError && <div style={{ fontSize: 12, color: RED, marginBottom: 8 }}>{nanError}</div>}
                 <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)', lineHeight: 1.5 }}>
-                  Your NAN name resolves to your wallet address onchain. The merchant will receive {fmtAmt(invoice.amountDue, invoice.currency)}.
+                  Your .nan name confirms your identity. Payment will be sent from your NAN wallet.
                 </div>
               </>
-            ) : (
-              // Resolved — show confirm card
+            )}
+
+            {/* Step 3: name resolved — one-tap pay */}
+            {isNanLoggedIn && nanResolved && (
               <>
                 <button onClick={() => { setNanResolved(null); setNanInput('') }}
                   style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: 12, cursor: 'pointer', fontFamily: F, marginBottom: 16, padding: 0 }}>
                   <ArrowLeft size={13} /> Back
                 </button>
 
+                {/* Confirm card */}
                 <div style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.10)', borderRadius: 12, padding: '14px 16px', marginBottom: 16 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
                     <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)' }}>Paying as</div>
                     <div style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>{nanResolved.name}.nan</div>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                    <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)' }}>Your address</div>
-                    <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', fontFamily: 'monospace' }}>{shortAddr(nanResolved.address)}</div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
+                    <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)' }}>To</div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: '#fff' }}>{invoice.businessName}</div>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 10, borderTop: '1px solid rgba(255,255,255,0.07)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 10, borderTop: '1px solid rgba(255,255,255,0.07)' }}>
                     <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)' }}>Amount</div>
-                    <div style={{ fontSize: 15, fontWeight: 700, color: BLUE }}>{fmtAmt(invoice.amountDue, invoice.currency)}</div>
+                    <div style={{ fontSize: 16, fontWeight: 800, color: BLUE }}>{fmtAmt(invoice.amountDue, invoice.currency)}</div>
                   </div>
                 </div>
 
-                {/* Instructions: copy address, go to your wallet, send */}
-                <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 10, padding: '12px 14px', marginBottom: 16 }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>How to pay</div>
-                  {[
-                    'Copy the merchant address below',
-                    'Open your NAN app or wallet',
-                    `Send ${fmtAmt(invoice.amountDue, invoice.currency)} to the address`,
-                  ].map((step, i) => (
-                    <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', marginBottom: i < 2 ? 10 : 0 }}>
-                      <div style={{ width: 20, height: 20, borderRadius: '50%', background: BLUE, color: '#fff', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 }}>{i + 1}</div>
-                      <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.65)', lineHeight: 1.5 }}>{step}</div>
-                    </div>
-                  ))}
-                </div>
-
-                {invoice.payToAddress && (
-                  <button onClick={() => copyAddress(invoice.payToAddress!)}
-                    style={{ width: '100%', height: 46, background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 10, color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, marginBottom: 10 }}>
-                    <Copy size={14} /> Copy merchant address
-                  </button>
-                )}
-
-                <button onClick={() => { setNanPaid(true); markPaid() }}
-                  style={{ width: '100%', height: 50, background: BLUE, border: 'none', borderRadius: 12, color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                  I've sent the payment <ChevronRight size={17} />
+                <button onClick={() => void sendFromNanWallet()} disabled={nanSending}
+                  style={{ width: '100%', height: 52, background: nanSending ? 'rgba(8,102,245,0.5)' : BLUE, border: 'none', borderRadius: 12, color: '#fff', fontSize: 15, fontWeight: 700, cursor: nanSending ? 'not-allowed' : 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                  {nanSending
+                    ? <><Loader size={17} color="#fff" style={{ animation: 'spin 1s linear infinite' }} /> Sending…</>
+                    : <>Pay {fmtAmt(invoice.amountDue, invoice.currency)} <ChevronRight size={17} /></>}
                 </button>
               </>
             )}

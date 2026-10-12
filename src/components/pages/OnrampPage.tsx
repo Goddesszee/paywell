@@ -54,7 +54,7 @@ const PRESETS = [20, 50, 100, 200]
 
 export function OnrampPage() {
   const { address: wagmiAddress, isConnected } = useAccount()
-  const { auth, onrampPrefill, setOnrampPrefill, setAuth, setActiveView, profile, setShowWelcome } = useAppStore()
+  const { auth, onrampPrefill, setOnrampPrefill, setAuth, setActiveView, setShowWelcome } = useAppStore()
   const userAddress = wagmiAddress ?? (auth?.circleWalletAddress as `0x${string}` | undefined)
 
   // When a merchant destinationAddress is in the prefill, USDC goes straight to the merchant.
@@ -90,9 +90,13 @@ export function OnrampPage() {
     return () => clearTimeout(t)
   }, [state, widgetReady, session])
 
-  // Clear prefill after first render so it doesn't persist if the user reopens this page
+  // Clear the amount prefill after first render so it doesn't persist if the user
+  // reopens this page — but KEEP destinationAddress and note for the merchant-pay flow.
   useEffect(() => {
-    if (prefillAmount !== null) setOnrampPrefill(null)
+    if (prefillAmount !== null) {
+      const { destinationAddress: dest, note } = onrampPrefill ?? {}
+      setOnrampPrefill(dest ? { destinationAddress: dest, note: note ?? undefined } : null)
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -280,8 +284,9 @@ export function OnrampPage() {
             setAuth({ ...existing, email, sessionToken: userToken, userToken, encryptionKey: encryptionKey ?? existing?.encryptionKey, walletAddress, walletId: existing?.walletId ?? walletAddress, circleWalletAddress: walletAddress, circleWalletId: existing?.circleWalletId ?? walletAddress })
             setShowWelcome(false)
             setShowLogin(false)
-            // If this is NOT a merchant-pay flow, go to home after login
-            if (!merchantDest) setActiveView(profile.displayName ? 'home' : 'name')
+            // Always stay on the onramp page — re-set active view so any navigation
+            // triggered deep inside login flow (e.g. name page redirect) is overridden.
+            setActiveView('onramp')
           }} />
         </div>
       )}
