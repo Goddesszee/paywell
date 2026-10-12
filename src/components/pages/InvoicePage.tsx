@@ -17,13 +17,14 @@ import { useAccount } from 'wagmi'
 
 // ── Design tokens ────────────────────────────────────────────────────────────
 const F     = "'Inter', -apple-system, sans-serif"
-const SURF  = 'var(--nan-surface)'
-const SURF2 = 'var(--nan-surface2)'
-const BDR   = 'var(--nan-bdr)'
+// CSS vars with dark-mode fallbacks so buttons are always visible
+const SURF  = 'var(--nan-surface, #151B2D)'
+const SURF2 = 'var(--nan-surface2, #1C2340)'
+const BDR   = 'var(--nan-bdr, rgba(255,255,255,0.10))'
 const BLUE  = '#0866F5'
-const TEXT  = 'var(--nan-text)'
-const T2    = 'var(--nan-text2)'
-const T3    = 'var(--nan-text3)'
+const TEXT  = 'var(--nan-text, #FFFFFF)'
+const T2    = 'var(--nan-text2, rgba(255,255,255,0.65))'
+const T3    = 'var(--nan-text3, rgba(255,255,255,0.40))'
 const GREEN = '#22C55E'
 const RED   = '#EF4444'
 const AMBER = '#F59E0B'

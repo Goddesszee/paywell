@@ -224,10 +224,10 @@ export function PayByInvoicePage({ invoiceId }: Props) {
             </div>
             {invoice.payToAddress ? (
               <a
-                href={`https://nanarc.xyz/?nanpay=${invoice.payToAddress}&amount=${invoice.amountDue}`}
+                href={`https://nanarc.xyz/?pay=${invoice.payToAddress}&amount=${invoice.amountDue}&note=${encodeURIComponent(`Invoice ${invoice.number}`)}`}
                 style={{ display: 'block', width: '100%', height: 50, background: BLUE, color: '#fff', border: 'none', borderRadius: 12, fontSize: 15, fontWeight: 700, textDecoration: 'none', textAlign: 'center', lineHeight: '50px', boxSizing: 'border-box' }}
               >
-                Buy & pay with card
+                Buy &amp; pay with card
               </a>
             ) : (
               <div style={{ fontSize: 13, color: RED, textAlign: 'center' }}>No wallet address on this invoice.</div>

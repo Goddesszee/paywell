@@ -6,7 +6,7 @@ import React, { useState, useEffect } from 'react'
 import {
   CheckCircle2, AlertCircle, Clock, XCircle,
   ArrowUpRight, ExternalLink, Copy, Check,
-  Wallet, Smartphone,
+  Wallet, Smartphone, CreditCard,
 } from 'lucide-react'
 import { useWriteContract, useWaitForTransactionReceipt, useAccount, useChainId, useSwitchChain } from 'wagmi'
 import { erc20Abi, isAddress } from 'viem'
@@ -352,6 +352,53 @@ function CopyPanel({ req }: { req: PaymentRequest }) {
   )
 }
 
+// ── Card / onramp panel ────────────────────────────────────────────────────────
+function CardPanel({ req }: { req: PaymentRequest }) {
+  const addr = req.creatorAddress ?? ''
+  // Route to the NAN pay page with direct address params — no NAN name needed
+  const onrampUrl = addr
+    ? `https://nanarc.xyz/?pay=${addr}&amount=${req.amount}&note=${encodeURIComponent(req.title)}`
+    : ''
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div style={{ background: '#f7f8fa', borderRadius: 12, padding: '14px 16px' }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: '#111', marginBottom: 6 }}>Pay with debit or credit card</div>
+        <div style={{ fontSize: 13, color: '#666', lineHeight: 1.6 }}>
+          Don't have USDC? Buy it instantly with your card and it will be sent directly to the recipient. No crypto wallet needed.
+        </div>
+      </div>
+
+      <div style={{ background: '#f7f8fa', borderRadius: 12, padding: '12px 16px' }}>
+        <div style={{ fontSize: 11, color: '#999', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>Amount</div>
+        <div style={{ fontSize: 22, fontWeight: 800, color: '#111' }}>{req.amount.toLocaleString('en', { minimumFractionDigits: 2 })} {req.currency}</div>
+      </div>
+
+      {addr ? (
+        <a
+          href={onrampUrl}
+          style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            height: 52, borderRadius: 14, background: BLUE, color: '#fff',
+            fontFamily: F, fontSize: 15, fontWeight: 700, textDecoration: 'none',
+            boxShadow: '0 4px 20px rgba(8,102,245,0.30)',
+          }}
+        >
+          <CreditCard size={18} /> Buy &amp; Pay with Card
+        </a>
+      ) : (
+        <div style={{ textAlign: 'center', fontSize: 13, color: '#aaa', padding: '10px 0' }}>
+          No recipient address on this request.
+        </div>
+      )}
+
+      <div style={{ fontSize: 11, color: '#bbb', textAlign: 'center', lineHeight: 1.5 }}>
+        Powered by Circle · Purchases settle instantly as USDC on Arc.
+      </div>
+    </div>
+  )
+}
+
 // ── Main page ──────────────────────────────────────────────────────────────────
 export function PaymentRequestPayPage({
   requestId = '',
@@ -386,8 +433,8 @@ export function PaymentRequestPayPage({
       : null
   )
 
-  type Method = 'wallet' | 'qr' | 'copy'
-  const [method, setMethod] = useState<Method>('qr')
+  type Method = 'wallet' | 'qr' | 'copy' | 'card'
+  const [method, setMethod] = useState<Method>('card')
   const [successHash, setSuccessHash] = useState<string | null>(null)
 
   // Mark as viewed on open (only for store requests)
@@ -521,12 +568,14 @@ export function PaymentRequestPayPage({
 
             {/* Method tabs */}
             <div style={{ display: 'flex', gap: 6, background: '#f4f4f4', borderRadius: 14, padding: 4, marginBottom: 22 }}>
-              <MethodTab icon={<Smartphone size={18} />} label="Scan QR"     active={method === 'qr'}     onClick={() => setMethod('qr')} />
-              <MethodTab icon={<Copy size={18} />}       label="Copy Address" active={method === 'copy'}   onClick={() => setMethod('copy')} />
+              <MethodTab icon={<CreditCard size={18} />} label="Card"         active={method === 'card'}   onClick={() => setMethod('card')} />
               <MethodTab icon={<Wallet size={18} />}     label="Wallet"       active={method === 'wallet'} onClick={() => setMethod('wallet')} />
+              <MethodTab icon={<Smartphone size={18} />} label="Scan QR"      active={method === 'qr'}     onClick={() => setMethod('qr')} />
+              <MethodTab icon={<Copy size={18} />}       label="Copy"         active={method === 'copy'}   onClick={() => setMethod('copy')} />
             </div>
 
             {/* Panel content */}
+            {method === 'card'   && <CardPanel req={req} />}
             {method === 'qr'     && <QrPanel req={req} />}
             {method === 'copy'   && <CopyPanel req={req} />}
             {method === 'wallet' && <WalletPanel req={req} onSuccess={setSuccessHash} />}
