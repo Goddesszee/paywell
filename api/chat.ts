@@ -836,36 +836,54 @@ ${crossChainLines ? `- Cross-chain balances:\n${crossChainLines}\n- Total cross-
     activityBlock, recurringBlock, paymentRequestBlock, invoiceBlock, agentStateBlock,
   })
 
-  // ── OpenAI ────────────────────────────────────────────────────────────────
-  if (!process.env.OPENAI_API_KEY) {
-    console.error('[NAN chat] OPENAI_API_KEY is not set — add it to Vercel environment variables')
-  }
-  if (process.env.OPENAI_API_KEY) {
+  // ── LLM: OpenAI first, Groq fallback ─────────────────────────────────────
+  type LLMMessage = { role: 'system' | 'user' | 'assistant'; content: string }
+  const llmMessages: LLMMessage[] = [
+    { role: 'system', content: systemPrompt },
+    ...(history as LLMMessage[]),
+    { role: 'user', content: message },
+  ]
+
+  async function tryOpenAI(): Promise<string | null> {
+    if (!process.env.OPENAI_API_KEY) return null
     try {
       const r = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
-        headers: {
-          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'gpt-4o',
-          messages: [
-            { role: 'system', content: systemPrompt },
-            ...history as { role: 'user' | 'assistant'; content: string }[],
-            { role: 'user', content: message },
-          ],
-          max_tokens: 800,
-        }),
+        headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: 'gpt-4o', messages: llmMessages, max_tokens: 800 }),
+        signal: AbortSignal.timeout(25_000),
       })
       const d = await r.json() as { choices?: Array<{ message: { content: string } }>; error?: { message: string } }
       if (d.error) throw new Error(d.error.message)
-      const raw = d.choices?.[0]?.message?.content ?? 'Sorry, try again.'
-      const { text, action } = extractAction(raw)
-      return res.status(200).json({ reply: text, action, service_used: liveServiceId, marketplace_services: marketplaceServices.length > 0 ? marketplaceServices : undefined })
+      return d.choices?.[0]?.message?.content ?? null
     } catch (e) {
-      console.error('OpenAI error:', e)
+      console.error('[NAN chat] OpenAI error:', e)
+      return null
     }
+  }
+
+  async function tryGroq(): Promise<string | null> {
+    if (!process.env.GROQ_API_KEY) return null
+    try {
+      const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${process.env.GROQ_API_KEY}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: 'llama-3.3-70b-versatile', messages: llmMessages, max_tokens: 800, temperature: 0.4 }),
+        signal: AbortSignal.timeout(20_000),
+      })
+      const d = await r.json() as { choices?: Array<{ message: { content: string } }>; error?: { message: string } }
+      if (d.error) throw new Error(d.error.message)
+      return d.choices?.[0]?.message?.content ?? null
+    } catch (e) {
+      console.error('[NAN chat] Groq error:', e)
+      return null
+    }
+  }
+
+  const raw = (await tryOpenAI()) ?? (await tryGroq())
+  if (raw) {
+    const { text, action } = extractAction(raw)
+    return res.status(200).json({ reply: text, action, service_used: liveServiceId, marketplace_services: marketplaceServices.length > 0 ? marketplaceServices : undefined })
   }
 
   // ── static fallback — only reached if OPENAI_API_KEY is missing or OpenAI errored ──

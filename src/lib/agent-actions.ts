@@ -968,11 +968,34 @@ function friendlyWagmiError(e: unknown): string {
   return msg
 }
 
+/** Resolve a @nanname / contact name / 0x address to a checksummed 0x address. */
+async function resolveRecipient(raw: string, store: AppState): Promise<`0x${string}`> {
+  const trimmed = raw.trim()
+  // Already a 0x address
+  if (/^0x[a-fA-F0-9]{40}$/.test(trimmed)) return getAddress(trimmed)
+
+  // Contact name lookup
+  const handle = trimmed.replace(/^@/, '').toLowerCase()
+  const contact = store.contacts.find(c =>
+    c.name.toLowerCase() === handle ||
+    c.address.toLowerCase() === trimmed.toLowerCase()
+  )
+  if (contact) return getAddress(contact.address)
+
+  // NAN name onchain lookup
+  try {
+    const addr = await readRegistry(null, 'resolve', [handle]) as string | undefined
+    if (addr && addr !== '0x0000000000000000000000000000000000000000') return getAddress(addr)
+  } catch { /* ignore */ }
+
+  throw new Error(`Could not resolve "${trimmed}" to a wallet address. Please provide a 0x address or a registered NAN name.`)
+}
+
 /** One send path for every login type. Used by both send_usdc and ucw_send. */
 async function sendMainWallet(params: { toAddress: string; amount: string; note?: string }, ctx: ExecutorContext): Promise<string> {
   const { toAddress: rawTo, amount, note } = params
   let toAddress: `0x${string}`
-  try { toAddress = getAddress(rawTo) } catch { throw new Error(`"${rawTo}" is not a valid wallet address.`) }
+  try { toAddress = await resolveRecipient(rawTo, ctx.store) } catch (e) { throw new Error(e instanceof Error ? e.message : `"${rawTo}" is not a valid wallet address.`) }
   const n = parseFloat(amount)
   if (!Number.isFinite(n) || n <= 0) throw new Error(`"${amount}" is not a valid amount.`)
   const { store } = ctx
@@ -1017,7 +1040,8 @@ export async function executeAction(action: NanAction, ctx: ExecutorContext): Pr
   switch (action.action) {
 
     case 'add_recurring': {
-      const { name, recipient, amount, frequency } = action.params
+      const { name, amount, frequency } = action.params
+      const recipient = await resolveRecipient(action.params.recipient, store).catch(() => action.params.recipient)
       const now = new Date()
       let nextRunAt: string | undefined
       if (frequency === 'daily')   nextRunAt = new Date(now.getTime() + 86400000).toISOString()
@@ -1032,7 +1056,8 @@ export async function executeAction(action: NanAction, ctx: ExecutorContext): Pr
     }
 
     case 'add_agent_recurring': {
-      const { name, recipient, amount, frequency } = action.params
+      const { name, amount, frequency } = action.params
+      const recipient = await resolveRecipient(action.params.recipient, store).catch(() => action.params.recipient)
       const now = new Date()
       let nextRunAt: string | undefined
       if (frequency === 'daily')   nextRunAt = new Date(now.getTime() + 86400000).toISOString()
@@ -1172,27 +1197,33 @@ export async function executeAction(action: NanAction, ctx: ExecutorContext): Pr
     case 'create_payment_request': {
       const { title, amount, note, dueDate, payerName } = action.params
       const creatorAddress = ctx.connectedAddress ?? store.auth?.walletAddress ?? store.auth?.circleWalletAddress ?? ''
-      const id = store.addPaymentRequest({
-        title,
-        amount,
+      const today = new Date().toISOString().slice(0, 10)
+      const due = dueDate ?? new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10)
+      // Use unified invoice store — quick mode (no line items)
+      const inv = store.addInvoice({
+        status: 'sent',
+        mode: 'quick',
+        businessName: store.profile.displayName || 'NAN User',
+        businessEmail: store.auth?.email || '',
+        customerName: payerName || title,
+        issueDate: today,
+        dueDate: due,
         currency: 'USDC',
-        status: 'pending',
-        note,
-        dueDate,
-        recipientName: payerName,
-        creatorAddress,
-        creatorName: store.profile.displayName || undefined,
+        items: [],
+        notes: note || title,
+        subtotal: amount,
+        discountTotal: 0,
+        taxTotal: 0,
+        total: amount,
+        payments: [],
+        amountPaid: 0,
+        amountDue: amount,
+        payToAddress: creatorAddress,
       })
-      // Same link format as the Payment Requests page (buildPayLink)
-      const q = new URLSearchParams()
-      q.set('pr', id)
-      q.set('pay', creatorAddress)
-      q.set('amount', String(amount))
-      if (title) q.set('note', title)
-      const link = `${window.location.origin}?${q.toString()}`
+      const link = `${window.location.origin}?pr=${inv.id}`
       let copied = false
       try { await navigator.clipboard.writeText(link); copied = true } catch { /* clipboard unavailable */ }
-      return `Payment request created${payerName ? ` for ${payerName}` : ''}: ${amount} USDC — "${title}".\n\nShare this link:\n[Open payment link](${link})\n\n${link}${copied ? '\n\n(Link copied to your clipboard.)' : ''}\n\nYou can track it under Payment Requests.`
+      return `Payment request **${inv.number}** created${payerName ? ` for ${payerName}` : ''}: ${amount} USDC — "${title}".\n\nShare this link:\n[Open payment link](${link})\n\n${link}${copied ? '\n\n(Link copied to your clipboard.)' : ''}\n\nYou can track it under Invoices & Requests.`
     }
 
     case 'create_invoice': {
