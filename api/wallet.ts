@@ -379,7 +379,12 @@ async function handleWallet(req: VercelRequest, res: VercelResponse) {
       }).catch((e: unknown) => {
         // The swap failed before any PIN challenge was issued — report the real reason.
         console.error('[ucw-swap-start] kit.swap failed:', e)
-        rejectChallenge(e instanceof Error ? e : new Error(String(e)))
+        const raw = e instanceof Error ? e.message : String(e)
+        // Circle: SCA contract execution requires a Paymaster policy in developer console
+        const friendly = raw.toLowerCase().includes('paymaster') || raw.toLowerCase().includes('createusertransactioncontractexecution')
+          ? 'Swap is not yet enabled for email wallets — a Paymaster policy must be configured in the Circle Developer Console. Please use a browser wallet to swap.'
+          : raw
+        rejectChallenge(new Error(friendly))
       })
 
       // Wait for the challenge; must stay under the function's maxDuration (60s) so we reply with JSON.
