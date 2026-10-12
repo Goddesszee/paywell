@@ -839,20 +839,35 @@ export function BridgePage({ inCard = false }: { inCard?: boolean }) {
       // not the currently connected network.
       const adapter = await createViemAdapterFromProvider({ provider })
 
-      // Live step events — update progress strip in real time
-      appKit.on('bridge.approve',          () => { updateStep('approve',          { status: 'active' }) })
-      appKit.on('bridge.burn',             () => { updateStep('approve', { status: 'done' }); updateStep('burn', { status: 'active' }) })
-      appKit.on('bridge.fetchAttestation', () => { updateStep('burn', { status: 'done' }); updateStep('fetchAttestation', { status: 'active' }) })
-      appKit.on('bridge.mint',             () => { updateStep('fetchAttestation', { status: 'done' }); updateStep('mint', { status: 'active' }) })
+      // Live step events — update progress strip in real time.
+      // Listeners are removed immediately after bridge() resolves to avoid
+      // accumulation across multiple bridge attempts.
+      const onApprove          = () => { updateStep('approve',          { status: 'active' }) }
+      const onBurn             = () => { updateStep('approve', { status: 'done' }); updateStep('burn', { status: 'active' }) }
+      const onFetchAttestation = () => { updateStep('burn', { status: 'done' }); updateStep('fetchAttestation', { status: 'active' }) }
+      const onMint             = () => { updateStep('fetchAttestation', { status: 'done' }); updateStep('mint', { status: 'active' }) }
+      appKit.on('bridge.approve',          onApprove)
+      appKit.on('bridge.burn',             onBurn)
+      appKit.on('bridge.fetchAttestation', onFetchAttestation)
+      appKit.on('bridge.mint',             onMint)
 
       updateStep('approve', { status: 'active' })
 
-      const result = await appKit.bridge({
-        from: { adapter, chain: fromChain.kitName as AppKitChain },
-        to:   { adapter, chain: toChain.kitName as AppKitChain },
-        amount,
-        config: { ...bridgeCustomFee(parseFloat(amount)) },
-      }) as BridgeResult
+      let result: BridgeResult
+      try {
+        result = await appKit.bridge({
+          from: { adapter, chain: fromChain.kitName as AppKitChain },
+          to:   { adapter, chain: toChain.kitName as AppKitChain },
+          amount,
+          config: { ...bridgeCustomFee(parseFloat(amount)) },
+        }) as BridgeResult
+      } finally {
+        // Always remove listeners — prevents accumulation on retry
+        appKit.off('bridge.approve',          onApprove)
+        appKit.off('bridge.burn',             onBurn)
+        appKit.off('bridge.fetchAttestation', onFetchAttestation)
+        appKit.off('bridge.mint',             onMint)
+      }
 
       for (const step of result.steps ?? []) {
         const name      = step.name as StepName
