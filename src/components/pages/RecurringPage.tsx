@@ -8,6 +8,7 @@ import { useWriteContract, useWaitForTransactionReceipt, useAccount, useSwitchCh
 import { erc20Abi, isAddress } from 'viem'
 import { toast } from 'sonner'
 import { useAppStore, type RecurringFrequency } from '../../store/appStore'
+import { useNanName } from '../../hooks/useNanName'
 import { syncRtCreate, syncRtUpdate, syncRtDelete } from '../../hooks/useBackendSync'
 import { getUsdc, buildTxExplorerUrl } from '@/onchain-facts'
 import { parseAmount } from '@/onchain-money'
@@ -141,11 +142,15 @@ export function RecurringPage() {
   // ── form state ──────────────────────────────────────────────────────────
   type Step = 'list' | 'form' | 'review' | 'success'
   const [step,         setStep]         = useState<Step>('list')
-  const [newName,      setNewName]      = useState('')
-  const [newRecipient, setNewRecipient] = useState('')
-  const [newAmount,    setNewAmount]    = useState('')
-  const [newFreq,      setNewFreq]      = useState<RecurringFrequency>('manual')
-  const [errors,       setErrors]       = useState<{ name?: string; recipient?: string; amount?: string }>({})
+  const { resolveHandle } = useNanName()
+
+  const [newName,        setNewName]        = useState('')
+  const [newRecipient,   setNewRecipient]   = useState('')
+  const [resolvedAddr,   setResolvedAddr]   = useState<string | null>(null)
+  const [resolving,      setResolving]      = useState(false)
+  const [newAmount,      setNewAmount]      = useState('')
+  const [newFreq,        setNewFreq]        = useState<RecurringFrequency>('manual')
+  const [errors,         setErrors]         = useState<{ name?: string; recipient?: string; amount?: string }>({})
   const [lastCreated,  setLastCreated]  = useState<{ name: string; amount: string; freq: string } | null>(null)
 
   // ── per-action loading + confirm ────────────────────────────────────────
@@ -244,15 +249,39 @@ export function RecurringPage() {
   const validate = () => {
     const e: typeof errors = {}
     if (!newName.trim())       e.name      = 'Name is required'
-    if (!isAddress(newRecipient)) e.recipient = 'Enter a valid 0x address'
+    const effectiveAddr = isAddress(newRecipient) ? newRecipient : resolvedAddr
+    if (!effectiveAddr) e.recipient = isAddress(newRecipient) ? '' : resolving ? 'Resolving NAN name…' : 'Enter a valid 0x address or NAN name'
     const n = parseFloat(newAmount)
     if (!newAmount || isNaN(n) || n <= 0) e.amount = 'Enter a valid amount'
     setErrors(e)
     return Object.keys(e).length === 0
   }
 
+  // ── NAN name resolution ──────────────────────────────────────────────────
+  useEffect(() => {
+    const val = newRecipient.trim()
+    const isRaw = !val || isAddress(val)
+    const handle = isRaw ? '' : val.replace(/\.nan$/i, '')
+    if (!handle) {
+      // batch into microtask to avoid synchronous setState-in-effect lint
+      const t = setTimeout(() => { setResolvedAddr(null); setResolving(false) }, 0)
+      return () => clearTimeout(t)
+    }
+    let cancelled = false
+    const t = setTimeout(() => { if (!cancelled) setResolving(true) }, 0)
+    resolveHandle(handle).then(addr => {
+      if (cancelled) return
+      setResolvedAddr(addr)
+      setResolving(false)
+    }).catch(() => {
+      if (!cancelled) { setResolvedAddr(null); setResolving(false) }
+    })
+    return () => { cancelled = true; clearTimeout(t) }
+  }, [newRecipient]) // eslint-disable-line
+
   const openForm = () => {
-    setNewName(''); setNewRecipient(''); setNewAmount(''); setNewFreq('manual'); setErrors({})
+    setNewName(''); setNewRecipient(''); setNewAmount(''); setNewFreq('manual')
+    setErrors({}); setResolvedAddr(null); setResolving(false)
     setStep('form')
   }
 
@@ -260,7 +289,8 @@ export function RecurringPage() {
 
   const confirmCreate = () => {
     const nextRunAt = nextRunDate(newFreq)
-    const id = addRecurringTask({ name: newName.trim(), recipient: newRecipient.trim(), amount: newAmount.trim(), active: true, frequency: newFreq, nextRunAt })
+    const effectiveAddr = isAddress(newRecipient) ? newRecipient.trim() : (resolvedAddr ?? newRecipient.trim())
+    const id = addRecurringTask({ name: newName.trim(), recipient: effectiveAddr, amount: newAmount.trim(), active: true, frequency: newFreq, nextRunAt })
     const created = useAppStore.getState().recurringTasks.find(t => t.id === id)
     if (created && address) void syncRtCreate(address, created)
     setLastCreated({ name: newName.trim(), amount: newAmount.trim(), freq: freqLabel(newFreq) })
@@ -451,12 +481,34 @@ export function RecurringPage() {
             />
           </Field>
 
-          <Field label="Recipient address" error={errors.recipient}>
-            <input
-              placeholder="0x..."
-              value={newRecipient} onChange={e => setNewRecipient(e.target.value)}
-              style={{ ...inputBase, fontFamily: 'monospace', fontSize: 13, borderColor: errors.recipient ? 'rgba(239,68,68,0.5)' : BDR }}
-            />
+          <Field label="Recipient — address or NAN name" error={errors.recipient}>
+            <div style={{ position: 'relative' }}>
+              <input
+                placeholder="0x… or zara (NAN name)"
+                value={newRecipient} onChange={e => setNewRecipient(e.target.value)}
+                style={{ ...inputBase, fontFamily: isAddress(newRecipient) ? 'monospace' : F, fontSize: 13, paddingRight: 36, borderColor: errors.recipient ? 'rgba(239,68,68,0.5)' : resolvedAddr ? 'rgba(34,197,94,0.5)' : BDR }}
+              />
+              {resolving && (
+                <div style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)' }}>
+                  <Spin size={14} color={T2} />
+                </div>
+              )}
+              {resolvedAddr && !resolving && (
+                <div style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)' }}>
+                  <CheckCircle2 size={16} color={GREEN} />
+                </div>
+              )}
+            </div>
+            {resolvedAddr && (
+              <div style={{ fontSize: 11, color: GREEN, marginTop: 5, display: 'flex', alignItems: 'center', gap: 4 }}>
+                <CheckCircle2 size={10} /> Resolved: {resolvedAddr.slice(0, 8)}…{resolvedAddr.slice(-6)}
+              </div>
+            )}
+            {!resolvedAddr && !resolving && newRecipient && !isAddress(newRecipient) && (
+              <div style={{ fontSize: 11, color: T3, marginTop: 5 }}>
+                Type a .nan name (e.g. "zara") or a full 0x address
+              </div>
+            )}
           </Field>
 
           <Field label="Amount (USDC)" error={errors.amount}>
@@ -511,7 +563,7 @@ export function RecurringPage() {
           {/* Details */}
           {[
             { label: 'Name',         value: newName },
-            { label: 'To',           value: shortAddr(newRecipient), mono: true },
+            { label: 'To', value: resolvedAddr ? `${newRecipient} → ${shortAddr(resolvedAddr)}` : shortAddr(newRecipient), mono: !resolvedAddr },
             { label: 'Schedule',     value: `Every ${freqLabel(newFreq).toLowerCase()}` },
             { label: 'First payment', value: newFreq === 'manual' ? 'On demand' : previewNextDate },
           ].map((row, i, arr) => (
