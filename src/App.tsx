@@ -35,7 +35,7 @@ import { FavoritesPage } from './components/pages/FavoritesPage'
 import { NamePage } from './components/pages/NamePage'
 import { DashboardPage } from './components/pages/DashboardPage'
 import { ExportsPage } from './components/pages/ExportsPage'
-import { PaymentRequestsPage } from './components/pages/PaymentRequestsPage'
+
 import { ContactsPage } from './components/pages/ContactsPage'
 import { NanNamePage } from './components/pages/NanNamePage'
 import { ReferralPage } from './components/pages/ReferralPage'
@@ -83,6 +83,13 @@ function PageLoading() {
   )
 }
 
+
+// Redirect old payment-requests view to the merged invoices page
+function PaymentRequestsRedirect() {
+  const setActiveView = useAppStore(s => s.setActiveView)
+  useEffect(() => { setActiveView('invoices') }, [setActiveView])
+  return null
+}
 
 export default function App() {
   // Email/Google (Circle) users: the signing session key lives in memory/sessionStorage only, so it is
@@ -327,7 +334,7 @@ export default function App() {
       {activeView === 'search' && <SearchPage />}
       {activeView === 'favorites' && <FavoritesPage />}
       {activeView === 'exports' && <ExportsPage />}
-      {activeView === 'payment-requests' && <PaymentRequestsPage />}
+      {activeView === 'payment-requests' && <PaymentRequestsRedirect />}
       {activeView === 'contacts' && <ContactsPage />}
       {activeView === 'nan-name' && <NanNamePage />}
       {activeView === 'referral' && <ReferralPage />}

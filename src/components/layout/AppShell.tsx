@@ -35,12 +35,11 @@ const ALL_RESULTS: SearchResult[] = [
   { id:'gateway',     title:'Gateway',              subtitle:'Unified cross-chain balance',        category:'Finance',     Icon:Layers,         iconColor:BLUE,      action:'gateway' },
 
   { id:'recurring',   title:'Recurring Payments',   subtitle:'Schedule automatic transfers',       category:'Finance',     Icon:Repeat,         iconColor:'#8B5CF6', action:'recurring' },
-  { id:'invoices',    title:'Invoices',             subtitle:'Create & send USDC invoices',        category:'Business',    Icon:FileText,       iconColor:BLUE,      action:'invoices' },
+  { id:'invoices',    title:'Invoices & Requests',  subtitle:'Quick requests and full invoices',    category:'Business',    Icon:FileText,       iconColor:BLUE,      action:'invoices' },
   { id:'payroll',     title:'Batch Payroll',        subtitle:'Send USDC to multiple recipients',   category:'Business',    Icon:Users,          iconColor:BLUE,      action:'payroll' },
 
   { id:'agent',        title:'AI Agents',            subtitle:'Autonomous service & payment agent', category:'Agents',      Icon:Bot,            iconColor:BLUE,      action:'agent' },
   { id:'agent-wallet', title:'Agent Wallet',         subtitle:'Swap, bridge & recurring via agent', category:'Agents',      Icon:Wallet,         iconColor:BLUE,      action:'agent-wallet' },
-  { id:'payment-requests', title:'Payment Requests', subtitle:'Create and track payment requests',   category:'Payments',    Icon:FileText,       iconColor:BLUE,      action:'payment-requests' },
   { id:'activity',    title:'Activity',             subtitle:'Transaction history',                category:'Account',     Icon:Clock,          iconColor:BLUE,      action:'activity' },
   { id:'exports',     title:'Exports & Accounting', subtitle:'Download CSV/JSON transaction records', category:'Account',     Icon:FileDown,       iconColor:BLUE,      action:'exports' },
   { id:'dashboard',   title:'Dashboard',            subtitle:'Portfolio & performance',            category:'Account',     Icon:LayoutDashboard,iconColor:BLUE,      action:'dashboard' },
@@ -306,7 +305,7 @@ const SIDEBAR_SECTIONS = [
   { title: 'Payments', items: [
     { id: 'send',              label: 'Send',             Icon: ArrowRight,  desc: 'Send USDC to any wallet' },
     { id: 'receive',           label: 'Receive',          Icon: ArrowRight,  desc: 'Share your wallet address' },
-    { id: 'payment-requests',  label: 'Payment Requests', Icon: FileText,    desc: 'Create and track requests' },
+    { id: 'invoices',          label: 'Invoices & Requests', Icon: FileText, desc: 'Quick requests and full invoices' },
     { id: 'activity',          label: 'Transactions',     Icon: Activity,    desc: 'Transaction history' },
   ]},
   { title: 'Finance', items: [
@@ -504,7 +503,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             }}>
               {activeView === 'agent-wallet' ? 'Agent Wallet'
                 : activeView === 'nan-name' ? 'NAN Name'
-                : activeView === 'payment-requests' ? 'Payment Requests'
+                : activeView === 'payment-requests' ? 'Invoices & Requests'
                 : activeView.charAt(0).toUpperCase() + activeView.slice(1)}
             </div>
 

@@ -256,6 +256,8 @@ export interface Invoice {
   payToAddress?: string
   // Optional link to a PaymentRequest
   paymentRequestId?: string
+  // 'quick' = simple payment request (amount + note); 'full' = itemized invoice
+  mode?: 'quick' | 'full'
   createdAt: string
   updatedAt: string
 }
