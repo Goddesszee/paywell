@@ -422,7 +422,9 @@ async function handleWallet(req: VercelRequest, res: VercelResponse) {
         to: {
           chain: destChain as Parameters<InstanceType<typeof AppKit>['bridge']>[0]['to']['chain'],
           recipientAddress: walletAddress,
-          useForwarder: true,
+          // useForwarder: false so the SDK issues a TRANSACTION challenge (approve+burn)
+          // instead of a signTypedData challenge — the W3S SDK blocks typed-data as "risky"
+          useForwarder: false,
         },
         amount,
         config: { ...bridgeFeeCfg(String(amount)) },
