@@ -457,15 +457,25 @@ async function handleWallet(req: VercelRequest, res: VercelResponse) {
         console.log('[ucw-bridge]', srcChain, '->', dstChain, lastStage)
       }) } catch { /* events are best-effort */ }
 
-      // Fire bridge — same adapter for both from and to per Circle docs
-      // useForwarder:false so SDK issues a TRANSACTION challenge instead of signTypedData
+      // The UCW adapter is bound to a single chain (srcChain). Passing it as the
+      // destination adapter throws "Chain X not supported by this adapter" whenever
+      // dstChain !== srcChain. Fix: always use the Circle Forwarding Service on the
+      // destination so Circle handles attestation + mint without needing a dst adapter.
+      // The recipientAddress is the user's Arc wallet address (funds always land there).
+      const toParam: Parameters<InstanceType<typeof AppKit>['bridge']>[0]['to'] =
+        srcChain !== dstChain
+          ? {
+              chain: dstChain,
+              useForwarder: true,
+              ...(recipientAddress && /^0x[0-9a-fA-F]{40}$/.test(String(recipientAddress))
+                ? { recipientAddress: String(recipientAddress) }
+                : {}),
+            }
+          : { adapter, chain: dstChain }
+
       void kit.bridge({
         from: { adapter, chain: srcChain },
-        // From a non-Arc chain the user's destination wallet lives on another blockchain, so let Circle's
-        // Forwarding Service mint to the recipient instead of reusing this (source-chain) adapter.
-        to:   srcChain !== 'Arc' && /^0x[0-9a-fA-F]{40}$/.test(String(recipientAddress ?? ''))
-          ? { chain: dstChain, recipientAddress: String(recipientAddress), useForwarder: true }
-          : { adapter, chain: dstChain },
+        to:   toParam,
         amount,
         config: { ...bridgeFeeCfg(String(amount)) },
       }).catch((e: unknown) => {
