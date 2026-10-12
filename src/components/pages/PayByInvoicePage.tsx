@@ -7,19 +7,17 @@
  *  2. NAN name — type a .nan name, resolve onchain, confirm
  *  3. Buy with card — Circle onramp deep-link
  */
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
 import {
   FileText, CreditCard, CheckCircle2, ExternalLink,
-  Copy, AlertCircle, Loader, QrCode, AtSign, Search,
-  ChevronRight, ArrowLeft,
+  Copy, AlertCircle, Loader, QrCode, AtSign,
+  ChevronRight, Search,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAppStore, type Invoice } from '../../store/appStore'
 import { buildTxExplorerUrl } from '@/onchain-facts'
-import { useNanName } from '../../hooks/useNanName'
 import { usePublicPage } from '../../hooks/usePublicPage'
-import { InlineAuthPicker } from '../InlineAuthPicker'
 
 const F     = "'Inter', -apple-system, sans-serif"
 const BLUE  = '#0866F5'
@@ -78,6 +76,7 @@ export function PayByInvoicePage({ invoiceId }: Props) {
 
   // ── Remote fetch ──────────────────────────────────────────────────────────
   const { invoices, updateInvoice, recordInvoicePayment } = useAppStore()
+
   const localInvoice: Invoice | undefined = invoices.find(i => i.id === invoiceId)
   const [remoteInvoice, setRemoteInvoice] = useState<Invoice | null>(null)
   const [fetchDone, setFetchDone] = useState(false)
@@ -101,76 +100,13 @@ export function PayByInvoicePage({ invoiceId }: Props) {
   const loading = !localInvoice && !fetchDone
   const invoice: Invoice | undefined = remoteInvoice ?? localInvoice ?? undefined
 
-  // ── NAN name resolution ──────────────────────────────────────────────────
-  const { resolveHandle } = useNanName()
-  const { auth, setAuth } = useAppStore()
   const [tab, setTab] = useState<Tab>('address')
   const [showQr, setShowQr] = useState(false)
-
-  // NAN name tab state
-  const [nanInput, setNanInput] = useState('')
-  const [nanResolving, setNanResolving] = useState(false)
-  const [nanResolved, setNanResolved] = useState<{ name: string; address: string } | null>(null)
-  const [nanError, setNanError] = useState('')
   const [nanPaid, setNanPaid] = useState(false)
-  const [nanSending, setNanSending] = useState(false)
-  const nanRef = useRef<HTMLInputElement>(null)
 
   // success state
   const [paid, setPaid] = useState(false)
   const [paidTx, setPaidTx] = useState('')
-
-  // Logged in via Circle wallet OR via connected wagmi wallet
-  const isNanLoggedIn = !!(
-    (auth?.userToken && (auth?.circleWalletAddress || auth?.walletAddress)) ||
-    auth?.walletAddress
-  )
-
-  const resolveNan = async () => {
-    const raw = nanInput.trim().replace(/\.nan$/i, '').toLowerCase()
-    if (!raw) { setNanError('Enter a NAN name'); return }
-    setNanResolving(true)
-    setNanError('')
-    setNanResolved(null)
-    try {
-      const addr = await resolveHandle(raw)
-      if (!addr || addr === '0x0000000000000000000000000000000000000000') {
-        setNanError(`"${raw}.nan" is not registered`)
-      } else {
-        setNanResolved({ name: raw, address: addr })
-      }
-    } catch {
-      setNanError('Could not resolve name — check spelling')
-    } finally {
-      setNanResolving(false)
-    }
-  }
-
-  // Send USDC from the logged-in Circle wallet to the merchant
-  const sendFromNanWallet = async () => {
-    if (!invoice || !invoice.payToAddress || !auth?.userToken) return
-    setNanSending(true)
-    try {
-      const res = await fetch('/api/wallet', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'transfer',
-          userToken: auth.userToken,
-          to: invoice.payToAddress,
-          amount: String(invoice.amountDue),
-          tokenSymbol: invoice.currency ?? 'USDC',
-        }),
-      })
-      const data = await res.json() as { txHash?: string; txId?: string; error?: string }
-      if (!res.ok || data.error) throw new Error(data.error ?? `Transfer failed (${res.status})`)
-      markPaid(data.txHash ?? data.txId ?? '')
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Transfer failed — please try again')
-    } finally {
-      setNanSending(false)
-    }
-  }
 
   const copyAddress = (addr: string) => {
     navigator.clipboard.writeText(addr)
@@ -368,84 +304,80 @@ export function PayByInvoicePage({ invoiceId }: Props) {
         {tab === 'nan' && (
           <div style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.10)', borderRadius: 16, padding: 20 }}>
 
-            {/* Step 1: not logged in — auth picker */}
-            {!isNanLoggedIn && (
-              <InlineAuthPicker
-                dark={true}
-                onWalletConnected={address => {
-                  // wagmi wallet connected — store minimal auth so isNanLoggedIn flips true
-                  const token = btoa(`${address}:${Date.now()}`)
-                  setAuth({ email: address, sessionToken: token, walletAddress: address, walletId: address })
-                }}
-                onCircleSuccess={(walletAddress, userToken, email, encryptionKey) => {
-                  const existing = useAppStore.getState().auth
-                  setAuth({ ...existing, email, sessionToken: userToken, userToken, encryptionKey: encryptionKey ?? existing?.encryptionKey, walletAddress, walletId: existing?.walletId ?? walletAddress, circleWalletAddress: walletAddress, circleWalletId: existing?.circleWalletId ?? walletAddress })
-                }}
-                onBack={undefined}
-              />
-            )}
-
-            {/* Step 2: logged in — show name input */}
-            {isNanLoggedIn && !nanResolved && (
+            {!nanPaid ? (
               <>
-                <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', lineHeight: 1.5, marginBottom: 14 }}>
-                  Enter your <strong style={{ color: '#fff' }}>.nan</strong> name to confirm your identity and pay instantly.
-                </div>
-                <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-                  <div style={{ flex: 1, position: 'relative' }}>
-                    <input
-                      ref={nanRef}
-                      value={nanInput}
-                      onChange={e => { setNanInput(e.target.value); setNanError('') }}
-                      onKeyDown={e => { if (e.key === 'Enter') void resolveNan() }}
-                      placeholder="yourname"
-                      style={{ width: '100%', height: 48, background: 'rgba(255,255,255,0.07)', border: `1px solid ${nanError ? RED : 'rgba(255,255,255,0.12)'}`, borderRadius: 10, color: '#fff', fontSize: 15, fontFamily: F, padding: '0 80px 0 14px', boxSizing: 'border-box', outline: 'none' }}
-                    />
-                    <span style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 14, color: 'rgba(255,255,255,0.35)', fontWeight: 600, pointerEvents: 'none' }}>.nan</span>
+                {/* What is NAN? */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+                  <div style={{ width: 40, height: 40, borderRadius: 12, background: BLUE, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 324 480" width="14" height="21">
+                      <path d="M255,0 L84,167 L71,163 L0,97 L0,378 L246,132 L255,110 Z" fill="#fff"/>
+                      <path d="M69,480 L240,313 L253,317 L324,383 L324,102 L78,348 L69,370 Z" fill="#fff"/>
+                    </svg>
                   </div>
-                  <button onClick={() => void resolveNan()} disabled={nanResolving}
-                    style={{ width: 48, height: 48, background: BLUE, border: 'none', borderRadius: 10, cursor: nanResolving ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, opacity: nanResolving ? 0.6 : 1 }}>
-                    {nanResolving ? <Loader size={18} color="#fff" style={{ animation: 'spin 1s linear infinite' }} /> : <Search size={18} color="#fff" />}
-                  </button>
-                </div>
-                {nanError && <div style={{ fontSize: 12, color: RED, marginBottom: 8 }}>{nanError}</div>}
-                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)', lineHeight: 1.5 }}>
-                  Your .nan name confirms your identity. Payment will be sent from your NAN wallet.
-                </div>
-              </>
-            )}
-
-            {/* Step 3: name resolved — one-tap pay */}
-            {isNanLoggedIn && nanResolved && (
-              <>
-                <button onClick={() => { setNanResolved(null); setNanInput('') }}
-                  style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: 12, cursor: 'pointer', fontFamily: F, marginBottom: 16, padding: 0 }}>
-                  <ArrowLeft size={13} /> Back
-                </button>
-
-                {/* Confirm card */}
-                <div style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.10)', borderRadius: 12, padding: '14px 16px', marginBottom: 16 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
-                    <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)' }}>Paying as</div>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>{nanResolved.name}.nan</div>
+                  <div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: '#fff', marginBottom: 2 }}>Pay with your NAN wallet</div>
+                    <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>Send directly from your NAN account</div>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
-                    <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)' }}>To</div>
+                </div>
+
+                {/* Payment summary */}
+                <div style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '14px 16px', marginBottom: 18 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)' }}>To</div>
                     <div style={{ fontSize: 13, fontWeight: 600, color: '#fff' }}>{invoice.businessName}</div>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 10, borderTop: '1px solid rgba(255,255,255,0.07)' }}>
-                    <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)' }}>Amount</div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 8, borderTop: '1px solid rgba(255,255,255,0.07)' }}>
+                    <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)' }}>Amount</div>
                     <div style={{ fontSize: 16, fontWeight: 800, color: BLUE }}>{fmtAmt(invoice.amountDue, invoice.currency)}</div>
                   </div>
                 </div>
 
-                <button onClick={() => void sendFromNanWallet()} disabled={nanSending}
-                  style={{ width: '100%', height: 52, background: nanSending ? 'rgba(8,102,245,0.5)' : BLUE, border: 'none', borderRadius: 12, color: '#fff', fontSize: 15, fontWeight: 700, cursor: nanSending ? 'not-allowed' : 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                  {nanSending
-                    ? <><Loader size={17} color="#fff" style={{ animation: 'spin 1s linear infinite' }} /> Sending…</>
-                    : <>Pay {fmtAmt(invoice.amountDue, invoice.currency)} <ChevronRight size={17} /></>}
+                {/* How it works */}
+                <div style={{ marginBottom: 20 }}>
+                  {[
+                    'Tap the button below to open NAN',
+                    'Log in or create a free wallet (takes 30 seconds)',
+                    'Send the payment — it arrives instantly',
+                    'Come back and tap "I\'ve paid" below',
+                  ].map((step, i) => (
+                    <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', marginBottom: i < 3 ? 10 : 0 }}>
+                      <div style={{ width: 20, height: 20, borderRadius: '50%', background: BLUE, color: '#fff', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 }}>{i + 1}</div>
+                      <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.65)', lineHeight: 1.4 }}>{step}</div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Open NAN CTA */}
+                {invoice.payToAddress ? (
+                  <a
+                    href={`https://nanarc.xyz/?send=1&to=${encodeURIComponent(invoice.payToAddress)}&amount=${invoice.amountDue}&note=${encodeURIComponent(`Invoice ${invoice.number ?? ''} — ${invoice.businessName ?? ''}`)}&currency=${invoice.currency ?? 'USDC'}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', height: 52, background: BLUE, color: '#fff', border: 'none', borderRadius: 14, fontSize: 15, fontWeight: 700, textDecoration: 'none', boxSizing: 'border-box', marginBottom: 12 }}
+                  >
+                    Open NAN to pay <ChevronRight size={17} />
+                  </a>
+                ) : (
+                  <div style={{ fontSize: 13, color: RED, textAlign: 'center', marginBottom: 12 }}>No wallet address on this invoice.</div>
+                )}
+
+                {/* Already paid */}
+                <button onClick={() => setNanPaid(true)}
+                  style={{ width: '100%', height: 44, background: 'rgba(34,197,94,0.10)', border: '1px solid rgba(34,197,94,0.25)', borderRadius: 12, color: GREEN, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}>
+                  <CheckCircle2 size={15} /> I've paid
                 </button>
               </>
+            ) : (
+              /* Thank-you mini state */
+              <div style={{ textAlign: 'center', padding: '24px 0' }}>
+                <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'rgba(34,197,94,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px' }}>
+                  <CheckCircle2 size={28} color={GREEN} />
+                </div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: '#fff', marginBottom: 6 }}>Thanks!</div>
+                <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)', lineHeight: 1.5 }}>
+                  Your payment to {invoice.businessName} is on its way.
+                </div>
+              </div>
             )}
           </div>
         )}

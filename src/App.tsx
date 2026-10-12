@@ -218,14 +218,16 @@ export default function App() {
     const pr       = p.get('pr') ?? ''
     const pay      = p.get('pay') ?? ''
     const onramp   = p.get('onramp') ?? ''
+    const send     = p.get('send') ?? ''
     const to       = p.get('to') ?? ''
     const amount   = parseFloat(p.get('amount') ?? '0')
     const note     = p.get('note') ?? ''
     const currency = (p.get('currency') ?? 'USDC') as 'USDC' | 'EURC'
-    if (nanpay) return { nanpay, invoice: '', pr: '', pay: '', onramp: '', to: '', amount, note, currency }
-    if (invoice) return { nanpay: '', invoice, pr: '', pay: '', onramp: '', to: '', amount, note, currency }
-    if (pr || (pay && amount > 0)) return { nanpay: '', invoice: '', pr, pay, onramp: '', to: '', amount, note, currency }
-    if (onramp) return { nanpay: '', invoice: '', pr: '', pay: '', onramp, to, amount, note, currency }
+    if (nanpay) return { nanpay, invoice: '', pr: '', pay: '', onramp: '', send: '', to: '', amount, note, currency }
+    if (invoice) return { nanpay: '', invoice, pr: '', pay: '', onramp: '', send: '', to: '', amount, note, currency }
+    if (pr || (pay && amount > 0)) return { nanpay: '', invoice: '', pr, pay, onramp: '', send: '', to: '', amount, note, currency }
+    if (onramp) return { nanpay: '', invoice: '', pr: '', pay: '', onramp, send: '', to, amount, note, currency }
+    if (send && to) return { nanpay: '', invoice: '', pr: '', pay: '', onramp: '', send, to, amount, note, currency }
     return null
   }, [])
 
@@ -247,6 +249,21 @@ export default function App() {
         currency={prParams.currency}
       />
     )
+  }
+
+  // ?send=1&to=<address>&amount=<n>&note=<text> — deep-link from invoice NAN tab
+  // Store prefill in localStorage, WalletPage reads it on mount to pre-fill the send form.
+  if (prParams?.send) {
+    try {
+      localStorage.setItem('nan_send_prefill', JSON.stringify({
+        to: prParams.to,
+        amount: prParams.amount > 0 ? String(prParams.amount) : '',
+        note: prParams.note,
+        currency: prParams.currency,
+      }))
+    } catch { /* storage unavailable */ }
+    useAppStore.getState().setActiveView('send')
+    try { window.history.replaceState({}, '', '/') } catch { /* ignore */ }
   }
 
   // ?onramp=1&to=<address>&amount=<n>&note=<text> — deep-link from invoice/payment pay-with-card

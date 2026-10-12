@@ -388,11 +388,21 @@ function SendFlow({
   touchContact: (address: string, amount: number) => void
 }) {
   const isDesktop = useIsDesktop()
-  const [step, setStep] = useState<SendStep>('recipient')
+  // Read send prefill written by App.tsx when the user arrives via the invoice ?send=1 deep-link
+  const [initPrefill] = React.useState<{ to: string; amount: string; note: string; currency: string } | null>(() => {
+    try {
+      const raw = localStorage.getItem('nan_send_prefill')
+      if (!raw) return null
+      localStorage.removeItem('nan_send_prefill')
+      return JSON.parse(raw) as { to: string; amount: string; note: string; currency: string }
+    } catch { return null }
+  })
+
+  const [step, setStep] = useState<SendStep>(initPrefill?.to ? 'amount' : 'recipient')
   const [selectedToken, setSelectedToken] = useState<SendToken>(SEND_TOKENS[0])
-  const [recipient, setRecipient] = useState('')
-  const [amount, setAmount] = useState('')
-  const [note, setNote] = useState('')
+  const [recipient, setRecipient] = useState(initPrefill?.to ?? '')
+  const [amount, setAmount] = useState(initPrefill?.amount ?? '')
+  const [note, setNote] = useState(initPrefill?.note ?? '')
   const [recipientError, setRecipientError] = useState('')
   const [amountError, setAmountError] = useState('')
   const [resolvedName, setResolvedName] = useState<string | null>(null)
