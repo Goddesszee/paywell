@@ -459,7 +459,7 @@ export function BridgePage({ inCard = false }: { inCard?: boolean }) {
         const adapter = await getPasskeyAdapter({ clientKey })
         const result  = await appKit.bridge({
           from: { adapter, chain: fromChain.kitName as AppKitChain },
-          to:   { chain: toChain.kitName as AppKitChain, recipientAddress: auth?.circleWalletAddress as string, useForwarder: true },
+          to:   { adapter, chain: toChain.kitName as AppKitChain },
           amount,
           config: { ...bridgeCustomFee(parseFloat(amount)) },
         }) as BridgeResult
@@ -511,7 +511,7 @@ export function BridgePage({ inCard = false }: { inCard?: boolean }) {
 
       const result = await appKit.bridge({
         from: { adapter, chain: fromChain.kitName as AppKitChain },
-        to:   { chain: toChain.kitName as AppKitChain, recipientAddress: wagmiAddress as string, useForwarder: true },
+        to:   { adapter, chain: toChain.kitName as AppKitChain },
         amount,
         config: { ...bridgeCustomFee(parseFloat(amount)) },
       }) as BridgeResult
