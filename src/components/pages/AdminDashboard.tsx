@@ -582,6 +582,95 @@ function AdminSuggestionsPanel() {
 
 interface AuditEntry { id: string; action: string; actor: string; detail: string; recordId?: string; createdAt: string }
 
+// ── Referral reward payout requests ──────────────────────────────────────────
+type RewardClaim = { id: string; wallet: string; handle?: string; amount: number; status: 'pending' | 'approved' | 'rejected' | 'paid'; createdAt: string; updatedAt?: string; txHash?: string; note?: string }
+
+function AdminRewardsPanel() {
+  const [claims, setClaims] = useState<RewardClaim[]>([])
+  const [loading, setLoading] = useState(true)
+  const [filter, setFilter] = useState<'open' | 'all'>('open')
+  const [busyId, setBusyId] = useState<string | null>(null)
+  const [error, setError] = useState('')
+
+  const load = () => {
+    adminFetch('/api/admin/rewards/claims')
+      .then(r => r.json())
+      .then((d: { success: boolean; claims: RewardClaim[]; error?: string }) => { if (d.success) setClaims(d.claims); else setError(d.error ?? 'Could not load') })
+      .catch(() => setError('Could not load reward requests'))
+      .finally(() => setLoading(false))
+  }
+  // eslint-disable-next-line react/set-state-in-effect
+  useEffect(load, [])
+
+  const update = async (c: RewardClaim, status: 'approved' | 'rejected' | 'paid') => {
+    let txHash: string | undefined
+    if (status === 'paid') {
+      const h = window.prompt(`Paste the transaction hash of the $${c.amount.toFixed(2)} USDC payment to ${c.wallet} (optional):`)
+      if (h === null) return
+      txHash = h.trim() || undefined
+    } else if (!window.confirm(`${status === 'approved' ? 'Approve' : 'Reject'} $${c.amount.toFixed(2)} for ${c.handle ? '@' + c.handle : c.wallet}?`)) return
+    setBusyId(c.id); setError('')
+    try {
+      const res = await adminFetch('/api/admin/rewards/claims/update', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ id: c.id, status, txHash }),
+      })
+      const d = await res.json() as { success: boolean; claim?: RewardClaim; error?: string }
+      if (!d.success || !d.claim) { setError(d.error ?? 'Update failed'); return }
+      setClaims(prev => prev.map(x => x.id === c.id ? d.claim! : x))
+    } catch { setError('Network error') } finally { setBusyId(null) }
+  }
+
+  const visible = claims.filter(c => filter === 'all' || c.status === 'pending' || c.status === 'approved')
+  const owed = claims.filter(c => c.status === 'pending' || c.status === 'approved').reduce((t, c) => t + c.amount, 0)
+  const statusColor = (st: RewardClaim['status']) => st === 'paid' ? '#10B981' : st === 'rejected' ? '#EF4444' : st === 'approved' ? '#3B82F6' : '#F59E0B'
+
+  return (
+    <div>
+      <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: '-0.02em', marginBottom: 4 }}>Referral rewards</div>
+      <div style={{ fontSize: 13, color: 'var(--nan-text2)', marginBottom: 14 }}>
+        ${owed.toFixed(2)} awaiting payout · approve a request, send the USDC (monthly), then mark it paid.
+      </div>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+        {(['open', 'all'] as const).map(f => (
+          <button key={f} onClick={() => setFilter(f)} style={{ padding: '7px 14px', borderRadius: 9, border: `1px solid ${B}`, background: filter === f ? 'var(--nan-text)' : S, color: filter === f ? 'var(--nan-bg)' : 'var(--nan-text)', fontSize: 12, fontWeight: 600, fontFamily: SANS, cursor: 'pointer' }}>
+            {f === 'open' ? 'Needs action' : 'All requests'}
+          </button>
+        ))}
+      </div>
+      {error && <div style={{ color: '#EF4444', fontSize: 13, marginBottom: 10 }}>{error}</div>}
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: 40, color: 'var(--nan-text2)', fontSize: 13 }}>Loading…</div>
+      ) : visible.length === 0 ? (
+        <div style={{ background: S, border: `1px solid ${B}`, borderRadius: 14, padding: '40px 20px', textAlign: 'center', color: 'var(--nan-text2)', fontSize: 13 }}>No reward requests</div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {visible.map(c => (
+            <div key={c.id} style={{ background: S, border: `1px solid ${B}`, borderRadius: 14, padding: '14px 16px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+                <div style={{ fontSize: 18, fontWeight: 800 }}>${c.amount.toFixed(2)} <span style={{ fontSize: 12, color: 'var(--nan-text2)', fontWeight: 600 }}>USDC</span></div>
+                <span style={{ fontSize: 11, fontWeight: 700, color: statusColor(c.status), textTransform: 'uppercase', letterSpacing: '0.05em' }}>{c.status}</span>
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--nan-text2)', wordBreak: 'break-all', marginBottom: 4 }}>{c.handle ? `@${c.handle} · ` : ''}{c.wallet}</div>
+              <div style={{ fontSize: 11, color: 'var(--nan-text2)', marginBottom: (c.status === 'pending' || c.status === 'approved') ? 10 : 0 }}>
+                Requested {new Date(c.createdAt).toLocaleString()}{c.txHash ? ` · tx ${c.txHash.slice(0, 10)}…` : ''}
+              </div>
+              {(c.status === 'pending' || c.status === 'approved') && (
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {c.status === 'pending' && <button disabled={busyId === c.id} onClick={() => { void update(c, 'approved') }} style={{ padding: '8px 14px', borderRadius: 9, border: 'none', background: '#0866F5', color: '#fff', fontSize: 12, fontWeight: 700, fontFamily: SANS, cursor: 'pointer' }}>Approve</button>}
+                  {c.status === 'approved' && <button disabled={busyId === c.id} onClick={() => { void update(c, 'paid') }} style={{ padding: '8px 14px', borderRadius: 9, border: 'none', background: '#10B981', color: '#fff', fontSize: 12, fontWeight: 700, fontFamily: SANS, cursor: 'pointer' }}>Mark paid</button>}
+                  <button disabled={busyId === c.id} onClick={() => { void update(c, 'rejected') }} style={{ padding: '8px 14px', borderRadius: 9, border: `1px solid ${B}`, background: 'transparent', color: '#EF4444', fontSize: 12, fontWeight: 700, fontFamily: SANS, cursor: 'pointer' }}>Reject</button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+
 function AdminAuditPanel() {
   const [log, setLog]       = useState<AuditEntry[]>([])
   const [loading, setLoading] = useState(true)
@@ -845,7 +934,7 @@ function AdminTxPanel() {
 
 function AdminDashboardInner() {
   const { activity, setActiveView } = useAppStore()
-  const [tab, setTab] = useState<'overview' | 'transactions' | 'support' | 'activity' | 'circle' | 'users' | 'feedback' | 'suggestions' | 'audit'>('overview')
+  const [tab, setTab] = useState<'overview' | 'transactions' | 'support' | 'activity' | 'circle' | 'users' | 'feedback' | 'suggestions' | 'rewards' | 'audit'>('overview')
   // 'My Activity' tab shows only this browser's own activity store
   // Env var check (Vite exposes VITE_ vars)
   const hasGroq = Boolean(import.meta.env.VITE_GROQ_API_KEY)
@@ -872,6 +961,7 @@ function AdminDashboardInner() {
     { id: 'suggestions',  label: 'Suggestions' },
     { id: 'activity',     label: 'My Activity' },
     { id: 'circle',       label: 'Circle Infra' },
+    { id: 'rewards',      label: 'Rewards' },
     { id: 'audit',        label: 'Audit Log' },
   ] as const
 
@@ -1004,6 +1094,7 @@ function AdminDashboardInner() {
         {tab === 'suggestions' && <AdminSuggestionsPanel />}
 
         {/* ── AUDIT LOG ── */}
+        {tab === 'rewards' && <AdminRewardsPanel />}
         {tab === 'audit' && <AdminAuditPanel />}
 
         {/* ── USERS ── */}

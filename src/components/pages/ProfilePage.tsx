@@ -15,6 +15,7 @@ interface SessionEntry { ts: string; ip: string; agent: string }
 export function ProfilePage() {
   const C = useNanTheme()
   const { address, isConnected } = useAccount()
+  const [refEarned, setRefEarned] = useState<string | null>(null)
   const { disconnect } = useDisconnect()
   const { auth, profile, setProfile, setActiveView, theme, setTheme, nanHandle, setNanHandle, logout, previousView } = useAppStore()
   const { resolveName, registrySet } = useNanName()
@@ -125,6 +126,18 @@ export function ProfilePage() {
     { id: 'theme' as Tab, label: 'Theme', Icon: Sun },
   ]
 
+  // Referral earnings shown on the "Refer a Friend" row
+  const rewardsWallet = address ?? auth?.circleWalletAddress ?? auth?.walletAddress ?? ''
+  useEffect(() => {
+    if (!rewardsWallet) return
+    let cancelled = false
+    fetch(`/api/rewards/balance?wallet=${encodeURIComponent(rewardsWallet)}&handle=${encodeURIComponent((nanHandle ?? '').replace(/^@/, ''))}`)
+      .then(r => r.json())
+      .then((d: { success?: boolean; totalEarned?: string }) => { if (!cancelled && d?.success && d.totalEarned) setRefEarned(d.totalEarned) })
+      .catch(() => { /* leave the default subtitle */ })
+    return () => { cancelled = true }
+  }, [rewardsWallet, nanHandle])
+
   const isDark = theme === 'dark' || (theme !== 'light' && typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-color-scheme: dark)').matches)
 
   const handleLogout = () => {
@@ -214,7 +227,7 @@ export function ProfilePage() {
         {cardBlock([
           { key: 'account', icon: <User />, label: 'My Account', onClick: () => { setTab('profile'); setView('account') } },
           nanRow,
-          { key: 'referral', icon: <Gift />, label: 'Refer a Friend', sub: 'Earn $1 USDC per friend who joins', onClick: () => setActiveView('referral') },
+          { key: 'referral', icon: <Gift />, label: 'Refer a Friend', sub: refEarned && Number(refEarned) > 0 ? `$${refEarned} earned` : 'Earn $1 USDC when a friend joins & sends $100', onClick: () => setActiveView('referral') },
         ])}
 
         {/* NAN Pay Link — only shown when user has a NAN name */}

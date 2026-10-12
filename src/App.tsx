@@ -96,6 +96,37 @@ export default function App() {
       if (ref && /^[a-zA-Z0-9-]{2,32}$/.test(ref)) localStorage.setItem('nan_pending_ref', ref)
     } catch { /* storage unavailable */ }
   }, [])
+  // When a (referred) user's confirmed outgoing transfer is $100 or more, ask the server to verify it
+  // on-chain. The server only credits the referrer if this wallet joined via a link, the transfer is a
+  // real USDC transfer made after joining, and it hasn't been used before. Safe to call for anyone.
+  useEffect(() => {
+    if (!joinedWallet) return
+    const SENT_KEY = 'nan_ref_qualify_sent'
+    const check = () => {
+      let sent: string[] = []
+      try { sent = JSON.parse(localStorage.getItem(SENT_KEY) ?? '[]') as string[] } catch { /* ignore */ }
+      for (const a of useAppStore.getState().activity) {
+        if (!a.txHash || a.sign !== '-' || a.amount < 100 || a.status !== 'confirmed' || sent.includes(a.txHash)) continue
+        const hash = a.txHash
+        void fetch('/api/referral/qualify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ wallet: joinedWallet, txHash: hash }),
+        }).then(r => {
+          // definitive answers (even "not referred") are remembered; 5xx/429 are retried later
+          if (r.status < 500 && r.status !== 429) {
+            try {
+              const cur = JSON.parse(localStorage.getItem(SENT_KEY) ?? '[]') as string[]
+              if (!cur.includes(hash)) localStorage.setItem(SENT_KEY, JSON.stringify([...cur, hash].slice(-50)))
+            } catch { /* ignore */ }
+          }
+        }).catch(() => { /* retry next time */ })
+      }
+    }
+    check()
+    return useAppStore.subscribe(check)
+  }, [joinedWallet])
+
   useEffect(() => {
     if (!joinedWallet) return
     let ref: string | null = null

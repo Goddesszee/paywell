@@ -88,6 +88,13 @@ interface RewardsData {
   totalEarned: string
   claimed: string
   referralCount: number
+  qualifiedCount?: number
+  pendingFriends?: number
+  requested?: string
+  minTxUsd?: number
+  rewardUsd?: number
+  nextPayout?: string
+  claims?: { id: string; amount: string; status: 'pending' | 'approved' | 'rejected' | 'paid'; createdAt: string; txHash?: string }[]
 }
 
 export function RewardsSheet({ onClose }: { onClose: () => void }) {
@@ -108,7 +115,7 @@ export function RewardsSheet({ onClose }: { onClose: () => void }) {
   const [data, setData] = useState<RewardsData | null>(null)
   const [loading, setLoading] = useState(true)
   const [claiming, setClaiming] = useState(false)
-  const [claimed, setClaimed] = useState<{ amount: string; txHash: string } | null>(null)
+  const [claimed, setClaimed] = useState<{ amount: string } | null>(null)
   const [error, setError] = useState('')
   const [showBalloons, setShowBalloons] = useState(false)
   const [linkCopied, setLinkCopied] = useState(false)
@@ -157,13 +164,11 @@ export function RewardsSheet({ onClose }: { onClose: () => void }) {
       const res = await fetch('/api/rewards/claim', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ wallet: address }),
+        body: JSON.stringify({ wallet: address, handle: nanCode ?? '' }),
       })
-      const d = await res.json() as { success: boolean; amount: string; txHash: string; error?: string }
-      if (!d.success) { setError(d.error ?? 'Claim failed'); return }
-      setClaimed({ amount: d.amount, txHash: d.txHash })
-      setShowBalloons(true)
-      setTimeout(() => setShowBalloons(false), 4500)
+      const d = await res.json().catch(() => null) as { success?: boolean; amount?: string; error?: string } | null
+      if (!d?.success) { setError(d?.error ?? 'Could not request the payout. Please try again.'); return }
+      setClaimed({ amount: d.amount ?? '' })
     } catch {
       setError('Network error — please try again')
     } finally {
@@ -227,18 +232,11 @@ export function RewardsSheet({ onClose }: { onClose: () => void }) {
               <CheckCircle2 size={36} color="#10B981" />
             </div>
             <div style={{ fontSize: 22, fontWeight: 800, color: C.text, marginBottom: 6, letterSpacing: '-0.03em' }}>
-              ${claimed.amount} USDC claimed!
+              ${claimed.amount} USDC requested
             </div>
-            <div style={{ fontSize: 14, color: C.t2, marginBottom: 24, lineHeight: 1.5 }}>
-              Sent to your wallet
+            <div style={{ fontSize: 14, color: C.t2, marginBottom: 8, lineHeight: 1.5 }}>
+              Your payout is waiting for admin approval.<br />Approved payouts are paid monthly{data?.nextPayout ? ` — next on ${new Date(data.nextPayout).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}` : ''}.
             </div>
-            <a
-              href={`https://explorer.arc.io/tx/${claimed.txHash}`}
-              target="_blank" rel="noopener noreferrer"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: C.blue, textDecoration: 'none', fontWeight: 600 }}
-            >
-              View on explorer <ExternalLink size={12} />
-            </a>
             <div style={{ marginTop: 28 }}>
               <button onClick={onClose} style={{ width: '100%', padding: '13px', borderRadius: 12, background: C.blue, border: 'none', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: F }}>
                 Done
@@ -256,7 +254,7 @@ export function RewardsSheet({ onClose }: { onClose: () => void }) {
               border: `1px solid ${hasReward ? 'rgba(8,102,245,0.25)' : C.bdr}`,
               borderRadius: 16, padding: '14px 16px', marginBottom: 12, textAlign: 'center',
             }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: C.t3, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>Claimable Balance</div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: C.t3, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>Available to claim</div>
               <div style={{ fontSize: 34, fontWeight: 900, color: hasReward ? C.blue : C.t3, fontFamily: MONO, letterSpacing: '-0.04em', marginBottom: 4 }}>
                 ${data?.claimable ?? '0.00'}
               </div>
@@ -265,18 +263,35 @@ export function RewardsSheet({ onClose }: { onClose: () => void }) {
 
             {/* Stats row */}
             {data && (
-              <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-                {[
-                  { label: 'Friends referred', val: String(data.referralCount) },
-                  { label: 'Total earned',     val: `$${data.totalEarned}` },
-                  { label: 'Already claimed',  val: `$${data.claimed}` },
-                ].map(({ label, val }) => (
-                  <div key={label} style={{ flex: 1, background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 12, padding: '10px 8px', textAlign: 'center' }}>
-                    <div style={{ fontSize: 14, fontWeight: 800, color: C.text, fontFamily: MONO }}>{val}</div>
-                    <div style={{ fontSize: 10, color: C.t3, marginTop: 3 }}>{label}</div>
+              <>
+                <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+                  {[
+                    { label: 'Friends joined', val: String(data.referralCount) },
+                    { label: 'Qualified',      val: String(data.qualifiedCount ?? 0) },
+                    { label: 'Total earned',   val: `$${data.totalEarned}` },
+                    { label: 'Paid out',       val: `$${data.claimed}` },
+                  ].map(({ label, val }) => (
+                    <div key={label} style={{ flex: 1, background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 12, padding: '9px 4px', textAlign: 'center' }}>
+                      <div style={{ fontSize: 14, fontWeight: 800, color: C.text, fontFamily: MONO }}>{val}</div>
+                      <div style={{ fontSize: 10, color: C.t3, marginTop: 3 }}>{label}</div>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ fontSize: 12, color: C.t3, lineHeight: 1.5, marginBottom: 10, textAlign: 'center' }}>
+                  {(data.pendingFriends ?? 0) > 0 && <>{data.pendingFriends} friend{data.pendingFriends === 1 ? '' : 's'} joined — you earn ${data.rewardUsd ?? 1} when they make a ${data.minTxUsd ?? 100} transfer.<br /></>}
+                  Payouts are approved by an admin and paid monthly{data.nextPayout ? ` (next: ${new Date(data.nextPayout).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })})` : ''}.
+                </div>
+                {(data.claims ?? []).length > 0 && (
+                  <div style={{ background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 12, padding: '4px 12px', marginBottom: 10 }}>
+                    {(data.claims ?? []).slice(0, 3).map(c => (
+                      <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', fontSize: 12, color: C.t2 }}>
+                        <span style={{ fontFamily: MONO, color: C.text, fontWeight: 700 }}>${c.amount}</span>
+                        <span style={{ fontWeight: 700, color: c.status === 'paid' ? '#10B981' : c.status === 'rejected' ? '#EF4444' : c.status === 'approved' ? C.blue : C.t3, textTransform: 'capitalize' }}>{c.status === 'pending' ? 'Awaiting approval' : c.status}</span>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                )}
+              </>
             )}
 
             {error && (
@@ -299,14 +314,14 @@ export function RewardsSheet({ onClose }: { onClose: () => void }) {
                   transition: 'all 0.15s',
                 }}
               >
-                {claiming ? 'Claiming…' : `Claim $${data?.claimable} USDC`}
+                {claiming ? 'Requesting…' : `Request payout · $${data?.claimable}`}
               </button>
             ) : (
               <div style={{ textAlign: 'center', padding: '0 0 2px' }}>
                 <div style={{ fontSize: 16, fontWeight: 700, color: C.text, marginBottom: 4 }}>No rewards yet</div>
                 <div style={{ fontSize: 13, color: C.t3, lineHeight: 1.5, marginBottom: 14 }}>
                   Share your referral link with friends.<br />
-                  You earn <strong style={{ color: C.blue }}>$1 USDC</strong> for every friend who joins NAN.
+                  You earn <strong style={{ color: C.blue }}>$1 USDC</strong> when a friend joins through your link and makes a $100 transfer.
                 </div>
 
                 {/* Gate: must have a NAN name to get a referral link */}

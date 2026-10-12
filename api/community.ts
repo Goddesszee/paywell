@@ -692,6 +692,48 @@ async function routeHandler(req: VercelRequest, res: VercelResponse) {
   }
 
   // ── admin: audit log ──────────────────────────────────────────────────────────
+  // ── admin: referral reward payout requests ───────────────────────────────────
+  // GET  admin/rewards/claims                       list requests (newest first)
+  // POST admin/rewards/claims/update {id,status,txHash?,note?}
+  //      pending  → approved | rejected
+  //      approved → paid (admin sent the USDC; optional txHash) | rejected
+  // Rejected requests release the amount back to the user's available balance.
+  if (route === 'admin/rewards/claims' && req.method === 'GET') {
+    const ids = (await kv.lrange<string>('rewards:claims:all', 0, 199)) ?? []
+    const claims = (await Promise.all(ids.map(async cid => {
+      const c = await kv.get<Record<string, unknown> | string>(`rewards:claim:${cid}`)
+      return c ? (typeof c === 'string' ? JSON.parse(c) : c) : null
+    }))).filter(Boolean)
+    return res.status(200).json({ success: true, claims })
+  }
+
+  if (route === 'admin/rewards/claims/update' && req.method === 'POST') {
+    const b = (req.body ?? {}) as { id?: string; status?: string; txHash?: string; note?: string }
+    const cid = String(b.id ?? '')
+    const next = String(b.status ?? '')
+    if (!cid || !['approved', 'rejected', 'paid'].includes(next)) return res.status(400).json({ success: false, error: 'id and a valid status are required' })
+    const raw = await kv.get<Record<string, unknown> | string>(`rewards:claim:${cid}`)
+    if (!raw) return res.status(404).json({ success: false, error: 'Claim not found' })
+    const claim = (typeof raw === 'string' ? JSON.parse(raw) : raw) as { id: string; wallet: string; amount: number; status: string; txHash?: string; note?: string; updatedAt?: string }
+    const ok = (claim.status === 'pending' && (next === 'approved' || next === 'rejected')) || (claim.status === 'approved' && (next === 'paid' || next === 'rejected'))
+    if (!ok) return res.status(409).json({ success: false, error: `Cannot move a ${claim.status} request to ${next}` })
+    if (next === 'rejected') {
+      const req0 = Number(await kv.get(`rewards:requested:${claim.wallet}`)) || 0
+      await kv.set(`rewards:requested:${claim.wallet}`, String(Math.max(0, req0 - claim.amount)))
+    }
+    if (next === 'paid') {
+      const paid0 = Number(await kv.get(`rewards:paid:${claim.wallet}`)) || 0
+      await kv.set(`rewards:paid:${claim.wallet}`, String(paid0 + claim.amount))
+      if (b.txHash) claim.txHash = String(b.txHash).trim().slice(0, 100)
+    }
+    claim.status = next
+    claim.updatedAt = new Date().toISOString()
+    if (b.note) claim.note = String(b.note).slice(0, 300)
+    await kv.set(`rewards:claim:${cid}`, JSON.stringify(claim))
+    await auditLog(kv, `reward_${next}`, `Reward payout ${next}: $${claim.amount} → ${claim.wallet}`, cid)
+    return res.status(200).json({ success: true, claim })
+  }
+
   if (route === 'admin/audit' && req.method === 'GET') {
     const log = (await kv.lrange('admin:audit', 0, 499)) ?? []
     return res.status(200).json({ success: true, log })
