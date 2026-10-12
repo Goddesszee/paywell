@@ -41,7 +41,7 @@ export function LoginPage() {
       const token = btoa(`${address}:${Date.now()}`)
       setAuth({ email: address, sessionToken: token, walletAddress: address, walletId: address })
       setShowWelcome(true)
-      setActiveView(profile.displayName ? 'home' : 'name')
+      setActiveView('home')
     }
   }, [mode, isConnected, address, profile.displayName, setAuth, setActiveView, setShowWelcome])
 
@@ -64,7 +64,7 @@ export function LoginPage() {
       circleWalletId: existing?.circleWalletId ?? walletAddress,
     })
     setShowWelcome(true)
-    setActiveView(profile.displayName ? 'home' : 'name')
+    setActiveView('home')
   }
   void currentAuth // suppress unused warning
 
@@ -83,7 +83,7 @@ export function LoginPage() {
       isPasskeyUser: true,
     })
     setShowWelcome(true)
-    setActiveView(profile.displayName ? 'home' : 'name')
+    setActiveView('home')
   }
 
   // ── shared page wrapper ───────────────────────────────────────────────────
