@@ -57,8 +57,7 @@ function bridgeFeeCfg(amount: string) {
   const a = parseFloat(amount)
   if (!to || !(a > 0)) return {}
   const bps = Number(process.env.FEE_BRIDGE_BPS ?? process.env.VITE_FEE_BRIDGE_BPS ?? 50)
-  const min = Number(process.env.FEE_BRIDGE_MIN_USDC ?? process.env.VITE_FEE_BRIDGE_MIN_USDC ?? 0.1)
-  return { customFee: { value: Math.max(Math.round(a * bps) / 10000, min).toFixed(6), recipientAddress: to } }
+  return { customFee: { percentageBps: bps, recipientAddress: to } }
 }
 
 function ucwClient() {
