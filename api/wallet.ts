@@ -414,7 +414,7 @@ async function handleWallet(req: VercelRequest, res: VercelResponse) {
 
   // ── ucw-bridge-start — begin a UCW CCTP V2 bridge, return challengeId ────
   if (action === 'ucw-bridge-start') {
-    const { userToken, walletAddress, walletId, fromChain, destChain, amount, recipientAddress } = body
+    const { userToken, walletAddress, walletId, fromChain, destChain, amount, recipientAddress: _recipientAddress } = body
     if (!userToken || !walletAddress || !walletId || !destChain || !amount)
       return err(res, 400, 'userToken, walletAddress, walletId, destChain, amount required')
 
@@ -440,15 +440,29 @@ async function handleWallet(req: VercelRequest, res: VercelResponse) {
       const challengePromise = new Promise<string>((resolve, reject) => { resolveChallenge = resolve; rejectChallenge = reject })
       challengePromise.catch(() => { /* surfaced via Promise.race below */ })
 
-      const adapter = await createCircleUserWalletAdapter({
-        apiKey: key,
-        userToken,
-        walletId,
-        walletAddress: walletAddress as `0x${string}`,
-        chain: srcChain,
-        accountType: 'SCA',
-        onChallenge: ({ challengeId }: { challengeId: string }) => { resolveChallenge(challengeId) },
-      })
+      // Use the multi-chain overload of createCircleUserWalletAdapter when src != dst.
+      // This creates one adapter covering both chains — the same instance is passed to
+      // both from and to, which is the correct Circle-documented pattern for UCW bridging.
+      // Single-chain form would bind the adapter to srcChain only and throw
+      // "Chain X not supported by this adapter" when used on the destination.
+      const isSameChain = srcChain === dstChain
+      const adapter = isSameChain
+        ? await createCircleUserWalletAdapter({
+            apiKey: key,
+            userToken,
+            walletId,
+            walletAddress: walletAddress as `0x${string}`,
+            chain: srcChain,
+            accountType: 'SCA',
+            onChallenge: ({ challengeId }: { challengeId: string }) => { resolveChallenge(challengeId) },
+          })
+        : await createCircleUserWalletAdapter({
+            apiKey: key,
+            userToken,
+            chains: [srcChain, dstChain] as [string, string],
+            accountType: 'SCA',
+            onChallenge: ({ challengeId }: { challengeId: string }) => { resolveChallenge(challengeId) },
+          })
 
       let lastStage = 'starting'
       try { (kit as unknown as { on: (a: string, h: (p: unknown) => void) => void }).on('*', (p: unknown) => {
@@ -457,25 +471,9 @@ async function handleWallet(req: VercelRequest, res: VercelResponse) {
         console.log('[ucw-bridge]', srcChain, '->', dstChain, lastStage)
       }) } catch { /* events are best-effort */ }
 
-      // The UCW adapter is bound to a single chain (srcChain). Passing it as the
-      // destination adapter throws "Chain X not supported by this adapter" whenever
-      // dstChain !== srcChain. Fix: always use the Circle Forwarding Service on the
-      // destination so Circle handles attestation + mint without needing a dst adapter.
-      // The recipientAddress is the user's Arc wallet address (funds always land there).
-      const toParam: Parameters<InstanceType<typeof AppKit>['bridge']>[0]['to'] =
-        srcChain !== dstChain
-          ? {
-              chain: dstChain,
-              useForwarder: true,
-              ...(recipientAddress && /^0x[0-9a-fA-F]{40}$/.test(String(recipientAddress))
-                ? { recipientAddress: String(recipientAddress) }
-                : {}),
-            }
-          : { adapter, chain: dstChain }
-
       void kit.bridge({
         from: { adapter, chain: srcChain },
-        to:   toParam,
+        to:   { adapter, chain: dstChain },
         amount,
         config: { ...bridgeFeeCfg(String(amount)) },
       }).catch((e: unknown) => {
