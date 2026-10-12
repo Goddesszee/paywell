@@ -895,44 +895,46 @@ function SendFlow({
                   onClose={() => setShowQRScan(false)}
                 />
               )}
-              <div style={{ position: 'relative' }}>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'stretch' }}>
+                <div style={{ position: 'relative', flex: 1 }}>
                 <input
                   type="text"
                   placeholder="0x… or @nanhandle"
                   value={recipient}
                   onChange={e => { setRecipient(e.target.value); setRecipientError(''); setResolvedName(null) }}
                   style={{
-                    width: '100%', padding: '14px 80px 14px 16px', borderRadius: 12,
+                    width: '100%', padding: '14px 16px', borderRadius: 12,
                     background: 'var(--nan-surface2)',
                     border: `1px solid ${recipientError ? '#EF4444' : resolvedName ? 'rgba(16,185,129,0.5)' : recipient.startsWith('@') ? 'rgba(8,102,245,0.4)' : 'var(--nan-bdr)'}`,
                     color: 'var(--nan-text)', fontSize: 14, fontFamily: 'JetBrains Mono, monospace',
                     outline: 'none', boxSizing: 'border-box', transition: 'border-color 0.15s',
                   }}
                 />
-                {/* QR scan button */}
-                <button
-                  type="button"
-                  onClick={() => setShowQRScan(true)}
-                  title="Scan QR code"
-                  style={{
-                    position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)',
-                    width: 32, height: 32, borderRadius: 8,
-                    background: 'rgba(8,102,245,0.12)', border: '1px solid rgba(8,102,245,0.25)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
-                  }}>
-                  <ScanLine size={15} color="#0866F5" />
-                </button>
                 {nameResolving && (
                   <div style={{ position: 'absolute', right: 50, top: '50%', transform: 'translateY(-50%)' }}>
                     <div style={{ width: 16, height: 16, border: '2px solid #0866F5', borderTopColor: 'transparent', borderRadius: '50%', animation: 'nan-spin 0.7s linear infinite' }} />
                   </div>
                 )}
                 {resolvedName && !nameResolving && (
-                  <div style={{ position: 'absolute', right: 50, top: '50%', transform: 'translateY(-50%)' }}>
+                  <div style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)' }}>
                     <CheckCircle2 size={16} color="#10B981" />
                   </div>
                 )}
+                </div>
+                {/* Scan QR button — prominent, outside the input */}
+                <button
+                  type="button"
+                  onClick={() => setShowQRScan(true)}
+                  title="Scan QR code"
+                  style={{
+                    flexShrink: 0, width: 52, borderRadius: 12,
+                    background: 'rgba(8,102,245,0.15)', border: '1px solid rgba(8,102,245,0.35)',
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                    cursor: 'pointer', WebkitTapHighlightColor: 'transparent', gap: 2,
+                  }}>
+                  <ScanLine size={20} color="#0866F5" />
+                  <span style={{ fontSize: 9, color: '#0866F5', fontWeight: 700, letterSpacing: '0.05em' }}>SCAN</span>
+                </button>
               </div>
               {recipient.startsWith('@') && !nameResolving && !resolvedName && !recipientError && (
                 <div style={{ fontSize: 12, color: '#0866F5', marginTop: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
