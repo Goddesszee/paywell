@@ -5,9 +5,18 @@
 
 import { http, createConfig } from 'wagmi'
 import { mainnet, base, arbitrum, optimism, polygon, avalanche, zkSync } from 'wagmi/chains'
-import { arc } from 'viem/chains'
+import { arc as arcBase } from 'viem/chains'
+import { defineChain } from 'viem'
 import { injected } from 'wagmi/connectors'
 import { registerChain } from './tracing'
+
+// Arc Mainnet — override nativeCurrency to reflect USDC-as-gas correctly.
+// viem/chains exports arc with ETH as native which confuses wallets into asking for ETH.
+// On Arc, the native gas token IS USDC (18 decimals in the native view, same pool as ERC-20).
+const arc = defineChain({
+  ...arcBase,
+  nativeCurrency: { name: 'USD Coin', symbol: 'USDC', decimals: 18 },
+})
 
 // Unichain Mainnet (chainId 130)
 const unichain = {

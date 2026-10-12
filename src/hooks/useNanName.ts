@@ -18,7 +18,8 @@ const ARC_RPC = 'https://rpc.mainnet.arc.io'
 const ARC_CHAIN_ID = 5042
 
 export const REGISTRY_ABI = [
-  { name: 'register',           type: 'function', stateMutability: 'nonpayable', inputs: [{ name: 'name', type: 'string' }, { name: 'duration', type: 'uint8' }], outputs: [] },
+  { name: 'commit',             type: 'function', stateMutability: 'nonpayable', inputs: [{ name: 'commitment', type: 'bytes32' }], outputs: [] },
+  { name: 'register',           type: 'function', stateMutability: 'nonpayable', inputs: [{ name: 'name', type: 'string' }, { name: 'duration', type: 'uint8' }, { name: 'salt', type: 'bytes32' }], outputs: [] },
   { name: 'renew',              type: 'function', stateMutability: 'nonpayable', inputs: [{ name: 'name', type: 'string' }, { name: 'duration', type: 'uint8' }], outputs: [] },
   { name: 'resolve',            type: 'function', stateMutability: 'view',       inputs: [{ name: 'name', type: 'string' }],   outputs: [{ name: '', type: 'address' }] },
   { name: 'primaryName',        type: 'function', stateMutability: 'view',       inputs: [{ name: 'addr', type: 'address' }],  outputs: [{ name: '', type: 'string'  }] },

@@ -15,7 +15,7 @@ import {
 } from 'lucide-react'
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
 import { ConnectKitButton } from 'connectkit'
-import { encodeFunctionData } from 'viem'
+import { encodeFunctionData, encodePacked, keccak256, toHex } from 'viem'
 import { toast } from 'sonner'
 import { useAppStore } from '../../store/appStore'
 import { useNanName, REGISTRY_ABI, ERC20_APPROVE_ABI, PRICES } from '../../hooks/useNanName'
@@ -32,7 +32,19 @@ const ARC_CHAIN_ID  = 5042
 const F    = "'Inter', -apple-system, sans-serif"
 const MONO = "'JetBrains Mono', Menlo, monospace"
 
-type Step = 'loading' | 'noWallet' | 'noRegistry' | 'lookup' | 'registered' | 'approving' | 'registering' | 'success'
+type Step = 'loading' | 'noWallet' | 'noRegistry' | 'lookup' | 'registered' | 'approving' | 'committing' | 'waitingBlocks' | 'registering' | 'success'
+
+/** Generate a random 32-byte salt as a hex string */
+function generateSalt(): `0x${string}` {
+  const arr = new Uint8Array(32)
+  crypto.getRandomValues(arr)
+  return toHex(arr)
+}
+
+/** Build the commitment hash: keccak256(abi.encodePacked(name, salt, address)) */
+function makeCommitment(name: string, salt: `0x${string}`, addr: `0x${string}`): `0x${string}` {
+  return keccak256(encodePacked(['string', 'bytes32', 'address'], [name, salt, addr]))
+}
 
 /** Validate: lowercase letters, digits, hyphens only; 2–32 chars */
 function isValidHandle(h: string) {
@@ -170,7 +182,7 @@ export function NanNamePage() {
   const [showCelebration, setShowCelebration] = useState(false)
   const [altBusy, setAltBusy]               = useState(false)
 
-  const pendingRef = useRef<{ fn: string; handle: string }>({ fn: '', handle: '' })
+  const pendingRef = useRef<{ fn: string; handle: string; salt: `0x${string}` }>({ fn: '', handle: '', salt: '0x' })
 
   // Name / duration requested by the NAN Agent ("register @ada for 2 years") — user still taps Register
   useEffect(() => {
@@ -183,15 +195,19 @@ export function NanNamePage() {
 
   // ── wagmi writes ──────────────────────────────────────────────────────────
   const approveWrite  = useWriteContract()
+  const commitWrite   = useWriteContract()
   const registerWrite = useWriteContract()
 
   const approveHash  = approveWrite.data
+  const commitHash   = commitWrite.data
   const registerHash = registerWrite.data
 
-  const { isLoading: approveConfirming, isSuccess: approveSuccess } = useWaitForTransactionReceipt({ hash: approveHash })
+  const { isLoading: approveConfirming,  isSuccess: approveSuccess  } = useWaitForTransactionReceipt({ hash: approveHash  })
+  const { isLoading: commitConfirming,   isSuccess: commitSuccess   } = useWaitForTransactionReceipt({ hash: commitHash   })
   const { isLoading: registerConfirming, isSuccess: registerSuccess } = useWaitForTransactionReceipt({ hash: registerHash })
 
   const isBusy = approveWrite.isPending || approveConfirming
+    || commitWrite.isPending || commitConfirming
     || registerWrite.isPending || registerConfirming || altBusy
 
   // ── load handle on mount ──────────────────────────────────────────────────
@@ -206,21 +222,45 @@ export function NanNamePage() {
 
   useEffect(() => { void loadMyHandle() }, [loadMyHandle])
 
-  // ── after approve confirmed → fire register ───────────────────────────────
+  // ── after approve confirmed → fire commit ─────────────────────────────────
   useEffect(() => {
     if (!approveSuccess) return
-    const { handle } = pendingRef.current
-    const dur = duration
-    setStep('registering')
-    registerWrite.writeContract({
+    const { handle, salt } = pendingRef.current
+    if (!address) return
+    const commitment = makeCommitment(handle, salt, address)
+    setStep('committing')
+    commitWrite.writeContract({
       address: NAME_REGISTRY as `0x${string}`,
       abi: REGISTRY_ABI,
-      functionName: 'register',
-      args: [handle, dur],
+      functionName: 'commit',
+      args: [commitment],
       chainId: ARC_CHAIN_ID,
+      gasPrice: 1_000_000n,
     })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [approveSuccess])
+
+  // ── after commit confirmed → wait COMMIT_DELAY blocks then register ───────
+  useEffect(() => {
+    if (!commitSuccess) return
+    const { handle, salt } = pendingRef.current
+    const dur = duration
+    setStep('waitingBlocks')
+    // COMMIT_DELAY = 2 blocks (~4s on Arc). Wait 6s to be safe then register.
+    const timer = setTimeout(() => {
+      setStep('registering')
+      registerWrite.writeContract({
+        address: NAME_REGISTRY as `0x${string}`,
+        abi: REGISTRY_ABI,
+        functionName: 'register',
+        args: [handle, dur, salt],
+        chainId: ARC_CHAIN_ID,
+        gasPrice: 1_000_000n,
+      })
+    }, 6000)
+    return () => clearTimeout(timer)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [commitSuccess])
 
   // ── after register confirmed (wagmi) ─────────────────────────────────────
   useEffect(() => {
@@ -238,6 +278,14 @@ export function NanNamePage() {
     setStep('lookup')
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [approveWrite.error])
+
+  useEffect(() => {
+    if (!commitWrite.error) return
+    toast.error('Commit failed: ' + (commitWrite.error.message?.slice(0, 100) ?? 'unknown'))
+    commitWrite.reset()
+    setStep('lookup')
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [commitWrite.error])
 
   useEffect(() => {
     if (!registerWrite.error) return
@@ -278,41 +326,41 @@ export function NanNamePage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [setStoreHandle])
 
-  // ── Circle path: approve then register ────────────────────────────────────
-  const submitCircle = useCallback(async (h: string, dur: Dur) => {
+  // ── Circle path: approve → commit → wait → register ──────────────────────
+  const submitCircle = useCallback(async (h: string, dur: Dur, salt: `0x${string}`) => {
+    if (!address) return
     setAltBusy(true)
     setStep('approving')
-    // Arc UCW: encode approve+register as a single raw calldata batch so the
-    // wallet signs once. We use the Safe multisend precompile address.
-    // Step 1: approve via raw callData (Circle API supports hex callData directly)
-    const approveCallData = encodeFunctionData({
-      abi: ERC20_APPROVE_ABI,
-      functionName: 'approve',
-      args: [NAME_REGISTRY as `0x${string}`, PRICES[dur]],
-    })
-    const approveTxId = await circleTx.executeContract({
-      contractAddress: USDC_ADDRESS,
-      callData: approveCallData,
-    })
+
+    // Step 1: approve USDC spend
+    const approveCallData = encodeFunctionData({ abi: ERC20_APPROVE_ABI, functionName: 'approve', args: [NAME_REGISTRY as `0x${string}`, PRICES[dur]] })
+    const approveTxId = await circleTx.executeContract({ contractAddress: USDC_ADDRESS, callData: approveCallData })
     if (!approveTxId) {
-      await new Promise(r => setTimeout(r, 60))   // let the hook's error state settle
+      await new Promise(r => setTimeout(r, 60))
       const why = circleErrRef.current
-      toast.error(why
-        ? why.slice(0, 140)
-        : 'USDC approval failed. Make sure you have at least ' + (Number(PRICES[dur]) / 1e6) + ' USDC and approve with your Circle PIN.')
+      toast.error(why ? why.slice(0, 140) : 'USDC approval failed. Make sure you have at least ' + (Number(PRICES[dur]) / 1e6) + ' USDC.')
       setStep('lookup'); setAltBusy(false); return
     }
-    // Step 2: register name via raw callData
+
+    // Step 2: commit
+    setStep('committing')
+    const commitment = makeCommitment(h, salt, address)
+    const commitCallData = encodeFunctionData({ abi: REGISTRY_ABI, functionName: 'commit', args: [commitment] })
+    const commitTxId = await circleTx.executeContract({ contractAddress: NAME_REGISTRY, callData: commitCallData })
+    if (!commitTxId) {
+      await new Promise(r => setTimeout(r, 60))
+      toast.error(circleErrRef.current?.slice(0, 140) ?? 'Commit failed. Please try again.')
+      setStep('lookup'); setAltBusy(false); return
+    }
+
+    // Step 3: wait COMMIT_DELAY blocks (~6s on Arc)
+    setStep('waitingBlocks')
+    await new Promise(r => setTimeout(r, 7000))
+
+    // Step 4: register
     setStep('registering')
-    const registerCallData = encodeFunctionData({
-      abi: REGISTRY_ABI,
-      functionName: 'register',
-      args: [h, dur],
-    })
-    const regTxId = await circleTx.executeContract({
-      contractAddress: NAME_REGISTRY,
-      callData: registerCallData,
-    })
+    const registerCallData = encodeFunctionData({ abi: REGISTRY_ABI, functionName: 'register', args: [h, dur, salt] })
+    const regTxId = await circleTx.executeContract({ contractAddress: NAME_REGISTRY, callData: registerCallData })
     setAltBusy(false)
     if (regTxId) {
       onSuccess(h)
@@ -324,10 +372,10 @@ export function NanNamePage() {
         : msg.slice(0, 120))
       setStep('lookup')
     }
-  }, [circleTx, onSuccess])
+  }, [circleTx, onSuccess, address])
 
-  // ── Passkey path: two sequential UserOperations ────────────────────────────
-  const submitPasskey = useCallback(async (h: string, dur: Dur) => {
+  // ── Passkey path: approve + commit (UserOp 1) → wait → register (UserOp 2) ─
+  const submitPasskey = useCallback(async (h: string, dur: Dur, salt: `0x${string}`) => {
     const clientKey = getClientKey()
     if (!clientKey) { toast.error('VITE_CLIENT_KEY is not set'); return }
     setAltBusy(true)
@@ -341,35 +389,51 @@ export function NanNamePage() {
       const modularTransport = toModularTransport(`${MODULAR_URL}/arc`, clientKey)
       const publicClient = createPublicClient({ chain: arc, transport: modularTransport })
 
-      // Fresh passkey assertion (same approach as Gateway deposit) — does not depend on a credential
-      // that may be missing/stale in localStorage.
       const passkeyTransport = toPasskeyTransport(MODULAR_URL, clientKey)
       const credential = await toWebAuthnCredential({ transport: passkeyTransport, mode: WebAuthnMode.Login })
       const account = await toCircleSmartAccount({ client: publicClient, owner: toWebAuthnAccount({ credential }) })
       const bundler = createBundlerClient({ account, chain: arc, transport: modularTransport })
 
-      // approve + register as ONE user operation (one passkey prompt). For a smart account the batched
-      // calls all execute with the account as msg.sender, so the approval is valid for the register call.
-      // Do NOT hard-code gas: the old overrides set maxFeePerGas to 0.1 gwei, far below Arc's base fee,
-      // so the bundler rejected the operation. Let the bundler estimate, try gas sponsorship first and
-      // retry unsponsored on a paymaster internal error (Arc gas is USDC, so the account can pay).
-      const approveData  = encodeFunctionData({ abi: ERC20_APPROVE_ABI, functionName: 'approve', args: [NAME_REGISTRY as `0x${string}`, PRICES[dur]] })
-      const registerData = encodeFunctionData({ abi: REGISTRY_ABI, functionName: 'register', args: [h, dur] })
-      const calls = [
+      const accountAddress = account.address
+      const commitment = makeCommitment(h, salt, accountAddress)
+
+      // UserOp 1: approve + commit (batched, one passkey prompt)
+      const approveData = encodeFunctionData({ abi: ERC20_APPROVE_ABI, functionName: 'approve', args: [NAME_REGISTRY as `0x${string}`, PRICES[dur]] })
+      const commitData  = encodeFunctionData({ abi: REGISTRY_ABI, functionName: 'commit', args: [commitment] })
+      const calls1 = [
         { to: USDC_ADDRESS as `0x${string}`, data: approveData, value: 0n },
-        { to: NAME_REGISTRY as `0x${string}`, data: registerData, value: 0n },
+        { to: NAME_REGISTRY as `0x${string}`, data: commitData, value: 0n },
       ]
-      setStep('registering')
-      let userOpHash: `0x${string}`
+      setStep('committing')
+      let op1Hash: `0x${string}`
       try {
-        userOpHash = await bundler.sendUserOperation({ account, calls, paymaster: true })
-      } catch (paymasterErr: unknown) {
-        const e = paymasterErr as { code?: number; name?: string; shortMessage?: string; message?: string } | undefined
+        op1Hash = await bundler.sendUserOperation({ account, calls: calls1, paymaster: true })
+      } catch (e1: unknown) {
+        const e = e1 as { code?: number; name?: string; shortMessage?: string; message?: string } | undefined
         const internal = e?.code === -32603 || e?.name === 'InternalRpcError' || /internal error/i.test(e?.shortMessage ?? e?.message ?? '')
-        if (!internal) throw paymasterErr
-        userOpHash = await bundler.sendUserOperation({ account, calls })
+        if (!internal) throw e1
+        op1Hash = await bundler.sendUserOperation({ account, calls: calls1 })
       }
-      await bundler.waitForUserOperationReceipt({ hash: userOpHash })
+      await bundler.waitForUserOperationReceipt({ hash: op1Hash })
+
+      // Wait COMMIT_DELAY blocks (~6s on Arc at ~3s/block)
+      setStep('waitingBlocks')
+      await new Promise(r => setTimeout(r, 7000))
+
+      // UserOp 2: register (second passkey prompt)
+      setStep('registering')
+      const registerData = encodeFunctionData({ abi: REGISTRY_ABI, functionName: 'register', args: [h, dur, salt] })
+      const calls2 = [{ to: NAME_REGISTRY as `0x${string}`, data: registerData, value: 0n }]
+      let op2Hash: `0x${string}`
+      try {
+        op2Hash = await bundler.sendUserOperation({ account, calls: calls2, paymaster: true })
+      } catch (e2: unknown) {
+        const e = e2 as { code?: number; name?: string; shortMessage?: string; message?: string } | undefined
+        const internal = e?.code === -32603 || e?.name === 'InternalRpcError' || /internal error/i.test(e?.shortMessage ?? e?.message ?? '')
+        if (!internal) throw e2
+        op2Hash = await bundler.sendUserOperation({ account, calls: calls2 })
+      }
+      await bundler.waitForUserOperationReceipt({ hash: op2Hash })
 
       onSuccess(h)
     } catch (e) {
@@ -393,12 +457,15 @@ export function NanNamePage() {
       return
     }
     setHandleError('')
-    pendingRef.current = { fn: 'register', handle: h }
+    const salt = generateSalt()
+    pendingRef.current = { fn: 'register', handle: h, salt }
 
-    if (isCircleUser) { void submitCircle(h, duration); return }
-    if (isPasskeyUser) { void submitPasskey(h, duration); return }
+    if (isCircleUser) { void submitCircle(h, duration, salt); return }
+    if (isPasskeyUser) { void submitPasskey(h, duration, salt); return }
 
     // wagmi: step 1 — approve USDC
+    // Arc gas is paid in USDC (native = USDC). Set a low gasPrice so wallets
+    // don't prompt for ETH and don't over-estimate fees.
     setStep('approving')
     approveWrite.writeContract({
       address: USDC_ADDRESS,
@@ -406,6 +473,7 @@ export function NanNamePage() {
       functionName: 'approve',
       args: [NAME_REGISTRY as `0x${string}`, PRICES[duration]],
       chainId: ARC_CHAIN_ID,
+      gasPrice: 1_000_000n, // 0.000001 gwei in USDC-native units — Arc fees are very low
     })
   }
 
@@ -435,8 +503,10 @@ export function NanNamePage() {
   }
 
   // ── step label for progress indicator ─────────────────────────────────────
-  const stepLabel = step === 'approving'    ? 'Step 1/2: Approving USDC spend…'
-    : step === 'registering' ? 'Step 2/2: Registering name onchain…'
+  const stepLabel = step === 'approving'      ? 'Step 1/4: Approving USDC spend…'
+    : step === 'committing'    ? 'Step 2/4: Committing name reservation…'
+    : step === 'waitingBlocks' ? 'Step 3/4: Waiting for confirmation…'
+    : step === 'registering'   ? 'Step 4/4: Registering name onchain…'
     : null
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -558,7 +628,7 @@ export function NanNamePage() {
       )}
 
       {/* ── Register form ── */}
-      {(step === 'lookup' || step === 'approving' || step === 'registering') && (
+      {(step === 'lookup' || step === 'approving' || step === 'committing' || step === 'waitingBlocks' || step === 'registering') && (
         <div style={{ background: C.surf, border: `1px solid ${C.bdr}`, borderRadius: 18, padding: '20px', marginBottom: 20 }}>
           <div style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 2 }}>Register a handle</div>
           <div style={{ fontSize: 12, color: C.t3, marginBottom: 16 }}>Claim a unique @handle linked to your wallet.</div>
