@@ -473,7 +473,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         {/* Desktop topbar */}
         <header style={{
           height: TOPBAR_H, flexShrink: 0, display: 'flex', alignItems: 'center',
-          background: C.isDark ? '#08090B' : '#FFFFFF',
+          background: C.bg,
           borderBottom: `1px solid ${C.bdr}`,
           zIndex: 200,
         }}>
@@ -537,7 +537,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           {/* Desktop sidebar */}
           <nav style={{
             width: SIDEBAR_W, flexShrink: 0,
-            background: C.isDark ? '#08090B' : '#FFFFFF',
+            background: C.bg,
             borderRight: `1px solid ${C.bdr}`,
             display: 'flex', flexDirection: 'column',
             overflow: 'hidden',
@@ -614,11 +614,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       {/* Mobile side drawer */}
       <div style={{
         position: 'fixed', top: 0, right: 0, bottom: 0, width: 272, zIndex: 110,
-        background: C.isDark ? '#0D1017' : '#FFFFFF',
+        background: C.surf,
         borderLeft: `1px solid ${C.bdr}`,
-        boxShadow: C.isDark ? '-16px 0 48px rgba(0,0,0,0.6)' : '-16px 0 48px rgba(0,0,0,0.12)',
+        boxShadow: C.isDark ? '-12px 0 40px rgba(0,0,0,0.5)' : '-12px 0 40px rgba(0,0,0,0.10)',
         transform: drawerOpen ? 'translateX(0)' : 'translateX(100%)',
-        transition: 'transform 0.24s cubic-bezier(0.4,0,0.2,1)',
+        transition: 'transform 0.22s cubic-bezier(0.4,0,0.2,1)',
         display: 'flex', flexDirection: 'column',
       }}>
         {/* Mobile drawer header */}
@@ -682,42 +682,42 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       {/* Mobile bottom nav — hidden on agent view so chat fills the full screen */}
       <nav style={{
         flexShrink: 0, zIndex: 100,
-        background: C.isDark ? '#08090B' : '#FFFFFF',
+        background: C.bg,
         borderTop: `1px solid ${C.bdr}`,
         paddingBottom: 'env(safe-area-inset-bottom,0px)',
-        transition: 'background 0.25s',
-        display: (activeView === 'agent' || activeView === 'agent-wallet') ? 'none' : undefined,
-      }}>
+      }} hidden={(activeView === 'agent' || activeView === 'agent-wallet') || undefined}>
+        {(activeView !== 'agent' && activeView !== 'agent-wallet') && (
         <div style={{ display: 'flex', maxWidth: 480, margin: '0 auto' }}>
           {NAV_ITEMS.map(({ id, label, Icon }) => {
             const isActive = navActive(id)
             return (
               <button key={id} onClick={() => go(id)} aria-label={label} style={{
                 flex: 1, display: 'flex', flexDirection: 'column',
-                alignItems: 'center', justifyContent: 'center', gap: 3,
-                padding: '8px 2px 8px',
+                alignItems: 'center', justifyContent: 'center', gap: 4,
+                padding: '9px 2px 8px',
                 minHeight: 52, border: 'none', background: 'transparent',
-                cursor: 'pointer', transition: 'color 0.12s',
+                cursor: 'pointer',
                 fontFamily: F, WebkitTapHighlightColor: 'transparent', position: 'relative',
               }}>
-                <Icon size={18} color={isActive ? C.blue : C.t3} strokeWidth={isActive ? 2.2 : 1.7} />
-                <span style={{ fontSize: 9, fontWeight: isActive ? 700 : 400, color: isActive ? C.blue : C.t3, lineHeight: 1 }}>{label}</span>
-                {isActive && <span style={{ position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)', width: 18, height: 2, borderRadius: 2, background: C.blue }} />}
+                <Icon size={19} color={isActive ? C.blue : C.t3} strokeWidth={isActive ? 2.1 : 1.6} />
+                <span style={{ fontSize: 10, fontWeight: isActive ? 700 : 500, color: isActive ? C.blue : C.t3, lineHeight: 1, letterSpacing: '-0.01em' }}>{label}</span>
+                {isActive && <span style={{ position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)', width: 20, height: 2, borderRadius: 2, background: C.blue }} />}
               </button>
             )
           })}
           <button onClick={() => setDrawerOpen(v => !v)} aria-label="More" style={{
             flex: 1, display: 'flex', flexDirection: 'column',
-            alignItems: 'center', justifyContent: 'center', gap: 3,
-            padding: '8px 2px 8px',
+            alignItems: 'center', justifyContent: 'center', gap: 4,
+            padding: '9px 2px 8px',
             minHeight: 52, border: 'none', background: 'transparent',
-            cursor: 'pointer', transition: 'color 0.12s',
+            cursor: 'pointer',
             fontFamily: F, WebkitTapHighlightColor: 'transparent',
           }}>
-            <Menu size={18} color={drawerOpen ? C.blue : C.t3} strokeWidth={drawerOpen ? 2.2 : 1.7} />
-            <span style={{ fontSize: 9, fontWeight: drawerOpen ? 700 : 400, color: drawerOpen ? C.blue : C.t3, lineHeight: 1 }}>More</span>
+            <Menu size={19} color={drawerOpen ? C.blue : C.t3} strokeWidth={drawerOpen ? 2.1 : 1.6} />
+            <span style={{ fontSize: 10, fontWeight: drawerOpen ? 700 : 500, color: drawerOpen ? C.blue : C.t3, lineHeight: 1, letterSpacing: '-0.01em' }}>More</span>
           </button>
         </div>
+        )}
       </nav>
     </div>
   )

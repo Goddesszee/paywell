@@ -62,10 +62,10 @@ button {
 
 /* â”€â”€ NAN Wallet â€” style.css â€” Relay v2 â”€â”€ */
 :root{
-  --bg:#0B0D12;--surface:#171A21;--card:#171A21;--card2:#1D2029;
-  --border:rgba(255,255,255,.07);--border2:rgba(255,255,255,.12);
-  --accent:#0866F5;--accent3:#3B82F6;--accent4:#3B82F6;
-  --text:#F5F7FB;--text2:#A0A7B5;--text3:#5A6175;
+  --bg:#0B0D12;--surface:#151820;--card:#151820;--card2:#1A1E27;
+  --border:rgba(255,255,255,.06);--border2:rgba(255,255,255,.10);
+  --accent:#0866F5;--accent3:#0866F5;--accent4:#0866F5;
+  --text:#EDF0F7;--text2:#8C94A6;--text3:#4E5567;
   --danger:#EF4444;--success:#10B981;--gold:#F59E0B;--warning:#F59E0B;
   --radius:14px;--radius-sm:10px;
   --topbar-bg:#0B0D12;--nav-bg:#0B0D12;
@@ -1526,7 +1526,7 @@ a:hover{color:var(--text);}
 /* == NAV BOLD FINAL FIX == */
 .nav-btn span,
 .nav-btn .nl,
-#desktopNav .nav-btn .nl,
+#desktopNav .nav-btn .nl { font-size: 0.7rem !important; }
 
 /* == MOBILE LAYOUT FIX (max-width: 768px only) == */
 @media (max-width: 768px) {
@@ -1696,13 +1696,7 @@ a:hover{color:var(--text);}
 
 /* === MOBILE HEADER FIX === */
 @media(max-width:767px){
-  :root {
-    --card: transparent !important;
-    --card2: transparent !important;
-    --surface: #000000 !important;
-    --bg: #000000 !important;
-    --border: rgba(8,102,245,.15) !important;
-  }
+  /* Keep brand tokens consistent on mobile — no pure-black override */
   #disconnectTopBtn { display:none !important; }
   #disconnectTopBtnMobile { display:flex !important; }
   #topbarPageInfo { display:none !important; }
@@ -1893,17 +1887,8 @@ a:hover{color:var(--text);}
 
 .brand-logo{display:flex!important;align-items:center;flex-shrink:0;background:none!important;box-shadow:none!important;}
 
-/* ── Paywell scroll override ── */
-/* nan.css locks html/body overflow for its fixed shell; paywell uses React Router pages that need scroll */
-html, body, #root {
-  overflow: auto !important;
-  height: auto !important;
-}
-/* Keep the NAN dark background */
-html, body {
-  background: #111111 !important;
-  color: #ffffff !important;
-}
+/* ── App shell keeps overflow controlled (fixed layout) ── */
+/* Public pay pages override via html.nan-public-page above */
 
 /* Tailwind utility aliases for theme-aware surfaces */
 .nan-surface-fix  { background: var(--nan-surface)  !important; border: 1px solid var(--nan-bdr) !important; }

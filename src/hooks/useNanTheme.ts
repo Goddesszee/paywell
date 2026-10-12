@@ -1,16 +1,13 @@
 /**
- * useNanTheme — returns a reactive color palette that flips between
- * dark and light mode by reading the CSS custom properties set on
- * <html data-theme="dark|light">.
- *
- * Every component that previously hard-coded hex strings should import
- * this hook and destructure what it needs. When the user toggles the
- * theme in Settings the store calls setTheme(), which updates
- * data-theme on <html>, which triggers a re-render here, which
- * propagates the new values down.
+ * useNanTheme — reactive color palette for dark/light mode.
+ * Updated palette aligns with nan-theme.css v5.0:
+ *   - Slightly softer text (#EDF0F7 vs #F5F7FB) — less harsh contrast
+ *   - Muted secondary text (#8C94A6) — cleaner hierarchy
+ *   - Deeper tertiary text (#4E5567) — clear visual quiet
+ *   - Tighter border opacities (0.06 / 0.10) — less visual noise
+ *   - Same brand blue #0866F5 — unchanged
  */
 import { useSyncExternalStore } from 'react'
-
 
 export interface NanTheme {
   bg:      string
@@ -31,39 +28,39 @@ export interface NanTheme {
   isDark:  boolean
 }
 
-// dark palette
+// dark palette — v5.0
 const DARK: NanTheme = {
   bg:      '#0B0D12',
-  surf:    '#171A21',
-  surf2:   '#1D2029',
-  surf3:   '#232731',
-  bdr:     'rgba(255,255,255,0.07)',
-  bdr2:    'rgba(255,255,255,0.12)',
-  text:    '#F5F7FB',
-  t2:      '#A0A7B5',
-  t3:      '#5A6175',
+  surf:    '#151820',
+  surf2:   '#1A1E27',
+  surf3:   '#20242E',
+  bdr:     'rgba(255,255,255,0.06)',
+  bdr2:    'rgba(255,255,255,0.10)',
+  text:    '#EDF0F7',
+  t2:      '#8C94A6',
+  t3:      '#4E5567',
   blue:    '#0866F5',
-  blueDim: 'rgba(8,102,245,0.12)',
-  blueBd:  'rgba(8,102,245,0.24)',
+  blueDim: 'rgba(8,102,245,0.10)',
+  blueBd:  'rgba(8,102,245,0.22)',
   green:   '#10B981',
   red:     '#EF4444',
   gold:    '#F59E0B',
   isDark:  true,
 }
 
-// light palette
+// light palette — v5.0
 const LIGHT: NanTheme = {
-  bg:      '#F4F6FA',
+  bg:      '#F3F5FA',
   surf:    '#FFFFFF',
   surf2:   '#EEF1F7',
-  surf3:   '#E5E9F2',
+  surf3:   '#E4E8F2',
   bdr:     'rgba(0,0,0,0.07)',
-  bdr2:    'rgba(0,0,0,0.13)',
-  text:    '#0A0C14',
-  t2:      '#4A5068',
-  t3:      '#8A8FA8',
+  bdr2:    'rgba(0,0,0,0.12)',
+  text:    '#090C17',
+  t2:      '#444B62',
+  t3:      '#7D849A',
   blue:    '#0866F5',
-  blueDim: 'rgba(8,102,245,0.08)',
+  blueDim: 'rgba(8,102,245,0.07)',
   blueBd:  'rgba(8,102,245,0.18)',
   green:   '#059669',
   red:     '#DC2626',

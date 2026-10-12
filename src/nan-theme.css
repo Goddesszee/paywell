@@ -1,7 +1,8 @@
 /* ═══════════════════════════════════════════════════════
-   NAN DESIGN SYSTEM — v4.0
+   NAN DESIGN SYSTEM — v5.0  (UI Clean-Up Pass)
    Brand: Electric Blue #0866F5 · Ink Black #0B0D12 · White #F5F7FB
    Ratio: 60% dark / 30% white / 10% electric blue
+   Typography: Inter, tabular numerals, deliberate scale
 ═══════════════════════════════════════════════════════ */
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
@@ -9,40 +10,50 @@
 :root {
   /* ── Core backgrounds ── */
   --nan-bg:        #0B0D12;
-  --nan-bg-2:      #0F1117;
-  --nan-surface:   #171A21;
-  --nan-surface-2: #1D2029;
-  --nan-surface-3: #232731;
+  --nan-bg-2:      #0E1016;
+  --nan-surface:   #151820;
+  --nan-surface-2: #1A1E27;
+  --nan-surface-3: #20242E;
 
   /* ── Borders ── */
-  --nan-border:    rgba(255,255,255,0.07);
-  --nan-border-2:  rgba(255,255,255,0.12);
+  --nan-border:    rgba(255,255,255,0.06);
+  --nan-border-2:  rgba(255,255,255,0.10);
 
   /* ── Brand blue ── */
   --nan-blue:      #0866F5;
-  --nan-blue-dim:  rgba(8,102,245,0.12);
-  --nan-blue-glow: rgba(8,102,245,0.22);
+  --nan-blue-dim:  rgba(8,102,245,0.10);
+  --nan-blue-glow: rgba(8,102,245,0.16);
   --nan-blue-hover:#0555D4;
 
-  /* ── Text ── */
+  /* ── Text — refined contrast ratios ── */
   --nan-white:     #FFFFFF;
-  --nan-text:      #F5F7FB;
-  --nan-text-2:    #A0A7B5;
-  --nan-text-3:    #5A6175;
+  --nan-text:      #EDF0F7;
+  --nan-text-2:    #8C94A6;
+  --nan-text-3:    #4E5567;
 
   /* ── Semantic ── */
   --nan-green:     #10B981;
-  --nan-green-dim: rgba(16,185,129,0.10);
+  --nan-green-dim: rgba(16,185,129,0.09);
   --nan-red:       #EF4444;
-  --nan-red-dim:   rgba(239,68,68,0.10);
+  --nan-red-dim:   rgba(239,68,68,0.09);
   --nan-gold:      #F59E0B;
-  --nan-gold-dim:  rgba(245,158,11,0.10);
+  --nan-gold-dim:  rgba(245,158,11,0.09);
 
-  /* ── Spacing / Radii ── */
+  /* ── Spacing scale ── */
+  --nan-sp-xs:  4px;
+  --nan-sp-sm:  8px;
+  --nan-sp-md:  12px;
+  --nan-sp-lg:  16px;
+  --nan-sp-xl:  20px;
+  --nan-sp-2xl: 28px;
+
+  /* ── Radii ── */
+  --nan-r-xs:  6px;
   --nan-r-sm:  8px;
-  --nan-r-md:  12px;
-  --nan-r-lg:  16px;
-  --nan-r-xl:  20px;
+  --nan-r-md:  10px;
+  --nan-r-lg:  14px;
+  --nan-r-xl:  18px;
+  --nan-r-2xl: 22px;
 
   /* ── Typography ── */
   --nan-font: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
@@ -51,20 +62,20 @@
 
 /* ── Light mode ── */
 [data-theme="light"] {
-  --nan-bg:        #F4F6FA;
-  --nan-bg-2:      #EEF1F7;
+  --nan-bg:        #F3F5FA;
+  --nan-bg-2:      #EAECF4;
   --nan-surface:   #FFFFFF;
   --nan-surface-2: #EEF1F7;
-  --nan-surface-3: #E5E9F2;
+  --nan-surface-3: #E4E8F2;
   --nan-border:    rgba(0,0,0,0.07);
-  --nan-border-2:  rgba(0,0,0,0.13);
+  --nan-border-2:  rgba(0,0,0,0.12);
   --nan-blue:      #0866F5;
-  --nan-blue-dim:  rgba(8,102,245,0.08);
-  --nan-blue-glow: rgba(8,102,245,0.16);
+  --nan-blue-dim:  rgba(8,102,245,0.07);
+  --nan-blue-glow: rgba(8,102,245,0.14);
   --nan-blue-hover:#0555D4;
-  --nan-text:      #0A0C14;
-  --nan-text-2:    #4A5068;
-  --nan-text-3:    #8A8FA8;
+  --nan-text:      #090C17;
+  --nan-text-2:    #444B62;
+  --nan-text-3:    #7D849A;
   --nan-green:     #059669;
   --nan-green-dim: rgba(5,150,105,0.09);
   --nan-red:       #DC2626;
@@ -73,7 +84,7 @@
   --nan-gold-dim:  rgba(217,119,6,0.09);
 }
 
-/* Light mode — force app shell chrome to use CSS vars */
+/* ── Force light-mode shell chrome ── */
 [data-theme="light"] #root > div,
 [data-theme="light"] header,
 [data-theme="light"] nav {
@@ -81,62 +92,54 @@
   color: var(--nan-text) !important;
   border-color: var(--nan-border) !important;
 }
-[data-theme="light"] main > div {
-  color: var(--nan-text);
-}
+[data-theme="light"] main > div { color: var(--nan-text); }
 
-/* Inline-style overrides for light mode */
-[data-theme="light"] [style*="background: rgb(8, 9, 11)"],
-[data-theme="light"] [style*="background: #08090B"],
-[data-theme="light"] [style*="background: #08090b"],
-[data-theme="light"] [style*="background:#08090B"],
-[data-theme="light"] [style*="background:#08090b"],
+/* ── Common inline-style overrides for light mode ── */
 [data-theme="light"] [style*="background: #0B0D12"],
 [data-theme="light"] [style*="background:#0B0D12"],
-[data-theme="light"] [style*="background: #0b0d12"],
-[data-theme="light"] [style*="background:#0b0d12"] { background: var(--nan-bg) !important; }
+[data-theme="light"] [style*="background: #08090B"],
+[data-theme="light"] [style*="background:#08090B"],
+[data-theme="light"] [style*="background: rgb(8, 9, 11)"] { background: var(--nan-bg) !important; }
 
+[data-theme="light"] [style*="background: #151820"],
+[data-theme="light"] [style*="background:#151820"],
 [data-theme="light"] [style*="background: #171A21"],
 [data-theme="light"] [style*="background:#171A21"],
 [data-theme="light"] [style*="background: #111318"],
 [data-theme="light"] [style*="background:#111318"],
-[data-theme="light"] [style*="background: #111111"],
-[data-theme="light"] [style*="background:#111111"],
 [data-theme="light"] [style*="background: #13151A"],
 [data-theme="light"] [style*="background:#13151A"] { background: var(--nan-surface) !important; }
 
+[data-theme="light"] [style*="background: #1A1E27"],
+[data-theme="light"] [style*="background:#1A1E27"],
 [data-theme="light"] [style*="background: #1D2029"],
 [data-theme="light"] [style*="background:#1D2029"],
-[data-theme="light"] [style*="background: #181B22"],
-[data-theme="light"] [style*="background:#181B22"],
 [data-theme="light"] [style*="background: #1a1a1a"],
-[data-theme="light"] [style*="background:#1a1a1a"],
-[data-theme="light"] [style*="background: #1A1D24"],
-[data-theme="light"] [style*="background:#1A1D24"] { background: var(--nan-surface-2) !important; }
+[data-theme="light"] [style*="background:#1a1a1a"] { background: var(--nan-surface-2) !important; }
 
-/* Text overrides */
+[data-theme="light"] [style*="color: #EDF0F7"],
+[data-theme="light"] [style*="color:#EDF0F7"],
 [data-theme="light"] [style*="color: #F5F7FB"],
 [data-theme="light"] [style*="color:#F5F7FB"],
-[data-theme="light"] [style*="color: #F2F3F5"],
-[data-theme="light"] [style*="color:#F2F3F5"],
 [data-theme="light"] [style*="color: #FFFFFF"],
 [data-theme="light"] [style*="color:#FFFFFF"],
 [data-theme="light"] [style*="color: white"] { color: var(--nan-text) !important; }
-[data-theme="light"] [style*="color: #A0A7B5"],
-[data-theme="light"] [style*="color:#A0A7B5"],
-[data-theme="light"] [style*="color: #8A8F9E"],
-[data-theme="light"] [style*="color:#8A8F9E"] { color: var(--nan-text-2) !important; }
-[data-theme="light"] [style*="color: #5A6175"],
-[data-theme="light"] [style*="color:#5A6175"],
-[data-theme="light"] [style*="color: #50556A"],
-[data-theme="light"] [style*="color:#50556A"] { color: var(--nan-text-3) !important; }
 
-/* Border overrides */
+[data-theme="light"] [style*="color: #8C94A6"],
+[data-theme="light"] [style*="color:#8C94A6"],
+[data-theme="light"] [style*="color: #A0A7B5"],
+[data-theme="light"] [style*="color:#A0A7B5"] { color: var(--nan-text-2) !important; }
+
+[data-theme="light"] [style*="color: #4E5567"],
+[data-theme="light"] [style*="color:#4E5567"],
+[data-theme="light"] [style*="color: #5A6175"],
+[data-theme="light"] [style*="color:#5A6175"] { color: var(--nan-text-3) !important; }
+
 [data-theme="light"] [style*="border: 1px solid rgba(255,255,255,0.07)"],
+[data-theme="light"] [style*="border: 1px solid rgba(255,255,255,0.06)"],
 [data-theme="light"] [style*="borderTop: 1px solid rgba(255,255,255,0.07)"],
 [data-theme="light"] [style*="border-top: 1px solid rgba(255,255,255,0.07)"] { border-color: var(--nan-border) !important; }
 
-/* Input fields */
 [data-theme="light"] input,
 [data-theme="light"] select,
 [data-theme="light"] textarea {
@@ -158,39 +161,101 @@ html, body, #root {
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
   overflow-x: hidden;
-  font-feature-settings: 'cv01', 'cv02', 'cv03', 'cv04';
+  font-feature-settings: 'cv01', 'cv02', 'cv03', 'cv04', 'tnum';
 }
 
-/* ── Typography scale ── */
-/* Display — hero numbers, large headings */
-.nan-display   {
-  font-size: 48px; font-weight: 800; line-height: 1.05;
-  letter-spacing: -0.035em; font-family: var(--nan-font);
+/* ══════════════════════════════════════════════════════
+   TYPOGRAPHY SCALE — deliberate, hierarchical
+   Every size has a single clear purpose.
+══════════════════════════════════════════════════════ */
+
+/* Display — hero numbers: total balance on home */
+.nan-display {
+  font-size: 40px;
+  font-weight: 700;
+  line-height: 1.08;
+  letter-spacing: -0.03em;
+  font-family: var(--nan-font);
+  font-variant-numeric: tabular-nums;
 }
-/* H1 — page titles */
-.nan-h1        { font-size: 28px; font-weight: 700; line-height: 1.15; letter-spacing: -0.03em; }
-/* H2 — section headings */
-.nan-h2        { font-size: 20px; font-weight: 600; line-height: 1.2;  letter-spacing: -0.02em; }
-/* H3 — card headings */
-.nan-h3        { font-size: 16px; font-weight: 600; line-height: 1.3;  letter-spacing: -0.015em; }
+
+/* H1 — page titles (e.g. "Send", "Bridge") */
+.nan-h1 {
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.025em;
+}
+
+/* H2 — section headings ("Recent Activity") */
+.nan-h2 {
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+}
+
+/* H3 — card / row titles */
+.nan-h3 {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.35;
+  letter-spacing: -0.01em;
+}
+
 /* Body — primary readable text */
-.nan-body      { font-size: 14px; font-weight: 400; line-height: 1.6; color: var(--nan-text); }
-/* Body small — secondary descriptive text */
-.nan-body-sm   { font-size: 13px; font-weight: 400; line-height: 1.55; color: var(--nan-text-2); }
-/* Label — form labels, section labels (uppercase) */
-.nan-label     { font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--nan-text-2); }
-/* Caption — timestamps, hints, fine print */
-.nan-caption   { font-size: 11px; font-weight: 400; color: var(--nan-text-3); line-height: 1.5; }
-/* Balance — financial amounts, dominant number display */
-.nan-balance   {
-  font-size: 42px; font-weight: 700; letter-spacing: -0.035em;
-  font-variant-numeric: tabular-nums; line-height: 1;
+.nan-body {
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.6;
+  color: var(--nan-text);
+}
+
+/* Body small — secondary descriptions */
+.nan-body-sm {
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.55;
+  color: var(--nan-text-2);
+}
+
+/* Label — uppercase form/section labels */
+.nan-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--nan-text-2);
+}
+
+/* Caption — timestamps, fine print */
+.nan-caption {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--nan-text-3);
+  line-height: 1.45;
+}
+
+/* Balance — dominant financial figure */
+.nan-balance {
+  font-size: 38px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.05;
   font-family: var(--nan-font);
 }
-/* Amount — secondary financial figures */
-.nan-amount    { font-size: 22px; font-weight: 700; letter-spacing: -0.025em; font-variant-numeric: tabular-nums; }
-/* Mono — addresses, hashes, technical identifiers only */
-.nan-mono      { font-family: var(--nan-mono); font-variant-numeric: tabular-nums; }
+
+/* Amount — secondary financial figure in cards/rows */
+.nan-amount {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Mono — addresses, hashes, technical IDs only */
+.nan-mono { font-family: var(--nan-mono); font-variant-numeric: tabular-nums; }
 
 /* Color utilities */
 .nan-blue-text  { color: var(--nan-blue); }
@@ -200,213 +265,289 @@ html, body, #root {
 .nan-muted      { color: var(--nan-text-2); }
 .nan-muted-3    { color: var(--nan-text-3); }
 
-/* ── Cards ── */
+/* ══════════════════════════════════════════════════════
+   CARDS — clean, restrained
+══════════════════════════════════════════════════════ */
+
+/* Standard card */
 .nan-card {
   background: var(--nan-surface);
   border: 1px solid var(--nan-border);
   border-radius: var(--nan-r-xl);
-  padding: 20px 22px;
+  padding: 18px 20px;
 }
+
+/* Compact card */
 .nan-card-sm {
   background: var(--nan-surface);
   border: 1px solid var(--nan-border);
   border-radius: var(--nan-r-lg);
-  padding: 14px 16px;
+  padding: 12px 14px;
 }
+
+/* Flush card (no padding — children manage it) */
 .nan-card-flush {
   background: var(--nan-surface);
   border: 1px solid var(--nan-border);
   border-radius: var(--nan-r-xl);
   overflow: hidden;
 }
+
+/* Blue tint card */
 .nan-card-blue {
   background: var(--nan-blue-dim);
-  border: 1px solid var(--nan-blue-glow);
+  border: 1px solid rgba(8,102,245,0.16);
   border-radius: var(--nan-r-xl);
-  padding: 20px 22px;
+  padding: 18px 20px;
 }
+
+/* Deep dark card */
 .nan-card-dark {
   background: var(--nan-bg-2);
   border: 1px solid var(--nan-border);
   border-radius: var(--nan-r-xl);
-  padding: 20px 22px;
+  padding: 18px 20px;
 }
 
-/* ── Buttons ── */
+/* ══════════════════════════════════════════════════════
+   BUTTONS — standardized sizes, deliberate hierarchy
+══════════════════════════════════════════════════════ */
+
 .nan-btn {
-  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
-  font-family: var(--nan-font); font-size: 14px; font-weight: 600;
-  letter-spacing: -0.01em; border: none; cursor: pointer;
-  transition: background 0.15s ease, transform 0.12s ease, box-shadow 0.15s ease;
-  white-space: nowrap; border-radius: var(--nan-r-md); padding: 11px 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-family: var(--nan-font);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  border: none;
+  cursor: pointer;
+  transition: background 0.13s ease, transform 0.10s ease, box-shadow 0.13s ease, opacity 0.13s ease;
+  white-space: nowrap;
+  border-radius: var(--nan-r-lg);
+  padding: 11px 18px;
   -webkit-tap-highlight-color: transparent;
+  user-select: none;
 }
-.nan-btn:disabled { opacity: 0.38; cursor: not-allowed; pointer-events: none; }
+.nan-btn:disabled { opacity: 0.35; cursor: not-allowed; pointer-events: none; }
 .nan-btn:active:not(:disabled) { transform: scale(0.97); }
 
-/* Primary — electric blue, high contrast */
+/* Primary — filled blue, clear CTA */
 .nan-btn-primary {
-  background: var(--nan-blue); color: #fff;
-  box-shadow: 0 2px 12px rgba(8,102,245,0.30);
+  background: var(--nan-blue);
+  color: #fff;
+  box-shadow: 0 1px 8px rgba(8,102,245,0.22);
 }
 .nan-btn-primary:hover:not(:disabled) {
   background: var(--nan-blue-hover);
-  box-shadow: 0 4px 20px rgba(8,102,245,0.40);
+  box-shadow: 0 2px 14px rgba(8,102,245,0.32);
 }
 
-/* Secondary — subtle surface, not competing with primary */
+/* Secondary — subtle, not competing */
 .nan-btn-secondary {
-  background: var(--nan-surface-2); color: var(--nan-text);
+  background: var(--nan-surface-2);
+  color: var(--nan-text);
   border: 1px solid var(--nan-border-2);
 }
 .nan-btn-secondary:hover:not(:disabled) {
   background: var(--nan-surface-3);
-  border-color: rgba(255,255,255,0.18);
+  border-color: rgba(255,255,255,0.15);
 }
 
-/* Ghost — transparent, minimal */
+/* Ghost — transparent, minimal presence */
 .nan-btn-ghost {
-  background: transparent; color: var(--nan-text-2);
+  background: transparent;
+  color: var(--nan-text-2);
   border: 1px solid var(--nan-border);
 }
 .nan-btn-ghost:hover:not(:disabled) {
-  background: var(--nan-surface); color: var(--nan-text);
+  background: var(--nan-surface);
+  color: var(--nan-text);
   border-color: var(--nan-border-2);
 }
 
 /* Danger */
 .nan-btn-danger {
-  background: rgba(239,68,68,0.10); color: var(--nan-red);
-  border: 1px solid rgba(239,68,68,0.22);
+  background: rgba(239,68,68,0.09);
+  color: var(--nan-red);
+  border: 1px solid rgba(239,68,68,0.20);
 }
-.nan-btn-danger:hover:not(:disabled) { background: rgba(239,68,68,0.16); }
+.nan-btn-danger:hover:not(:disabled) { background: rgba(239,68,68,0.14); }
 
 /* Sizes */
-.nan-btn-sm  { font-size: 12px; padding: 7px 13px; border-radius: var(--nan-r-sm); }
-.nan-btn-lg  { font-size: 15px; padding: 14px 28px; border-radius: var(--nan-r-lg); }
-.nan-btn-xl  { font-size: 15px; padding: 16px 28px; border-radius: var(--nan-r-lg); width: 100%; font-weight: 700; }
+.nan-btn-sm  { font-size: 12px; padding: 7px 12px; border-radius: var(--nan-r-sm); }
+.nan-btn-lg  { font-size: 15px; padding: 14px 26px; border-radius: var(--nan-r-lg); }
+.nan-btn-xl  { font-size: 15px; padding: 15px 26px; border-radius: var(--nan-r-lg); width: 100%; font-weight: 700; }
 .nan-btn-icon {
-  width: 36px; height: 36px; padding: 0; border-radius: var(--nan-r-sm);
-  background: var(--nan-surface-2); color: var(--nan-text-2);
+  width: 34px; height: 34px; padding: 0;
+  border-radius: var(--nan-r-md);
+  background: var(--nan-surface-2);
+  color: var(--nan-text-2);
   border: 1px solid var(--nan-border);
 }
 .nan-btn-icon:hover:not(:disabled) { background: var(--nan-surface-3); color: var(--nan-text); }
 
-/* ── Inputs ── */
+/* ══════════════════════════════════════════════════════
+   INPUTS
+══════════════════════════════════════════════════════ */
+
 .nan-input {
-  width: 100%; padding: 11px 14px;
-  background: var(--nan-surface);
+  width: 100%;
+  padding: 11px 14px;
+  background: var(--nan-surface-2);
   border: 1px solid var(--nan-border-2);
-  border-radius: var(--nan-r-md);
+  border-radius: var(--nan-r-lg);
   color: var(--nan-text);
-  font-family: var(--nan-font); font-size: 14px; font-weight: 400;
-  outline: none; transition: border-color 0.15s, box-shadow 0.15s;
+  font-family: var(--nan-font);
+  font-size: 14px;
+  font-weight: 400;
+  outline: none;
+  transition: border-color 0.13s, box-shadow 0.13s;
   -webkit-appearance: none;
 }
 .nan-input::placeholder { color: var(--nan-text-3); }
 .nan-input:focus {
   border-color: var(--nan-blue);
-  box-shadow: 0 0 0 3px rgba(8,102,245,0.14);
+  box-shadow: 0 0 0 3px rgba(8,102,245,0.12);
 }
-.nan-input:disabled { opacity: 0.45; cursor: not-allowed; }
+.nan-input:disabled { opacity: 0.42; cursor: not-allowed; }
 .nan-input-lg { font-size: 15px; padding: 13px 16px; border-radius: var(--nan-r-lg); }
 .nan-label-field {
-  display: block; font-size: 11px; font-weight: 600; color: var(--nan-text-2);
-  letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 6px;
+  display: block;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--nan-text-3);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
 }
 
-/* ── Divider rows (settings-style) ── */
+/* ══════════════════════════════════════════════════════
+   ROW LISTS (settings-style)
+══════════════════════════════════════════════════════ */
+
 .nan-row {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 13px 0; border-bottom: 1px solid var(--nan-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 13px 0;
+  border-bottom: 1px solid var(--nan-border);
 }
 .nan-row:last-child { border-bottom: none; }
 .nan-row-icon {
-  width: 32px; height: 32px; border-radius: var(--nan-r-sm);
+  width: 30px; height: 30px;
+  border-radius: var(--nan-r-sm);
   background: var(--nan-surface-2);
   display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0; color: var(--nan-text-2);
+  flex-shrink: 0;
+  color: var(--nan-text-2);
 }
 
-/* ── Tab bar ── */
+/* ══════════════════════════════════════════════════════
+   TAB BAR
+══════════════════════════════════════════════════════ */
+
 .nan-tabs {
   display: flex;
-  background: var(--nan-surface);
+  background: var(--nan-surface-2);
   border: 1px solid var(--nan-border);
   border-radius: var(--nan-r-md);
-  padding: 3px; gap: 2px;
+  padding: 3px;
+  gap: 2px;
 }
 .nan-tab {
-  flex: 1; padding: 8px 6px; border: none; cursor: pointer;
-  font-family: var(--nan-font); font-size: 12px; font-weight: 500;
+  flex: 1; padding: 7px 6px;
+  border: none; cursor: pointer;
+  font-family: var(--nan-font);
+  font-size: 12px; font-weight: 500;
   background: transparent; color: var(--nan-text-2);
-  border-radius: var(--nan-r-sm); transition: all 0.15s;
+  border-radius: var(--nan-r-sm); transition: all 0.13s;
 }
 .nan-tab.active {
-  background: var(--nan-surface-3); color: var(--nan-text); font-weight: 700;
+  background: var(--nan-surface-3);
+  color: var(--nan-text);
+  font-weight: 700;
 }
 .nan-tab.active-blue {
-  background: var(--nan-blue-dim); color: var(--nan-blue);
-  font-weight: 700; border: 1px solid rgba(8,102,245,0.22);
+  background: var(--nan-blue-dim);
+  color: var(--nan-blue);
+  font-weight: 700;
+  border: 1px solid rgba(8,102,245,0.20);
 }
 
-/* ── Status badges ── */
+/* ══════════════════════════════════════════════════════
+   BADGES
+══════════════════════════════════════════════════════ */
+
 .nan-badge {
   display: inline-flex; align-items: center; gap: 4px;
-  font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 20px;
+  font-size: 10px; font-weight: 600;
+  padding: 3px 8px; border-radius: 20px;
 }
-.nan-badge-blue    { background: var(--nan-blue-dim);    color: var(--nan-blue);    border: 1px solid rgba(8,102,245,0.22); }
-.nan-badge-green   { background: var(--nan-green-dim);   color: var(--nan-green);   border: 1px solid rgba(16,185,129,0.22); }
-.nan-badge-red     { background: var(--nan-red-dim);     color: var(--nan-red);     border: 1px solid rgba(239,68,68,0.22); }
-.nan-badge-gold    { background: var(--nan-gold-dim);    color: var(--nan-gold);    border: 1px solid rgba(245,158,11,0.22); }
-.nan-badge-default { background: var(--nan-surface-2);   color: var(--nan-text-2);  border: 1px solid var(--nan-border); }
-.nan-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
-.nan-dot-blue  { background: var(--nan-blue); box-shadow: 0 0 6px rgba(8,102,245,0.6); }
+.nan-badge-blue    { background: var(--nan-blue-dim);  color: var(--nan-blue);  border: 1px solid rgba(8,102,245,0.20); }
+.nan-badge-green   { background: var(--nan-green-dim); color: var(--nan-green); border: 1px solid rgba(16,185,129,0.20); }
+.nan-badge-red     { background: var(--nan-red-dim);   color: var(--nan-red);   border: 1px solid rgba(239,68,68,0.20); }
+.nan-badge-gold    { background: var(--nan-gold-dim);  color: var(--nan-gold);  border: 1px solid rgba(245,158,11,0.20); }
+.nan-badge-default { background: var(--nan-surface-2); color: var(--nan-text-2); border: 1px solid var(--nan-border); }
+
+.nan-dot       { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.nan-dot-blue  { background: var(--nan-blue); }
 .nan-dot-green { background: var(--nan-green); }
 .nan-dot-red   { background: var(--nan-red); }
 
-/* ── Transaction rows ── */
+/* ══════════════════════════════════════════════════════
+   TRANSACTION ROWS
+══════════════════════════════════════════════════════ */
+
 .nan-tx-row {
   display: flex; align-items: center; gap: 12px;
-  padding: 12px 16px; border-bottom: 1px solid var(--nan-border);
-  cursor: pointer; transition: background 0.12s;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--nan-border);
+  cursor: pointer; transition: background 0.10s;
 }
 .nan-tx-row:last-child { border-bottom: none; }
 .nan-tx-row:hover { background: var(--nan-surface-2); }
+
 .nan-tx-icon {
-  width: 38px; height: 38px; border-radius: 10px;
-  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  width: 36px; height: 36px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
 }
-.nan-tx-icon-in  { background: var(--nan-green-dim);  border: 1px solid rgba(16,185,129,0.18); }
-.nan-tx-icon-out { background: var(--nan-red-dim);    border: 1px solid rgba(239,68,68,0.18); }
-.nan-tx-icon-swap{ background: var(--nan-blue-dim);   border: 1px solid rgba(8,102,245,0.20); }
-.nan-tx-icon-bot { background: rgba(8,102,245,0.08);  border: 1px solid rgba(8,102,245,0.15); }
-.nan-tx-title    { font-size: 14px; font-weight: 600; color: var(--nan-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.nan-tx-sub      { font-size: 11px; color: var(--nan-text-3); margin-top: 2px; }
-.nan-tx-amount   { font-size: 13px; font-weight: 700; font-family: var(--nan-mono); flex-shrink: 0; text-align: right; font-variant-numeric: tabular-nums; }
+.nan-tx-icon-in   { background: var(--nan-green-dim);  border: 1px solid rgba(16,185,129,0.16); }
+.nan-tx-icon-out  { background: var(--nan-red-dim);    border: 1px solid rgba(239,68,68,0.16); }
+.nan-tx-icon-swap { background: var(--nan-blue-dim);   border: 1px solid rgba(8,102,245,0.18); }
+.nan-tx-icon-bot  { background: rgba(8,102,245,0.07);  border: 1px solid rgba(8,102,245,0.14); }
+
+.nan-tx-title  { font-size: 13px; font-weight: 600; color: var(--nan-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nan-tx-sub    { font-size: 11px; color: var(--nan-text-3); margin-top: 2px; }
+.nan-tx-amount { font-size: 13px; font-weight: 700; font-family: var(--nan-mono); flex-shrink: 0; text-align: right; font-variant-numeric: tabular-nums; }
 .nan-tx-amount.in  { color: var(--nan-green); }
 .nan-tx-amount.out { color: var(--nan-red); }
 
-/* ── Balance card ── */
+/* ══════════════════════════════════════════════════════
+   BALANCE CARD (hero card on home)
+══════════════════════════════════════════════════════ */
+
 .nan-balance-card {
-  background: linear-gradient(145deg, #0F1117 0%, #171A21 55%, #0D1017 100%);
+  background: var(--nan-surface);
   border: 1px solid var(--nan-border-2);
-  border-radius: var(--nan-r-xl); padding: 22px 24px;
+  border-radius: var(--nan-r-2xl);
+  padding: 22px 22px 18px;
   position: relative; overflow: hidden;
 }
-.nan-balance-card::after {
-  content: ''; position: absolute; top: -40px; right: -40px;
-  width: 200px; height: 200px; border-radius: 50%;
-  background: radial-gradient(circle, rgba(8,102,245,0.16) 0%, transparent 65%);
-  pointer-events: none;
-}
 
-/* ── Navigation ── */
+/* ══════════════════════════════════════════════════════
+   NAVIGATION
+══════════════════════════════════════════════════════ */
+
 .nan-nav-item {
   display: flex; align-items: center; gap: 10px;
-  padding: 9px 12px; border-radius: var(--nan-r-md);
+  padding: 8px 10px; border-radius: var(--nan-r-md);
   color: var(--nan-text-2); font-size: 13px; font-weight: 500;
-  cursor: pointer; transition: all 0.12s; border: none; background: none;
+  cursor: pointer; transition: all 0.10s;
+  border: none; background: none;
   width: 100%; text-align: left; font-family: var(--nan-font);
 }
 .nan-nav-item:hover { background: var(--nan-surface-2); color: var(--nan-text); }
@@ -415,48 +556,56 @@ html, body, #root {
 }
 .nan-nav-item.active svg { color: var(--nan-blue); }
 
-/* ── Quick action buttons (home page) ── */
+/* ══════════════════════════════════════════════════════
+   ACTION BUTTONS (home quick actions)
+══════════════════════════════════════════════════════ */
+
 .nan-action-btn {
   display: flex; flex-direction: column; align-items: center; gap: 6px;
-  padding: 14px 8px; border-radius: var(--nan-r-lg);
+  padding: 12px 6px; border-radius: var(--nan-r-lg);
   background: var(--nan-surface); border: 1px solid var(--nan-border);
-  cursor: pointer; transition: all 0.15s; font-family: var(--nan-font);
+  cursor: pointer; transition: background 0.12s, border-color 0.12s;
+  font-family: var(--nan-font);
   -webkit-tap-highlight-color: transparent;
 }
 .nan-action-btn:hover {
   background: var(--nan-surface-2); border-color: var(--nan-border-2);
-  transform: translateY(-1px);
 }
+.nan-action-btn:active { transform: scale(0.96); }
+
 .nan-action-btn.primary-action {
-  background: var(--nan-blue-dim); border-color: rgba(8,102,245,0.24);
+  background: var(--nan-blue-dim);
+  border-color: rgba(8,102,245,0.22);
 }
 .nan-action-btn.primary-action:hover {
-  background: rgba(8,102,245,0.18);
-  box-shadow: 0 4px 16px rgba(8,102,245,0.18);
+  background: rgba(8,102,245,0.15);
 }
+
 .nan-action-icon {
-  width: 36px; height: 36px; border-radius: 10px;
+  width: 34px; height: 34px; border-radius: 10px;
   display: flex; align-items: center; justify-content: center;
   background: var(--nan-surface-2); border: 1px solid var(--nan-border);
-  transition: all 0.15s;
 }
 .nan-action-btn.primary-action .nan-action-icon {
   background: var(--nan-blue); border-color: transparent;
-  box-shadow: 0 3px 10px rgba(8,102,245,0.35);
 }
+
 .nan-action-label {
-  font-size: 11px; font-weight: 600; color: var(--nan-text-2);
-  letter-spacing: 0.02em;
+  font-size: 10px; font-weight: 600;
+  color: var(--nan-text-2); letter-spacing: 0.01em;
 }
 .nan-action-btn.primary-action .nan-action-label { color: var(--nan-blue); }
 
-/* ── Empty states ── */
+/* ══════════════════════════════════════════════════════
+   EMPTY STATES
+══════════════════════════════════════════════════════ */
+
 .nan-empty {
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  padding: 48px 20px; text-align: center; gap: 10px;
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; padding: 44px 20px; text-align: center; gap: 8px;
 }
 .nan-empty-icon {
-  width: 52px; height: 52px; border-radius: var(--nan-r-lg);
+  width: 48px; height: 48px; border-radius: var(--nan-r-lg);
   background: var(--nan-surface-2); border: 1px solid var(--nan-border);
   display: flex; align-items: center; justify-content: center;
   color: var(--nan-text-3); margin-bottom: 4px;
@@ -464,132 +613,180 @@ html, body, #root {
 .nan-empty-title { font-size: 14px; font-weight: 600; color: var(--nan-text); }
 .nan-empty-sub   { font-size: 12px; color: var(--nan-text-3); }
 
-/* ── Loading ── */
+/* ══════════════════════════════════════════════════════
+   LOADING
+══════════════════════════════════════════════════════ */
+
 .nan-spinner {
-  width: 18px; height: 18px; border-radius: 50%;
-  border: 2px solid rgba(255,255,255,0.10);
+  width: 16px; height: 16px; border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.09);
   border-top-color: var(--nan-blue);
   animation: nan-spin 0.7s linear infinite;
   display: inline-block;
 }
 @keyframes nan-spin { to { transform: rotate(360deg); } }
 
-/* ── Skeleton shimmer ── */
+/* Skeleton shimmer — very subtle */
 .nan-skel {
-  background: linear-gradient(90deg, var(--nan-surface) 25%, var(--nan-surface-2) 50%, var(--nan-surface) 75%);
+  background: linear-gradient(
+    90deg,
+    var(--nan-surface)   25%,
+    var(--nan-surface-2) 50%,
+    var(--nan-surface)   75%
+  );
   background-size: 200% 100%;
-  animation: nan-shimmer 1.4s ease infinite;
+  animation: nan-shimmer 1.5s ease infinite;
   border-radius: var(--nan-r-sm);
 }
 @keyframes nan-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 
-/* ── Toast ── */
-.nan-toast {
-  background: var(--nan-surface-2); border: 1px solid var(--nan-border-2);
-  border-radius: var(--nan-r-lg); padding: 13px 16px;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.6);
-  color: var(--nan-text); font-family: var(--nan-font); font-size: 13px;
-}
+/* ══════════════════════════════════════════════════════
+   MODALS & SHEETS
+══════════════════════════════════════════════════════ */
 
-/* ── Modal ── */
 .nan-modal-overlay {
-  position: fixed; inset: 0; background: rgba(0,0,0,0.72);
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.65);
   display: flex; align-items: flex-end; justify-content: center;
-  z-index: 9000; backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+  z-index: 9000;
+  backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
 }
 .nan-modal {
-  background: var(--nan-surface); border: 1px solid var(--nan-border-2);
-  border-radius: 20px 20px 0 0; padding: 24px 20px 40px;
+  background: var(--nan-surface);
+  border: 1px solid var(--nan-border-2);
+  border-radius: 20px 20px 0 0;
+  padding: 22px 20px 40px;
   width: 100%; max-width: 480px;
 }
 
-/* ── Info / status boxes ── */
+/* ══════════════════════════════════════════════════════
+   INFO / STATUS BOXES
+══════════════════════════════════════════════════════ */
+
 .nan-info-box {
-  background: var(--nan-blue-dim); border: 1px solid rgba(8,102,245,0.20);
-  border-radius: var(--nan-r-md); padding: 12px 14px;
+  background: var(--nan-blue-dim);
+  border: 1px solid rgba(8,102,245,0.18);
+  border-radius: var(--nan-r-lg);
+  padding: 11px 14px;
   font-size: 13px; color: var(--nan-text-2); line-height: 1.55;
 }
 .nan-warn-box {
-  background: var(--nan-gold-dim); border: 1px solid rgba(245,158,11,0.22);
-  border-radius: var(--nan-r-md); padding: 12px 14px;
+  background: var(--nan-gold-dim);
+  border: 1px solid rgba(245,158,11,0.20);
+  border-radius: var(--nan-r-lg);
+  padding: 11px 14px;
   font-size: 13px; color: var(--nan-gold); line-height: 1.55;
 }
 .nan-success-box {
-  background: var(--nan-green-dim); border: 1px solid rgba(16,185,129,0.22);
-  border-radius: var(--nan-r-md); padding: 16px 18px;
+  background: var(--nan-green-dim);
+  border: 1px solid rgba(16,185,129,0.20);
+  border-radius: var(--nan-r-lg);
+  padding: 14px 16px;
 }
 .nan-error-box {
-  background: var(--nan-red-dim); border: 1px solid rgba(239,68,68,0.22);
-  border-radius: var(--nan-r-md); padding: 12px 14px;
+  background: var(--nan-red-dim);
+  border: 1px solid rgba(239,68,68,0.20);
+  border-radius: var(--nan-r-lg);
+  padding: 11px 14px;
   font-size: 13px; color: var(--nan-red);
 }
 
-/* ── Section header ── */
+/* ══════════════════════════════════════════════════════
+   SECTION HEADER
+══════════════════════════════════════════════════════ */
+
 .nan-section-head {
   display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 .nan-section-title {
-  font-size: 11px; font-weight: 700; color: var(--nan-text-3);
+  font-size: 10px; font-weight: 700;
+  color: var(--nan-text-3);
   letter-spacing: 0.08em; text-transform: uppercase;
 }
 
-/* ── Progress bar ── */
-.nan-progress-track { height: 3px; background: var(--nan-surface-2); border-radius: 2px; overflow: hidden; }
-.nan-progress-fill  { height: 100%; background: var(--nan-blue); border-radius: 2px; transition: width 0.4s ease; }
+/* ══════════════════════════════════════════════════════
+   PROGRESS & STEPS
+══════════════════════════════════════════════════════ */
+
+.nan-progress-track { height: 2px; background: var(--nan-surface-2); border-radius: 2px; overflow: hidden; }
+.nan-progress-fill  { height: 100%; background: var(--nan-blue); border-radius: 2px; transition: width 0.35s ease; }
 .nan-progress-fill.warn { background: var(--nan-red); }
 
-/* ── Step indicator ── */
-.nan-step-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; }
+.nan-step-row { display: flex; align-items: center; gap: 10px; padding: 9px 0; }
 .nan-step-dot {
-  width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;
+  width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
-  font-size: 12px; font-weight: 700; transition: all 0.2s;
+  font-size: 11px; font-weight: 700; transition: all 0.18s;
 }
-.nan-step-dot.done   { background: var(--nan-blue-dim); color: var(--nan-blue); border: 1.5px solid rgba(8,102,245,0.28); }
-.nan-step-dot.active { background: var(--nan-blue); color: #fff; box-shadow: 0 2px 8px rgba(8,102,245,0.4); }
+.nan-step-dot.done   { background: var(--nan-blue-dim); color: var(--nan-blue); border: 1.5px solid rgba(8,102,245,0.26); }
+.nan-step-dot.active { background: var(--nan-blue); color: #fff; }
 .nan-step-dot.idle   { background: var(--nan-surface-2); color: var(--nan-text-3); border: 1.5px solid var(--nan-border); }
-.nan-step-label { font-size: 13px; font-weight: 600; color: var(--nan-text); }
+.nan-step-label      { font-size: 13px; font-weight: 600; color: var(--nan-text); }
 .nan-step-label.idle { color: var(--nan-text-3); }
 
-/* ── Toggle switch ── */
-.nan-toggle { position: relative; width: 44px; height: 26px; flex-shrink: 0; }
+/* ══════════════════════════════════════════════════════
+   TOGGLE SWITCH
+══════════════════════════════════════════════════════ */
+
+.nan-toggle { position: relative; width: 42px; height: 24px; flex-shrink: 0; }
 .nan-toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
 .nan-toggle-track {
-  position: absolute; inset: 0; border-radius: 13px; cursor: pointer;
+  position: absolute; inset: 0; border-radius: 12px; cursor: pointer;
   background: var(--nan-surface-2); border: 1px solid var(--nan-border);
-  transition: background 0.2s;
+  transition: background 0.18s;
 }
 .nan-toggle input:checked ~ .nan-toggle-track { background: var(--nan-blue); border-color: var(--nan-blue); }
 .nan-toggle-thumb {
-  position: absolute; top: 3px; left: 3px; width: 18px; height: 18px;
+  position: absolute; top: 3px; left: 3px; width: 16px; height: 16px;
   border-radius: 50%; background: #fff; pointer-events: none;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.3); transition: left 0.2s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.25); transition: left 0.18s;
 }
 .nan-toggle input:checked ~ .nan-toggle-track ~ .nan-toggle-thumb { left: 21px; }
 
-/* ── Animated check circle ── */
+/* ══════════════════════════════════════════════════════
+   CHECK CIRCLE
+══════════════════════════════════════════════════════ */
+
 .nan-check-circle {
-  width: 64px; height: 64px; border-radius: 50%; margin: 0 auto;
-  background: var(--nan-green-dim); border: 1.5px solid rgba(16,185,129,0.28);
+  width: 60px; height: 60px; border-radius: 50%; margin: 0 auto;
+  background: var(--nan-green-dim);
+  border: 1.5px solid rgba(16,185,129,0.24);
   display: flex; align-items: center; justify-content: center;
 }
 
-/* ── Scrollbar ── */
-* { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.06) transparent; }
-::-webkit-scrollbar { width: 4px; height: 4px; }
+/* ══════════════════════════════════════════════════════
+   SCROLLBAR — thin, unobtrusive
+══════════════════════════════════════════════════════ */
+* { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.05) transparent; }
+::-webkit-scrollbar { width: 3px; height: 3px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.07); border-radius: 4px; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.06); border-radius: 3px; }
 
-/* ── Utility ── */
-.nan-divider { height: 1px; background: var(--nan-border); margin: 4px 0; }
+/* ══════════════════════════════════════════════════════
+   TOAST (Sonner override)
+══════════════════════════════════════════════════════ */
+
+[data-sonner-toaster] [data-sonner-toast] {
+  background: var(--nan-surface-2) !important;
+  border: 1px solid var(--nan-border-2) !important;
+  color: var(--nan-text) !important;
+  font-family: var(--nan-font) !important;
+  font-size: 13px !important;
+  box-shadow: 0 6px 24px rgba(0,0,0,0.45) !important;
+  border-radius: 12px !important;
+}
+
+/* ══════════════════════════════════════════════════════
+   UTILITY
+══════════════════════════════════════════════════════ */
+
+.nan-divider { height: 1px; background: var(--nan-border); margin: 2px 0; }
 .nan-glass {
-  background: rgba(23,26,33,0.85);
+  background: rgba(21,24,32,0.88);
   backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
   border: 1px solid var(--nan-border);
 }
-
-/* ── Tailwind utility bridges ── */
 .nan-surface-fix  { background: var(--nan-surface) !important; }
 .nan-bg-fix       { background: var(--nan-bg) !important; }
 .nan-surface2-fix { background: var(--nan-surface-2) !important; }
@@ -597,20 +794,13 @@ html, body, #root {
 .text-nan2        { color: var(--nan-text-2) !important; }
 .text-nan3        { color: var(--nan-text-3) !important; }
 
-/* ── Sonner toast override ── */
-[data-sonner-toaster] [data-sonner-toast] {
-  background: var(--nan-surface-2) !important;
-  border: 1px solid var(--nan-border-2) !important;
-  color: var(--nan-text) !important;
-  font-family: var(--nan-font) !important;
-  font-size: 13px !important;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.5) !important;
-}
+/* ══════════════════════════════════════════════════════
+   RESPONSIVE
+══════════════════════════════════════════════════════ */
 
-/* ── Responsive ── */
 @media (max-width: 480px) {
-  .nan-display  { font-size: 36px; }
-  .nan-h1       { font-size: 22px; }
-  .nan-balance  { font-size: 34px; }
-  .nan-btn-xl   { padding: 14px 20px; }
+  .nan-display  { font-size: 32px; }
+  .nan-h1       { font-size: 20px; }
+  .nan-balance  { font-size: 32px; }
+  .nan-btn-xl   { padding: 14px 18px; }
 }
