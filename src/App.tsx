@@ -4,6 +4,9 @@ import { useAppStore } from './store/appStore'
 import { getCircleCreds, fetchPrimaryWallet } from './lib/circle-session'
 import { PaymentRequestPayPage } from './components/pages/PaymentRequestPayPage'
 import { PayByNamePage } from './components/pages/PayByNamePage'
+import { PayByInvoicePage } from './components/pages/PayByInvoicePage'
+import { InvoicePage } from './components/pages/InvoicePage'
+import { BatchPayrollPage } from './components/pages/BatchPayrollPage'
 import { SplashScreen } from './components/SplashScreen'
 import { AppShell } from './components/layout/AppShell'
 import { AgentWalletExperience } from './components/pages/AgentWalletExperience'
@@ -211,18 +214,24 @@ export default function App() {
   const prParams = useMemo(() => {
     const p = new URLSearchParams(window.location.search)
     const nanpay   = p.get('nanpay') ?? ''
+    const invoice  = p.get('invoice') ?? ''
     const pr       = p.get('pr') ?? ''
     const pay      = p.get('pay') ?? ''
     const amount   = parseFloat(p.get('amount') ?? '0')
     const note     = p.get('note') ?? ''
     const currency = (p.get('currency') ?? 'USDC') as 'USDC' | 'EURC'
-    if (nanpay) return { nanpay, pr: '', pay: '', amount, note, currency }
-    if (pr || (pay && amount > 0)) return { nanpay: '', pr, pay, amount, note, currency }
+    if (nanpay) return { nanpay, invoice: '', pr: '', pay: '', amount, note, currency }
+    if (invoice) return { nanpay: '', invoice, pr: '', pay: '', amount, note, currency }
+    if (pr || (pay && amount > 0)) return { nanpay: '', invoice: '', pr, pay, amount, note, currency }
     return null
   }, [])
 
   if (prParams?.nanpay) {
     return <PayByNamePage handle={prParams.nanpay} />
+  }
+
+  if (prParams?.invoice) {
+    return <PayByInvoicePage invoiceId={prParams.invoice} />
   }
 
   if (prParams && (prParams.pr || prParams.pay)) {
@@ -282,6 +291,8 @@ export default function App() {
       {activeView === 'contacts' && <ContactsPage />}
       {activeView === 'nan-name' && <NanNamePage />}
       {activeView === 'referral' && <ReferralPage />}
+      {activeView === 'invoices' && <InvoicePage />}
+      {activeView === 'payroll' && <BatchPayrollPage />}
     </AppShell>
     </>
 

@@ -3,7 +3,7 @@
  * Shows claimable balance, a Claim button, and balloon confetti on success.
  */
 import { useState, useEffect } from 'react'
-import { X, Gift, CheckCircle2, ExternalLink, Share2, Copy, Check as CheckIcon, AtSign } from 'lucide-react'
+import { X, Gift, CheckCircle2, Share2, Copy, Check as CheckIcon, AtSign } from 'lucide-react'
 import { useNanTheme } from '../../hooks/useNanTheme'
 import { useAccount } from 'wagmi'
 import { useAppStore } from '../../store/appStore'
@@ -117,7 +117,7 @@ export function RewardsSheet({ onClose }: { onClose: () => void }) {
   const [claiming, setClaiming] = useState(false)
   const [claimed, setClaimed] = useState<{ amount: string } | null>(null)
   const [error, setError] = useState('')
-  const [showBalloons, setShowBalloons] = useState(false)
+  const [showBalloons, _setShowBalloons] = useState(false)
   const [linkCopied, setLinkCopied] = useState(false)
 
   const shareLink = async () => {

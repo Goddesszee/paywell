@@ -3,7 +3,7 @@ import {
   Home, Activity, Menu, X, LayoutDashboard,
   ArrowLeftRight, ArrowUpDown, Settings, ChevronRight,
   Layers, Repeat, Bot, Wallet,
-  MessageSquare, HelpCircle, Info, User, Search, Bookmark,
+  MessageSquare, HelpCircle, Info, User, Users, Search, Bookmark,
   Star, Lightbulb, ArrowRight, Clock, ShoppingBag, FileDown,
   FileText, AtSign, Sparkles,
 } from 'lucide-react'
@@ -35,6 +35,8 @@ const ALL_RESULTS: SearchResult[] = [
   { id:'gateway',     title:'Gateway',              subtitle:'Unified cross-chain balance',        category:'Finance',     Icon:Layers,         iconColor:BLUE,      action:'gateway' },
 
   { id:'recurring',   title:'Recurring Payments',   subtitle:'Schedule automatic transfers',       category:'Finance',     Icon:Repeat,         iconColor:'#8B5CF6', action:'recurring' },
+  { id:'invoices',    title:'Invoices',             subtitle:'Create & send USDC invoices',        category:'Business',    Icon:FileText,       iconColor:BLUE,      action:'invoices' },
+  { id:'payroll',     title:'Batch Payroll',        subtitle:'Send USDC to multiple recipients',   category:'Business',    Icon:Users,          iconColor:BLUE,      action:'payroll' },
 
   { id:'agent',        title:'AI Agents',            subtitle:'Autonomous service & payment agent', category:'Agents',      Icon:Bot,            iconColor:BLUE,      action:'agent' },
   { id:'agent-wallet', title:'Agent Wallet',         subtitle:'Swap, bridge & recurring via agent', category:'Agents',      Icon:Wallet,         iconColor:BLUE,      action:'agent-wallet' },
@@ -318,7 +320,9 @@ const SIDEBAR_SECTIONS = [
     { id: 'recurring',    label: 'Recurring',     Icon: Repeat, desc: 'Scheduled payments' },
   ]},
   { title: 'Business', items: [
-    { id: 'contacts', label: 'Contacts', Icon: User, desc: 'People you have paid' },
+    { id: 'invoices', label: 'Invoices',      Icon: FileText, desc: 'Create & send USDC invoices' },
+    { id: 'payroll',  label: 'Batch Payroll', Icon: Users,    desc: 'Send USDC to multiple recipients' },
+    { id: 'contacts', label: 'Contacts',      Icon: User,     desc: 'People you have paid' },
   ]},
   { title: 'Account', items: [
     { id: 'exports',   label: 'Statement',   Icon: FileDown, desc: 'Download your account statement' },
