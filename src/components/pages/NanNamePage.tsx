@@ -270,6 +270,32 @@ export function NanNamePage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [registerSuccess])
 
+  // ── fallback: if registerHash is set but registerSuccess never fires,
+  //    poll the RPC directly and call onSuccess after confirmation ───────────
+  useEffect(() => {
+    if (!registerHash) return
+    if (registerSuccess) return
+    let cancelled = false
+    const poll = async () => {
+      // Give wagmi 20s to fire registerSuccess naturally
+      await new Promise(r => setTimeout(r, 20_000))
+      if (cancelled || registerSuccess) return
+      // Fallback: resolve the receipt directly via public RPC
+      try {
+        const { createPublicClient, http } = await import('viem')
+        const { arc } = await import('viem/chains')
+        const client = createPublicClient({ chain: arc, transport: http('https://rpc.mainnet.arc.io') })
+        const receipt = await client.waitForTransactionReceipt({ hash: registerHash, timeout: 30_000 })
+        if (!cancelled && receipt.status === 'success') {
+          onSuccess(pendingRef.current.handle)
+        }
+      } catch { /* silent — wagmi receipt hook is still running */ }
+    }
+    void poll()
+    return () => { cancelled = true }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [registerHash])
+
   // ── wagmi errors ──────────────────────────────────────────────────────────
   useEffect(() => {
     if (!approveWrite.error) return
