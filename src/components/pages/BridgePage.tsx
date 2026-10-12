@@ -29,12 +29,12 @@ import {
 import { ConnectKitButton } from 'connectkit'
 import { safeJson } from '../../lib/safe-json'
 import { confirmWithRetry } from '../../lib/poll-confirm'
-import { bridgeCustomFee } from '../../lib/fee-config'
+import { bridgeCustomFee, feeCollectionActive } from '../../lib/fee-config'
 import { useAppStore } from '../../store/appStore'
 import { executeWithGuard } from '../../lib/circle-execute'
 import { getPasskeyAdapter } from '../CirclePasskeyLogin'
 import { bridgeFee, BRIDGE_FEE_BPS, bpsToPercent } from '../../lib/fees'
-import { getClientKey } from '../../lib/circle-session'
+import { getClientKey, ensureCircleCreds, getChallengeTransactionId, SESSION_EXPIRED_MSG } from '../../lib/circle-session'
 import { useNanTheme } from '../../hooks/useNanTheme'
 
 // ── Typed wrappers for App Kit bridge result ──────────────────────────────────
@@ -557,14 +557,18 @@ export function BridgePage({ inCard = false }: { inCard?: boolean }) {
 
   // ── Computed fee values ───────────────────────────────────────────────────
   const gross          = parseFloat(amount) || 0
-  const platformFee    = gross > 0 ? bridgeFee(gross) : 0
+  // Only shown when a fee wallet is configured (otherwise nothing is charged)
+  const platformFee    = gross > 0 && feeCollectionActive() ? bridgeFee(gross) : 0
   const cctpProtocolFee = gross > 0 && liveFee.bps > 0
     ? parseFloat((gross * liveFee.bps / 10000).toFixed(6))
     : 0
   const maxFeeUsdc = gross > 0 && liveFee.bps > 0
     ? parseFloat((cctpProtocolFee * 1.2).toFixed(6))
     : 0
-  const netReceived = Math.max(0, gross - cctpProtocolFee - platformFee)
+  // The platform fee is added ON TOP of the amount (wallet pays amount + fee); only the CCTP protocol
+  // fee comes out of the amount being bridged.
+  const netReceived = Math.max(0, gross - cctpProtocolFee)
+  const totalFromWallet = gross + platformFee
 
   // ── Bridge handler — ALL original logic preserved exactly ─────────────────
   const handleBridge = async () => {
@@ -612,19 +616,25 @@ export function BridgePage({ inCard = false }: { inCard?: boolean }) {
 
         const appId = (import.meta.env.VITE_CIRCLE_APP_ID as string | undefined) ?? ''
         const sdk = new W3SSdk({ appSettings: { appId } })
-        if (authState.encryptionKey) {
-          sdk.setAuthentication({ userToken: authState.userToken, encryptionKey: authState.encryptionKey })
-        } else {
-          sdk.setAuthentication({ userToken: authState.userToken, encryptionKey: '' })
-        }
+        // The session key is memory/sessionStorage only — restore it (via the login refreshToken) or
+        // tell the user plainly, instead of opening Circle's popup with an empty key.
+        const creds = await ensureCircleCreds()
+        if (!creds.encryptionKey) throw new Error(SESSION_EXPIRED_MSG)
+        sdk.setAuthentication({ userToken: creds.userToken ?? authState.userToken, encryptionKey: creds.encryptionKey })
 
-        const txId = await new Promise<string>((resolve, reject) => {
+        let txId = await new Promise<string>((resolve, reject) => {
           executeWithGuard(sdk, startData.challengeId!, (err, result) => {
             if (err) { reject(new Error(err instanceof Error ? err.message : 'PIN approval failed')); return }
             const r = result as { data?: { transactionHash?: string; transactionId?: string } }
             resolve(r?.data?.transactionHash ?? r?.data?.transactionId ?? '')
           })
         })
+        if (!txId) {
+          // Circle exposes the transaction id as challenge.correlationIds[0]; it can lag the approval a moment.
+          const c = await getChallengeTransactionId(creds.userToken ?? authState.userToken, startData.challengeId!)
+          txId = c.transactionId ?? ''
+          if (!txId) throw new Error(c.status === 'FAILED' ? `Circle rejected the bridge${c.errorMessage ? `: ${c.errorMessage}` : ''}` : 'Circle did not return a transaction id yet — check your balance before retrying.')
+        }
 
         updateStep('burn', { status: 'done', txHash: txId })
         updateStep('fetchAttestation', { status: 'active' })
@@ -955,7 +965,7 @@ export function BridgePage({ inCard = false }: { inCard?: boolean }) {
           {[
             { label: 'You send',                                          value: `${amount || '0.00'} USDC`,                                 highlight: false },
             { label: `CCTP fee${feeLoading ? ' …' : ''}`,                value: cctpProtocolFee > 0 ? `${cctpProtocolFee.toFixed(4)} USDC` : liveFee.label, highlight: false },
-            { label: `Platform fee (${bpsToPercent(BRIDGE_FEE_BPS)})`,   value: platformFee > 0 ? `${platformFee.toFixed(4)} USDC` : '—',   highlight: false },
+            { label: `Platform fee (${bpsToPercent(BRIDGE_FEE_BPS)}, added)`, value: platformFee > 0 ? `${platformFee.toFixed(4)} USDC` : '—',   highlight: false },
             { label: 'You receive (est.)',                                value: netReceived > 0 ? `${netReceived.toFixed(4)} USDC` : '0.00 USDC', highlight: true },
           ].map(({ label, value, highlight }) => (
             <div key={label}>
@@ -965,6 +975,11 @@ export function BridgePage({ inCard = false }: { inCard?: boolean }) {
           ))}
         </div>
 
+        {platformFee > 0 && (
+          <div style={{ fontSize: 11, color: c.t2, marginTop: 7, paddingTop: 6, borderTop: `1px solid ${c.bdr}`, fontWeight: 600 }}>
+            Total from your wallet: {totalFromWallet.toFixed(4)} USDC
+          </div>
+        )}
         {maxFeeUsdc > 0 && (
           <div style={{ fontSize: 10, color: c.t3, marginTop: 7, paddingTop: 6, borderTop: `1px solid ${c.bdr}` }}>
             maxFee: {maxFeeUsdc.toFixed(4)} USDC (protocol + 20% buffer)

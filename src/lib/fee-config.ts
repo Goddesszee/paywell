@@ -1,4 +1,4 @@
-import { SWAP_FEE_BPS, BRIDGE_FEE_BPS } from './fees'
+import { SWAP_FEE_BPS, BRIDGE_FEE_BPS, bridgeFee } from './fees'
 
 /**
  * Collects NAN's platform fee through Circle App Kit's built-in customFee (single transaction;
@@ -16,10 +16,19 @@ export function swapCustomFee(): { customFee?: { percentageBps: number; recipien
   return to && SWAP_FEE_BPS > 0 ? { customFee: { percentageBps: SWAP_FEE_BPS, recipientAddress: to } } : {}
 }
 
-/** Bridge fee — uses absolute value string (the only format App Kit bridge accepts; swap uses percentageBps). */
+/** True when a valid VITE_FEE_WALLET is set, i.e. a platform fee will really be charged. */
+export function feeCollectionActive(): boolean {
+  return feeRecipient() !== null
+}
+
+/**
+ * Bridge fee — App Kit's bridge accepts ONLY `{ value, recipientAddress }` (an absolute USDC amount);
+ * `percentageBps` is swap-only and makes the bridge fail with "Unrecognized key(s) … 'percentageBps'".
+ * The fee is ADDED ON TOP of the amount (the wallet pays amount + fee). Uses the same bridgeFee()
+ * (incl. the minimum) as the on-screen summary so what the user sees is what is charged.
+ */
 export function bridgeCustomFee(amountUsdc: number): { customFee?: { value: string; recipientAddress: string } } {
   const to = feeRecipient()
   if (!to || !(BRIDGE_FEE_BPS > 0) || !(amountUsdc > 0)) return {}
-  const feeValue = (amountUsdc * BRIDGE_FEE_BPS / 10000).toFixed(6)
-  return { customFee: { value: feeValue, recipientAddress: to } }
+  return { customFee: { value: bridgeFee(amountUsdc).toFixed(6), recipientAddress: to } }
 }
