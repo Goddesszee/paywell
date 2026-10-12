@@ -437,5 +437,39 @@ NAN integrates deeply with the Circle stack: Circle Agent Stack for agent paymen
     }
   }
 
+  // ── Push notification routes ───────────────────────────────────────────────
+  // Vercel Serverless Functions don't support persistent SSE (activity-stream),
+  // so push subscriptions are stored in Redis and VAPID keys exposed here.
+  if (route === 'push-vapid-key') {
+    const publicKey = process.env.VAPID_PUBLIC_KEY ?? null
+    return res.status(200).json({ publicKey })
+  }
+
+  if (route === 'push-subscribe') {
+    if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+    const { address, subscription } = (req.body ?? {}) as { address?: string; subscription?: { endpoint?: string } }
+    if (!address || !subscription?.endpoint) return res.status(400).json({ success: false, error: 'address and subscription required' })
+    const redis = getRedis()
+    if (!redis) return res.status(503).json({ success: false, ...REDIS_NOT_CONFIGURED })
+    const key = `push:${address.toLowerCase()}`
+    const existing = await redis.get<string[]>(key) ?? []
+    const merged = Array.from(new Set([...existing, JSON.stringify(subscription)])).slice(0, 10)
+    await redis.set(key, merged, { ex: 60 * 60 * 24 * 90 }) // 90 days
+    return res.status(200).json({ success: true })
+  }
+
+  if (route === 'push-unsubscribe') {
+    if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+    const { address, subscription } = (req.body ?? {}) as { address?: string; subscription?: object }
+    if (!address) return res.status(200).json({ success: true })
+    const redis = getRedis()
+    if (!redis) return res.status(200).json({ success: true })
+    const key = `push:${address.toLowerCase()}`
+    const existing = await redis.get<string[]>(key) ?? []
+    const filtered = existing.filter(s => s !== JSON.stringify(subscription))
+    await redis.set(key, filtered, { ex: 60 * 60 * 24 * 90 })
+    return res.status(200).json({ success: true })
+  }
+
   return res.status(400).json({ error: 'Unknown route.' })
 }

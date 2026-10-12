@@ -402,7 +402,9 @@ async function handleWallet(req: VercelRequest, res: VercelResponse) {
       const kit = new AppKit()
 
       let resolveChallenge!: (id: string) => void
-      const challengePromise = new Promise<string>(resolve => { resolveChallenge = resolve })
+      let rejectChallenge!: (e: Error) => void
+      const challengePromise = new Promise<string>((resolve, reject) => { resolveChallenge = resolve; rejectChallenge = reject })
+      challengePromise.catch(() => { /* surfaced via Promise.race below */ })
 
       const adapter = await createCircleUserWalletAdapter({
         apiKey: key,

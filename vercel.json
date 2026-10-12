@@ -1,44 +1,64 @@
 {
+  // ── Build ────────────────────────────────────────────────────────────────────
+  // bun is the package manager. --frozen-lockfile ensures reproducible builds.
+  // outputDirectory matches vite.config.ts build.outDir.
   "buildCommand": "bun install --frozen-lockfile && bun run build",
   "outputDirectory": "dist",
   "installCommand": "bun install",
   "framework": "vite",
+
+  // ── Serverless function config ───────────────────────────────────────────────
+  // Circle SDK files are large — includeFiles ensures they are bundled into the
+  // function's deployment package (Vercel strips node_modules by default).
+  // maxDuration: Circle swap/bridge can take up to 40 s before returning a
+  // challengeId — functions that call kit.swap() or kit.bridge() need 60 s.
   "functions": {
+    // AI chat — Groq / OpenAI, no Circle SDK needed
     "api/chat.ts": {
       "memory": 512,
       "maxDuration": 30
     },
+    // UCW wallet operations: device token, OTP, initialize, transfer, swap, bridge
+    // maxDuration 60 s: ucw-swap-start and ucw-bridge-start race against a 40 s
+    // internal timeout waiting for the Circle challengeId before replying.
     "api/wallet.ts": {
       "includeFiles": "node_modules/@circle-fin/**",
       "memory": 1024,
       "maxDuration": 60
     },
+    // Onramp session minting (legacy route — also handled by circle-services.ts)
     "api/onramp-session.ts": {
       "includeFiles": "node_modules/@circle-fin/**",
       "memory": 512,
       "maxDuration": 30
     },
+    // Circle services: onramp session + legacy circle-wallets proxy
     "api/circle-services.ts": {
       "includeFiles": "node_modules/@circle-fin/**",
       "memory": 512,
       "maxDuration": 30
     },
+    // Agent wallet: developer-controlled wallet for the AI agent's spending budget
     "api/agent-wallet.ts": {
       "includeFiles": "node_modules/@circle-fin/**",
       "memory": 1024,
       "maxDuration": 60
     },
+    // Agent execute: runs the AI agent's onchain actions (swap, bridge, transfer)
     "api/agent-execute.ts": {
       "includeFiles": "node_modules/@circle-fin/**"
     },
+    // Community: feedback, suggestions, support tickets, admin, activity, referrals
     "api/community.ts": {
       "memory": 512,
       "maxDuration": 20
     },
+    // Support: ticket creation / reply (thin wrapper around community.ts)
     "api/support.ts": {
       "memory": 256,
       "maxDuration": 10
     },
+    // Payments data: payment requests + recurring tasks (Redis-backed)
     "api/payments-data.ts": {
       "memory": 256,
       "maxDuration": 15
@@ -107,6 +127,9 @@
     { "source": "/api/referral/qualify",                        "destination": "/api/misc?route=referral-qualify" },
     { "source": "/api/rewards/balance",                         "destination": "/api/misc?route=rewards-balance" },
     { "source": "/api/rewards/claim",                           "destination": "/api/misc?route=rewards-claim" },
+    { "source": "/api/push/vapid-public-key",                   "destination": "/api/misc?route=push-vapid-key" },
+    { "source": "/api/push/subscribe",                          "destination": "/api/misc?route=push-subscribe" },
+    { "source": "/api/push/unsubscribe",                        "destination": "/api/misc?route=push-unsubscribe" },
     { "source": "/api/about",                                    "destination": "/api/misc?route=about" },
     { "source": "/api/faqs",                                     "destination": "/api/misc?route=faqs" },
     { "source": "/(.*)",                                         "destination": "/index.html" }
