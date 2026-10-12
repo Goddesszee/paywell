@@ -57,6 +57,9 @@ interface BridgeChain {
   paymasterNote?: string
 }
 
+// Circle blockchain ids for creating an email/Google (UCW) wallet on another chain.
+const UCW_CHAIN_ENUM: Record<number, string> = { 1: 'ETH', 8453: 'BASE', 42161: 'ARB', 10: 'OP', 137: 'MATIC', 43114: 'AVAX', 130: 'UNI' }
+
 // CCTP V2 supported mainnets — identical to original.
 const CHAINS: BridgeChain[] = [
   { label:'Arc',          kitName:'Arc',              chainId:5042,    cctpDomain:26, explorer:'https://explorer.arc.io/tx/',                       gasToken:'USDC', gasIsUsdc:true,  paymasterSupported:false },
@@ -581,7 +584,6 @@ export function BridgePage({ inCard = false }: { inCard?: boolean }) {
     if (isCircleUser && wagmiAddress === undefined) {
       const authState = useAppStore.getState().auth
       if (!authState?.userToken) { setErrMsg('Session expired — please log in again.'); setStatus('error'); return }
-      if (fromChain.chainId !== 5042) { setErrMsg(`Your NAN wallet lives on Arc. To bridge from ${fromChain.label}, connect MetaMask or another browser wallet and it will be used automatically.`); setStatus('error'); return }
 
       let resolvedWalletId  = authState.circleWalletId
       let resolvedAddress   = authState.circleWalletAddress
@@ -597,16 +599,52 @@ export function BridgePage({ inCard = false }: { inCard?: boolean }) {
           }
         } catch { /* ignore */ }
       }
-      const userAddress = resolvedAddress
-      const walletId    = resolvedWalletId
+      let userAddress = resolvedAddress
+      let walletId    = resolvedWalletId
+      const arcAddress = resolvedAddress
       if (!userAddress || !walletId) { setErrMsg('Could not load Circle wallet — please log out and log in again.'); setStatus('error'); return }
+
+      // Bridging FROM another chain: the email wallet needs its own wallet on that chain (Circle creates one per
+      // blockchain). Create it on demand (PIN), then the user funds it and taps Bridge again.
+      if (fromChain.chainId !== 5042) {
+        const bc = UCW_CHAIN_ENUM[fromChain.chainId]
+        if (!bc) { setErrMsg(`Bridging from ${fromChain.label} with an email wallet isn't supported yet. Connect MetaMask or another browser wallet instead.`); setStatus('error'); return }
+        try {
+          const creds = await ensureCircleCreds()
+          const tok = creds.userToken ?? authState.userToken
+          const list = async () => {
+            const r = await fetch('/api/wallet', { headers: { 'x-user-token': tok } })
+            const d = await safeJson<{ wallets?: { id: string; address: string; blockchain?: string }[]; error?: string }>(r)
+            return d.wallets ?? []
+          }
+          let w = (await list()).find(x => x.blockchain === bc)
+          if (!w) {
+            if (!creds.encryptionKey) throw new Error(SESSION_EXPIRED_MSG)
+            const cr = await fetch('/api/wallet', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'ucw-create-wallet', userToken: tok, blockchain: bc }) })
+            const cd = await safeJson<{ challengeId?: string; error?: string }>(cr)
+            if (!cr.ok || cd.error || !cd.challengeId) throw new Error(cd.error ?? 'Could not start wallet creation')
+            const sdk0 = new W3SSdk({ appSettings: { appId: (import.meta.env.VITE_CIRCLE_APP_ID as string | undefined) ?? '' } })
+            sdk0.setAuthentication({ userToken: tok, encryptionKey: creds.encryptionKey })
+            await new Promise<void>((resolve, reject) => {
+              executeWithGuard(sdk0, cd.challengeId!, (err) => { err ? reject(new Error(err instanceof Error ? err.message : 'PIN approval failed')) : resolve() })
+            })
+            for (let i = 0; i < 8 && !w; i++) { await new Promise(r => setTimeout(r, 1500)); w = (await list()).find(x => x.blockchain === bc) }
+            if (!w) throw new Error('Your wallet is being created — wait a few seconds and tap Bridge again.')
+            setErrMsg(`Your ${fromChain.label} wallet is ready: ${w.address}. Send USDC to this address on ${fromChain.label} (plus a little for gas), then tap Bridge again.`)
+            setStatus('error'); updateStep('approve', { status: 'idle' }); return
+          }
+          walletId = w.id; userAddress = w.address
+        } catch (e) {
+          setErrMsg(e instanceof Error ? e.message : 'Could not prepare your wallet.'); setStatus('error'); return
+        }
+      }
 
       try {
         updateStep('approve', { status: 'active' })
         const startResp = await fetch('/api/wallet', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'ucw-bridge-start', userToken: authState.userToken, walletAddress: userAddress, walletId, fromChain: fromChain.kitName, destChain: toChain.kitName, amount }),
+          body: JSON.stringify({ action: 'ucw-bridge-start', userToken: authState.userToken, walletAddress: userAddress, walletId, fromChain: fromChain.kitName, destChain: toChain.kitName, amount, recipientAddress: arcAddress }),
         })
         const startData = await safeJson<{ challengeId?: string; error?: string }>(startResp)
         if (!startResp.ok || startData.error || !startData.challengeId) throw new Error(startData.error ?? 'Bridge start failed')
@@ -888,7 +926,9 @@ export function BridgePage({ inCard = false }: { inCard?: boolean }) {
         {/* UCW hint — shown when email user picks non-Arc source */}
         {isCircleUser && fromChain.chainId !== 5042 && (
           <div style={{ margin: '0 12px 8px', padding: '8px 10px', background: 'rgba(245,158,11,0.10)', border: '1px solid rgba(245,158,11,0.25)', borderRadius: 8, fontSize: 11, color: '#F59E0B', lineHeight: 1.5 }}>
-            Your NAN wallet is on Arc. To bridge from {fromChain.label}, also connect MetaMask or a browser wallet — it will be used automatically.
+            {UCW_CHAIN_ENUM[fromChain.chainId]
+              ? `To bridge from ${fromChain.label}, NAN creates a ${fromChain.label} wallet for you (one PIN approval), then you send USDC to it and bridge. Gas on ${fromChain.label} is needed.`
+              : `Email wallets can't bridge from ${fromChain.label} yet — connect MetaMask or a browser wallet instead.`}
           </div>
         )}
 

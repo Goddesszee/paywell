@@ -195,6 +195,27 @@ async function handleWallet(req: VercelRequest, res: VercelResponse) {
     }
   }
 
+  // ── ucw-create-wallet — add the user's wallet on another chain (PIN challenge) ─────────
+  // Needed so email/Google users can bridge FROM chains other than Arc. Circle: POST /user/wallets
+  // with the new blockchain and the same user token (SCA wallets: one blockchain per request).
+  if (action === 'ucw-create-wallet') {
+    const { userToken, blockchain } = body
+    const ALLOWED = ['ETH', 'BASE', 'ARB', 'OP', 'MATIC', 'AVAX', 'UNI']
+    if (!userToken || !ALLOWED.includes(String(blockchain)))
+      return err(res, 400, `userToken and blockchain (${ALLOWED.join('|')}) required`)
+    try {
+      const client = ucwClient()
+      const response = await client.createWallet({
+        userToken,
+        blockchains: [blockchain as never],
+        accountType: 'SCA',
+      })
+      return res.json({ challengeId: response.data?.challengeId })
+    } catch (e) {
+      return err(res, 500, e instanceof Error ? e.message : 'Could not create wallet')
+    }
+  }
+
   // ── create-transfer — USDC send challenge ─────────────────────────────────
   if (action === 'create-transfer') {
     const { userToken, walletId, destinationAddress, amount, tokenAddress, blockchain } = body
@@ -393,7 +414,7 @@ async function handleWallet(req: VercelRequest, res: VercelResponse) {
 
   // ── ucw-bridge-start — begin a UCW CCTP V2 bridge, return challengeId ────
   if (action === 'ucw-bridge-start') {
-    const { userToken, walletAddress, walletId, fromChain, destChain, amount } = body
+    const { userToken, walletAddress, walletId, fromChain, destChain, amount, recipientAddress } = body
     if (!userToken || !walletAddress || !walletId || !destChain || !amount)
       return err(res, 400, 'userToken, walletAddress, walletId, destChain, amount required')
 
@@ -433,7 +454,11 @@ async function handleWallet(req: VercelRequest, res: VercelResponse) {
       // useForwarder:false so SDK issues a TRANSACTION challenge instead of signTypedData
       void kit.bridge({
         from: { adapter, chain: srcChain },
-        to:   { adapter, chain: dstChain },
+        // From a non-Arc chain the user's destination wallet lives on another blockchain, so let Circle's
+        // Forwarding Service mint to the recipient instead of reusing this (source-chain) adapter.
+        to:   srcChain !== 'Arc' && /^0x[0-9a-fA-F]{40}$/.test(String(recipientAddress ?? ''))
+          ? { chain: dstChain, recipientAddress: String(recipientAddress), useForwarder: true }
+          : { adapter, chain: dstChain },
         amount,
         config: { ...bridgeFeeCfg(String(amount)) },
       }).catch((e: unknown) => {
