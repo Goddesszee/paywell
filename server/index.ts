@@ -1798,7 +1798,20 @@ const APPKIT_USDC = process.env.VITE_USDC_ADDRESS
 const APPKIT_EURC = process.env.VITE_EURC_ADDRESS
 
 const BRIDGE_CHAIN_MAP: Record<string, string> = {
-  'Arc':          'Arc',
+  // Mainnets
+  'Arc':           'Arc',
+  'Ethereum':      'Ethereum',
+  'Base':          'Base',
+  'Arbitrum':      'Arbitrum',
+  'Optimism':      'Optimism',
+  'Polygon':       'Polygon',
+  'Avalanche':     'Avalanche',
+  'Unichain':      'Unichain',
+  'Linea':         'Linea',
+  'Sei':           'Sei',
+  'World_Chain':   'World_Chain',
+  // Testnets (kept for compatibility)
+  'Arc_Testnet':          'Arc_Testnet',
   'Ethereum_Sepolia':     'Ethereum_Sepolia',
   'Base_Sepolia':         'Base_Sepolia',
   'Arbitrum_Sepolia':     'Arbitrum_Sepolia',
@@ -1877,32 +1890,35 @@ app.post('/api/appkit/swap', async (req, res) => {
 
 // POST /api/appkit/bridge
 app.post('/api/appkit/bridge', async (req, res) => {
-  const { walletAddress, destChain, destAddr, amount } = req.body as {
-    walletAddress?: string; destChain?: string; destAddr?: string; amount?: string
+  const { walletAddress, fromChain, destChain, destAddr, amount } = req.body as {
+    walletAddress?: string; fromChain?: string; destChain?: string; destAddr?: string; amount?: string
   }
   const parsed = parseFloat(amount ?? '0')
+  const srcChainName  = fromChain ? (BRIDGE_CHAIN_MAP[fromChain] ?? APPKIT_CHAIN) : APPKIT_CHAIN
   const destChainName = destChain ? BRIDGE_CHAIN_MAP[destChain] : undefined
 
   if (!walletAddress || !destChain || !parsed || parsed <= 0)
     { res.json({ success: false, error: 'walletAddress, destChain, amount required' }); return }
   if (!destChainName)
-    { res.json({ success: false, error: `Unsupported bridge chain: ${destChain}` }); return }
+    { res.json({ success: false, error: `Unsupported destination chain: ${destChain}. Supported: ${Object.keys(BRIDGE_CHAIN_MAP).join(', ')}` }); return }
+  if (srcChainName === destChainName)
+    { res.json({ success: false, error: 'Source and destination chains must be different.' }); return }
 
   try {
     const { kit, adapter } = await getAppKit()
 
-    // Non-blocking — CCTP bridge takes 8-30s on testnet via the Orbit forwarder.
+    // Non-blocking — CCTP bridge takes 8-30s via the Forwarding Service.
     // Return immediately so the frontend does not timeout.
-    res.json({ success: true, pending: true, state: 'pending', message: 'Bridge submitted via CCTP V2 — USDC arriving on destination chain via Circle Orbit forwarder' })
+    res.json({ success: true, pending: true, state: 'pending', message: `Bridge submitted via CCTP V2 — ${srcChainName} → ${destChainName}` })
 
     kit.bridge({
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      from: { adapter: adapter as any, chain: APPKIT_CHAIN as any, address: walletAddress },
+      from: { adapter: adapter as any, chain: srcChainName as any, address: walletAddress },
       to: {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        chain: destChainName as any,
-        recipientAddress: destAddr ?? walletAddress,
-        useForwarder: true,  // Circle's Orbit relayer mints on destination — no dest adapter needed
+        adapter: adapter as any,
+        chain: destChainName as string,
+        address: destAddr ?? walletAddress,
       },
       amount: parsed.toFixed(2),
       token: 'USDC',

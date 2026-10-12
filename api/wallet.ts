@@ -390,9 +390,19 @@ async function handleWallet(req: VercelRequest, res: VercelResponse) {
 
   // ── ucw-bridge-start — begin a UCW CCTP V2 bridge, return challengeId ────
   if (action === 'ucw-bridge-start') {
-    const { userToken, walletAddress, walletId, destChain, amount } = body
+    const { userToken, walletAddress, walletId, fromChain, destChain, amount } = body
     if (!userToken || !walletAddress || !walletId || !destChain || !amount)
       return err(res, 400, 'userToken, walletAddress, walletId, destChain, amount required')
+
+    // Normalise chain names — accept both kitName and label
+    const CHAIN_MAP: Record<string, string> = {
+      'Arc': 'Arc', 'Ethereum': 'Ethereum', 'Base': 'Base', 'Arbitrum': 'Arbitrum',
+      'Optimism': 'Optimism', 'Polygon': 'Polygon', 'Avalanche': 'Avalanche',
+      'Unichain': 'Unichain', 'Linea': 'Linea', 'Sei': 'Sei', 'World_Chain': 'World_Chain',
+      'Arbitrum One': 'Arbitrum', 'OP Mainnet': 'Optimism',
+    }
+    const srcChain  = (fromChain ? (CHAIN_MAP[String(fromChain)] ?? 'Arc') : 'Arc') as Parameters<InstanceType<typeof AppKit>['bridge']>[0]['from']['chain']
+    const dstChain  = (CHAIN_MAP[String(destChain)] ?? String(destChain)) as Parameters<InstanceType<typeof AppKit>['bridge']>[0]['to']['chain']
 
     const key = apiKey()
     if (!key) return err(res, 503, 'CIRCLE_API_KEY not configured')
@@ -411,25 +421,19 @@ async function handleWallet(req: VercelRequest, res: VercelResponse) {
         userToken,
         walletId,
         walletAddress: walletAddress as `0x${string}`,
-        chain: 'Arc',
+        chain: srcChain,
         accountType: 'SCA',
         onChallenge: ({ challengeId }: { challengeId: string }) => { resolveChallenge(challengeId) },
       })
 
-      // Fire bridge (will pause at onChallenge)
+      // Fire bridge — same adapter for both from and to per Circle docs
+      // useForwarder:false so SDK issues a TRANSACTION challenge instead of signTypedData
       void kit.bridge({
-        from: { adapter, chain: 'Arc' as const },
-        to: {
-          chain: destChain as Parameters<InstanceType<typeof AppKit>['bridge']>[0]['to']['chain'],
-          recipientAddress: walletAddress,
-          // useForwarder: false so the SDK issues a TRANSACTION challenge (approve+burn)
-          // instead of a signTypedData challenge — the W3S SDK blocks typed-data as "risky"
-          useForwarder: false,
-        },
+        from: { adapter, chain: srcChain },
+        to:   { adapter, chain: dstChain },
         amount,
         config: { ...bridgeFeeCfg(String(amount)) },
       }).catch((e: unknown) => {
-        // If the bridge fails before a PIN challenge is issued, report the real reason to the user.
         rejectChallenge(e instanceof Error ? e : new Error(String(e)))
       })
 

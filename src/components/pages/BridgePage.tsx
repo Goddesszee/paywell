@@ -561,7 +561,7 @@ export function BridgePage({ inCard = false }: { inCard?: boolean }) {
     if (isCircleUser && wagmiAddress === undefined) {
       const authState = useAppStore.getState().auth
       if (!authState?.userToken) { setErrMsg('Session expired — please log in again.'); setStatus('error'); return }
-      if (fromChain.chainId !== 5042) { setErrMsg('Circle wallet bridge is only supported from Arc. Connect a browser wallet to bridge from other chains.'); setStatus('error'); return }
+      if (fromChain.chainId !== 5042) { setErrMsg(`Your NAN wallet lives on Arc. To bridge from ${fromChain.label}, connect MetaMask or another browser wallet and it will be used automatically.`); setStatus('error'); return }
 
       let resolvedWalletId  = authState.circleWalletId
       let resolvedAddress   = authState.circleWalletAddress
@@ -586,7 +586,7 @@ export function BridgePage({ inCard = false }: { inCard?: boolean }) {
         const startResp = await fetch('/api/wallet', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'ucw-bridge-start', userToken: authState.userToken, walletAddress: userAddress, walletId, destChain: toChain.kitName, amount }),
+          body: JSON.stringify({ action: 'ucw-bridge-start', userToken: authState.userToken, walletAddress: userAddress, walletId, fromChain: fromChain.kitName, destChain: toChain.kitName, amount }),
         })
         const startData = await safeJson<{ challengeId?: string; error?: string }>(startResp)
         if (!startResp.ok || startData.error || !startData.challengeId) throw new Error(startData.error ?? 'Bridge start failed')
@@ -858,6 +858,13 @@ export function BridgePage({ inCard = false }: { inCard?: boolean }) {
             c={c}
           />
         </div>
+
+        {/* UCW hint — shown when email user picks non-Arc source */}
+        {isCircleUser && fromChain.chainId !== 5042 && (
+          <div style={{ margin: '0 12px 8px', padding: '8px 10px', background: 'rgba(245,158,11,0.10)', border: '1px solid rgba(245,158,11,0.25)', borderRadius: 8, fontSize: 11, color: '#F59E0B', lineHeight: 1.5 }}>
+            Your NAN wallet is on Arc. To bridge from {fromChain.label}, also connect MetaMask or a browser wallet — it will be used automatically.
+          </div>
+        )}
 
         {/* Divider */}
         <div style={{ height: 1, background: c.bdr, margin: '0 12px' }} />

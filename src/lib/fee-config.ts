@@ -1,4 +1,4 @@
-import { SWAP_FEE_BPS, bridgeFee } from './fees'
+import { SWAP_FEE_BPS, BRIDGE_FEE_BPS } from './fees'
 
 /**
  * Collects NAN's platform fee through Circle App Kit's built-in customFee (single transaction;
@@ -16,9 +16,8 @@ export function swapCustomFee(): { customFee?: { percentageBps: number; recipien
   return to && SWAP_FEE_BPS > 0 ? { customFee: { percentageBps: SWAP_FEE_BPS, recipientAddress: to } } : {}
 }
 
-/** Bridge fee is an absolute USDC amount added on top of the bridged amount (user needs amount + fee). */
-export function bridgeCustomFee(amountUsdc: number): { customFee?: { value: string; recipientAddress: string } } {
+/** Bridge fee — same percentageBps format as swap (the only format App Kit bridge accepts). */
+export function bridgeCustomFee(_amountUsdc: number): { customFee?: { percentageBps: number; recipientAddress: string } } {
   const to = feeRecipient()
-  if (!to || !(amountUsdc > 0)) return {}
-  return { customFee: { value: bridgeFee(amountUsdc).toFixed(6), recipientAddress: to } }
+  return to && BRIDGE_FEE_BPS > 0 ? { customFee: { percentageBps: BRIDGE_FEE_BPS, recipientAddress: to } } : {}
 }
