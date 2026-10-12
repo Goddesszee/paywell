@@ -2416,14 +2416,14 @@ const invoiceStore = new Map<string, StoredInvoice>(
 )
 
 // Public GET — no auth required so pay links work for anyone
-app.get('/api/invoice/:id', (req, res) => {
+app.get('/api/invoices/:id', (req, res) => {
   const inv = invoiceStore.get(req.params.id)
   if (!inv) { res.status(404).json({ success: false, error: 'Invoice not found' }); return }
   res.json({ success: true, invoice: inv })
 })
 
 // Upsert — called by the client whenever an invoice is created or updated
-app.post('/api/invoice', (req, res) => {
+app.post('/api/invoices', (req, res) => {
   const body = req.body as Partial<StoredInvoice>
   if (!body.id || !body.businessName || !body.customerName) {
     res.status(400).json({ success: false, error: 'id, businessName, customerName required' }); return
@@ -2459,7 +2459,7 @@ app.post('/api/invoice', (req, res) => {
 })
 
 // Delete — only the creator can delete
-app.delete('/api/invoice/:id', (req, res) => {
+app.delete('/api/invoices/:id', (req, res) => {
   const creator = (req.headers['x-wallet-address'] as string | undefined ?? '').toLowerCase()
   const inv = invoiceStore.get(req.params.id)
   if (!inv) { res.status(404).json({ success: false, error: 'Not found' }); return }

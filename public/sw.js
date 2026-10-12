@@ -1,4 +1,4 @@
-const CACHE = 'nan-v1';
+const CACHE = 'nan-v2';
 const PRECACHE = ['/', '/manifest.json'];
 
 self.addEventListener('install', (e) => {
@@ -21,24 +21,35 @@ self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
   if (e.request.method !== 'GET') return;
   if (url.origin !== self.location.origin) return;
+  // Never intercept API calls — let them go straight to the network
   if (url.pathname.startsWith('/api/')) return;
 
   if (e.request.mode === 'navigate') {
+    // Navigation requests (opening a link, refreshing): always try the network
+    // first with cache bypassed so the server gets a chance to serve index.html.
+    // Only fall back to the cached shell if the network is completely unreachable.
     e.respondWith(
-      fetch(e.request).catch(() =>
-        caches.match('/').then(r => r || fetch(e.request))
+      fetch(new Request(e.request.url, {
+        method: 'GET',
+        headers: e.request.headers,
+        credentials: e.request.credentials,
+        cache: 'no-cache',
+        redirect: 'follow',
+      })).catch(() =>
+        caches.match('/').then(r => r ?? caches.match(e.request))
       )
     );
     return;
   }
 
+  // Static assets: cache-first, update in background
   e.respondWith(
     caches.open(CACHE).then(async cache => {
       const cached = await cache.match(e.request);
       const networkPromise = fetch(e.request).then(res => {
         if (res.ok) cache.put(e.request, res.clone());
         return res;
-      });
+      }).catch(() => cached); // network failed — return cached if available
       return cached || networkPromise;
     })
   );

@@ -70,7 +70,7 @@ export function PayByInvoicePage({ invoiceId }: Props) {
   const [notFound, setNotFound] = useState(false)
 
   useEffect(() => {
-    fetch(`/api/invoice/${invoiceId}`)
+    fetch(`/api/invoices/${invoiceId}`)
       .then(r => r.json())
       .then((data: { success: boolean; invoice?: Invoice }) => {
         if (data.success && data.invoice) {

@@ -39,7 +39,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const type = (req.query.type ?? '') as string
   const wallet = walletKey(req)
-  if (!wallet) return res.status(401).json({ success: false, error: 'x-wallet-address header required' })
+
+  // Invoice GET by id is public — no wallet required. All other routes need a wallet.
+  const isPublicInvoiceGet = type === 'invoices' && req.method === 'GET' && !!req.query.id
+  if (!wallet && !isPublicInvoiceGet)
+    return res.status(401).json({ success: false, error: 'x-wallet-address header required' })
 
   const kv = getRedis()
 
@@ -150,5 +154,49 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ success: false, error: 'Method not allowed' })
   }
 
-  return res.status(400).json({ success: false, error: 'type param required: payment-requests | recurring-tasks' })
+  // ── INVOICES ──────────────────────────────────────────────────────────────────
+  // GET    /api/invoices/:id  — public (no wallet header needed) — used by pay-link recipients
+  // POST   /api/invoices      — upsert (wallet header used as owner key)
+  // DELETE /api/invoices/:id  — requires wallet header matching creator
+  if (type === 'invoices') {
+    // Extract id from query or URL path segment
+    const id = (req.query.id ?? (req.url ?? '').split('?')[0].split('/').filter(Boolean).pop()) as string | undefined
+
+    // GET by id — public, no wallet required
+    if (req.method === 'GET' && id) {
+      if (!kv) return res.json({ success: false, error: 'storage_not_configured' })
+      const inv = await kv.get<object>(`inv:${id}`)
+      if (!inv) return res.status(404).json({ success: false, error: 'Invoice not found' })
+      return res.json({ success: true, invoice: inv })
+    }
+
+    // POST — upsert invoice (wallet required)
+    if (req.method === 'POST') {
+      const body = req.body as Record<string, unknown>
+      const invId = (body.id as string | undefined) ?? `inv-${rand()}`
+      if (!body.businessName || !body.customerName) {
+        return res.status(400).json({ success: false, error: 'businessName and customerName required' })
+      }
+      const toStore = { ...body, id: invId, _owner: wallet || 'anon', _savedAt: new Date().toISOString() }
+      if (kv) {
+        await kv.set(`inv:${invId}`, toStore, { ex: 60 * 60 * 24 * 180 }) // 180 days TTL
+      }
+      return res.json({ success: true, invoice: toStore })
+    }
+
+    // DELETE — requires matching wallet
+    if (req.method === 'DELETE' && id) {
+      if (!wallet) return res.status(401).json({ success: false, error: 'x-wallet-address required' })
+      if (!kv) return res.json({ success: true })
+      const existing = await kv.get<Record<string, unknown>>(`inv:${id}`)
+      if (existing && existing._owner && existing._owner !== wallet)
+        return res.status(403).json({ success: false, error: 'Forbidden' })
+      await kv.del(`inv:${id}`)
+      return res.json({ success: true })
+    }
+
+    return res.status(405).json({ success: false, error: 'Method not allowed' })
+  }
+
+  return res.status(400).json({ success: false, error: 'type param required: payment-requests | recurring-tasks | invoices' })
 }
