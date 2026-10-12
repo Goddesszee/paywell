@@ -932,9 +932,109 @@ function AdminTxPanel() {
   )
 }
 
+// ── AdminFeesPanel ────────────────────────────────────────────────────────────
+function AdminFeesPanel() {
+  const feeWallet = ((import.meta.env.VITE_FEE_WALLET as string | undefined) ?? '').trim()
+  const nameRegistry = '0x7b839c3bE9394b2a6baC286776f37042609f83b2'
+  const explorerBase = 'https://explorer.arc.io/address'
+  const [report, setReport] = useState<{ totalVolume: number; byType: Record<string, { count: number; volume: number }> } | null>(null)
+
+  useEffect(() => {
+    adminFetch('/api/admin/tx-report')
+      .then(r => r.json())
+      .then((d: { success: boolean; totalVolume: number; byType: Record<string, { count: number; volume: number }> }) => { if (d.success !== false) setReport(d) })
+      .catch(() => {})
+  }, [])
+
+  const swapFeeBps  = 30   // 0.30% — hardcoded from fees.ts
+  const bridgeFeeP  = 0.5  // 0.50% — hardcoded from fees.ts
+  const swapVol     = report?.byType?.['swap']?.volume   ?? 0
+  const bridgeVol   = report?.byType?.['bridge']?.volume ?? 0
+  const nameVol     = report?.byType?.['name_registration']?.volume ?? 0
+  const estSwapFee  = swapVol   * (swapFeeBps / 10000)
+  const estBridgeFee = bridgeVol * (bridgeFeeP / 100)
+  const totalEst    = estSwapFee + estBridgeFee + nameVol
+
+  return (
+    <div>
+      <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: '-0.02em', marginBottom: 4 }}>Fees & Revenue</div>
+      <div style={{ fontSize: 13, color: 'var(--nan-text2)', marginBottom: 20 }}>Platform fees collected via Circle App Kit + NAN Name registrations</div>
+
+      {/* Estimated totals */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 24 }}>
+        {[
+          { label: 'Swap fees (est.)', value: `$${estSwapFee.toFixed(4)}`, sub: `${swapFeeBps / 100}% of $${swapVol.toFixed(2)} swap vol`, color: '#0866F5' },
+          { label: 'Bridge fees (est.)', value: `$${estBridgeFee.toFixed(4)}`, sub: `${bridgeFeeP}% of $${bridgeVol.toFixed(2)} bridge vol`, color: '#10B981' },
+          { label: 'NAN Name fees', value: `$${nameVol.toFixed(2)}`, sub: `${report?.byType?.['name_registration']?.count ?? 0} registrations`, color: '#F59E0B' },
+        ].map(card => (
+          <div key={card.label} style={{ background: S, border: `1px solid ${B}`, borderRadius: 12, padding: '14px 16px' }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--nan-text3)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>{card.label}</div>
+            <div style={{ fontSize: 20, fontWeight: 800, color: card.color, letterSpacing: '-0.03em' }}>{card.value}</div>
+            <div style={{ fontSize: 11, color: 'var(--nan-text2)', marginTop: 2 }}>{card.sub}</div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ background: S, border: `1px solid ${B}`, borderRadius: 14, padding: '16px 18px', marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--nan-text)', marginBottom: 2 }}>Total estimated revenue</div>
+          <div style={{ fontSize: 11, color: 'var(--nan-text2)' }}>Swap + bridge fees + name registrations</div>
+        </div>
+        <div style={{ fontSize: 28, fontWeight: 900, color: '#0866F5', letterSpacing: '-0.03em' }}>${totalEst.toFixed(2)}</div>
+      </div>
+
+      {/* Fee wallet */}
+      <div style={{ background: S, border: `1px solid ${B}`, borderRadius: 14, padding: '16px 18px', marginBottom: 16 }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--nan-text3)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>Platform fee wallet (swap + bridge)</div>
+        {feeWallet ? (
+          <div>
+            <div style={{ fontFamily: 'monospace', fontSize: 13, color: 'var(--nan-text)', wordBreak: 'break-all', marginBottom: 10 }}>{feeWallet}</div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <button onClick={() => { void navigator.clipboard.writeText(feeWallet) }}
+                style={{ padding: '7px 14px', borderRadius: 9, background: 'rgba(8,102,245,0.10)', border: '1px solid rgba(8,102,245,0.25)', color: '#0866F5', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: SANS }}>
+                Copy address
+              </button>
+              <a href={`${explorerBase}/${feeWallet}`} target="_blank" rel="noopener noreferrer"
+                style={{ padding: '7px 14px', borderRadius: 9, background: S, border: `1px solid ${B}`, color: 'var(--nan-text2)', fontSize: 12, fontWeight: 700, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                View on explorer ↗
+              </a>
+            </div>
+            <div style={{ marginTop: 10, fontSize: 12, color: 'var(--nan-text2)', lineHeight: 1.6 }}>
+              Swap fees (0.30%) and bridge fees (0.50%) are sent directly to this wallet by Circle App Kit on every transaction. Funds arrive automatically — no withdrawal needed. Check the balance on the Arc explorer above.
+            </div>
+          </div>
+        ) : (
+          <div style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: 10, padding: '12px 14px', fontSize: 13, color: '#F59E0B' }}>
+            VITE_FEE_WALLET is not set in Vercel. Add your wallet address there to start collecting platform fees on every swap and bridge.
+          </div>
+        )}
+      </div>
+
+      {/* NAN Name registry */}
+      <div style={{ background: S, border: `1px solid ${B}`, borderRadius: 14, padding: '16px 18px' }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--nan-text3)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>NAN Name registration fees</div>
+        <div style={{ fontFamily: 'monospace', fontSize: 13, color: 'var(--nan-text)', wordBreak: 'break-all', marginBottom: 10 }}>{nameRegistry}</div>
+        <div style={{ fontSize: 12, color: 'var(--nan-text2)', marginBottom: 10, lineHeight: 1.6 }}>
+          Name registration fees (2–8 USDC) go to the NANNameRegistry contract. The contract owner can call <code style={{ background: 'var(--nan-surface2)', padding: '1px 5px', borderRadius: 4 }}>withdrawFees()</code> to pull all accumulated USDC to the owner address.
+        </div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <button onClick={() => { void navigator.clipboard.writeText(nameRegistry) }}
+            style={{ padding: '7px 14px', borderRadius: 9, background: 'rgba(8,102,245,0.10)', border: '1px solid rgba(8,102,245,0.25)', color: '#0866F5', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: SANS }}>
+            Copy contract address
+          </button>
+          <a href={`${explorerBase}/${nameRegistry}`} target="_blank" rel="noopener noreferrer"
+            style={{ padding: '7px 14px', borderRadius: 9, background: S, border: `1px solid ${B}`, color: 'var(--nan-text2)', fontSize: 12, fontWeight: 700, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+            View on Arc explorer ↗
+          </a>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function AdminDashboardInner() {
   const { activity, setActiveView } = useAppStore()
-  const [tab, setTab] = useState<'overview' | 'transactions' | 'support' | 'activity' | 'circle' | 'users' | 'feedback' | 'suggestions' | 'rewards' | 'audit'>('overview')
+  const [tab, setTab] = useState<'overview' | 'fees' | 'transactions' | 'support' | 'activity' | 'circle' | 'users' | 'feedback' | 'suggestions' | 'rewards' | 'audit'>('overview')
   // 'My Activity' tab shows only this browser's own activity store
   // Env var check (Vite exposes VITE_ vars)
   const hasGroq = Boolean(import.meta.env.VITE_GROQ_API_KEY)
@@ -954,6 +1054,7 @@ function AdminDashboardInner() {
 
   const tabs = [
     { id: 'overview',     label: 'Overview' },
+    { id: 'fees',         label: 'Fees & Revenue' },
     { id: 'users',        label: 'Users & Wallets' },
     { id: 'transactions', label: 'Transactions' },
     { id: 'support',      label: 'Support' },
@@ -1004,6 +1105,9 @@ function AdminDashboardInner() {
 
         {/* ── OVERVIEW ── */}
         {tab === 'overview' && <AdminOverviewPanel goTo={(t) => setTab(t as typeof tab)} />}
+
+        {/* ── FEES ── */}
+        {tab === 'fees' && <AdminFeesPanel />}
 
         {/* ── TRANSACTIONS ── */}
         {tab === 'transactions' && <AdminTxPanel />}
