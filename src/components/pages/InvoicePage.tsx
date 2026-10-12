@@ -3,7 +3,7 @@
  * Uses the Invoice type and store actions already in appStore.ts.
  * All PDF/HTML generation is handled by src/lib/invoice-pdf.ts.
  */
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef, useEffect } from 'react'
 import {
   FileText, Plus, Download, Share2, Printer, Copy,
   Trash2, ChevronRight, X, Check, AlertCircle,
@@ -14,6 +14,7 @@ import { toast } from 'sonner'
 import { useAppStore, type Invoice, type InvoiceLineItem, type InvoiceStatus } from '../../store/appStore'
 import { downloadInvoicePdf, shareInvoice, printInvoice, invoicePaymentLink } from '../../lib/invoice-pdf'
 import { useAccount } from 'wagmi'
+import { TokenLogo } from '../ui/TokenLogo'
 
 // ── Design tokens ────────────────────────────────────────────────────────────
 const F     = "'Inter', -apple-system, sans-serif"
@@ -148,6 +149,77 @@ function emptyForm(defaultAddress = ''): DraftForm {
     payToAddress: defaultAddress,
     items: [emptyItem()],
   }
+}
+
+// ── Currency options ──────────────────────────────────────────────────────────
+const CURRENCIES = ['USDC', 'EURC']
+
+// ── Custom currency picker ────────────────────────────────────────────────────
+function CurrencyPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    function handler(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [open])
+
+  return (
+    <div ref={ref} style={{ position: 'relative' }}>
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        style={{
+          width: '100%', boxSizing: 'border-box',
+          padding: '8px 12px',
+          border: `1px solid ${BDR}`, borderRadius: 10,
+          fontFamily: F, fontSize: 14, outline: 'none',
+          color: TEXT, background: SURF2,
+          cursor: 'pointer',
+          display: 'flex', alignItems: 'center', gap: 8,
+        }}
+      >
+        <TokenLogo symbol={value} size={20} />
+        <span style={{ flex: 1, textAlign: 'left', fontWeight: 600 }}>{value}</span>
+        <ChevronDown size={14} color={T2} style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s', flexShrink: 0 }} />
+      </button>
+
+      {open && (
+        <div style={{
+          position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, zIndex: 50,
+          background: SURF2, border: `1px solid ${BDR}`, borderRadius: 12,
+          overflow: 'hidden', boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+        }}>
+          {CURRENCIES.map(c => (
+            <button
+              key={c}
+              type="button"
+              onClick={() => { onChange(c); setOpen(false) }}
+              style={{
+                width: '100%', padding: '11px 14px',
+                display: 'flex', alignItems: 'center', gap: 10,
+                background: c === value ? 'rgba(8,102,245,0.12)' : 'transparent',
+                border: 'none', cursor: 'pointer', fontFamily: F,
+                borderBottom: c !== CURRENCIES[CURRENCIES.length - 1] ? `1px solid ${BDR}` : 'none',
+              }}
+            >
+              <TokenLogo symbol={c} size={22} />
+              <span style={{ fontSize: 14, fontWeight: 600, color: TEXT, flex: 1, textAlign: 'left' }}>{c}</span>
+              {c === value && (
+                <div style={{ width: 18, height: 18, borderRadius: '50%', border: `2px solid ${BLUE}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <div style={{ width: 9, height: 9, borderRadius: '50%', background: BLUE }} />
+                </div>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
@@ -621,15 +693,12 @@ export function InvoicePage() {
             </Field>
           </div>
           <Field label="Currency">
-            <select value={form.currency} onChange={e => setForm(f => ({ ...f, currency: e.target.value }))} style={{ ...inputBase, cursor: 'pointer' }}>
-              <option value="USDC">USDC</option>
-              <option value="EURC">EURC</option>
-            </select>
+            <CurrencyPicker value={form.currency} onChange={v => setForm(f => ({ ...f, currency: v }))} />
           </Field>
           {/* Quick due date shortcuts */}
-          <div style={{ display: 'flex', gap: 6 }}>
+          <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
             {[7, 14, 30, 60].map(d => (
-              <button key={d} onClick={() => setForm(f => ({ ...f, dueDate: inDays(d) }))} style={{ flex: 1, height: 30, background: SURF2, border: `1px solid ${BDR}`, borderRadius: 8, fontSize: 11, fontWeight: 600, color: T2, cursor: 'pointer', fontFamily: F }}>
+              <button key={d} onClick={() => setForm(f => ({ ...f, dueDate: inDays(d) }))} style={{ height: 26, padding: '0 10px', background: SURF2, border: `1px solid ${BDR}`, borderRadius: 7, fontSize: 11, fontWeight: 600, color: T2, cursor: 'pointer', fontFamily: F, whiteSpace: 'nowrap' }}>
                 Net {d}
               </button>
             ))}
@@ -655,14 +724,18 @@ export function InvoicePage() {
                   </button>
                 )}
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr 1fr 1fr', gap: 8 }}>
+              {/* Row 1: qty + unit price */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 8, marginBottom: 8 }}>
                 <Field label="Qty">
                   <input type="number" min="1" value={item.quantity} onChange={e => updateItem(item.id, { quantity: Math.max(1, parseFloat(e.target.value) || 1) })} style={inputBase} />
                 </Field>
                 <Field label={`Unit price (${form.currency})`}>
                   <input type="number" min="0" step="0.01" value={item.unitPrice || ''} onChange={e => updateItem(item.id, { unitPrice: parseFloat(e.target.value) || 0 })} placeholder="0.00" style={inputBase} />
                 </Field>
-                <Field label="Disc %">
+              </div>
+              {/* Row 2: discount + tax */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                <Field label="Discount %">
                   <input type="number" min="0" max="100" value={item.discount ?? ''} onChange={e => updateItem(item.id, { discount: parseFloat(e.target.value) || 0 })} placeholder="0" style={inputBase} />
                 </Field>
                 <Field label="Tax %">
