@@ -16,8 +16,10 @@ export function swapCustomFee(): { customFee?: { percentageBps: number; recipien
   return to && SWAP_FEE_BPS > 0 ? { customFee: { percentageBps: SWAP_FEE_BPS, recipientAddress: to } } : {}
 }
 
-/** Bridge fee — same percentageBps format as swap (the only format App Kit bridge accepts). */
-export function bridgeCustomFee(_amountUsdc: number): { customFee?: { percentageBps: number; recipientAddress: string } } {
+/** Bridge fee — uses absolute value string (the only format App Kit bridge accepts; swap uses percentageBps). */
+export function bridgeCustomFee(amountUsdc: number): { customFee?: { value: string; recipientAddress: string } } {
   const to = feeRecipient()
-  return to && BRIDGE_FEE_BPS > 0 ? { customFee: { percentageBps: BRIDGE_FEE_BPS, recipientAddress: to } } : {}
+  if (!to || !(BRIDGE_FEE_BPS > 0) || !(amountUsdc > 0)) return {}
+  const feeValue = (amountUsdc * BRIDGE_FEE_BPS / 10000).toFixed(6)
+  return { customFee: { value: feeValue, recipientAddress: to } }
 }
