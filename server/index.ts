@@ -2377,6 +2377,100 @@ app.post('/api/gateway-proxy', async (req, res) => {
   res.status(400).json({ error: 'action param required: gateway-transfer | gateway-poll | gateway-estimate' })
 })
 
+// ── Invoices (public pay-link store) ─────────────────────────────────────────
+// Keyed by invoice id. Persisted to DATA_DIR/invoices.json.
+// GET /api/invoice/:id — public (no auth) — used by pay-link recipients
+// POST /api/invoice    — upsert (auth optional; uses wallet header)
+// DELETE /api/invoice/:id — requires wallet header matching the creator
+
+interface StoredInvoice {
+  id: string
+  number: string
+  status: string
+  businessName: string
+  businessEmail?: string
+  businessAddress?: string
+  customerName: string
+  customerEmail?: string
+  currency: string
+  issueDate: string
+  dueDate: string
+  notes?: string
+  paymentInstructions?: string
+  payToAddress?: string
+  items: Array<{ id: string; name: string; description?: string; quantity: number; unitPrice: number; discount?: number; tax?: number }>
+  subtotal: number
+  discountTotal: number
+  taxTotal: number
+  total: number
+  payments: Array<{ id: string; date: string; amount: number; txHash?: string; note?: string }>
+  amountPaid: number
+  amountDue: number
+  creatorAddress?: string
+  createdAt: string
+  updatedAt: string
+}
+
+const invoiceStore = new Map<string, StoredInvoice>(
+  Object.entries(loadStore<Record<string, StoredInvoice>>('invoices', {}))
+)
+
+// Public GET — no auth required so pay links work for anyone
+app.get('/api/invoice/:id', (req, res) => {
+  const inv = invoiceStore.get(req.params.id)
+  if (!inv) { res.status(404).json({ success: false, error: 'Invoice not found' }); return }
+  res.json({ success: true, invoice: inv })
+})
+
+// Upsert — called by the client whenever an invoice is created or updated
+app.post('/api/invoice', (req, res) => {
+  const body = req.body as Partial<StoredInvoice>
+  if (!body.id || !body.businessName || !body.customerName) {
+    res.status(400).json({ success: false, error: 'id, businessName, customerName required' }); return
+  }
+  const creator = (req.headers['x-wallet-address'] as string | undefined ?? '').toLowerCase()
+  const existing = invoiceStore.get(body.id)
+  const inv: StoredInvoice = {
+    ...(existing ?? {}),
+    ...body,
+    id: body.id,
+    number: body.number ?? existing?.number ?? body.id,
+    status: body.status ?? existing?.status ?? 'draft',
+    businessName: body.businessName,
+    customerName: body.customerName,
+    currency: body.currency ?? existing?.currency ?? 'USDC',
+    issueDate: body.issueDate ?? existing?.issueDate ?? new Date().toISOString().slice(0, 10),
+    dueDate: body.dueDate ?? existing?.dueDate ?? new Date().toISOString().slice(0, 10),
+    items: body.items ?? existing?.items ?? [],
+    subtotal: body.subtotal ?? existing?.subtotal ?? 0,
+    discountTotal: body.discountTotal ?? existing?.discountTotal ?? 0,
+    taxTotal: body.taxTotal ?? existing?.taxTotal ?? 0,
+    total: body.total ?? existing?.total ?? 0,
+    payments: body.payments ?? existing?.payments ?? [],
+    amountPaid: body.amountPaid ?? existing?.amountPaid ?? 0,
+    amountDue: body.amountDue ?? existing?.amountDue ?? 0,
+    creatorAddress: creator || existing?.creatorAddress,
+    createdAt: existing?.createdAt ?? body.createdAt ?? new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  }
+  invoiceStore.set(inv.id, inv)
+  debouncedSave('invoices', Object.fromEntries(invoiceStore))
+  res.json({ success: true, invoice: inv })
+})
+
+// Delete — only the creator can delete
+app.delete('/api/invoice/:id', (req, res) => {
+  const creator = (req.headers['x-wallet-address'] as string | undefined ?? '').toLowerCase()
+  const inv = invoiceStore.get(req.params.id)
+  if (!inv) { res.status(404).json({ success: false, error: 'Not found' }); return }
+  if (inv.creatorAddress && creator && inv.creatorAddress !== creator) {
+    res.status(403).json({ success: false, error: 'Forbidden' }); return
+  }
+  invoiceStore.delete(req.params.id)
+  debouncedSave('invoices', Object.fromEntries(invoiceStore))
+  res.json({ success: true })
+})
+
 app.get(/^(?!\/api).*$/, (_req, res) => {
   res.sendFile(path.join(DIST, 'index.html'))
 })

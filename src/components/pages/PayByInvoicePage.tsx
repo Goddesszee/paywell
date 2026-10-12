@@ -3,8 +3,8 @@
  * Accessed via ?invoice=<id> — no NAN account needed.
  * Shows invoice details and lets anyone pay with crypto or card.
  */
-import { useState } from 'react'
-import { FileText, CreditCard, Wallet, CheckCircle2, ExternalLink, Copy, AlertCircle } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { FileText, CreditCard, Wallet, CheckCircle2, ExternalLink, Copy, AlertCircle, Loader } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
 import { erc20Abi } from 'viem'
@@ -43,9 +43,43 @@ function NotFound() {
   )
 }
 
+function LoadingScreen() {
+  return (
+    <div style={{ minHeight: '100dvh', background: '#0A0E1A', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: F }}>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>
+        <Loader size={28} color={BLUE} style={{ animation: 'spin 1s linear infinite' }} />
+        <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)' }}>Loading invoice…</div>
+      </div>
+      <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+    </div>
+  )
+}
+
 export function PayByInvoicePage({ invoiceId }: Props) {
   const { invoices, updateInvoice, recordInvoicePayment } = useAppStore()
-  const invoice: Invoice | undefined = invoices.find(i => i.id === invoiceId)
+  const localInvoice: Invoice | undefined = invoices.find(i => i.id === invoiceId)
+
+  // Fetch from server when not in local store (pay link opened on another device)
+  const [remoteInvoice, setRemoteInvoice] = useState<Invoice | null>(null)
+  const [fetchDone, setFetchDone] = useState(!!localInvoice)
+  const [notFound, setNotFound] = useState(false)
+
+  useEffect(() => {
+    if (localInvoice || fetchDone) return
+    fetch(`/api/invoice/${invoiceId}`)
+      .then(r => r.json())
+      .then((data: { success: boolean; invoice?: Invoice }) => {
+        if (data.success && data.invoice) setRemoteInvoice(data.invoice)
+        else setNotFound(true)
+      })
+      .catch(() => setNotFound(true))
+      .finally(() => setFetchDone(true))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [invoiceId])
+
+  const loading = !localInvoice && !fetchDone
+
+  const invoice: Invoice | undefined = localInvoice ?? remoteInvoice ?? undefined
 
   const { address } = useAccount()
   const usdcFact = getUsdc(ARC)
@@ -58,11 +92,14 @@ export function PayByInvoicePage({ invoiceId }: Props) {
   // Mark paid when tx confirms
   if (isSuccess && txHash && !paid && invoice) {
     setPaid(true)
-    recordInvoicePayment(invoice.id, { date: new Date().toISOString(), amount: invoice.amountDue, txHash, note: 'Paid via pay link' })
-    updateInvoice(invoice.id, { status: 'paid', amountPaid: invoice.total, amountDue: 0, updatedAt: new Date().toISOString() })
+    if (localInvoice) {
+      recordInvoicePayment(invoice.id, { date: new Date().toISOString(), amount: invoice.amountDue, txHash, note: 'Paid via pay link' })
+      updateInvoice(invoice.id, { status: 'paid', amountPaid: invoice.total, amountDue: 0, updatedAt: new Date().toISOString() })
+    }
   }
 
-  if (!invoice) return <NotFound />
+  if (loading) return <LoadingScreen />
+  if (notFound || !invoice) return <NotFound />
 
   const isPaidAlready = invoice.status === 'paid' || invoice.amountDue <= 0
 

@@ -821,17 +821,41 @@ export const useAppStore = create<AppState>()(
           updatedAt: now,
         }
         set(s => ({ invoices: [full, ...s.invoices], invoiceSeq: s.invoiceSeq + 1 }))
+        // Publish to server so pay links work on any device
+        const walletAddress = get().auth?.walletAddress ?? get().auth?.circleWalletAddress ?? ''
+        fetch('/api/invoice', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', ...(walletAddress ? { 'x-wallet-address': walletAddress } : {}) },
+          body: JSON.stringify(full),
+        }).catch(() => {})
         return full
       },
-      updateInvoice: (id, patch) =>
+      updateInvoice: (id, patch) => {
         set(s => ({
           invoices: s.invoices.map(inv =>
             inv.id === id ? { ...inv, ...patch, updatedAt: new Date().toISOString() } : inv
           ),
-        })),
-      removeInvoice: (id) =>
-        set(s => ({ invoices: s.invoices.filter(inv => inv.id !== id) })),
-      recordInvoicePayment: (invoiceId, payment) =>
+        }))
+        // Sync update to server
+        const updated = get().invoices.find(i => i.id === id)
+        if (updated) {
+          const walletAddress = get().auth?.walletAddress ?? get().auth?.circleWalletAddress ?? ''
+          fetch('/api/invoice', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json', ...(walletAddress ? { 'x-wallet-address': walletAddress } : {}) },
+            body: JSON.stringify(updated),
+          }).catch(() => {})
+        }
+      },
+      removeInvoice: (id) => {
+        const walletAddress = get().auth?.walletAddress ?? get().auth?.circleWalletAddress ?? ''
+        set(s => ({ invoices: s.invoices.filter(inv => inv.id !== id) }))
+        fetch(`/api/invoice/${id}`, {
+          method: 'DELETE',
+          headers: { ...(walletAddress ? { 'x-wallet-address': walletAddress } : {}) },
+        }).catch(() => {})
+      },
+      recordInvoicePayment: (invoiceId, payment) => {
         set(s => {
           const entry: InvoicePayment = {
             ...payment,
@@ -850,7 +874,18 @@ export const useAppStore = create<AppState>()(
               return { ...inv, payments, amountPaid, amountDue, status, updatedAt: new Date().toISOString() }
             }),
           }
-        }),
+        })
+        // Sync payment record to server
+        const updated = get().invoices.find(i => i.id === invoiceId)
+        if (updated) {
+          const walletAddress = get().auth?.walletAddress ?? get().auth?.circleWalletAddress ?? ''
+          fetch('/api/invoice', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json', ...(walletAddress ? { 'x-wallet-address': walletAddress } : {}) },
+            body: JSON.stringify(updated),
+          }).catch(() => {})
+        }
+      },
     }),
     {
       name: 'paywell-state-v2',
