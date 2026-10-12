@@ -349,6 +349,8 @@ const MOBILE_DRAWER_SECTIONS = SIDEBAR_SECTIONS.filter(s => s.title !== 'Help & 
     i.id !== 'dashboard' &&
     i.id !== 'swap' &&
     i.id !== 'bridge' &&
+    i.id !== 'favorites' &&
+    i.id !== 'contacts' &&
     !(s.title === 'Payments' && i.label === 'Transactions') &&
     !(s.title === 'Payments' && i.id === 'send') &&
     !(s.title === 'Payments' && i.id === 'receive')
