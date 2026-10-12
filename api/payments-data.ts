@@ -125,9 +125,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const type = (req.query.type ?? '') as string
   const wallet = walletKey(req)
 
-  // Invoice GET by id is public — no wallet required. All other routes need a wallet.
-  const isPublicInvoiceGet = type === 'invoices' && req.method === 'GET' && !!req.query.id
-  if (!wallet && !isPublicInvoiceGet)
+  // Public routes — no wallet header required:
+  //  • GET /api/invoices/:id   — pay-link recipients read invoice
+  //  • POST /api/invoice-claim — pay-link payers claim payment (no account needed)
+  const isPublicRoute =
+    (type === 'invoices' && req.method === 'GET' && !!req.query.id) ||
+    (type === 'invoice-claim' && req.method === 'POST')
+  if (!wallet && !isPublicRoute)
     return res.status(401).json({ success: false, error: 'x-wallet-address header required' })
 
   const kv = getRedis()
@@ -331,18 +335,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }, { ex: 60 * 60 * 24 * 180 })
     }
 
-    if (inv._owner) {
-      const notifKey = `notif:${inv._owner.toLowerCase()}`
-      const existing = (await kv.get<ClaimNotif[]>(notifKey)) ?? []
-      existing.unshift({
+    // Write notification using same key pattern as community.ts:
+    // lpush to notifs:<email> so it appears in the merchant's notification bell.
+    // Use businessEmail as primary key; fall back to _owner wallet address.
+    const notifEmail = inv.businessEmail ?? inv._owner
+    if (notifEmail) {
+      const notif: ClaimNotif = {
         id: `notif-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-        userEmail: inv._owner,
+        userEmail: notifEmail,
         type: matched ? 'invoice_paid' : 'invoice_claimed',
         title: matched ? `Invoice ${inv.number} paid ✓` : `Payment claimed — ${inv.number}`,
         body: aiSummary, read: false, createdAt: new Date().toISOString(),
         invoiceId, claimId, matched, txHash: resolvedTxHash, aiSummary,
-      })
-      await kv.set(notifKey, existing.slice(0, 100), { ex: 60 * 60 * 24 * 90 })
+      }
+      await kv.lpush(`notifs:${notifEmail}`, notif)
+      await kv.ltrim(`notifs:${notifEmail}`, 0, 99)
     }
 
     if (inv.businessEmail) {
