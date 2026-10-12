@@ -209,7 +209,7 @@ export default function App() {
     return false
   })
 
-  // Detect public pay links — ?nanpay=alice, ?pr=<id>, or ?pay=<address>&amount=<n>
+  // Detect public pay links — ?nanpay=alice, ?pr=<id>, ?pay=<address>&amount=<n>, ?onramp=1
   // These must work for anyone (no NAN account), so intercept before auth/shell.
   const prParams = useMemo(() => {
     const p = new URLSearchParams(window.location.search)
@@ -217,12 +217,15 @@ export default function App() {
     const invoice  = p.get('invoice') ?? ''
     const pr       = p.get('pr') ?? ''
     const pay      = p.get('pay') ?? ''
+    const onramp   = p.get('onramp') ?? ''
+    const to       = p.get('to') ?? ''
     const amount   = parseFloat(p.get('amount') ?? '0')
     const note     = p.get('note') ?? ''
     const currency = (p.get('currency') ?? 'USDC') as 'USDC' | 'EURC'
-    if (nanpay) return { nanpay, invoice: '', pr: '', pay: '', amount, note, currency }
-    if (invoice) return { nanpay: '', invoice, pr: '', pay: '', amount, note, currency }
-    if (pr || (pay && amount > 0)) return { nanpay: '', invoice: '', pr, pay, amount, note, currency }
+    if (nanpay) return { nanpay, invoice: '', pr: '', pay: '', onramp: '', to: '', amount, note, currency }
+    if (invoice) return { nanpay: '', invoice, pr: '', pay: '', onramp: '', to: '', amount, note, currency }
+    if (pr || (pay && amount > 0)) return { nanpay: '', invoice: '', pr, pay, onramp: '', to: '', amount, note, currency }
+    if (onramp) return { nanpay: '', invoice: '', pr: '', pay: '', onramp, to, amount, note, currency }
     return null
   }, [])
 
@@ -244,6 +247,16 @@ export default function App() {
         currency={prParams.currency}
       />
     )
+  }
+
+  // ?onramp=1&to=<address>&amount=<n>&note=<text> — deep-link from invoice/payment pay-with-card
+  // Set the prefill then fall through to the normal app so the user can log in if needed.
+  if (prParams?.onramp) {
+    const { setOnrampPrefill, setActiveView } = useAppStore.getState()
+    if (prParams.amount > 0) setOnrampPrefill({ amount: prParams.amount })
+    setActiveView('onramp')
+    // Clear the query string so refreshing doesn't re-trigger
+    try { window.history.replaceState({}, '', '/') } catch { /* ignore */ }
   }
 
   if (!splashDone) return <SplashScreen onDone={() => setSplashDone(true)} />

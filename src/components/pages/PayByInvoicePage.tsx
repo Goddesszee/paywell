@@ -7,6 +7,7 @@ import React, { useState, useEffect } from 'react'
 import { FileText, CreditCard, Wallet, CheckCircle2, ExternalLink, Copy, AlertCircle, Loader } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
+import { useModal } from 'connectkit'
 import { erc20Abi } from 'viem'
 import { useAppStore, type Invoice } from '../../store/appStore'
 import { getUsdc, buildTxExplorerUrl } from '@/onchain-facts'
@@ -92,6 +93,7 @@ export function PayByInvoicePage({ invoiceId }: Props) {
   const invoice: Invoice | undefined = remoteInvoice ?? localInvoice ?? undefined
 
   const { address } = useAccount()
+  const { setOpen: openConnectModal } = useModal()
   const usdcFact = getUsdc(ARC)
   const { writeContract, data: txHash, isPending } = useWriteContract()
   const { isSuccess, isLoading: isConfirming } = useWaitForTransactionReceipt({ hash: txHash })
@@ -247,9 +249,12 @@ export function PayByInvoicePage({ invoiceId }: Props) {
                     {isPending ? 'Confirm in wallet…' : isConfirming ? 'Confirming…' : `Pay ${fmtAmt(invoice.amountDue, invoice.currency)}`}
                   </button>
                 ) : (
-                  <div style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '14px 16px', fontSize: 13, color: 'rgba(255,255,255,0.5)', textAlign: 'center', lineHeight: 1.5 }}>
-                    Connect a wallet (MetaMask, WalletConnect) to pay with crypto, or use the card option above.
-                  </div>
+                  <button
+                    onClick={() => openConnectModal(true)}
+                    style={{ width: '100%', height: 50, background: BLUE, color: '#fff', border: 'none', borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+                  >
+                    <Wallet size={18} /> Connect wallet to pay
+                  </button>
                 )}
               </>
             ) : (
@@ -271,7 +276,7 @@ export function PayByInvoicePage({ invoiceId }: Props) {
             </div>
             {invoice.payToAddress ? (
               <a
-                href={`https://nanarc.xyz/?pay=${invoice.payToAddress}&amount=${invoice.amountDue}&note=${encodeURIComponent(`Invoice ${invoice.number}`)}`}
+                href={`https://nanarc.xyz/?onramp=1&to=${encodeURIComponent(invoice.payToAddress)}&amount=${invoice.amountDue}&note=${encodeURIComponent(`Invoice ${invoice.number}`)}&currency=${invoice.currency}`}
                 style={{ display: 'block', width: '100%', height: 50, background: BLUE, color: '#fff', border: 'none', borderRadius: 12, fontSize: 15, fontWeight: 700, textDecoration: 'none', textAlign: 'center', lineHeight: '50px', boxSizing: 'border-box' }}
               >
                 Buy &amp; pay with card
