@@ -24,7 +24,8 @@ import { useCircleTransaction } from '../../hooks/useCircleTransaction'
 import { buildAddressExplorerUrl } from '../../onchain-facts'
 import { getClientKey } from '../../lib/circle-session'
 
-const NAME_REGISTRY = (import.meta.env.VITE_NAME_REGISTRY as string | undefined) ?? ''
+const NAME_REGISTRY = (import.meta.env.VITE_NAME_REGISTRY as string | undefined)
+  || '0x7b839c3bE9394b2a6baC286776f37042609f83b2'
 const USDC_ADDRESS  = '0x3600000000000000000000000000000000000000'
 const ARC_CHAIN_ID  = 5042
 

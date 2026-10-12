@@ -11,7 +11,9 @@ import { useCallback } from 'react'
 import { usePublicClient } from 'wagmi'
 import { createPublicClient, http } from 'viem'
 
-export const NAME_REGISTRY = (import.meta.env.VITE_NAME_REGISTRY as string | undefined) ?? ''
+// Arc Mainnet NANNameRegistry — fallback to known deployed address if env var not set
+export const NAME_REGISTRY = (import.meta.env.VITE_NAME_REGISTRY as string | undefined)
+  || '0x7b839c3bE9394b2a6baC286776f37042609f83b2'
 const ARC_RPC = 'https://rpc.mainnet.arc.io'
 const ARC_CHAIN_ID = 5042
 

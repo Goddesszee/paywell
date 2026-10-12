@@ -526,7 +526,7 @@ export function BridgePage({ inCard = false }: { inCard?: boolean }) {
           txHash:      step.txHash,
           explorerUrl: step.explorerUrl,
         })
-        if (step.state === 'error' && errDetail) setErrMsg(errDetail.slice(0, 200))
+        if (step.state === 'error' && errDetail) setErrMsg(String(errDetail).slice(0, 200))
       }
 
       const topState     = result.state
@@ -542,7 +542,7 @@ export function BridgePage({ inCard = false }: { inCard?: boolean }) {
         const failedStep = result.steps?.find(s => s.state === 'error')
         const stepErr    = failedStep ? (failedStep.error ?? failedStep.message ?? failedStep.name + ' step failed') : 'Bridge returned non-success state.'
         setStatus('error')
-        setErrMsg(stepErr.slice(0, 200))
+        setErrMsg(String(stepErr).slice(0, 200))
       }
     } catch (e: unknown) {
       setStatus('error')
