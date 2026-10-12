@@ -181,7 +181,7 @@ function emptyForm(defaultAddress = ''): DraftForm {
 // ── Main component ────────────────────────────────────────────────────────────
 export function InvoicePage() {
   const { address: wagmiAddress } = useAccount()
-  const { auth, profile, invoices, addInvoice, updateInvoice, removeInvoice } = useAppStore()
+  const { auth, profile, invoices, addInvoice, updateInvoice, removeInvoice, addContact } = useAppStore()
   const walletAddress = wagmiAddress ?? auth?.circleWalletAddress ?? auth?.walletAddress ?? ''
 
   type View = 'list' | 'new' | 'detail' | 'edit'
@@ -250,6 +250,12 @@ export function InvoicePage() {
       status: 'sent',
       mode: 'quick' as const,
     })
+    // Auto-save recipient as a contact (use name-derived id as pseudo-address for dedup)
+    if (form.quickRecipient.trim()) {
+      const seed = form.quickRecipient.trim().toLowerCase().replace(/[^a-z0-9]/g, '')
+      const pseudoAddr = `0x${seed.padEnd(40, '0').slice(0, 40)}`
+      addContact({ address: pseudoAddr, name: form.quickRecipient.trim(), note: form.quickNote.trim() || undefined })
+    }
     toast.success('Payment request created')
     setSelectedId(inv.id)
     setView('detail')
@@ -275,6 +281,11 @@ export function InvoicePage() {
       ...t, payments: [], amountPaid: 0, amountDue: t.total,
       status, mode: 'full' as const,
     })
+    // Auto-add customer as a contact when they have a wallet address
+    const custAddr = form.customerAddress.trim()
+    if (custAddr && /^0x[0-9a-fA-F]{40}$/.test(custAddr) && form.customerName.trim()) {
+      addContact({ address: custAddr, name: form.customerName.trim(), note: form.customerEmail.trim() || undefined })
+    }
     toast.success(status === 'draft' ? 'Invoice saved as draft' : 'Invoice created')
     setSelectedId(inv.id)
     setView('detail')

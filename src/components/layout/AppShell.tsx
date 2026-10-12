@@ -319,7 +319,6 @@ const SIDEBAR_SECTIONS = [
     { id: 'recurring',    label: 'Recurring',     Icon: Repeat, desc: 'Scheduled payments' },
   ]},
   { title: 'Business', items: [
-    { id: 'invoices', label: 'Invoices',      Icon: FileText, desc: 'Create & send USDC invoices' },
     { id: 'payroll',  label: 'Batch Payroll', Icon: Users,    desc: 'Send USDC to multiple recipients' },
     { id: 'contacts', label: 'Contacts',      Icon: User,     desc: 'People you have paid' },
   ]},
