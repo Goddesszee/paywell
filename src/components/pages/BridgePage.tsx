@@ -36,6 +36,7 @@ import { getPasskeyAdapter } from '../CirclePasskeyLogin'
 import { bridgeFee, BRIDGE_FEE_BPS, bpsToPercent } from '../../lib/fees'
 import { getClientKey, ensureCircleCreds, getChallengeTransactionId, SESSION_EXPIRED_MSG } from '../../lib/circle-session'
 import { useNanTheme } from '../../hooks/useNanTheme'
+import { useMultiChainBalances } from '../../hooks/useMultiChainBalances'
 
 // ── Typed wrappers for App Kit bridge result ──────────────────────────────────
 interface BridgeStep { name: string; state: string; txHash?: string; explorerUrl?: string; error?: string; message?: string; reason?: string }
@@ -503,6 +504,11 @@ export function BridgePage({ inCard = false }: { inCard?: boolean }) {
   const [toIdx,   setToIdx]   = useState(1)
   const [amount,  setAmount]  = useState('')
 
+  // ── Source-chain USDC balance ─────────────────────────────────────────────
+  const walletAddress = wagmiAddress ?? auth?.circleWalletAddress ?? auth?.walletAddress
+  const { byName: balByName, isLoading: balLoading } = useMultiChainBalances(walletAddress)
+  const fromChainBalance = balByName[CHAINS[fromIdx]?.label] ?? '0.00'
+
   useEffect(() => {
     if (!bridgePrefill) return
     if (bridgePrefill.amount) setAmount(bridgePrefill.amount)
@@ -669,7 +675,7 @@ export function BridgePage({ inCard = false }: { inCard?: boolean }) {
         })
         if (!txId) {
           // Circle exposes the transaction id as challenge.correlationIds[0]; it can lag the approval a moment.
-          const c = await getChallengeTransactionId(creds.userToken ?? authState.userToken, startData.challengeId!)
+          const c = await getChallengeTransactionId(creds.userToken ?? authState.userToken, startData.challengeId)
           txId = c.transactionId ?? ''
           if (!txId) throw new Error(c.status === 'FAILED' ? `Circle rejected the bridge${c.errorMessage ? `: ${c.errorMessage}` : ''}` : 'Circle did not return a transaction id yet — check your balance before retrying.')
         }
@@ -937,9 +943,20 @@ export function BridgePage({ inCard = false }: { inCard?: boolean }) {
 
         {/* Amount input */}
         <div style={{ padding: '10px 12px 12px' }}>
-          <div style={{ fontSize: 10, fontWeight: 700, color: c.t3, textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 7 }}>
-            Amount (USDC)
+          {/* Label row with live balance */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 7 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: c.t3, textTransform: 'uppercase' as const, letterSpacing: '0.08em' }}>
+              Amount (USDC)
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ fontSize: 11, color: c.t3 }}>
+                Balance: <span style={{ color: c.t2, fontWeight: 600 }}>
+                  {balLoading ? '…' : `${fromChainBalance} USDC`}
+                </span>
+              </span>
+            </div>
           </div>
+
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <input
               type="number"
@@ -960,9 +977,32 @@ export function BridgePage({ inCard = false }: { inCard?: boolean }) {
             />
             <span style={{ fontSize: 13, fontWeight: 700, color: c.t2, flexShrink: 0 }}>USDC</span>
           </div>
-          {/* Quick-fill chips */}
+
+          {/* Quick-fill chips: 25% 50% Max + presets */}
           <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
-            {['1', '5', '10', '25'].map(v => (
+            {[
+              { label: '25%',  value: () => (Math.floor(parseFloat(fromChainBalance) * 0.25 * 100) / 100).toFixed(2) },
+              { label: '50%',  value: () => (Math.floor(parseFloat(fromChainBalance) * 0.50 * 100) / 100).toFixed(2) },
+              { label: 'Max',  value: () => fromChainBalance },
+            ].map(({ label, value }) => (
+              <button
+                key={label}
+                onClick={() => { const v = value(); if (parseFloat(v) > 0) setAmount(v) }}
+                aria-label={`Set amount to ${label}`}
+                style={{
+                  flex: 1, padding: '7px 0',
+                  border: `1px solid ${c.bdr2}`,
+                  borderRadius: 9,
+                  background: c.surf,
+                  color: label === 'Max' ? c.blue : c.t2,
+                  fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                  fontFamily: F, transition: 'all 0.12s',
+                  WebkitTapHighlightColor: 'transparent',
+                }}>
+                {label}
+              </button>
+            ))}
+            {['10', '25'].map(v => (
               <button
                 key={v}
                 onClick={() => setAmount(v)}
