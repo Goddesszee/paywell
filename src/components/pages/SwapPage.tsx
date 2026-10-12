@@ -458,8 +458,6 @@ export function SwapPage({ inCard = false }: { inCard?: boolean }) {
     if (msg.toLowerCase().includes('insufficient')) return `Insufficient balance to swap ${amountIn} ${tokenIn}.`
     if (msg.toLowerCase().includes('slippage')) return `Price moved too much. Try raising the slippage tolerance in settings.`
     if (msg.toLowerCase().includes('validation failed') && msg.toLowerCase().includes('apikey')) return `Swap configuration error. Please refresh the page and try again.`
-    if (msg.toLowerCase().includes('paymaster')) return `Swap is not yet enabled for email wallets — a Paymaster policy must be configured in the Circle Developer Console for your entity. Contact support or use a browser wallet (MetaMask) to swap.`
-    if (msg.toLowerCase().includes('createusertransactioncontractexecution')) return `Swap is not yet available for email wallets on this account. Please use a browser wallet (MetaMask) to swap, or contact support.`
     return msg
   }
 
