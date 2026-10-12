@@ -266,7 +266,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (!body.businessName || !body.customerName) {
         return res.status(400).json({ success: false, error: 'businessName and customerName required' })
       }
-      const toStore = { ...body, id: invId, _owner: wallet || 'anon', _savedAt: new Date().toISOString() }
+      const ownerEmail = (req.headers['x-owner-email'] as string | undefined ?? '').toLowerCase().trim()
+      const toStore = { ...body, id: invId, _owner: wallet || 'anon', _ownerEmail: ownerEmail || undefined, _savedAt: new Date().toISOString() }
       if (kv) {
         await kv.set(`inv:${invId}`, toStore, { ex: 60 * 60 * 24 * 180 }) // 180 days TTL
       }
@@ -299,7 +300,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     interface ClaimInvoice {
       id: string; number: string; businessName: string; businessEmail?: string
       customerName: string; amountDue: number; total: number; currency: string
-      payToAddress?: string; issuedDate?: string; createdAt?: string; _owner?: string; status?: string
+      payToAddress?: string; issuedDate?: string; createdAt?: string
+      _owner?: string; _ownerEmail?: string; status?: string
     }
     interface ClaimNotif {
       id: string; userEmail: string; type: string; title: string; body: string
@@ -337,8 +339,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Write notification using same key pattern as community.ts:
     // lpush to notifs:<email> so it appears in the merchant's notification bell.
-    // Use businessEmail as primary key; fall back to _owner wallet address.
-    const notifEmail = inv.businessEmail ?? inv._owner
+    // Priority: _ownerEmail (login email stored at save time) > businessEmail > _owner wallet.
+    const notifEmail = inv._ownerEmail ?? inv.businessEmail ?? inv._owner
     if (notifEmail) {
       const notif: ClaimNotif = {
         id: `notif-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,

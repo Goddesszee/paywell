@@ -826,9 +826,14 @@ export const useAppStore = create<AppState>()(
         set(s => ({ invoices: [full, ...s.invoices], invoiceSeq: s.invoiceSeq + 1 }))
         // Publish to server so pay links work on any device
         const walletAddress = get().auth?.walletAddress ?? get().auth?.circleWalletAddress ?? ''
+        const ownerEmail    = get().auth?.email ?? ''
         fetch('/api/invoices', {
           method: 'POST',
-          headers: { 'content-type': 'application/json', ...(walletAddress ? { 'x-wallet-address': walletAddress } : {}) },
+          headers: {
+            'content-type': 'application/json',
+            ...(walletAddress ? { 'x-wallet-address': walletAddress } : {}),
+            ...(ownerEmail   ? { 'x-owner-email': ownerEmail }        : {}),
+          },
           body: JSON.stringify(full),
         }).catch(() => {})
         return full
@@ -843,9 +848,14 @@ export const useAppStore = create<AppState>()(
         const updated = get().invoices.find(i => i.id === id)
         if (updated) {
           const walletAddress = get().auth?.walletAddress ?? get().auth?.circleWalletAddress ?? ''
+          const ownerEmail    = get().auth?.email ?? ''
           fetch('/api/invoices', {
             method: 'POST',
-            headers: { 'content-type': 'application/json', ...(walletAddress ? { 'x-wallet-address': walletAddress } : {}) },
+            headers: {
+              'content-type': 'application/json',
+              ...(walletAddress ? { 'x-wallet-address': walletAddress } : {}),
+              ...(ownerEmail   ? { 'x-owner-email': ownerEmail }        : {}),
+            },
             body: JSON.stringify(updated),
           }).catch(() => {})
         }
@@ -882,9 +892,14 @@ export const useAppStore = create<AppState>()(
         const updated = get().invoices.find(i => i.id === invoiceId)
         if (updated) {
           const walletAddress = get().auth?.walletAddress ?? get().auth?.circleWalletAddress ?? ''
+          const ownerEmail    = get().auth?.email ?? ''
           fetch('/api/invoices', {
             method: 'POST',
-            headers: { 'content-type': 'application/json', ...(walletAddress ? { 'x-wallet-address': walletAddress } : {}) },
+            headers: {
+              'content-type': 'application/json',
+              ...(walletAddress ? { 'x-wallet-address': walletAddress } : {}),
+              ...(ownerEmail   ? { 'x-owner-email': ownerEmail }        : {}),
+            },
             body: JSON.stringify(updated),
           }).catch(() => {})
         }
