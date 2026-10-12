@@ -517,10 +517,6 @@ export function SwapPage({ inCard = false }: { inCard?: boolean }) {
   const F    = 'var(--nan-font)'
   const MONO = 'var(--nan-mono)'
 
-  // Shared padding for inCard content
-  const PX = inCard ? 14 : 0
-  const cardPad = `0 ${PX}px`
-
   // ── Success screen ────────────────────────────────────────────────────────
   if (phase === 'done') return (
     <div style={{ padding: inCard ? '20px 16px 24px' : '0 16px 80px', fontFamily: F }}>
@@ -547,24 +543,19 @@ export function SwapPage({ inCard = false }: { inCard?: boolean }) {
   return (
     <div style={{ fontFamily: F, padding: inCard ? '0 0 2px' : '0 16px 80px' }}>
 
-      {/* ── Standalone header with slippage (only outside TradePage card) ── */}
+      {/* ── Header row with slippage ── */}
       {!inCard && (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 0 12px' }}>
-          <div>
-            <div style={{ fontSize: 18, fontWeight: 800, color: c.text, letterSpacing: '-0.03em', lineHeight: 1.1 }}>Swap</div>
-            <div style={{ fontSize: 11, color: c.t3, marginTop: 2 }}>Exchange your tokens across supported networks.</div>
-          </div>
+          <div style={{ fontSize: 18, fontWeight: 800, color: c.text, letterSpacing: '-0.03em' }}>Swap</div>
           <button
             onClick={() => setShowSlippage(true)}
             aria-label="Slippage settings"
-            style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 11px', borderRadius: 9, border: `1px solid ${c.bdr}`, background: c.surf, cursor: 'pointer', transition: 'all 0.15s', WebkitTapHighlightColor: 'transparent' }}>
+            style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 10px', borderRadius: 8, border: `1px solid ${c.bdr}`, background: c.surf, cursor: 'pointer', transition: 'all 0.15s', WebkitTapHighlightColor: 'transparent' }}>
             <Settings size={11} color={c.t2} strokeWidth={2} />
-            <span style={{ fontSize: 11, fontWeight: 700, color: c.t2 }}>{(slippageBps / 100).toFixed(2)}%</span>
+            <span style={{ fontSize: 11, fontWeight: 600, color: c.t2 }}>{(slippageBps / 100).toFixed(2)}%</span>
           </button>
         </div>
       )}
-
-      {/* ── Inline slippage row (inside TradePage card only) ── */}
       {inCard && (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', padding: '8px 14px 0' }}>
           <button
@@ -572,7 +563,7 @@ export function SwapPage({ inCard = false }: { inCard?: boolean }) {
             aria-label="Slippage settings"
             style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 9px', borderRadius: 7, border: `1px solid ${c.bdr}`, background: 'transparent', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}>
             <Settings size={10} color={c.t3} strokeWidth={2} />
-            <span style={{ fontSize: 10, fontWeight: 600, color: c.t3 }}>{(slippageBps / 100).toFixed(2)}% slippage</span>
+            <span style={{ fontSize: 10, fontWeight: 600, color: c.t3 }}>{(slippageBps / 100).toFixed(2)}%</span>
           </button>
         </div>
       )}
@@ -584,36 +575,21 @@ export function SwapPage({ inCard = false }: { inCard?: boolean }) {
         background: c.surf2,
         border: `1px solid ${c.bdr}`,
         borderRadius: 14,
-        padding: '11px 13px 10px',
+        padding: '12px 13px 10px',
         margin: inCard ? '6px 14px 0' : '0 0 2px',
       }}>
-        {/* Top row: label + balance + % chips */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 7 }}>
-          <span style={{ fontSize: 10, fontWeight: 700, color: c.t3, textTransform: 'uppercase' as const, letterSpacing: '0.08em' }}>You pay</span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            {(isConnected || isCircleUser || isPasskeyUser) && (
-              <span style={{ fontSize: 10, color: c.t3 }}>
-                Bal: <span style={{ color: c.t2, fontWeight: 600 }}>{balIn}</span>
-              </span>
-            )}
-            {/* % quick-fill chips */}
-            {(['25%', '50%', 'MAX'] as const).map((label, i) => {
-              const pct = i === 0 ? 25 : i === 1 ? 50 : 'max' as const
-              return (
-                <button
-                  key={label}
-                  onClick={() => applyPct(pct)}
-                  aria-label={`Set amount to ${label}`}
-                  style={{ padding: '2px 6px', border: `1px solid ${c.bdr}`, borderRadius: 5, background: 'transparent', color: c.t3, fontSize: 9, fontWeight: 700, cursor: 'pointer', fontFamily: F, WebkitTapHighlightColor: 'transparent' }}>
-                  {label}
-                </button>
-              )
-            })}
-          </div>
+        {/* Label + balance */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+          <span style={{ fontSize: 10, fontWeight: 600, color: c.t3, textTransform: 'uppercase' as const, letterSpacing: '0.07em' }}>You pay</span>
+          {(isConnected || isCircleUser || isPasskeyUser) && balIn !== '—' && (
+            <span style={{ fontSize: 11, color: c.t3 }}>
+              Balance: <span style={{ color: c.t2, fontWeight: 600 }}>{balIn} {tokenIn}</span>
+            </span>
+          )}
         </div>
 
-        {/* Amount input + token pill on same row */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        {/* Amount input + token pill */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
           <input
             type="text"
             inputMode="decimal"
@@ -622,15 +598,26 @@ export function SwapPage({ inCard = false }: { inCard?: boolean }) {
             aria-label="Amount to swap"
             onChange={e => { const v = e.target.value.replace(/[^0-9.]/g, ''); if (v === '' || /^\d*\.?\d*$/.test(v)) { setAmountIn(v); setReviewed(null); setPhase('idle') } }}
             disabled={phase === 'swapping'}
-            style={{ flex: 1, fontSize: 26, fontWeight: 800, color: c.text, border: 'none', outline: 'none', background: 'transparent', fontFamily: MONO, minWidth: 0, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em' }}
+            style={{ flex: 1, fontSize: 28, fontWeight: 700, color: c.text, border: 'none', outline: 'none', background: 'transparent', fontFamily: MONO, minWidth: 0, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em' }}
           />
           <TokenPill token={tokenIn} onClick={() => setShowSellModal(true)} c={c} />
         </div>
 
-        {/* Fiat estimate */}
-        {amountIn && parseFloat(amountIn) > 0 && (
-          <div style={{ fontSize: 10, color: c.t3, marginTop: 3 }}>≈ ${parseFloat(amountIn).toFixed(2)}</div>
-        )}
+        {/* % quick-fill chips */}
+        <div style={{ display: 'flex', gap: 6 }}>
+          {(['25%', '50%', 'Max'] as const).map((label, i) => {
+            const pct = i === 0 ? 25 : i === 1 ? 50 : 'max' as const
+            return (
+              <button
+                key={label}
+                onClick={() => applyPct(pct)}
+                aria-label={`Set amount to ${label}`}
+                style={{ flex: 1, padding: '6px 0', border: `1px solid ${c.bdr2}`, borderRadius: 8, background: c.surf, color: label === 'Max' ? c.blue : c.t2, fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: F, transition: 'all 0.12s', WebkitTapHighlightColor: 'transparent' }}>
+                {label}
+              </button>
+            )
+          })}
+        </div>
       </div>
 
       {/* ── Token-switch button ── */}
@@ -658,28 +645,25 @@ export function SwapPage({ inCard = false }: { inCard?: boolean }) {
         background: c.surf2,
         border: `1px solid ${c.bdr}`,
         borderRadius: 14,
-        padding: '11px 13px 10px',
+        padding: '12px 13px 11px',
         margin: inCard ? '0 14px 0' : '2px 0 10px',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 7 }}>
-          <span style={{ fontSize: 10, fontWeight: 700, color: c.t3, textTransform: 'uppercase' as const, letterSpacing: '0.08em' }}>You receive</span>
-          {(isConnected || isCircleUser || isPasskeyUser) && (
-            <span style={{ fontSize: 10, color: c.t3 }}>
-              Bal: <span style={{ color: c.t2, fontWeight: 600 }}>{balOut}</span>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+          <span style={{ fontSize: 10, fontWeight: 600, color: c.t3, textTransform: 'uppercase' as const, letterSpacing: '0.07em' }}>You receive</span>
+          {(isConnected || isCircleUser || isPasskeyUser) && balOut !== '—' && (
+            <span style={{ fontSize: 11, color: c.t3 }}>
+              Balance: <span style={{ color: c.t2, fontWeight: 600 }}>{balOut} {tokenOut}</span>
             </span>
           )}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{ flex: 1, fontSize: 26, fontWeight: 800, color: estimatedOut ? c.green : c.t3, fontFamily: MONO, minWidth: 0, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em' }}>
+          <div style={{ flex: 1, fontSize: 28, fontWeight: 700, color: estimatedOut ? c.green : c.t3, fontFamily: MONO, minWidth: 0, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em' }}>
             {phase === 'estimating'
-              ? <span style={{ display: 'inline-block', width: 90, height: 26, borderRadius: 7, background: c.surf3, animation: 'nan-pulse 1.2s ease-in-out infinite' }} />
+              ? <span style={{ display: 'inline-block', width: 90, height: 28, borderRadius: 7, background: c.surf3, animation: 'nan-pulse 1.2s ease-in-out infinite' }} />
               : estimatedOut ? estimatedOut.amount : '0.00'}
           </div>
           <TokenPill token={tokenOut} onClick={() => setShowBuyModal(true)} c={c} />
         </div>
-        {estimatedOut && parseFloat(estimatedOut.amount) > 0 && (
-          <div style={{ fontSize: 10, color: c.t3, marginTop: 3 }}>≈ ${parseFloat(estimatedOut.amount).toFixed(2)}</div>
-        )}
       </div>
 
       {/* ── Pair warnings ── */}
@@ -694,20 +678,27 @@ export function SwapPage({ inCard = false }: { inCard?: boolean }) {
         </div>
       )}
 
-      {/* ── Quote summary (appears after estimate) ── */}
+      {/* ── Fee summary (compact, always shown when there's an amount) ── */}
       {reviewed && phase === 'reviewed' && (
         <div style={{
           background: c.surf2, border: `1px solid ${c.bdr}`, borderRadius: 12,
-          padding: '3px 12px',
+          padding: '10px 13px',
           margin: inCard ? '8px 14px 0' : '0 0 10px',
         }}>
-          <SummaryRow label="Estimated output" value={`${estimatedOut?.amount ?? '—'} ${estimatedOut?.token ?? tokenOut}`} c={c} />
-          <SummaryRow label="Slippage" value={`${(reviewed.slippageBps / 100).toFixed(2)}%`} c={c} />
+          {/* Rate row */}
+          {estimatedOut && amountIn && parseFloat(amountIn) > 0 && parseFloat(estimatedOut.amount) > 0 && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 8, marginBottom: 8, borderBottom: `1px solid ${c.bdr}` }}>
+              <span style={{ fontSize: 11, color: c.t3 }}>Rate</span>
+              <span style={{ fontSize: 11, fontWeight: 600, color: c.t2, fontFamily: MONO }}>
+                1 {tokenIn} ≈ {(parseFloat(estimatedOut.amount) / parseFloat(amountIn)).toFixed(6)} {tokenOut}
+              </span>
+            </div>
+          )}
           <SummaryRow label={`NAN fee (${bpsToPercent(SWAP_FEE_BPS)})`} value={`${swapFee(parseFloat(reviewed.amountIn) || 0).toFixed(4)} ${reviewed.tokenIn}`} c={c} />
           {(reviewed.estimate.fees ?? []).map((f, i, arr) => (
-            <SummaryRow key={f.type} label={`${f.type} fee`} value={`${f.amount} ${f.token}`} c={c} last={i === arr.length - 1} />
+            <SummaryRow key={f.type} label={`Network fee`} value={`${f.amount} ${f.token}`} c={c} last={i === arr.length - 1 && !(reviewed.slippageBps > 0)} />
           ))}
-          <div style={{ fontSize: 10, color: c.t3, padding: '4px 0 5px' }}>Routed via LiFi · amounts may vary at execution.</div>
+          <SummaryRow label="Slippage tolerance" value={`${(reviewed.slippageBps / 100).toFixed(2)}%`} c={c} last />
         </div>
       )}
 
@@ -733,17 +724,18 @@ export function SwapPage({ inCard = false }: { inCard?: boolean }) {
       )}
 
       {/* ── Primary action ── */}
-      <div style={{ margin: inCard ? '10px 14px 14px' : '10px 0 0', padding: cardPad }}>
+      <div style={{ margin: inCard ? '10px 14px 14px' : '10px 0 0' }}>
         {phase === 'reviewed' ? (
           <div style={{ display: 'flex', gap: 7 }}>
             <button
               onClick={clearQuote}
-              style={{ flex: 1, height: 46, borderRadius: 13, border: `1px solid ${c.bdr}`, background: c.surf, color: c.t2, fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, WebkitTapHighlightColor: 'transparent' }}>
-              <RefreshCw size={11} /> New quote
+              aria-label="Get new quote"
+              style={{ width: 46, height: 46, borderRadius: 13, border: `1px solid ${c.bdr}`, background: c.surf, color: c.t2, fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, WebkitTapHighlightColor: 'transparent' }}>
+              <RefreshCw size={14} color={c.t2} />
             </button>
             <button
               onClick={() => void executeSwap()}
-              style={{ flex: 2, height: 46, borderRadius: 13, border: 'none', background: c.blue, color: '#fff', fontSize: 14, fontWeight: 800, cursor: 'pointer', fontFamily: F, boxShadow: '0 4px 20px rgba(8,102,245,0.28)', WebkitTapHighlightColor: 'transparent' }}>
+              style={{ flex: 1, height: 46, borderRadius: 13, border: 'none', background: c.blue, color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: F, boxShadow: '0 4px 20px rgba(8,102,245,0.28)', WebkitTapHighlightColor: 'transparent' }}>
               Confirm swap
             </button>
           </div>
@@ -756,7 +748,7 @@ export function SwapPage({ inCard = false }: { inCard?: boolean }) {
               width: '100%', height: 46, borderRadius: 13, border: 'none',
               background: canReview && phase !== 'estimating' && phase !== 'swapping' ? c.blue : c.surf2,
               color: canReview && phase !== 'estimating' && phase !== 'swapping' ? '#fff' : c.t3,
-              fontSize: 14, fontWeight: 800,
+              fontSize: 14, fontWeight: 700,
               cursor: canReview ? 'pointer' : 'not-allowed',
               fontFamily: F, transition: 'all 0.15s',
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,

@@ -24,7 +24,7 @@ import { createViemAdapterFromProvider } from '@circle-fin/adapter-viem-v2'
 import type { EIP1193Provider } from 'viem'
 import {
   ArrowDownUp, CheckCircle, ExternalLink, AlertCircle,
-  Info, X, ChevronDown,
+  Info, X, ChevronDown, ChevronUp,
 } from 'lucide-react'
 import { ConnectKitButton } from 'connectkit'
 import { safeJson } from '../../lib/safe-json'
@@ -521,11 +521,12 @@ export function BridgePage({ inCard = false }: { inCard?: boolean }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const [steps,      setSteps]      = useState<StepState[]>(INITIAL_STEPS)
-  const [status,     setStatus]     = useState<'idle'|'bridging'|'done'|'error'>('idle')
-  const [errMsg,     setErrMsg]     = useState('')
-  const [liveFee,    setLiveFee]    = useState<LiveFee>({ bps: 0, label: '—', fetched: false })
-  const [feeLoading, setFeeLoading] = useState(false)
+  const [steps,       setSteps]       = useState<StepState[]>(INITIAL_STEPS)
+  const [status,      setStatus]      = useState<'idle'|'bridging'|'done'|'error'>('idle')
+  const [errMsg,      setErrMsg]      = useState('')
+  const [liveFee,     setLiveFee]     = useState<LiveFee>({ bps: 0, label: '—', fetched: false })
+  const [feeLoading,  setFeeLoading]  = useState(false)
+  const [showDetails, setShowDetails] = useState(false)
 
   const fromChain = CHAINS[fromIdx]
   const toChain   = CHAINS[toIdx]
@@ -907,11 +908,10 @@ export function BridgePage({ inCard = false }: { inCard?: boolean }) {
   return (
     <div style={{ fontFamily: F, padding: inCard ? '0 0 2px' : '0 16px 80px' }}>
 
-      {/* Standalone header (not inside TradePage card) */}
+      {/* Standalone header */}
       {!inCard && (
         <div style={{ padding: '14px 0 12px' }}>
-          <div style={{ fontSize: 18, fontWeight: 800, color: c.text, letterSpacing: '-0.03em', lineHeight: 1.1 }}>Bridge USDC</div>
-          <div style={{ fontSize: 11, color: c.t3, marginTop: 2 }}>Circle CCTP V2 · cross-chain in seconds</div>
+          <div style={{ fontSize: 18, fontWeight: 800, color: c.text, letterSpacing: '-0.03em' }}>Bridge</div>
         </div>
       )}
 
@@ -1008,12 +1008,12 @@ export function BridgePage({ inCard = false }: { inCard?: boolean }) {
             <span style={{ fontSize: 13, fontWeight: 700, color: c.t2, flexShrink: 0 }}>USDC</span>
           </div>
 
-          {/* Quick-fill chips: 25% 50% Max + presets */}
+          {/* Quick-fill chips: 25% 50% Max */}
           <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
             {[
-              { label: '25%',  value: () => (Math.floor(parseFloat(fromChainBalance) * 0.25 * 100) / 100).toFixed(2) },
-              { label: '50%',  value: () => (Math.floor(parseFloat(fromChainBalance) * 0.50 * 100) / 100).toFixed(2) },
-              { label: 'Max',  value: () => fromChainBalance },
+              { label: '25%', value: () => (Math.floor(parseFloat(fromChainBalance) * 0.25 * 100) / 100).toFixed(2) },
+              { label: '50%', value: () => (Math.floor(parseFloat(fromChainBalance) * 0.50 * 100) / 100).toFixed(2) },
+              { label: 'Max', value: () => fromChainBalance },
             ].map(({ label, value }) => (
               <button
                 key={label}
@@ -1025,29 +1025,11 @@ export function BridgePage({ inCard = false }: { inCard?: boolean }) {
                   borderRadius: 9,
                   background: c.surf,
                   color: label === 'Max' ? c.blue : c.t2,
-                  fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                  fontSize: 12, fontWeight: 600, cursor: 'pointer',
                   fontFamily: F, transition: 'all 0.12s',
                   WebkitTapHighlightColor: 'transparent',
                 }}>
                 {label}
-              </button>
-            ))}
-            {['10', '25'].map(v => (
-              <button
-                key={v}
-                onClick={() => setAmount(v)}
-                aria-label={`Set amount to ${v} USDC`}
-                style={{
-                  flex: 1, padding: '7px 0',
-                  border: `1px solid ${amount === v ? c.blue : c.bdr2}`,
-                  borderRadius: 9,
-                  background: amount === v ? c.blueDim : c.surf,
-                  color: amount === v ? c.blue : c.t2,
-                  fontSize: 12, fontWeight: 700, cursor: 'pointer',
-                  fontFamily: F, transition: 'all 0.12s',
-                  WebkitTapHighlightColor: 'transparent',
-                }}>
-                {v}
               </button>
             ))}
           </div>
@@ -1055,44 +1037,60 @@ export function BridgePage({ inCard = false }: { inCard?: boolean }) {
       </div>
 
       {/* ═══════════════════════════════════════════════════════
-          COMPACT FEE SUMMARY
+          FEE SUMMARY
       ═══════════════════════════════════════════════════════ */}
       <div style={{
         background: c.surf2, border: `1px solid ${c.bdr}`, borderRadius: 12,
         margin: inCard ? '8px 14px 0' : '0 0 8px',
-        padding: '9px 12px',
+        padding: '10px 13px',
       }}>
-        {/* Header row */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-          <span style={{ fontSize: 10, fontWeight: 700, color: c.t3, textTransform: 'uppercase' as const, letterSpacing: '0.07em' }}>
-            Fee summary
-          </span>
-          <span style={{ fontSize: 10, color: c.t3 }}>CCTP V2 · ~8–20s</span>
-        </div>
-
-        {/* 2-col grid for the four fee rows */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 12px' }}>
-          {[
-            { label: 'You send',                                          value: `${amount || '0.00'} USDC`,                                 highlight: false },
-            { label: `CCTP fee${feeLoading ? ' …' : ''}`,                value: cctpProtocolFee > 0 ? `${cctpProtocolFee.toFixed(4)} USDC` : liveFee.label, highlight: false },
-            { label: `Platform fee (${bpsToPercent(BRIDGE_FEE_BPS)}, added)`, value: platformFee > 0 ? `${platformFee.toFixed(4)} USDC` : '—',   highlight: false },
-            { label: 'You receive (est.)',                                value: netReceived > 0 ? `${netReceived.toFixed(4)} USDC` : '0.00 USDC', highlight: true },
-          ].map(({ label, value, highlight }) => (
-            <div key={label}>
-              <div style={{ fontSize: 10, color: c.t3, marginBottom: 2 }}>{label}</div>
-              <div style={{ fontSize: 12, fontWeight: highlight ? 800 : 600, color: highlight ? c.text : c.t2 }}>{value}</div>
-            </div>
-          ))}
-        </div>
+        {/* Main fee rows */}
+        {[
+          { label: 'You send',                                               value: `${amount || '0.00'} USDC`,                                          highlight: false },
+          { label: `CCTP fee${feeLoading ? ' …' : ''}`,                     value: cctpProtocolFee > 0 ? `${cctpProtocolFee.toFixed(4)} USDC` : (liveFee.label === '—' ? '0 bps (0.000%)' : liveFee.label), highlight: false },
+          { label: `Platform fee (${bpsToPercent(BRIDGE_FEE_BPS)}, added)`, value: platformFee > 0 ? `${platformFee.toFixed(4)} USDC` : '—',            highlight: false },
+          { label: 'You receive (est.)',                                     value: netReceived > 0 ? `${netReceived.toFixed(4)} USDC` : '0.0000 USDC',  highlight: true },
+        ].map(({ label, value, highlight }, i, arr) => (
+          <div key={label} style={{
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            padding: '5px 0',
+            borderBottom: i < arr.length - 1 ? `1px solid ${c.bdr}` : 'none',
+          }}>
+            <span style={{ fontSize: 11, color: c.t3 }}>{label}</span>
+            <span style={{ fontSize: 11, fontWeight: highlight ? 700 : 600, color: highlight ? c.text : c.t2 }}>{value}</span>
+          </div>
+        ))}
 
         {platformFee > 0 && (
           <div style={{ fontSize: 11, color: c.t2, marginTop: 7, paddingTop: 6, borderTop: `1px solid ${c.bdr}`, fontWeight: 600 }}>
             Total from your wallet: {totalFromWallet.toFixed(4)} USDC
           </div>
         )}
-        {maxFeeUsdc > 0 && (
-          <div style={{ fontSize: 10, color: c.t3, marginTop: 7, paddingTop: 6, borderTop: `1px solid ${c.bdr}` }}>
-            maxFee: {maxFeeUsdc.toFixed(4)} USDC (protocol + 20% buffer)
+
+        {/* Collapsible Details */}
+        <button
+          onClick={() => setShowDetails(v => !v)}
+          style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 8, background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: F, WebkitTapHighlightColor: 'transparent' }}>
+          <span style={{ fontSize: 11, color: c.t3, fontWeight: 600 }}>Details</span>
+          {showDetails ? <ChevronUp size={11} color={c.t3} /> : <ChevronDown size={11} color={c.t3} />}
+        </button>
+
+        {showDetails && (
+          <div style={{ marginTop: 8, paddingTop: 8, borderTop: `1px solid ${c.bdr}` }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
+              <span style={{ fontSize: 10, color: c.t3 }}>Protocol</span>
+              <span style={{ fontSize: 10, color: c.t2, fontWeight: 600 }}>Circle CCTP V2 · ~8–20s</span>
+            </div>
+            {maxFeeUsdc > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
+                <span style={{ fontSize: 10, color: c.t3 }}>Max protocol fee</span>
+                <span style={{ fontSize: 10, color: c.t2, fontWeight: 600 }}>{maxFeeUsdc.toFixed(4)} USDC</span>
+              </div>
+            )}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: 10, color: c.t3 }}>Transactions are irreversible</span>
+              <span style={{ fontSize: 10, color: c.t2, fontWeight: 600 }}>CCTP V2</span>
+            </div>
           </div>
         )}
       </div>
@@ -1174,7 +1172,7 @@ export function BridgePage({ inCard = false }: { inCard?: boolean }) {
             background: canBridge ? c.blue : c.surf2,
             border: `1px solid ${canBridge ? c.blue : c.bdr}`,
             borderRadius: 13,
-            fontSize: 14, fontWeight: 800,
+            fontSize: 14, fontWeight: 700,
             color: canBridge ? '#fff' : c.t3,
             cursor: canBridge ? 'pointer' : 'not-allowed',
             fontFamily: F,
@@ -1185,7 +1183,8 @@ export function BridgePage({ inCard = false }: { inCard?: boolean }) {
           }}>
           {status === 'bridging'
             ? <><span className="nan-spinner" />Bridging…</>
-            : `Bridge ${amount || '0.00'} USDC`}
+            : !amount || parseFloat(amount) === 0 ? 'Enter an amount'
+            : 'Review bridge'}
         </button>
       </div>
 
@@ -1196,7 +1195,7 @@ export function BridgePage({ inCard = false }: { inCard?: boolean }) {
 
       {/* Footer */}
       <div style={{ fontSize: 10, color: c.t3, textAlign: 'center' as const, padding: inCard ? '0 14px 10px' : '6px 0 0' }}>
-        Powered by Circle CCTP V2 · Transactions are irreversible
+        Circle CCTP V2
       </div>
     </div>
   )
