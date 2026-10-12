@@ -11,6 +11,7 @@ import { erc20Abi } from 'viem'
 import { useAppStore, type Invoice } from '../../store/appStore'
 import { getUsdc, buildTxExplorerUrl } from '@/onchain-facts'
 import { parseAmount } from '@/onchain-money'
+import { usePublicPage } from '../../hooks/usePublicPage'
 
 const F    = "'Inter', -apple-system, sans-serif"
 const BLUE = '#0866F5'
@@ -56,30 +57,39 @@ function LoadingScreen() {
 }
 
 export function PayByInvoicePage({ invoiceId }: Props) {
+  usePublicPage()
+
   const { invoices, updateInvoice, recordInvoicePayment } = useAppStore()
   const localInvoice: Invoice | undefined = invoices.find(i => i.id === invoiceId)
 
-  // Fetch from server when not in local store (pay link opened on another device)
+  // Always fetch from the server — the local store may be empty (different device)
+  // or stale (invoice updated after link was shared). Local copy used as instant
+  // pre-render; server response is authoritative and replaces it once it arrives.
   const [remoteInvoice, setRemoteInvoice] = useState<Invoice | null>(null)
-  const [fetchDone, setFetchDone] = useState(!!localInvoice)
+  const [fetchDone, setFetchDone] = useState(false)
   const [notFound, setNotFound] = useState(false)
 
   useEffect(() => {
-    if (localInvoice || fetchDone) return
     fetch(`/api/invoice/${invoiceId}`)
       .then(r => r.json())
       .then((data: { success: boolean; invoice?: Invoice }) => {
-        if (data.success && data.invoice) setRemoteInvoice(data.invoice)
-        else setNotFound(true)
+        if (data.success && data.invoice) {
+          setRemoteInvoice(data.invoice)
+        } else if (!localInvoice) {
+          // Only mark not-found if we also have nothing locally
+          setNotFound(true)
+        }
       })
-      .catch(() => setNotFound(true))
+      .catch(() => { if (!localInvoice) setNotFound(true) })
       .finally(() => setFetchDone(true))
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [invoiceId])
 
+  // Show loading only when: no local copy AND server hasn't replied yet
   const loading = !localInvoice && !fetchDone
 
-  const invoice: Invoice | undefined = localInvoice ?? remoteInvoice ?? undefined
+  // Prefer server copy (authoritative) once available, else local
+  const invoice: Invoice | undefined = remoteInvoice ?? localInvoice ?? undefined
 
   const { address } = useAccount()
   const usdcFact = getUsdc(ARC)
@@ -141,7 +151,7 @@ export function PayByInvoicePage({ invoiceId }: Props) {
   )
 
   return (
-    <div style={{ minHeight: '100dvh', background: '#0A0E1A', fontFamily: F, padding: '24px 16px 48px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+    <div style={{ minHeight: '100dvh', background: '#0A0E1A', fontFamily: F, padding: '24px 16px 48px', display: 'flex', flexDirection: 'column', alignItems: 'center', overflowY: 'auto', overflowX: 'hidden', WebkitOverflowScrolling: 'touch' }}>
 
       {/* NAN brand header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 28, width: '100%', maxWidth: 480 }}>

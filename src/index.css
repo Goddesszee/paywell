@@ -72,6 +72,22 @@ button {
 }
 *{box-sizing:border-box;margin:0;padding:0;transition:background-color .25s,border-color .25s,color .25s;-webkit-tap-highlight-color:transparent;}
 html,body{height:100%;overflow:hidden;background:var(--bg);-webkit-font-smoothing:antialiased;}
+
+/* ── Public pay pages (invoice, payment-request, pay-by-name) ── */
+/* Undo the app-shell overflow:hidden so these pages can scroll normally on mobile */
+html.nan-public-page,
+html.nan-public-page body {
+  height: auto !important;
+  min-height: 100%;
+  overflow: auto !important;
+  overflow-x: hidden !important;
+}
+html.nan-public-page #app-root {
+  position: static !important;
+  height: auto !important;
+  overflow: visible !important;
+  max-width: 100% !important;
+}
 body{
   font-family:'Inter var','Inter',sans-serif;
   font-feature-settings:'liga' 1,'calt' 1,'tnum' 1;

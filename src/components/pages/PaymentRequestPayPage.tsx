@@ -15,6 +15,7 @@ import { QRCodeSVG } from 'qrcode.react'
 import { toast } from 'sonner'
 import { useAppStore, PaymentRequest } from '../../store/appStore'
 import { NanLogo } from '../NanLogo'
+import { usePublicPage } from '../../hooks/usePublicPage'
 
 const F    = "'Inter', -apple-system, sans-serif"
 const MONO = "'JetBrains Mono', Menlo, monospace"
@@ -413,6 +414,8 @@ export function PaymentRequestPayPage({
   note?: string
   currency?: 'USDC' | 'EURC'
 }) {
+  usePublicPage()
+
   const { paymentRequests, updatePaymentRequest } = useAppStore()
 
   // Look up the request in the local store first; fall back to URL params so

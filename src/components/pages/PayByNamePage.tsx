@@ -27,6 +27,7 @@ import { QRCodeSVG } from 'qrcode.react'
 import { toast } from 'sonner'
 import { NanLogo } from '../NanLogo'
 import { createPublicClient, http } from 'viem'
+import { usePublicPage } from '../../hooks/usePublicPage'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const F    = "'Inter', -apple-system, sans-serif"
@@ -354,6 +355,8 @@ function getInitialResolveState(cleanHandle: string): ResolveState {
 }
 
 export function PayByNamePage({ handle }: { handle: string }) {
+  usePublicPage()
+
   const cleanHandle = handle.replace(/^@/, '')
 
   const [resolveState, setResolveState] = useState<ResolveState>(() => getInitialResolveState(cleanHandle))
