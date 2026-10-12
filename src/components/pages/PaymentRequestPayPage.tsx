@@ -356,9 +356,9 @@ function CopyPanel({ req }: { req: PaymentRequest }) {
 // ── Card / onramp panel ────────────────────────────────────────────────────────
 function CardPanel({ req }: { req: PaymentRequest }) {
   const addr = req.creatorAddress ?? ''
-  // Route to the NAN pay page with direct address params — no NAN name needed
+  // Deep-link to NAN onramp with merchant address as destination so USDC lands directly
   const onrampUrl = addr
-    ? `https://nanarc.xyz/?pay=${addr}&amount=${req.amount}&note=${encodeURIComponent(req.title)}`
+    ? `https://nanarc.xyz/?onramp=1&to=${encodeURIComponent(addr)}&amount=${req.amount}&note=${encodeURIComponent(req.title)}&currency=${req.currency ?? 'USDC'}`
     : ''
 
   return (
@@ -416,13 +416,68 @@ export function PaymentRequestPayPage({
 }) {
   usePublicPage()
 
-  const { paymentRequests, updatePaymentRequest } = useAppStore()
+  const { paymentRequests, invoices, updatePaymentRequest } = useAppStore()
+
+  // Support quick-mode invoices: requestId may be an inv- id
+  const isInvId = requestId.startsWith('inv-')
+  const localInv = isInvId ? invoices.find(i => i.id === requestId) : null
+  const [remoteReq, setRemoteReq] = useState<PaymentRequest | null>(null)
+  const [fetchDone, setFetchDone] = useState(!isInvId)
+
+  useEffect(() => {
+    if (!isInvId) return
+    fetch(`/api/invoices/${requestId}`)
+      .then(r => r.json())
+      .then((d: { success: boolean; invoice?: { id: string; businessName?: string; businessEmail?: string; customerName?: string; amountDue?: number; total?: number; currency?: string; payToAddress?: string; notes?: string; dueDate?: string; createdAt?: string; status?: string } }) => {
+        if (d.success && d.invoice) {
+          const inv = d.invoice
+          setRemoteReq({
+            id: inv.id,
+            refNumber: inv.id,
+            title: inv.businessName ?? 'Payment Request',
+            description: inv.notes,
+            recipientName: inv.businessName,
+            amount: inv.amountDue ?? inv.total ?? 0,
+            currency: (inv.currency ?? 'USDC'),
+            status: (inv.status === 'paid' ? 'paid' : 'pending') as PaymentRequest['status'],
+            createdAt: inv.createdAt ?? new Date().toISOString(),
+            creatorAddress: inv.payToAddress,
+            note: inv.notes,
+            dueDate: inv.dueDate,
+            creatorName: inv.businessName,
+          })
+        }
+      })
+      .catch(() => {})
+      .finally(() => setFetchDone(true))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [requestId])
+
+  // Map local invoice to PR shape if available
+  const localInvReq: PaymentRequest | null = localInv ? {
+    id: localInv.id,
+    refNumber: localInv.number,
+    title: localInv.businessName,
+    description: localInv.notes,
+    recipientName: localInv.businessName,
+    amount: localInv.amountDue,
+    currency: localInv.currency,
+    status: (localInv.status === 'paid' ? 'paid' : 'pending') as PaymentRequest['status'],
+    createdAt: localInv.createdAt,
+    creatorAddress: localInv.payToAddress,
+    note: localInv.notes,
+    dueDate: localInv.dueDate,
+    creatorName: localInv.businessName,
+  } : null
 
   // Look up the request in the local store first; fall back to URL params so
   // any payer — even without a NAN account — can open the link and pay.
-  const storeReq = paymentRequests.find(r => r.id === requestId) ?? null
-  const req: PaymentRequest | null = storeReq ?? (
-    (payAddress && amountProp > 0)
+  const storeReq = isInvId ? null : (paymentRequests.find(r => r.id === requestId) ?? null)
+  const req: PaymentRequest | null =
+    storeReq ??
+    remoteReq ??
+    localInvReq ??
+    ((payAddress && amountProp > 0)
       ? {
           id: requestId || 'external',
           refNumber: requestId || 'external',
@@ -434,19 +489,32 @@ export function PaymentRequestPayPage({
           creatorAddress: payAddress,
         }
       : null
-  )
+    )
 
   type Method = 'wallet' | 'qr' | 'copy' | 'card'
   const [method, setMethod] = useState<Method>('card')
   const [successHash, setSuccessHash] = useState<string | null>(null)
 
-  // Mark as viewed on open (only for store requests)
+  // Mark as viewed on open (only for native payment requests, not invoices)
   useEffect(() => {
     if (storeReq && storeReq.status === 'pending') {
       updatePaymentRequest(storeReq.id, { status: 'viewed' })
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storeReq?.id])
+
+  // For invoice-based quick requests, use inv- id in success handler
+  const isQuickInvoice = isInvId
+
+  // Show loading while fetching invoice data
+  if (isInvId && !fetchDone && !localInvReq) {
+    return (
+      <div style={{ minHeight: '100dvh', background: '#f4f6fa', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: F }}>
+        <div style={{ width: 28, height: 28, border: '3px solid #e0e0e0', borderTopColor: BLUE, borderRadius: '50%', animation: 'nan-spin 0.8s linear infinite' }} />
+        <style>{`@keyframes nan-spin { to { transform: rotate(360deg) } }`}</style>
+      </div>
+    )
+  }
 
   // ── Not found ────────────────────────────────────────────────────────────────
   if (!req) {
@@ -506,7 +574,12 @@ export function PaymentRequestPayPage({
 
         {/* Top header — NAN branding */}
         <div style={{ background: '#0057FF', padding: '18px 24px', borderRadius: '24px 24px 0 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <NanLogo height={22} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <NanLogo height={22} />
+            <span style={{ fontSize: 13, fontWeight: 700, color: '#fff', letterSpacing: '-0.01em' }}>
+              {isQuickInvoice ? 'Payment Request' : 'Payment Request'}
+            </span>
+          </div>
           <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.75)', fontFamily: MONO, letterSpacing: '0.04em' }}>Arc</span>
         </div>
 
@@ -515,10 +588,15 @@ export function PaymentRequestPayPage({
 
           {/* From */}
           <div style={{ marginBottom: 20 }}>
-            <div style={{ fontSize: 11, color: '#aaa', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>Payment request from</div>
-            <div style={{ fontSize: 17, fontWeight: 700, color: '#111' }}>
-              {req.creatorName || (req.creatorAddress ? `${req.creatorAddress.slice(0, 10)}…${req.creatorAddress.slice(-6)}` : 'NAN User')}
+            <div style={{ fontSize: 11, color: '#aaa', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>
+              {isQuickInvoice ? 'Payment request from' : 'Payment request from'}
             </div>
+            <div style={{ fontSize: 20, fontWeight: 800, color: '#111', letterSpacing: '-0.02em' }}>
+              {req.creatorName || req.title || (req.creatorAddress ? `${req.creatorAddress.slice(0, 10)}…${req.creatorAddress.slice(-6)}` : 'NAN User')}
+            </div>
+            {req.recipientName && req.recipientName !== req.creatorName && (
+              <div style={{ fontSize: 13, color: '#888', marginTop: 3 }}>{req.recipientName}</div>
+            )}
           </div>
 
           {/* Amount hero */}

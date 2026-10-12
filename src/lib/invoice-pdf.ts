@@ -286,5 +286,10 @@ export function printInvoice(inv: Invoice) {
 
 export function invoicePaymentLink(inv: Invoice): string {
   const base = typeof window !== 'undefined' ? window.location.origin : 'https://nanarc.xyz'
+  // Quick requests use the payment-request pay page (light theme, 4 payment tabs)
+  // Full invoices use the invoice pay page (dark theme, itemized)
+  if ((inv as Invoice & { mode?: string }).mode === 'quick') {
+    return `${base}?pr=${inv.id}`
+  }
   return `${base}?invoice=${inv.id}`
 }
