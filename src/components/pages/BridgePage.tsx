@@ -73,7 +73,7 @@ const CHAINS: BridgeChain[] = [
   { label:'Unichain',     kitName:'Unichain',         chainId:130,     cctpDomain:10, explorer:'https://uniscan.xyz/tx/',                            gasToken:'ETH',  gasIsUsdc:false, paymasterSupported:true,  paymasterNote:'Paymaster v0.8 — pay gas in USDC (ERC-4337 wallet required)' },
   { label:'Linea',        kitName:'Linea',            chainId:59144,   cctpDomain:11, explorer:'https://lineascan.build/tx/',                        gasToken:'ETH',  gasIsUsdc:false, paymasterSupported:false },
   { label:'Sei',          kitName:'Sei',              chainId:1329,    cctpDomain:16, explorer:'https://seistream.app/tx/',                          gasToken:'SEI',  gasIsUsdc:false, paymasterSupported:false },
-  { label:'World Chain',  kitName:'World_Chain',      chainId:480,     cctpDomain:14, explorer:'https://worldchain-mainnet.explorer.alchemy.com/tx/',gasToken:'ETH',  gasIsUsdc:false, paymasterSupported:false },
+  { label:'World Chain',  kitName:'World_Chain',       chainId:480,     cctpDomain:14, explorer:'https://worldchain-mainnet.explorer.alchemy.com/tx/',gasToken:'ETH',  gasIsUsdc:false, paymasterSupported:false },
 ]
 
 type StepName = 'approve' | 'burn' | 'fetchAttestation' | 'mint'
@@ -703,21 +703,44 @@ export function BridgePage({ inCard = false }: { inCard?: boolean }) {
       return
     }
 
-    // Passkey (MSCA) path
+    // Passkey (MSCA) path — only supports FROM Arc; uses Forwarding Service for the destination
     const clientKey = getClientKey()
     if (isPasskeyUser) {
       if (!clientKey) { setErrMsg('Modular Wallets not configured (VITE_CLIENT_KEY missing)'); setStatus('error'); return }
-      if (fromChain.chainId !== 5042) { setErrMsg('Passkey wallet bridge is only supported from Arc currently.'); setStatus('error'); return }
+      if (fromChain.chainId !== 5042) { setErrMsg('Passkey wallet bridge is only supported from Arc. Please select Arc as the source chain.'); setStatus('error'); return }
+      const passkeyAddress = useAppStore.getState().auth?.walletAddress
       try {
         updateStep('approve', { status: 'active' })
         const adapter = await getPasskeyAdapter({ clientKey })
-        const result  = await appKit.bridge({
-          from: { adapter, chain: fromChain.kitName as AppKitChain },
-          to:   { adapter, chain: toChain.kitName as AppKitChain },
-          amount,
-          config: { ...bridgeCustomFee(parseFloat(amount)) },
-        }) as BridgeResult
-        console.log('[bridge/passkey] result:', JSON.stringify({ state: result.state, steps: result.steps?.map(s => ({ name: s.name, state: s.state, error: s.error, message: s.message })) }))
+
+        // The passkey MSCA adapter only supports Arc. For any non-Arc destination we use
+        // the Circle Forwarding Service (useForwarder: true + recipientAddress) so the
+        // SDK handles attestation fetching and mint without needing an adapter on the
+        // destination chain. Funds land at the user's Arc wallet address on the dest chain.
+        let result: BridgeResult
+        if (toChain.chainId === 5042) {
+          result = await appKit.bridge({
+            from: { adapter, chain: fromChain.kitName as AppKitChain },
+            to:   { adapter, chain: toChain.kitName as AppKitChain },
+            amount,
+            config: { ...bridgeCustomFee(parseFloat(amount)) },
+          }) as BridgeResult
+        } else if (passkeyAddress) {
+          result = await appKit.bridge({
+            from: { adapter, chain: fromChain.kitName as AppKitChain },
+            to:   { chain: toChain.kitName as AppKitChain, useForwarder: true, recipientAddress: passkeyAddress },
+            amount,
+            config: { ...bridgeCustomFee(parseFloat(amount)) },
+          }) as BridgeResult
+        } else {
+          result = await appKit.bridge({
+            from: { adapter, chain: fromChain.kitName as AppKitChain },
+            to:   { adapter, chain: toChain.kitName as AppKitChain, useForwarder: true },
+            amount,
+            config: { ...bridgeCustomFee(parseFloat(amount)) },
+          }) as BridgeResult
+        }
+
         for (const step of result.steps ?? []) {
           updateStep(step.name as StepName, {
             status: step.state === 'success' ? 'done' : step.state === 'error' ? 'error' : 'idle',
@@ -749,17 +772,26 @@ export function BridgePage({ inCard = false }: { inCard?: boolean }) {
     // Wagmi browser wallet path
     if (!connector || !isConnected) return
     try {
+      // Switch to the source chain BEFORE getting the provider — the provider
+      // reflects the currently connected chain and must match fromChain.
       if (chainId !== fromChain.chainId) {
         try {
           await switchChainAsync({ chainId: fromChain.chainId })
+          // Brief settle so the provider reflects the new chain
+          await new Promise(r => setTimeout(r, 400))
         } catch {
           setErrMsg(`Please switch your wallet to ${fromChain.label} and try again.`)
           setStatus('error')
           return
         }
       }
+
+      // Get the provider AFTER the chain switch
       const provider = (await connector.getProvider()) as EIP1193Provider
-      const adapter  = await createViemAdapterFromProvider({ provider })
+      // A single viem adapter covers all EVM chains — App Kit uses the chain
+      // name string to know which chain each side of the bridge operates on,
+      // not the currently connected network.
+      const adapter = await createViemAdapterFromProvider({ provider })
 
       // Live step events — update progress strip in real time
       appKit.on('bridge.approve',          () => { updateStep('approve',          { status: 'active' }) })
@@ -769,14 +801,12 @@ export function BridgePage({ inCard = false }: { inCard?: boolean }) {
 
       updateStep('approve', { status: 'active' })
 
-      const bridgeParams = {
+      const result = await appKit.bridge({
         from: { adapter, chain: fromChain.kitName as AppKitChain },
         to:   { adapter, chain: toChain.kitName as AppKitChain },
         amount,
         config: { ...bridgeCustomFee(parseFloat(amount)) },
-      }
-      const result = await appKit.bridge(bridgeParams) as BridgeResult
-
+      }) as BridgeResult
 
       for (const step of result.steps ?? []) {
         const name      = step.name as StepName
