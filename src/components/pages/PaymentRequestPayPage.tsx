@@ -451,7 +451,7 @@ export function PaymentRequestPayPage({
   // ── Not found ────────────────────────────────────────────────────────────────
   if (!req) {
     return (
-      <div style={{ minHeight: '100dvh', background: '#f4f6fa', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px 16px', fontFamily: F }}>
+      <div style={{ minHeight: '100dvh', background: '#f4f6fa', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '48px 16px', fontFamily: F, overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
         <div style={{ background: '#fff', borderRadius: 20, border: '1px solid #e4e4e4', padding: '40px 28px', maxWidth: 400, width: '100%', textAlign: 'center', boxShadow: '0 4px 32px rgba(0,0,0,0.08)' }}>
           <div style={{ width: 56, height: 56, borderRadius: '50%', background: '#fee8e8', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
             <AlertCircle size={24} color='#c0392b' />
@@ -471,7 +471,7 @@ export function PaymentRequestPayPage({
   // ── Success ──────────────────────────────────────────────────────────────────
   if (successHash) {
     return (
-      <div style={{ minHeight: '100dvh', background: '#f4f6fa', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px 16px', fontFamily: F }}>
+      <div style={{ minHeight: '100dvh', background: '#f4f6fa', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '48px 16px', fontFamily: F, overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
         <div style={{ background: '#fff', borderRadius: 24, border: '1px solid #e4e4e4', padding: '40px 32px', maxWidth: 420, width: '100%', textAlign: 'center', boxShadow: '0 8px 40px rgba(0,0,0,0.10)' }}>
           <div style={{ marginBottom: 24 }}><NanLogo height={24} /></div>
           <div style={{ width: 76, height: 76, borderRadius: '50%', background: 'rgba(16,185,129,0.10)', border: '2px solid rgba(16,185,129,0.20)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
@@ -499,7 +499,7 @@ export function PaymentRequestPayPage({
 
   // ── Main ─────────────────────────────────────────────────────────────────────
   return (
-    <div style={{ minHeight: '100dvh', background: '#f4f6fa', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start', padding: '32px 16px 48px', fontFamily: F, overflowY: 'auto' }}>
+    <div style={{ minHeight: '100dvh', background: '#f4f6fa', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start', padding: '32px 16px 48px', fontFamily: F, overflowY: 'auto', overflowX: 'hidden', WebkitOverflowScrolling: 'touch' }}>
 
       {/* Card */}
       <div style={{ background: '#fff', borderRadius: 24, border: '1px solid #e8e8e8', width: '100%', maxWidth: 460, boxShadow: '0 8px 40px rgba(0,0,0,0.09)' }}>

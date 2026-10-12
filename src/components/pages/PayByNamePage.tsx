@@ -522,7 +522,7 @@ export function PayByNamePage({ handle }: { handle: string }) {
 // ── Shared outer shell ─────────────────────────────────────────────────────────
 function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{ minHeight: '100dvh', background: '#f4f6fa', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start', padding: '28px 16px 56px', fontFamily: F, overflowY: 'auto' }}>
+    <div style={{ minHeight: '100dvh', background: '#f4f6fa', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start', padding: '28px 16px 56px', fontFamily: F, overflowY: 'auto', overflowX: 'hidden', WebkitOverflowScrolling: 'touch' }}>
       {/* Card */}
       <div style={{ background: '#fff', borderRadius: 24, border: '1px solid #e8e8e8', width: '100%', maxWidth: 460, boxShadow: '0 8px 40px rgba(0,0,0,0.09)' }}>
         {/* Header bar */}

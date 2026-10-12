@@ -3,7 +3,7 @@
  * Accessed via ?invoice=<id> — no NAN account needed.
  * Shows invoice details and lets anyone pay with crypto or card.
  */
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { FileText, CreditCard, Wallet, CheckCircle2, ExternalLink, Copy, AlertCircle, Loader } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
@@ -31,7 +31,7 @@ interface Props { invoiceId: string }
 
 function NotFound() {
   return (
-    <div style={{ minHeight: '100dvh', background: '#0A0E1A', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: F, padding: 24 }}>
+    <div style={{ minHeight: '100dvh', background: '#0A0E1A', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontFamily: F, padding: '48px 24px', overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
       <div style={{ textAlign: 'center', maxWidth: 340 }}>
         <div style={{ width: 56, height: 56, borderRadius: 16, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.10)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
           <FileText size={24} color="rgba(255,255,255,0.3)" />
@@ -126,7 +126,7 @@ export function PayByInvoicePage({ invoiceId }: Props) {
 
   // ── Success state ─────────────────────────────────────────────────────────
   if (paid || isPaidAlready) return (
-    <div style={{ minHeight: '100dvh', background: '#0A0E1A', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: F, padding: 24 }}>
+    <div style={{ minHeight: '100dvh', background: '#0A0E1A', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontFamily: F, padding: '48px 24px', overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
       <div style={{ textAlign: 'center', maxWidth: 380 }}>
         <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'rgba(34,197,94,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
           <CheckCircle2 size={32} color={GREEN} />
