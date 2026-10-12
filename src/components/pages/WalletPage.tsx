@@ -1,8 +1,8 @@
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef, useEffect, useCallback } from 'react'
 import {
   Copy, ArrowUpRight, ArrowDownLeft, Check, ExternalLink,
   AlertCircle, X, ChevronRight, Wallet, Share2, Activity, Download,
-  AtSign, CheckCircle2,
+  AtSign, CheckCircle2, ScanLine,
 } from 'lucide-react'
 import { ConnectKitButton } from 'connectkit'
 import { QRCodeSVG } from 'qrcode.react'
@@ -34,6 +34,93 @@ const SEND_TOKENS = [
   { symbol: 'EURC', label: 'Euro Coin', address: '0xbEf5f6d51CB62b58e6A8f77868681825C6fe21c1' as `0x${string}`, decimals: 6, color: '#0099CC' },
 ] as const
 type SendToken = typeof SEND_TOKENS[number]
+
+// ── QR Scanner Modal ──────────────────────────────────────────────────────────
+function QRScanModal({ onScan, onClose }: { onScan: (addr: string) => void; onClose: () => void }) {
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const [err, setErr] = useState('')
+  const [scanning, setScanning] = useState(true)
+  const streamRef = useRef<MediaStream | null>(null)
+  const rafRef = useRef<number>(0)
+
+  const stopStream = useCallback(() => {
+    cancelAnimationFrame(rafRef.current)
+    streamRef.current?.getTracks().forEach(t => t.stop())
+  }, [])
+
+  useEffect(() => {
+    let active = true
+    navigator.mediaDevices?.getUserMedia({ video: { facingMode: 'environment' } })
+      .then(stream => {
+        if (!active) { stream.getTracks().forEach(t => t.stop()); return }
+        streamRef.current = stream
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream
+          void videoRef.current.play()
+        }
+        // BarcodeDetector (Chrome Android, Edge)
+        type BD = { detect(src: HTMLVideoElement): Promise<{ rawValue: string }[]> }
+        const BD = (window as unknown as { BarcodeDetector?: { new(o: object): BD } }).BarcodeDetector
+        if (BD) {
+          const detector = new BD({ formats: ['qr_code'] })
+          const tick = () => {
+            if (!active || !videoRef.current) return
+            detector.detect(videoRef.current).then(codes => {
+              if (codes.length && scanning) {
+                const raw = codes[0].rawValue
+                const addr = raw.startsWith('ethereum:') ? raw.split(':')[1].split('?')[0]
+                  : raw.startsWith('0x') && raw.length >= 40 ? raw.trim()
+                  : /^0x[0-9a-fA-F]{40}/.test(raw) ? raw.match(/0x[0-9a-fA-F]{40}/)?.[0] ?? ''
+                  : ''
+                if (addr) { setScanning(false); stopStream(); onScan(addr) }
+              }
+            }).catch(() => {}).finally(() => { rafRef.current = requestAnimationFrame(tick) })
+          }
+          rafRef.current = requestAnimationFrame(tick)
+        } else {
+          setErr('QR scanning not supported on this browser. Paste the address manually.')
+        }
+      })
+      .catch(() => { if (active) setErr('Camera permission denied. Paste the address manually.') })
+    return () => { active = false; stopStream() }
+  }, [onScan, scanning, stopStream])
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.92)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ width: '100%', maxWidth: 360, padding: '0 20px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <span style={{ color: '#fff', fontSize: 16, fontWeight: 700 }}>Scan QR code</span>
+          <button onClick={() => { stopStream(); onClose() }} style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', padding: 4 }}><X size={20} /></button>
+        </div>
+        {err ? (
+          <div style={{ color: '#F87171', fontSize: 13, textAlign: 'center', padding: '40px 0' }}>{err}</div>
+        ) : (
+          <div style={{ position: 'relative', borderRadius: 16, overflow: 'hidden', background: '#000', aspectRatio: '1' }}>
+            <video ref={videoRef} playsInline muted style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            {/* Viewfinder corners */}
+            {['tl','tr','bl','br'].map(pos => (
+              <div key={pos} style={{
+                position: 'absolute',
+                width: 28, height: 28,
+                top: pos.startsWith('t') ? 16 : undefined,
+                bottom: pos.startsWith('b') ? 16 : undefined,
+                left: pos.endsWith('l') ? 16 : undefined,
+                right: pos.endsWith('r') ? 16 : undefined,
+                borderTop: pos.startsWith('t') ? '3px solid #0866F5' : 'none',
+                borderBottom: pos.startsWith('b') ? '3px solid #0866F5' : 'none',
+                borderLeft: pos.endsWith('l') ? '3px solid #0866F5' : 'none',
+                borderRight: pos.endsWith('r') ? '3px solid #0866F5' : 'none',
+              }} />
+            ))}
+            <div style={{ position: 'absolute', bottom: 12, left: 0, right: 0, textAlign: 'center', color: 'rgba(255,255,255,0.7)', fontSize: 12 }}>
+              Point camera at a wallet QR code
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
 
 function useTokenBalance(tokenAddress: `0x${string}`, decimals: number, address: string) {
   const { data: rawBalance, isLoading, refetch } = useReadContract({
@@ -406,6 +493,7 @@ function SendFlow({
   const [recipientError, setRecipientError] = useState('')
   const [amountError, setAmountError] = useState('')
   const [resolvedName, setResolvedName] = useState<string | null>(null)
+  const [showQRScan, setShowQRScan] = useState(false)
   const { resolveHandle, resolving: nameResolving } = useNanName()
   const recipientRef = React.useRef(recipient)
   const amountRef = React.useRef(amount)
@@ -801,6 +889,12 @@ function SendFlow({
               <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--nan-text3)', letterSpacing: '0.1em', textTransform: 'uppercase', display: 'block', marginBottom: 12 }}>
                 Recipient
               </label>
+              {showQRScan && (
+                <QRScanModal
+                  onScan={addr => { setRecipient(addr); setResolvedName(null); setRecipientError(''); setShowQRScan(false) }}
+                  onClose={() => setShowQRScan(false)}
+                />
+              )}
               <div style={{ position: 'relative' }}>
                 <input
                   type="text"
@@ -808,20 +902,34 @@ function SendFlow({
                   value={recipient}
                   onChange={e => { setRecipient(e.target.value); setRecipientError(''); setResolvedName(null) }}
                   style={{
-                    width: '100%', padding: '14px 44px 14px 16px', borderRadius: 12,
+                    width: '100%', padding: '14px 80px 14px 16px', borderRadius: 12,
                     background: 'var(--nan-surface2)',
                     border: `1px solid ${recipientError ? '#EF4444' : resolvedName ? 'rgba(16,185,129,0.5)' : recipient.startsWith('@') ? 'rgba(8,102,245,0.4)' : 'var(--nan-bdr)'}`,
                     color: 'var(--nan-text)', fontSize: 14, fontFamily: 'JetBrains Mono, monospace',
                     outline: 'none', boxSizing: 'border-box', transition: 'border-color 0.15s',
                   }}
                 />
+                {/* QR scan button */}
+                <button
+                  type="button"
+                  onClick={() => setShowQRScan(true)}
+                  title="Scan QR code"
+                  style={{
+                    position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)',
+                    width: 32, height: 32, borderRadius: 8,
+                    background: 'rgba(8,102,245,0.12)', border: '1px solid rgba(8,102,245,0.25)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
+                  }}>
+                  <ScanLine size={15} color="#0866F5" />
+                </button>
                 {nameResolving && (
-                  <div style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)' }}>
+                  <div style={{ position: 'absolute', right: 50, top: '50%', transform: 'translateY(-50%)' }}>
                     <div style={{ width: 16, height: 16, border: '2px solid #0866F5', borderTopColor: 'transparent', borderRadius: '50%', animation: 'nan-spin 0.7s linear infinite' }} />
                   </div>
                 )}
                 {resolvedName && !nameResolving && (
-                  <div style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)' }}>
+                  <div style={{ position: 'absolute', right: 50, top: '50%', transform: 'translateY(-50%)' }}>
                     <CheckCircle2 size={16} color="#10B981" />
                   </div>
                 )}

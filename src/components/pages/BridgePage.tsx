@@ -417,6 +417,22 @@ function RecoverBridge({ c }: { c: ReturnType<typeof useNanTheme> }) {
             />
           </div>
 
+          {/* No TX hash help */}
+          {!txHash.trim() && (
+            <div style={{ background: c.surf, border: `1px solid ${c.bdr}`, borderRadius: 10, padding: '10px 12px', marginBottom: 12 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: c.t2, marginBottom: 6 }}>Don't have the transaction hash?</div>
+              <div style={{ fontSize: 11, color: c.t3, lineHeight: 1.6 }}>
+                Find it on the source chain explorer in your wallet's transaction history. Look for a transaction to the CCTP TokenMessenger contract around the time you tried to bridge.
+              </div>
+              <a
+                href={`${srcChain.explorer}`}
+                target="_blank" rel="noreferrer"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 8, fontSize: 11, color: c.blue, textDecoration: 'none', fontWeight: 600 }}>
+                Open {srcChain.label} explorer <ExternalLink size={10} />
+              </a>
+            </div>
+          )}
+
           {/* Error */}
           {errText && (
             <div style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 10, padding: '10px 12px', marginBottom: 12, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
