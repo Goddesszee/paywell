@@ -40,10 +40,6 @@
       "maxDuration": 10
     },
     "api/payments-data.ts": {
-      "memory": 256,
-      "maxDuration": 15
-    },
-    "api/invoice-claim.ts": {
       "memory": 512,
       "maxDuration": 30
     }
@@ -116,6 +112,7 @@
     { "source": "/api/push/unsubscribe",                         "destination": "/api/misc?route=push-unsubscribe" },
     { "source": "/api/invoices",                                  "destination": "/api/payments-data?type=invoices" },
     { "source": "/api/invoices/:id",                              "destination": "/api/payments-data?type=invoices&id=:id" },
+    { "source": "/api/invoice-claim",                             "destination": "/api/payments-data?type=invoice-claim" },
     { "source": "/api/about",                                     "destination": "/api/misc?route=about" },
     { "source": "/api/faqs",                                     "destination": "/api/misc?route=faqs" },
     { "source": "/(.*)",                                         "destination": "/index.html" }

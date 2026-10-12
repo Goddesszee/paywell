@@ -8,6 +8,91 @@
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { getRedis } from './_redis.js'
+import { invoiceClaimEmail } from './_emails.js'
+
+// ── Invoice-claim helpers (merged from api/invoice-claim.ts) ──────────────────
+const ARC_CHAIN_ID  = 5042
+const USDC_ARC      = '0x3600000000000000000000000000000000000000' // arc-studio-allow-onchain-literal
+const TRANSFER_SIG  = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef' // arc-studio-allow-onchain-literal
+const USDC_DECIMALS = 6
+
+function arcRpcUrl(): string {
+  const base  = process.env.RPC_PROXY_BASE_URL
+  const token = process.env.RPC_PROXY_TOKEN
+  const chains = process.env.RPC_PROXY_CHAINS ?? ''
+  if (base && token && chains.split(',').map(s => s.trim()).includes(String(ARC_CHAIN_ID)))
+    return `${base}/api/rpc/${ARC_CHAIN_ID}?_rpc_token=${token}`
+  return 'https://rpc.mainnet.arc.io' // arc-studio-allow-onchain-literal
+}
+
+async function arcRpc(method: string, params: unknown[]): Promise<unknown> {
+  const r = await fetch(arcRpcUrl(), {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
+  })
+  const j = await r.json() as { result?: unknown; error?: { message: string } }
+  if (j.error) throw new Error(j.error.message)
+  return j.result
+}
+
+function addrTopic(addr: string) { return '0x' + addr.replace(/^0x/, '').toLowerCase().padStart(64, '0') }
+
+interface LogEntry { topics: string[]; data: string; transactionHash: string }
+
+async function findMatchingTransfer(toAddress: string, expectedAmount: number, issuedAt: string) {
+  try {
+    const expectedRaw = BigInt(Math.round(expectedAmount * Math.pow(10, USDC_DECIMALS)))
+    const tolerance   = expectedRaw / 100n
+    const nowBlock    = Number(await arcRpc('eth_blockNumber', []))
+    const ageSeconds  = Math.max(0, (Date.now() - new Date(issuedAt || 0).getTime()) / 1000)
+    const fromBlock   = Math.max(0, nowBlock - Math.min(Math.ceil(ageSeconds / 1.4) + 200, Math.ceil(30 * 86400 / 1.4)))
+    const logs = await arcRpc('eth_getLogs', [{
+      fromBlock: '0x' + fromBlock.toString(16), toBlock: 'latest',
+      address: USDC_ARC, topics: [TRANSFER_SIG, null, addrTopic(toAddress)],
+    }]) as LogEntry[]
+    for (const log of (logs ?? []).reverse()) {
+      const amount = BigInt('0x' + log.data.replace(/^0x/, '').padStart(64, '0'))
+      if (amount >= expectedRaw - tolerance && amount <= expectedRaw + tolerance)
+        return { matched: true, txHash: log.transactionHash, foundAmount: Number(amount) / Math.pow(10, USDC_DECIMALS) }
+    }
+    return { matched: false, txHash: undefined as string | undefined, foundAmount: undefined as number | undefined }
+  } catch { return { matched: false, txHash: undefined as string | undefined, foundAmount: undefined as number | undefined } }
+}
+
+async function buildClaimAiSummary(opts: { matched: boolean; txHash?: string; foundAmount?: number; expectedAmount: number; currency: string; invoiceNumber: string; customerName: string; merchantName: string }): Promise<string> {
+  const { matched, txHash, foundAmount, expectedAmount, currency, invoiceNumber, customerName, merchantName } = opts
+  const prompt = matched
+    ? `Invoice ${invoiceNumber} for ${merchantName}: ${customerName} claimed payment. Onchain scan confirmed ${foundAmount?.toFixed(2)} ${currency} (tx ${txHash?.slice(0, 14)}). One sentence confirming funds are in the wallet.`
+    : `Invoice ${invoiceNumber} for ${merchantName}: ${customerName} claimed to send ${expectedAmount.toFixed(2)} ${currency} but no matching transfer found yet. One sentence telling merchant to check wallet soon.`
+  const call = async (key: string, base: string, model: string) => {
+    const r = await fetch(`${base}/chat/completions`, {
+      method: 'POST', headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model, messages: [{ role: 'system', content: 'NAN reconciliation AI. One sentence, no markdown.' }, { role: 'user', content: prompt }], max_tokens: 80 }),
+    })
+    const d = await r.json() as { choices?: Array<{ message: { content: string } }>; error?: { message: string } }
+    if (d.error) throw new Error(d.error.message)
+    return d.choices?.[0]?.message?.content?.trim() ?? ''
+  }
+  if (process.env.OPENAI_API_KEY) try { const s = await call(process.env.OPENAI_API_KEY, 'https://api.openai.com/v1', 'gpt-4o-mini'); if (s) return s } catch { /* fallthrough */ }
+  if (process.env.GROQ_API_KEY)   try { const s = await call(process.env.GROQ_API_KEY, 'https://api.groq.com/openai/v1', 'llama-3.1-8b-instant'); if (s) return s } catch { /* fallthrough */ }
+  return matched
+    ? `Payment of ${(foundAmount ?? expectedAmount).toFixed(2)} ${currency} confirmed on Arc — funds are in your wallet.`
+    : `${customerName} claims to have sent ${expectedAmount.toFixed(2)} ${currency} — no matching transfer found yet, check your wallet in a few minutes.`
+}
+
+async function sendClaimEmail(to: string, subject: string, html: string) {
+  if (process.env.RESEND_API_KEY) {
+    try { await fetch('https://api.resend.com/emails', { method: 'POST', headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ from: 'NAN Payments <notifications@nanarc.xyz>', to, subject, html }) }) } catch { /* ignore */ }
+    return
+  }
+  if (process.env.SMTP_USER) {
+    try {
+      const nm = await import('nodemailer')
+      const t = nm.default.createTransport({ host: process.env.SMTP_HOST, port: Number(process.env.SMTP_PORT ?? 587), secure: process.env.SMTP_PORT === '465', auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS } })
+      await t.sendMail({ from: `NAN <${process.env.SMTP_USER}>`, to, subject, html })
+    } catch { /* ignore */ }
+  }
+}
 
 function walletKey(req: VercelRequest): string {
   return (req.headers['x-wallet-address'] as string | undefined ?? '').toLowerCase()
@@ -198,5 +283,78 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ success: false, error: 'Method not allowed' })
   }
 
-  return res.status(400).json({ success: false, error: 'type param required: payment-requests | recurring-tasks | invoices' })
+  // ── INVOICE CLAIM ─────────────────────────────────────────────────────────────
+  // POST /api/invoice-claim  { invoiceId, txHash?, payerName? }
+  if (type === 'invoice-claim') {
+    if (req.method !== 'POST') return res.status(405).json({ success: false, error: 'POST only' })
+    const { invoiceId, txHash: claimedTxHash, payerName } =
+      (req.body ?? {}) as { invoiceId?: string; txHash?: string; payerName?: string }
+    if (!invoiceId) return res.status(400).json({ success: false, error: 'invoiceId required' })
+    if (!kv) return res.status(503).json({ success: false, error: 'storage_not_configured' })
+
+    interface ClaimInvoice {
+      id: string; number: string; businessName: string; businessEmail?: string
+      customerName: string; amountDue: number; total: number; currency: string
+      payToAddress?: string; issuedDate?: string; createdAt?: string; _owner?: string; status?: string
+    }
+    interface ClaimNotif {
+      id: string; userEmail: string; type: string; title: string; body: string
+      read: boolean; createdAt: string; invoiceId?: string; claimId?: string
+      matched?: boolean; txHash?: string; aiSummary?: string
+    }
+
+    const inv = await kv.get<ClaimInvoice>(`inv:${invoiceId}`)
+    if (!inv) return res.status(404).json({ success: false, error: 'Invoice not found' })
+
+    const claimId  = `claim-${Math.random().toString(36).slice(2, 10)}`
+    const issuedAt = inv.issuedDate ?? inv.createdAt ?? new Date(Date.now() - 7 * 86400_000).toISOString()
+
+    const { matched, txHash: foundTxHash, foundAmount } = inv.payToAddress
+      ? await findMatchingTransfer(inv.payToAddress, inv.amountDue, issuedAt)
+      : { matched: false, txHash: undefined, foundAmount: undefined }
+
+    const resolvedTxHash = foundTxHash ?? claimedTxHash
+    const customerDisplay = payerName ?? inv.customerName ?? 'Your customer'
+    const currency = inv.currency ?? 'USDC'
+
+    const aiSummary = await buildClaimAiSummary({
+      matched, txHash: resolvedTxHash, foundAmount,
+      expectedAmount: inv.amountDue, currency,
+      invoiceNumber: inv.number, customerName: customerDisplay, merchantName: inv.businessName,
+    })
+
+    if (matched) {
+      await kv.set(`inv:${invoiceId}`, {
+        ...inv, status: 'paid', amountPaid: inv.total, amountDue: 0,
+        paidAt: new Date().toISOString(), paidTxHash: resolvedTxHash,
+        reconciled: true, reconciledAt: new Date().toISOString(), reconciledBy: 'onchain', claimId,
+      }, { ex: 60 * 60 * 24 * 180 })
+    }
+
+    if (inv._owner) {
+      const notifKey = `notif:${inv._owner.toLowerCase()}`
+      const existing = (await kv.get<ClaimNotif[]>(notifKey)) ?? []
+      existing.unshift({
+        id: `notif-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        userEmail: inv._owner,
+        type: matched ? 'invoice_paid' : 'invoice_claimed',
+        title: matched ? `Invoice ${inv.number} paid ✓` : `Payment claimed — ${inv.number}`,
+        body: aiSummary, read: false, createdAt: new Date().toISOString(),
+        invoiceId, claimId, matched, txHash: resolvedTxHash, aiSummary,
+      })
+      await kv.set(notifKey, existing.slice(0, 100), { ex: 60 * 60 * 24 * 90 })
+    }
+
+    if (inv.businessEmail) {
+      const { subject, html } = invoiceClaimEmail({
+        invoiceNumber: inv.number, customerName: customerDisplay,
+        amount: inv.amountDue, currency, matched, txHash: resolvedTxHash, aiSummary, invoiceId,
+      })
+      await sendClaimEmail(inv.businessEmail, subject, html)
+    }
+
+    return res.json({ success: true, claimId, matched, txHash: resolvedTxHash, aiSummary })
+  }
+
+  return res.status(400).json({ success: false, error: 'type param required: payment-requests | recurring-tasks | invoices | invoice-claim' })
 }
