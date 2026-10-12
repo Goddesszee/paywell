@@ -55,14 +55,14 @@ function PayLinkCard({
 
   return (
     <div style={{ marginBottom: 22 }}>
-      <div style={{ fontSize: 11, fontWeight: 600, color: C.t3, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 10 }}>Your Pay Link</div>
+      <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 10 }}>Your Pay Link</div>
       <div style={{
         background: C.surf, border: `1px solid ${C.bdr}`,
         borderRadius: 18, padding: '16px 18px',
         position: 'relative', overflow: 'hidden',
       }}>
         {/* top accent bar */}
-        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: 'var(--nan-blue)' }} />
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: 'linear-gradient(90deg, #0866F5, #7B61FF)' }} />
 
         {!handle ? (
           /* ── No NAN name yet ── */
@@ -217,26 +217,26 @@ function ActionBtn({ Icon, label, primary, ai, onClick, C }: {
       WebkitTapHighlightColor: 'transparent', flex: 1, padding: '4px 0', minWidth: 0,
     }}>
       <div style={{
-        width: 48, height: 48, borderRadius: 16,
+        width: 52, height: 52, borderRadius: 18,
         background: primary ? C.blue : ai ? C.blueDim : C.surf2,
         border: primary ? 'none' : ai ? `1px solid ${C.blueBd}` : `1px solid ${C.bdr}`,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
+        boxShadow: primary ? `0 6px 20px ${C.blue}66` : ai ? `0 2px 12px ${C.blue}30` : 'none',
         flexShrink: 0, position: 'relative',
-        boxShadow: primary ? `0 2px 10px ${C.blue}44` : 'none',
       }}>
-        <Icon size={19} color={primary ? '#fff' : ai ? C.blue : C.t2} strokeWidth={1.8} />
+        <Icon size={20} color={primary ? '#fff' : ai ? C.blue : C.t2} strokeWidth={1.9} />
         {ai && (
           <div style={{
-            position: 'absolute', top: -3, right: -3,
-            width: 13, height: 13, borderRadius: '50%',
+            position: 'absolute', top: -4, right: -4,
+            width: 14, height: 14, borderRadius: '50%',
             background: C.blue, border: `2px solid ${C.bg}`,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
-            <Sparkles size={6} color="#fff" strokeWidth={2.5} />
+            <Sparkles size={7} color="#fff" strokeWidth={2.5} />
           </div>
         )}
       </div>
-      <span style={{ fontSize: 11, fontWeight: 600, color: primary ? C.blue : ai ? C.blue : C.t2, whiteSpace: 'nowrap', letterSpacing: '-0.01em' }}>{label}</span>
+      <span style={{ fontSize: 11, fontWeight: ai ? 700 : 600, color: ai ? C.blue : C.t2, whiteSpace: 'nowrap' }}>{label}</span>
     </button>
   )
 }
@@ -495,14 +495,14 @@ export function HomePage() {
       </div>
 
       {/* ── 2. TOTAL PORTFOLIO BALANCE ── */}
-      <div style={{ marginBottom: 6 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-          <span style={{ fontSize: 11, color: C.t3, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Total balance</span>
+      <div style={{ marginBottom: 4 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 2 }}>
+          <span style={{ fontSize: 13, color: C.t2, fontWeight: 500 }}>Total balance</span>
           {portfolio.lastUpdated && (
             <button
               onClick={() => portfolio.refetch()}
               title={`Updated ${portfolio.lastUpdated.toLocaleTimeString()}`}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', lineHeight: 1 }}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', lineHeight: 1, marginLeft: 2 }}
             >
               <RefreshCw size={11} color={C.t3} />
             </button>
@@ -510,33 +510,33 @@ export function HomePage() {
         </div>
 
         {isLoadingBalance ? (
-          <div style={{ height: 42, width: 160, background: C.surf2, borderRadius: 8, animation: 'nan-shimmer 1.5s ease infinite' }} />
+          <div style={{ height: 44, width: 180, background: C.surf2, borderRadius: 10, animation: 'nan-shimmer 1.4s ease infinite' }} />
         ) : (
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-            <div style={{ fontSize: 36, fontWeight: 700, letterSpacing: '-0.03em', color: C.text, lineHeight: 1.05, fontFamily: F, fontVariantNumeric: 'tabular-nums' }}>
+            <div style={{ fontSize: 28, fontWeight: 700, letterSpacing: '-0.02em', color: C.text, lineHeight: 1.15, fontFamily: F }}>
               {hidden ? '••••••' : displayTotal}
             </div>
-            <span style={{ fontSize: 14, fontWeight: 500, color: C.t2, marginBottom: 1 }}>USD</span>
+            <span style={{ fontSize: 16, fontWeight: 600, color: C.t2 }}>USD</span>
             <button
               onClick={() => setHidden(h => !h)}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px', WebkitTapHighlightColor: 'transparent', flexShrink: 0 }}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, WebkitTapHighlightColor: 'transparent', flexShrink: 0 }}
               aria-label={hidden ? 'Show balance' : 'Hide balance'}
             >
-              {hidden ? <EyeOff size={14} color={C.t3} /> : <Eye size={14} color={C.t3} />}
+              {hidden ? <EyeOff size={15} color={C.t3} /> : <Eye size={15} color={C.t3} />}
             </button>
           </div>
         )}
 
         {/* FX timestamp */}
         {!fxLoading && portfolio.fxUpdatedAt && (
-          <div style={{ fontSize: 10, color: C.t3, marginTop: 4 }}>
-            Rates {portfolio.fxUpdatedAt.toLocaleTimeString('en', { hour: '2-digit', minute: '2-digit' })}
+          <div style={{ fontSize: 10, color: C.t3, marginTop: 5 }}>
+            Rates updated {portfolio.fxUpdatedAt.toLocaleTimeString('en', { hour: '2-digit', minute: '2-digit' })}
             {' · '}EUR/USD {portfolio.eurUsdRate.toFixed(4)}
           </div>
         )}
 
         {hydrated && !hasWallet && (
-          <div style={{ marginTop: 14 }}>
+          <div style={{ marginTop: 12 }}>
             <ConnectKitButton />
           </div>
         )}
@@ -545,7 +545,7 @@ export function HomePage() {
       {/* ── FX TICKER STRIP ── */}
       {!fxLoading && Object.keys(rates).length > 0 && (
         <div style={{
-          display: 'flex', gap: 8, overflowX: 'auto', marginBottom: 16, marginTop: 14,
+          display: 'flex', gap: 10, overflowX: 'auto', marginBottom: 18, marginTop: 14,
           paddingBottom: 2,
           msOverflowStyle: 'none', scrollbarWidth: 'none',
         }}>
@@ -558,12 +558,12 @@ export function HomePage() {
           ].map(({ pair, val }) => (
             <div key={pair} style={{
               flexShrink: 0,
-              background: C.surf2, border: `1px solid ${C.bdr}`,
-              borderRadius: 8, padding: '5px 9px',
-              display: 'flex', flexDirection: 'column', gap: 1,
+              background: C.surf, border: `1px solid ${C.bdr}`,
+              borderRadius: 10, padding: '6px 10px',
+              display: 'flex', flexDirection: 'column', gap: 2,
             }}>
-              <span style={{ fontSize: 9, color: C.t3, fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase' }}>{pair}</span>
-              <span style={{ fontSize: 12, fontWeight: 600, color: C.text, fontFamily: MONO }}>
+              <span style={{ fontSize: 9, color: C.t3, fontWeight: 600, letterSpacing: '0.04em' }}>{pair}</span>
+              <span style={{ fontSize: 12, fontWeight: 700, color: C.text, fontFamily: MONO }}>
                 {pair.startsWith('JPY') || pair.startsWith('NGN')
                   ? (val as number).toFixed(2)
                   : (val as number).toFixed(4)}
@@ -578,8 +578,8 @@ export function HomePage() {
       {/* Cross-chain shows only non-Arc chains so Arc isn't double-counted.              */}
       {/* Total portfolio = USDC card + EURC card + Cross-chain card (no overlap).        */}
       <div style={{
-        display: 'flex', gap: 9, overflowX: 'auto',
-        marginBottom: 22, marginTop: fxLoading ? 18 : 0,
+        display: 'flex', gap: 10, overflowX: 'auto',
+        marginBottom: 20, marginTop: fxLoading ? 18 : 0,
         paddingBottom: 4,
         msOverflowStyle: 'none', scrollbarWidth: 'none',
         WebkitOverflowScrolling: 'touch',
@@ -643,7 +643,7 @@ export function HomePage() {
       </div>
 
       {/* ── 4. ACTION BUTTONS ── */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24, gap: 6 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 22, gap: 4 }}>
         <ActionBtn Icon={Send}            label="Send"      primary onClick={() => setActiveView('send')}    C={C} />
         <ActionBtn Icon={ArrowDownToLine} label="Receive"           onClick={() => setActiveView('receive')} C={C} />
         <ActionBtn Icon={ArrowLeftRight}  label="Convert"           onClick={() => setActiveView('swap')}    C={C} />
@@ -652,32 +652,33 @@ export function HomePage() {
 
       {/* ── 5. QUICK ACTIONS — Agent Wallet ── */}
       <div style={{ marginBottom: 22 }}>
-        <div style={{ fontSize: 11, fontWeight: 600, color: C.t3, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 10 }}>Quick actions</div>
+        <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 10 }}>Quick actions</div>
         <button
           onClick={() => setActiveView('agent-wallet')}
           style={{
-            width: '100%', padding: '15px 18px', borderRadius: 14,
-            border: `1px solid ${C.bdr2}`,
-            background: C.surf,
+            width: '100%', padding: '18px 20px', borderRadius: 18,
+            border: '1px solid rgba(8,102,245,0.22)',
+            background: 'linear-gradient(135deg, rgba(8,102,245,0.10) 0%, rgba(8,102,245,0.03) 100%)',
             cursor: 'pointer', fontFamily: F, WebkitTapHighlightColor: 'transparent',
-            display: 'flex', alignItems: 'center', gap: 14,
+            display: 'flex', alignItems: 'center', gap: 16,
           }}
         >
           <div style={{
-            width: 42, height: 42, borderRadius: 13, flexShrink: 0,
+            width: 48, height: 48, borderRadius: 15, flexShrink: 0,
             background: C.blue, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: '0 4px 16px rgba(8,102,245,0.35)',
           }}>
-            <Bot size={19} color="#fff" strokeWidth={1.8} />
+            <Bot size={22} color="#fff" strokeWidth={1.8} />
           </div>
           <div style={{ textAlign: 'left', flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 14, fontWeight: 600, color: C.text, letterSpacing: '-0.01em', marginBottom: 2 }}>
+            <div style={{ fontSize: 14, fontWeight: 800, color: C.text, letterSpacing: '-0.02em', marginBottom: 3 }}>
               Agent Wallet
             </div>
             <div style={{ fontSize: 12, color: C.t2, lineHeight: 1.45 }}>
-              Give your AI agent a wallet to pay for services
+              Give your AI agent a wallet to pay for approved services
             </div>
           </div>
-          <ChevronRight size={15} color={C.t3} strokeWidth={2} />
+          <ChevronRight size={17} color={C.blue} strokeWidth={2.5} />
         </button>
       </div>
 
@@ -687,17 +688,17 @@ export function HomePage() {
       {/* ── 6. RECENT ACTIVITY ── */}
       <div>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-          <span style={{ fontSize: 11, fontWeight: 600, color: C.t3, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Recent Activity</span>
+          <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>Recent Activity</span>
           <button
             onClick={() => setActiveView('activity')}
             style={{
               fontSize: 12, color: C.blue, background: 'none', border: 'none',
               cursor: 'pointer', fontFamily: F,
-              display: 'flex', alignItems: 'center', gap: 2,
+              display: 'flex', alignItems: 'center', gap: 3,
               fontWeight: 600, WebkitTapHighlightColor: 'transparent',
             }}
           >
-            View all <ChevronRight size={12} />
+            View all <ChevronRight size={13} />
           </button>
         </div>
 

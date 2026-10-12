@@ -7,23 +7,23 @@
 :root {
   /* Core brand */
   --nan-bg:       #0B0D12;
-  --nan-surface:  #151820;
-  --nan-surface2: #1A1E27;
-  --nan-surface3: #20242E;
+  --nan-surface:  #171A21;
+  --nan-surface2: #1D2029;
+  --nan-surface3: #232731;
   --nan-blue:     #0866F5;
-  --nan-blue-dim: rgba(8,102,245,0.10);
+  --nan-blue-dim: rgba(8,102,245,0.12);
   --nan-blue-bd:  rgba(8,102,245,0.24);
   --nan-blue-glow:rgba(8,102,245,0.22);
   --nan-blue-hover:#0555D4;
 
   /* Text */
-  --nan-text:   #EDF0F7;
-  --nan-text2:  #8C94A6;
-  --nan-text3:  #4E5567;
+  --nan-text:   #F5F7FB;
+  --nan-text2:  #A0A7B5;
+  --nan-text3:  #5A6175;
 
   /* Borders */
-  --nan-bdr:    rgba(255,255,255,0.06);
-  --nan-bdr2:   rgba(255,255,255,0.10);
+  --nan-bdr:    rgba(255,255,255,0.07);
+  --nan-bdr2:   rgba(255,255,255,0.12);
 
   /* Semantic */
   --nan-green:  #10B981;

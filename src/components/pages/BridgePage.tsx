@@ -669,7 +669,7 @@ export function BridgePage({ inCard = false }: { inCard?: boolean }) {
         })
         if (!txId) {
           // Circle exposes the transaction id as challenge.correlationIds[0]; it can lag the approval a moment.
-          const c = await getChallengeTransactionId(creds.userToken ?? authState.userToken, startData.challengeId)
+          const c = await getChallengeTransactionId(creds.userToken ?? authState.userToken, startData.challengeId!)
           txId = c.transactionId ?? ''
           if (!txId) throw new Error(c.status === 'FAILED' ? `Circle rejected the bridge${c.errorMessage ? `: ${c.errorMessage}` : ''}` : 'Circle did not return a transaction id yet — check your balance before retrying.')
         }
