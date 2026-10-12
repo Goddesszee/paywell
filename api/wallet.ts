@@ -412,13 +412,107 @@ async function handleWallet(req: VercelRequest, res: VercelResponse) {
     }
   }
 
-  // ── ucw-bridge-start — begin a UCW CCTP V2 bridge, return challengeId ────
+  // ── ucw-bridge-stream — streaming NDJSON bridge for UCW email/Google users ──
+  // kit.bridge() fires onChallenge once per transaction (approve + burn = 2 challenges).
+  // A single HTTP response cannot return two challenge IDs sequentially — so we use a
+  // streaming NDJSON response. The server writes one JSON line per event:
+  //   {"type":"challenge","challengeId":"...","step":"approve"|"burn"}
+  //   {"type":"done","txHash":"..."}
+  //   {"type":"error","message":"..."}
+  // The client reads the stream line-by-line, shows the PIN popup for each challenge,
+  // and waits for the next line. The Vercel function stays open for the full bridge.
+  if (action === 'ucw-bridge-stream') {
+    const { userToken, walletAddress, walletId, fromChain, destChain, amount } = body
+    if (!userToken || !walletAddress || !walletId || !destChain || !amount)
+      return err(res, 400, 'userToken, walletAddress, walletId, destChain, amount required')
+
+    const CHAIN_MAP: Record<string, string> = {
+      'Arc': 'Arc', 'Ethereum': 'Ethereum', 'Base': 'Base', 'Arbitrum': 'Arbitrum',
+      'Optimism': 'Optimism', 'Polygon': 'Polygon', 'Avalanche': 'Avalanche',
+      'Unichain': 'Unichain', 'Linea': 'Linea', 'Sei': 'Sei', 'World_Chain': 'World_Chain',
+      'Arbitrum One': 'Arbitrum', 'OP Mainnet': 'Optimism',
+    }
+    const srcChain = (fromChain ? (CHAIN_MAP[String(fromChain)] ?? 'Arc') : 'Arc') as Parameters<InstanceType<typeof AppKit>['bridge']>[0]['from']['chain']
+    const dstChain = (CHAIN_MAP[String(destChain)] ?? String(destChain)) as Parameters<InstanceType<typeof AppKit>['bridge']>[0]['to']['chain']
+
+    const key = apiKey()
+    if (!key) return err(res, 503, 'CIRCLE_API_KEY not configured')
+
+    // Set up streaming response
+    res.setHeader('Content-Type', 'application/x-ndjson')
+    res.setHeader('Cache-Control', 'no-cache')
+    res.setHeader('X-Accel-Buffering', 'no')
+    res.flushHeaders()
+
+    const send = (obj: Record<string, unknown>) => {
+      try { res.write(JSON.stringify(obj) + '\n') } catch { /* client disconnected */ }
+    }
+
+    try {
+      const { createCircleUserWalletAdapter } = await import('@circle-fin/adapter-circle-wallets/ucw/server')
+      const kit = new AppKit()
+
+      // Queue of pending challenges — onChallenge may fire multiple times (approve + burn)
+      const challengeQueue: string[] = []
+      let stepIndex = 0
+      const STEP_NAMES = ['approve', 'burn'] as const
+
+      // onChallenge fires once per transaction the bridge needs to sign
+      const onChallenge = ({ challengeId }: { challengeId: string }) => {
+        const step = STEP_NAMES[stepIndex] ?? 'sign'
+        stepIndex++
+        challengeQueue.push(challengeId)
+        send({ type: 'challenge', challengeId, step })
+        console.log('[ucw-bridge-stream]', srcChain, '->', dstChain, 'challenge', step, challengeId)
+      }
+
+      const isSameChain = srcChain === dstChain
+      const adapter = isSameChain
+        ? await createCircleUserWalletAdapter({
+            apiKey: key, userToken, walletId,
+            walletAddress: walletAddress as `0x${string}`,
+            chain: srcChain, accountType: 'SCA',
+            onChallenge,
+          })
+        : await createCircleUserWalletAdapter({
+            apiKey: key, userToken,
+            chains: [srcChain, dstChain] as [string, string],
+            accountType: 'SCA',
+            onChallenge,
+          })
+
+      // Run the bridge — this awaits the full flow (approve + burn + attestation + mint)
+      // The onChallenge callback above streams each challengeId as it arrives.
+      const result = await kit.bridge({
+        from: { adapter, chain: srcChain },
+        to:   { adapter, chain: dstChain },
+        amount,
+        config: { ...bridgeFeeCfg(String(amount)) },
+      }) as { steps?: { name: string; state: string; txHash?: string }[]; state?: string }
+
+      const burnStep = result.steps?.find(s => s.name === 'burn')
+      const mintStep = result.steps?.find(s => s.name === 'mint')
+      const txHash = mintStep?.txHash ?? burnStep?.txHash ?? ''
+
+      if (result.state === 'success' || result.state === 'pending' ||
+          (result.steps ?? []).filter(s => s.name !== 'mint').every(s => s.state === 'success')) {
+        send({ type: 'done', txHash, steps: result.steps })
+      } else {
+        const failed = result.steps?.find(s => s.state === 'error')
+        send({ type: 'error', message: String(failed?.error ?? failed?.message ?? `Bridge state: ${result.state ?? 'unknown'}`) })
+      }
+    } catch (e) {
+      send({ type: 'error', message: e instanceof Error ? e.message : 'Bridge failed' })
+    }
+    return res.end()
+  }
+
+  // ── ucw-bridge-start — legacy single-challenge path (kept for compatibility) ─
   if (action === 'ucw-bridge-start') {
     const { userToken, walletAddress, walletId, fromChain, destChain, amount, recipientAddress: _recipientAddress } = body
     if (!userToken || !walletAddress || !walletId || !destChain || !amount)
       return err(res, 400, 'userToken, walletAddress, walletId, destChain, amount required')
 
-    // Normalise chain names — accept both kitName and label
     const CHAIN_MAP: Record<string, string> = {
       'Arc': 'Arc', 'Ethereum': 'Ethereum', 'Base': 'Base', 'Arbitrum': 'Arbitrum',
       'Optimism': 'Optimism', 'Polygon': 'Polygon', 'Avalanche': 'Avalanche',
@@ -440,25 +534,16 @@ async function handleWallet(req: VercelRequest, res: VercelResponse) {
       const challengePromise = new Promise<string>((resolve, reject) => { resolveChallenge = resolve; rejectChallenge = reject })
       challengePromise.catch(() => { /* surfaced via Promise.race below */ })
 
-      // Use the multi-chain overload of createCircleUserWalletAdapter when src != dst.
-      // This creates one adapter covering both chains — the same instance is passed to
-      // both from and to, which is the correct Circle-documented pattern for UCW bridging.
-      // Single-chain form would bind the adapter to srcChain only and throw
-      // "Chain X not supported by this adapter" when used on the destination.
       const isSameChain = srcChain === dstChain
       const adapter = isSameChain
         ? await createCircleUserWalletAdapter({
-            apiKey: key,
-            userToken,
-            walletId,
+            apiKey: key, userToken, walletId,
             walletAddress: walletAddress as `0x${string}`,
-            chain: srcChain,
-            accountType: 'SCA',
+            chain: srcChain, accountType: 'SCA',
             onChallenge: ({ challengeId }: { challengeId: string }) => { resolveChallenge(challengeId) },
           })
         : await createCircleUserWalletAdapter({
-            apiKey: key,
-            userToken,
+            apiKey: key, userToken,
             chains: [srcChain, dstChain] as [string, string],
             accountType: 'SCA',
             onChallenge: ({ challengeId }: { challengeId: string }) => { resolveChallenge(challengeId) },
@@ -468,7 +553,6 @@ async function handleWallet(req: VercelRequest, res: VercelResponse) {
       try { (kit as unknown as { on: (a: string, h: (p: unknown) => void) => void }).on('*', (p: unknown) => {
         const m = p as { method?: string; values?: { name?: string } }
         lastStage = m?.method ?? m?.values?.name ?? lastStage
-        console.log('[ucw-bridge]', srcChain, '->', dstChain, lastStage)
       }) } catch { /* events are best-effort */ }
 
       void kit.bridge({
@@ -480,7 +564,6 @@ async function handleWallet(req: VercelRequest, res: VercelResponse) {
         rejectChallenge(e instanceof Error ? e : new Error(String(e)))
       })
 
-      // Must stay under the function's maxDuration (vercel.json) so we answer with JSON, not a platform timeout page.
       const challengeId = await Promise.race([
         challengePromise,
         new Promise<never>((_, reject) =>

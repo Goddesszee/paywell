@@ -28,13 +28,12 @@ import {
 } from 'lucide-react'
 import { ConnectKitButton } from 'connectkit'
 import { safeJson } from '../../lib/safe-json'
-import { confirmWithRetry } from '../../lib/poll-confirm'
 import { bridgeCustomFee, feeCollectionActive } from '../../lib/fee-config'
 import { useAppStore } from '../../store/appStore'
 import { executeWithGuard } from '../../lib/circle-execute'
 import { getPasskeyAdapter } from '../CirclePasskeyLogin'
 import { bridgeFee, BRIDGE_FEE_BPS, bpsToPercent } from '../../lib/fees'
-import { getClientKey, ensureCircleCreds, getChallengeTransactionId, SESSION_EXPIRED_MSG } from '../../lib/circle-session'
+import { getClientKey, ensureCircleCreds, SESSION_EXPIRED_MSG } from '../../lib/circle-session'
 import { useNanTheme } from '../../hooks/useNanTheme'
 import { useMultiChainBalances } from '../../hooks/useMultiChainBalances'
 
@@ -608,7 +607,6 @@ export function BridgePage({ inCard = false }: { inCard?: boolean }) {
       }
       let userAddress = resolvedAddress
       let walletId    = resolvedWalletId
-      const arcAddress = resolvedAddress
       if (!userAddress || !walletId) { setErrMsg('Could not load Circle wallet — please log out and log in again.'); setStatus('error'); return }
 
       // Bridging FROM another chain: the email wallet needs its own wallet on that chain (Circle creates one per
@@ -647,55 +645,102 @@ export function BridgePage({ inCard = false }: { inCard?: boolean }) {
       }
 
       try {
-        updateStep('approve', { status: 'active' })
-        const startResp = await fetch('/api/wallet', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'ucw-bridge-start', userToken: authState.userToken, walletAddress: userAddress, walletId, fromChain: fromChain.kitName, destChain: toChain.kitName, amount, recipientAddress: arcAddress }),
-        })
-        const startData = await safeJson<{ challengeId?: string; error?: string }>(startResp)
-        if (!startResp.ok || startData.error || !startData.challengeId) throw new Error(startData.error ?? 'Bridge start failed')
+        // ── Streaming NDJSON bridge ──────────────────────────────────────────
+        // The server runs kit.bridge() and streams one JSON line per event:
+        //   {"type":"challenge","challengeId":"...","step":"approve"|"burn"}
+        //   {"type":"done","txHash":"...","steps":[...]}
+        //   {"type":"error","message":"..."}
+        // We read the stream line-by-line, show the Circle PIN popup for each
+        // challenge, and wait for the next event.
 
-        updateStep('approve', { status: 'done' })
-        updateStep('burn',    { status: 'active' })
+        const creds = await ensureCircleCreds()
+        if (!creds.encryptionKey) throw new Error(SESSION_EXPIRED_MSG)
 
         const appId = (import.meta.env.VITE_CIRCLE_APP_ID as string | undefined) ?? ''
         const sdk = new W3SSdk({ appSettings: { appId } })
-        // The session key is memory/sessionStorage only — restore it (via the login refreshToken) or
-        // tell the user plainly, instead of opening Circle's popup with an empty key.
-        const creds = await ensureCircleCreds()
-        if (!creds.encryptionKey) throw new Error(SESSION_EXPIRED_MSG)
         sdk.setAuthentication({ userToken: creds.userToken ?? authState.userToken, encryptionKey: creds.encryptionKey })
 
-        let txId = await new Promise<string>((resolve, reject) => {
-          executeWithGuard(sdk, startData.challengeId!, (err, result) => {
-            if (err) { reject(new Error(err instanceof Error ? err.message : 'PIN approval failed')); return }
-            const r = result as { data?: { transactionHash?: string; transactionId?: string } }
-            resolve(r?.data?.transactionHash ?? r?.data?.transactionId ?? '')
-          })
+        updateStep('approve', { status: 'active' })
+
+        const streamResp = await fetch('/api/wallet', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'ucw-bridge-stream',
+            userToken: authState.userToken,
+            walletAddress: userAddress,
+            walletId,
+            fromChain: fromChain.kitName,
+            destChain: toChain.kitName,
+            amount,
+          }),
         })
-        if (!txId) {
-          // Circle exposes the transaction id as challenge.correlationIds[0]; it can lag the approval a moment.
-          const c = await getChallengeTransactionId(creds.userToken ?? authState.userToken, startData.challengeId)
-          txId = c.transactionId ?? ''
-          if (!txId) throw new Error(c.status === 'FAILED' ? `Circle rejected the bridge${c.errorMessage ? `: ${c.errorMessage}` : ''}` : 'Circle did not return a transaction id yet — check your balance before retrying.')
+        if (!streamResp.ok || !streamResp.body) {
+          const errData = await safeJson<{ error?: string }>(streamResp)
+          throw new Error(errData.error ?? `Bridge failed (HTTP ${streamResp.status})`)
         }
 
-        updateStep('burn', { status: 'done', txHash: txId })
-        updateStep('fetchAttestation', { status: 'active' })
+        const reader = streamResp.body.getReader()
+        const decoder = new TextDecoder()
+        let buffer = ''
+        let lastTxHash = ''
 
-        if (txId) {
-          const confirmData = await confirmWithRetry<{ success?: boolean; txHash?: string; error?: string; pending?: boolean }>({ action: 'ucw-bridge-confirm', userToken: authState.userToken, transactionId: txId })
-          if (confirmData.error) throw new Error(confirmData.error)
-          updateStep('fetchAttestation', { status: 'done' })
-          updateStep('mint', { status: 'done', txHash: confirmData.txHash })
-        } else {
-          updateStep('fetchAttestation', { status: 'done' })
-          updateStep('mint', { status: 'done' })
+        const STEP_UI: Record<string, { active: StepName; done?: StepName }> = {
+          approve: { active: 'approve' },
+          burn:    { active: 'burn', done: 'approve' },
+        }
+
+        outer: while (true) {
+          const { value, done } = await reader.read()
+          if (done) break
+          buffer += decoder.decode(value, { stream: true })
+          const lines = buffer.split('\n')
+          buffer = lines.pop() ?? ''
+          for (const line of lines) {
+            const trimmed = line.trim()
+            if (!trimmed) continue
+            let evt: { type: string; challengeId?: string; step?: string; txHash?: string; message?: string; steps?: { name: string; state: string; txHash?: string }[] }
+            try { evt = JSON.parse(trimmed) as typeof evt } catch { continue }
+
+            if (evt.type === 'challenge' && evt.challengeId) {
+              const ui = STEP_UI[evt.step ?? '']
+              if (ui?.done) updateStep(ui.done, { status: 'done' })
+              if (ui?.active) updateStep(ui.active, { status: 'active' })
+
+              // Show Circle PIN popup for this challenge
+              await new Promise<void>((resolve, reject) => {
+                executeWithGuard(sdk, evt.challengeId!, (cbErr) => {
+                  if (cbErr) { reject(new Error(cbErr instanceof Error ? cbErr.message : 'PIN approval failed')); return }
+                  resolve()
+                })
+              })
+
+              // Mark the step done and advance progress
+              const stepName = evt.step as StepName | undefined
+              if (stepName) updateStep(stepName, { status: 'done' })
+              if (stepName === 'approve') updateStep('burn', { status: 'active' })
+              if (stepName === 'burn') updateStep('fetchAttestation', { status: 'active' })
+
+            } else if (evt.type === 'done') {
+              const doneSteps = evt.steps ?? []
+              for (const s of doneSteps) {
+                updateStep(s.name as StepName, {
+                  status: s.state === 'success' ? 'done' : s.state === 'error' ? 'error' : 'idle',
+                  txHash: s.txHash,
+                })
+              }
+              lastTxHash = evt.txHash ?? ''
+              updateStep('fetchAttestation', { status: 'done' })
+              updateStep('mint', { status: 'done', txHash: lastTxHash })
+              break outer
+            } else if (evt.type === 'error') {
+              throw new Error(evt.message ?? 'Bridge failed')
+            }
+          }
         }
 
         setStatus('done')
-        addActivity({ type: 'bridge', description: `Bridge to ${toChain.label}`, amount: gross, sign: '-', status: 'confirmed', counterparty: toChain.label })
+        addActivity({ type: 'bridge', description: `Bridge to ${toChain.label}`, amount: gross, sign: '-', status: 'confirmed', counterparty: toChain.label, txHash: lastTxHash })
       } catch (e: unknown) {
         setStatus('error')
         setErrMsg(e instanceof Error ? e.message : 'Bridge failed.')
