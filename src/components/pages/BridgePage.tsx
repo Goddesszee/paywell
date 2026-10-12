@@ -278,6 +278,190 @@ function StepStrip({ steps, fromExplorer, toExplorer, c }: {
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
+// ── RecoverBridge — re-mint stuck CCTP transfers ──────────────────────────────
+const IRIS_API = 'https://iris-api.circle.com/v2'
+const MSG_TRANSMITTER: Record<number, `0x${string}`> = {
+  1:     '0x0a992d191DEeC32aFe36203Ad87D7d289a738F81',
+  8453:  '0xAD09780d193884d503182aD4588450C416D6F9D',
+  42161: '0xC30362313FBBA5cf9163F0bb16a0e01f01A896ca',
+  10:    '0x4d41f22c5a0e5c74090899e5a8Fb597a8842b3e8',
+  137:   '0xF3be9355363857F3e001be68856A2f96b4C39Ba9',
+  43114: '0x8186359aF5F57FbB40c6b14A588d2A59C0C29880',
+  5042:  '0x5C3D9E9eA2aCe0FBCf80cF23Cf2e9dcCDCf4b38A',
+  130:   '0x5C3D9E9eA2aCe0FBCf80cF23Cf2e9dcCDCf4b38A',
+}
+const RECEIVE_ABI = [{
+  name: 'receiveMessage',
+  type: 'function',
+  stateMutability: 'nonpayable',
+  inputs: [{ name: 'message', type: 'bytes' }, { name: 'attestation', type: 'bytes' }],
+  outputs: [{ name: 'success', type: 'bool' }],
+}] as const
+
+function RecoverBridge({ c }: { c: ReturnType<typeof useNanTheme> }) {
+  const { address, isConnected } = useAccount()
+  const { switchChain } = useSwitchChain()
+  const chainId = useChainId()
+  const [open, setOpen]         = useState(false)
+  const [txHash, setTxHash]     = useState('')
+  const [srcIdx, setSrcIdx]     = useState(0)
+  const [status, setStatus]     = useState<'idle'|'fetching'|'ready'|'minting'|'done'|'error'>('idle')
+  const [msg, setMsg]           = useState<{ message: string; attestation: string; destDomain: number } | null>(null)
+  const [errText, setErrText]   = useState('')
+  const F = 'var(--nan-font)'
+
+  const srcChain = CHAINS[srcIdx]
+
+  const fetchAttestation = useCallback(async () => {
+    const hash = txHash.trim()
+    if (!hash.startsWith('0x')) { setErrText('Paste a valid 0x... transaction hash'); return }
+    setStatus('fetching'); setErrText(''); setMsg(null)
+    try {
+      const url = `${IRIS_API}/messages/${srcChain.cctpDomain}?transactionHash=${hash}`
+      const res = await fetch(url)
+      if (!res.ok) throw new Error(`Iris API ${res.status}`)
+      const data = await res.json() as { messages?: { message: string; attestation: string; eventNonce: string; status: string; sourceDomain: number; destinationDomain: number }[] }
+      const m = data.messages?.[0]
+      if (!m) throw new Error('No messages found for this TX. Check the source chain and hash.')
+      if (m.status !== 'complete') throw new Error(`Attestation not ready yet (status: ${m.status}). Wait a few minutes and try again.`)
+      setMsg({ message: m.message, attestation: m.attestation, destDomain: m.destinationDomain })
+      setStatus('ready')
+    } catch (e) {
+      setErrText(e instanceof Error ? e.message : 'Could not fetch attestation')
+      setStatus('error')
+    }
+  }, [txHash, srcChain.cctpDomain])
+
+  const submitMint = useCallback(async () => {
+    if (!msg || !isConnected || !address) return
+    // Find destination chain by CCTP domain
+    const destChain = CHAINS.find(ch => ch.cctpDomain === msg.destDomain)
+    if (!destChain) { setErrText('Unknown destination chain domain: ' + msg.destDomain); return }
+    const transmitter = MSG_TRANSMITTER[destChain.chainId]
+    if (!transmitter) { setErrText('No MessageTransmitter address for ' + destChain.label); return }
+    setStatus('minting'); setErrText('')
+    try {
+      // Switch to destination chain if needed
+      if (chainId !== destChain.chainId) {
+        switchChain({ chainId: destChain.chainId })
+        await new Promise(r => setTimeout(r, 1500))
+      }
+      const { createWalletClient, custom, publicActions } = await import('viem')
+      const chainModule = await import('viem/chains')
+      const allChains = Object.values(chainModule) as { id?: number }[]
+      const viemChain = allChains.find(ch => ch && typeof ch === 'object' && ch.id === destChain.chainId) as { id: number; name: string; rpcUrls: { default: { http: string[] } }; nativeCurrency: { name: string; symbol: string; decimals: number } } | undefined
+      if (!viemChain) throw new Error('Could not find viem chain for ' + destChain.label)
+      const provider = (window as unknown as { ethereum?: EIP1193Provider }).ethereum
+      if (!provider) throw new Error('No injected wallet found. Please connect MetaMask or similar.')
+      const client = createWalletClient({ account: address, chain: viemChain, transport: custom(provider) }).extend(publicActions)
+      const hash = await client.writeContract({
+        address: transmitter,
+        abi: RECEIVE_ABI,
+        functionName: 'receiveMessage',
+        args: [msg.message as `0x${string}`, msg.attestation as `0x${string}`],
+      })
+      await client.waitForTransactionReceipt({ hash })
+      setStatus('done')
+    } catch (e) {
+      const m = e instanceof Error ? e.message : 'Mint failed'
+      setErrText(m.includes('already') || m.includes('Used nonce') ? 'This transfer was already minted — check your destination wallet balance.' : m.slice(0, 200))
+      setStatus('error')
+    }
+  }, [msg, isConnected, address, chainId, switchChain])
+
+  if (!open) return (
+    <button onClick={() => setOpen(true)}
+      style={{ background: 'none', border: 'none', color: c.blue, fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: F, padding: '6px 0', textDecoration: 'underline', width: '100%', textAlign: 'center' as const }}>
+      Stuck USDC? Recover a failed bridge →
+    </button>
+  )
+
+  return (
+    <div style={{ background: c.surf2, border: `1px solid ${c.bdr}`, borderRadius: 14, padding: 16, marginBottom: 10 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+        <div>
+          <div style={{ fontSize: 15, fontWeight: 800, color: c.text, letterSpacing: '-0.02em' }}>Recover stuck USDC</div>
+          <div style={{ fontSize: 11, color: c.t3, marginTop: 1 }}>Re-mint a USDC transfer that burned but never arrived</div>
+        </div>
+        <button onClick={() => setOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: c.t3, padding: 4 }}>
+          <X size={16} />
+        </button>
+      </div>
+
+      {status === 'done' ? (
+        <div style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: 12, padding: '16px', textAlign: 'center' as const }}>
+          <CheckCircle size={28} color="#10B981" style={{ marginBottom: 8 }} />
+          <div style={{ fontSize: 15, fontWeight: 700, color: '#10B981', marginBottom: 4 }}>USDC recovered!</div>
+          <div style={{ fontSize: 12, color: c.t3 }}>Your USDC has been minted on the destination chain. Check your wallet.</div>
+          <button onClick={() => { setStatus('idle'); setTxHash(''); setMsg(null) }}
+            style={{ marginTop: 12, padding: '8px 20px', borderRadius: 10, background: '#10B981', color: '#fff', border: 'none', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: F }}>
+            Recover another
+          </button>
+        </div>
+      ) : (
+        <>
+          {/* Source chain */}
+          <div style={{ marginBottom: 10 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: c.t3, textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 5 }}>Source chain (where the USDC burned)</div>
+            <ChainSelect value={srcIdx} onChange={setSrcIdx} label="Source chain" c={c} />
+          </div>
+
+          {/* TX hash input */}
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: c.t3, textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 5 }}>Burn transaction hash</div>
+            <input
+              value={txHash}
+              onChange={e => { setTxHash(e.target.value); setStatus('idle'); setMsg(null); setErrText('') }}
+              placeholder="0x..."
+              style={{ width: '100%', padding: '10px 12px', borderRadius: 10, background: c.surf, border: `1px solid ${errText ? '#EF4444' : c.bdr2}`, color: c.text, fontSize: 13, fontFamily: "'JetBrains Mono', monospace", outline: 'none', boxSizing: 'border-box' as const }}
+            />
+          </div>
+
+          {/* Error */}
+          {errText && (
+            <div style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 10, padding: '10px 12px', marginBottom: 12, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+              <AlertCircle size={14} color="#EF4444" style={{ flexShrink: 0, marginTop: 1 }} />
+              <span style={{ fontSize: 12, color: '#EF4444', lineHeight: 1.5 }}>{errText}</span>
+            </div>
+          )}
+
+          {/* Attestation ready info */}
+          {msg && status === 'ready' && (
+            <div style={{ background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: 10, padding: '10px 12px', marginBottom: 12, display: 'flex', gap: 8, alignItems: 'center' }}>
+              <CheckCircle size={14} color="#10B981" style={{ flexShrink: 0 }} />
+              <span style={{ fontSize: 12, color: '#10B981', fontWeight: 600 }}>Attestation confirmed — ready to mint on {CHAINS.find(ch => ch.cctpDomain === msg.destDomain)?.label ?? 'destination chain'}</span>
+            </div>
+          )}
+
+          {/* CTA */}
+          {(status === 'idle' || status === 'fetching' || status === 'error') && (
+            <button
+              onClick={() => { void fetchAttestation() }}
+              disabled={status === 'fetching' || !txHash.trim()}
+              style={{ width: '100%', height: 44, borderRadius: 12, background: txHash.trim() ? c.blue : c.surf, border: `1px solid ${txHash.trim() ? c.blue : c.bdr}`, color: txHash.trim() ? '#fff' : c.t3, fontSize: 14, fontWeight: 700, cursor: txHash.trim() ? 'pointer' : 'not-allowed', fontFamily: F, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+              {status === 'fetching' ? <><span className="nan-spinner" />Fetching attestation…</> : 'Check transfer status'}
+            </button>
+          )}
+          {(status === 'ready' || status === 'minting') && (
+            <button
+              onClick={() => { void submitMint() }}
+              disabled={status === 'minting' || !isConnected}
+              style={{ width: '100%', height: 44, borderRadius: 12, background: '#10B981', border: 'none', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, boxShadow: '0 4px 18px rgba(16,185,129,0.3)' }}>
+              {status === 'minting' ? <><span className="nan-spinner" />Minting USDC…</> : 'Recover USDC →'}
+            </button>
+          )}
+
+          {!isConnected && (
+            <div style={{ marginTop: 10, display: 'flex', justifyContent: 'center' }}>
+              <ConnectKitButton />
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  )
+}
+
 export function BridgePage({ inCard = false }: { inCard?: boolean }) {
   const c = useNanTheme()
   const F = 'var(--nan-font)'
@@ -855,6 +1039,11 @@ export function BridgePage({ inCard = false }: { inCard?: boolean }) {
             ? <><span className="nan-spinner" />Bridging…</>
             : `Bridge ${amount || '0.00'} USDC`}
         </button>
+      </div>
+
+      {/* Recovery tool */}
+      <div style={{ margin: inCard ? '10px 14px 0' : '10px 0 0' }}>
+        <RecoverBridge c={c} />
       </div>
 
       {/* Footer */}
