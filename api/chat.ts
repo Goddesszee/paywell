@@ -121,15 +121,19 @@ function detectDirectAction(message: string): { reply: string; action: Record<st
   }
 
   const addr = text.match(/0x[a-fA-F0-9]{40}\b/)
-  const send = lower.match(/\b(?:send|transfer|pay)\s+(\d+(?:\.\d+)?)/)
-  if (addr && send) {
+  // Amount can appear before OR after the address: "send 10 USDC to 0x..." or "send to 0x... 10 USDC" or "0x... 10 USDC"
+  const amtAnywhere = lower.replace(/0x[a-f0-9]{40}/gi, ' ').match(/\b(\d+(?:\.\d+)?)\s*(?:usdc|usd|dollars?)?/)
+  const send = lower.match(/\b(?:send|transfer|pay)\b/)
+  if (addr && send && amtAnywhere && Number(amtAnywhere[1]) > 0) {
     const fromAgent = /agent wallet/.test(lower)
     const short = `${addr[0].slice(0, 6)}…${addr[0].slice(-4)}`
     return {
-      reply: `Ready to send ${send[1]} USDC to ${short} from your ${fromAgent ? 'Agent Wallet' : 'main wallet'}. Please confirm below.`,
-      action: { action: fromAgent ? 'agent_wallet_send' : 'send_usdc', params: { toAddress: addr[0], amount: send[1] } },
+      reply: `Ready to send ${amtAnywhere[1]} USDC to ${short} from your ${fromAgent ? 'Agent Wallet' : 'main wallet'}. Please confirm below.`,
+      action: { action: fromAgent ? 'agent_wallet_send' : 'send_usdc', params: { toAddress: addr[0], amount: amtAnywhere[1] } },
     }
   }
+  // Address given but no amount — let OpenAI ask for the amount naturally
+  if (addr && send && !amtAnywhere) return null
 
   // Buy USDC with card/bank (Circle onramp) — amount optional
   if (!/^(how|what|why|where|when|can|could|is|are|does|do|which)\b/.test(lower) && /\b(buy|purchase|top ?up|onramp|on-ramp)\b/.test(lower) && /\b(usdc|usd|dollars?|crypto|funds|card|bank)\b/.test(lower) && !/\b(service|agent|shop|swap|bridge)\b/.test(lower)) {
