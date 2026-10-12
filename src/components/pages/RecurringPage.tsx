@@ -46,10 +46,36 @@ function nextRunLabel(iso?: string) {
   const diff = d.getTime() - now.getTime()
   if (diff < 0) return 'Due now'
   const days = Math.floor(diff / 86400000)
-  const h    = Math.floor(diff / 3600000)
-  if (days >= 1) return `in ${days}d`
-  if (h >= 1)   return `in ${h}h`
-  return 'soon'
+  const h    = Math.floor((diff % 86400000) / 3600000)
+  const m    = Math.floor((diff % 3600000) / 60000)
+  if (days >= 1) return `${days}d ${h}h`
+  if (h >= 1)   return `${h}h ${m}m`
+  return `${m}m`
+}
+
+// Progress through current cycle (0–1)
+function cycleProgress(freq: RecurringFrequency, nextRunAt?: string, lastRun?: string): number {
+  if (!nextRunAt || freq === 'manual') return 0
+  const cycleMs =
+    freq === 'daily'   ? 86400000 :
+    freq === 'weekly'  ? 7 * 86400000 :
+    freq === 'monthly' ? 30 * 86400000 : 0
+  if (!cycleMs) return 0
+  const now      = Date.now()
+  const next     = new Date(nextRunAt).getTime()
+  const start    = lastRun ? new Date(lastRun).getTime() : next - cycleMs
+  const elapsed  = now - start
+  return Math.min(Math.max(elapsed / cycleMs, 0), 1)
+}
+
+// Live countdown hook — ticks every minute
+function useCountdown(isos: string[]) {
+  const [, setTick] = useState(0)
+  useEffect(() => {
+    const t = setInterval(() => setTick(v => v + 1), 60_000)
+    return () => clearInterval(t)
+  }, [])
+  return isos
 }
 
 function nextRunDate(freq: RecurringFrequency): string | undefined {
@@ -132,6 +158,43 @@ export function RecurringPage() {
   const runningRef = useRef<{ id: string; name: string; amount: string; recipient: string } | null>(null)
   const { writeContract, data: txHash, isPending, error: writeError, reset } = useWriteContract()
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash: txHash })
+
+  // ── Live countdown tick ─────────────────────────────────────────────────
+  useCountdown(recurringTasks.map(t => t.nextRunAt ?? '').filter(Boolean))
+
+  // ── Pre-payment notification (1 hour before) ────────────────────────────
+  useEffect(() => {
+    const notifiedKey = 'nan_rt_notified'
+    const check = () => {
+      const now = Date.now()
+      let notified: string[] = []
+      try { notified = JSON.parse(localStorage.getItem(notifiedKey) ?? '[]') as string[] } catch { /* ignore */ }
+      for (const task of recurringTasks) {
+        if (!task.active || !task.nextRunAt) continue
+        const diff = new Date(task.nextRunAt).getTime() - now
+        if (diff > 0 && diff <= 3600000) {
+          const notifId = `${task.id}-${task.nextRunAt}`
+          if (notified.includes(notifId)) continue
+          notified.push(notifId)
+          try { localStorage.setItem(notifiedKey, JSON.stringify(notified.slice(-50))) } catch { /* ignore */ }
+          const mins = Math.ceil(diff / 60000)
+          toast(`⏰ ${task.name} — ${task.amount} USDC sends in ${mins < 60 ? `${mins} min` : '1 hour'}`, { duration: 8000 })
+          // Also push a browser notification if permission granted
+          if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+            try {
+              new Notification('NAN — Upcoming payment', {
+                body: `${task.name}: ${task.amount} USDC in ${mins < 60 ? `${mins} min` : '1 hour'}`,
+                icon: '/icon-192.png',
+              })
+            } catch { /* ignore */ }
+          }
+        }
+      }
+    }
+    check()
+    const t = setInterval(check, 60_000)
+    return () => clearInterval(t)
+  }, [recurringTasks])
 
   // ── Auto-scheduler ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -554,12 +617,11 @@ export function RecurringPage() {
                       <span style={{ fontSize: 12, color: TEXT, fontFamily: 'monospace' }}>{shortAddr(task.recipient)}</span>
                     </div>
 
-                    {/* Grid: Schedule | Next | Completed */}
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 12 }}>
+                    {/* Grid: Schedule | Completed */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: task.frequency !== 'manual' ? 10 : 12 }}>
                       {[
-                        { label: 'Schedule', value: freqLabel(task.frequency) },
-                        { label: 'Next payment', value: task.frequency === 'manual' ? 'On demand' : (nextLabel ?? fmtDate(task.nextRunAt)) },
-                        { label: 'Completed', value: task.runCount.toString() },
+                        { label: 'Schedule',  value: freqLabel(task.frequency) },
+                        { label: 'Completed', value: `${task.runCount} run${task.runCount !== 1 ? 's' : ''}` },
                       ].map(col => (
                         <div key={col.label} style={{ background: SURF2, borderRadius: 10, padding: '8px 10px' }}>
                           <div style={{ fontSize: 10, color: T3, fontWeight: 600, marginBottom: 3, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{col.label}</div>
@@ -567,6 +629,37 @@ export function RecurringPage() {
                         </div>
                       ))}
                     </div>
+
+                    {/* Next payment countdown + progress bar */}
+                    {task.frequency !== 'manual' && task.active && task.nextRunAt && (() => {
+                      const progress = cycleProgress(task.frequency, task.nextRunAt, task.lastRun)
+                      const isDue = new Date(task.nextRunAt).getTime() <= Date.now()
+                      return (
+                        <div style={{ background: SURF2, borderRadius: 10, padding: '10px 12px', marginBottom: 12 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                            <span style={{ fontSize: 10, color: T3, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Next payment</span>
+                            <span style={{ fontSize: 12, fontWeight: 700, color: isDue ? '#F59E0B' : BLUE }}>
+                              {isDue ? '⚡ Due now' : nextLabel}
+                            </span>
+                          </div>
+                          {/* Progress bar */}
+                          <div style={{ height: 4, background: 'rgba(255,255,255,0.08)', borderRadius: 4, overflow: 'hidden' }}>
+                            <div style={{ height: '100%', width: `${Math.round(progress * 100)}%`, background: isDue ? '#F59E0B' : BLUE, borderRadius: 4, transition: 'width 0.5s ease' }} />
+                          </div>
+                          <div style={{ fontSize: 10, color: T3, marginTop: 4 }}>
+                            {fmtDate(task.nextRunAt)} · {Math.round(progress * 100)}% through cycle
+                          </div>
+                        </div>
+                      )
+                    })()}
+
+                    {/* Paused banner */}
+                    {!task.active && (
+                      <div style={{ background: 'rgba(245,158,11,0.07)', border: '1px solid rgba(245,158,11,0.18)', borderRadius: 10, padding: '8px 12px', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 7 }}>
+                        <Pause size={12} color="#F59E0B" style={{ flexShrink: 0 }} />
+                        <span style={{ fontSize: 12, color: '#F59E0B', fontWeight: 600 }}>Paused — no payments will fire until resumed</span>
+                      </div>
+                    )}
 
                     {/* Last run + tx link */}
                     {(task.lastRun || task.lastTxHash) && (
@@ -617,13 +710,14 @@ export function RecurringPage() {
                           {running ? <><Spin size={12} color={T2} /> Running</> : <><Check size={12} /> Run now</>}
                         </button>
 
-                        {/* Pause / Resume */}
+                        {/* Pause / Resume — toggle switch */}
                         <button
                           onClick={() => togglePause(task)}
                           style={{
                             flex: 1, minWidth: 80, height: 36,
-                            background: SURF2, color: TEXT,
-                            border: `1px solid ${BDR}`,
+                            background: task.active ? 'rgba(245,158,11,0.10)' : 'rgba(34,197,94,0.10)',
+                            color: task.active ? '#F59E0B' : GREEN,
+                            border: `1px solid ${task.active ? 'rgba(245,158,11,0.25)' : 'rgba(34,197,94,0.25)'}`,
                             borderRadius: 9, fontSize: 12, fontWeight: 600,
                             cursor: 'pointer', fontFamily: F,
                             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
