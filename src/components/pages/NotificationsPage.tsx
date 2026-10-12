@@ -39,7 +39,15 @@ export function NotificationsPage() {
 
   const handleNotifClick = (n: AppNotification) => {
     if (!n.read) markNotificationRead(n.id)
-    if (n.ticketId) setActiveView('support')
+    if (n.type === 'invoice_paid' || n.type === 'invoice_claimed') {
+      // Store the invoiceId so InvoicePage can highlight it, then navigate
+      if (n.invoiceId) {
+        try { localStorage.setItem('nan_highlight_invoice', n.invoiceId) } catch { /* ignore */ }
+      }
+      setActiveView('invoices')
+    } else if (n.ticketId) {
+      setActiveView('support')
+    }
   }
 
   return (
@@ -90,7 +98,7 @@ export function NotificationsPage() {
                 background: 'var(--nan-surface)',
                 border: `1px solid ${n.read ? 'var(--nan-bdr)' : 'rgba(8,102,245,0.35)'}`,
                 boxShadow: n.read ? 'none' : '0 2px 14px rgba(8,102,245,0.10)',
-                cursor: n.ticketId ? 'pointer' : 'default',
+                cursor: (n.ticketId || n.type === 'invoice_paid' || n.type === 'invoice_claimed') ? 'pointer' : 'default',
                 transition: 'background 0.15s',
               }}
             >
@@ -104,7 +112,12 @@ export function NotificationsPage() {
                   <span style={{ fontSize: 12, color: 'var(--nan-text3)', whiteSpace: 'nowrap', flexShrink: 0 }}>{timeAgo(n.createdAt)}</span>
                 </div>
                 <div style={{ fontSize: 14, color: 'var(--nan-text2)', lineHeight: 1.4, marginTop: 2 }}>{n.body}</div>
-                {n.ticketId && (
+                {(n.type === 'invoice_paid' || n.type === 'invoice_claimed') && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 8, color: 'var(--nan-blue)', fontSize: 12, fontWeight: 600 }}>
+                    View invoice <ChevronRight size={12} />
+                  </div>
+                )}
+                {n.ticketId && n.type !== 'invoice_paid' && n.type !== 'invoice_claimed' && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 8, color: 'var(--nan-blue)', fontSize: 12, fontWeight: 600 }}>
                     View conversation <ChevronRight size={12} />
                   </div>

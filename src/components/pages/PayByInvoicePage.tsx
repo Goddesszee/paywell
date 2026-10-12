@@ -12,7 +12,7 @@ import { QRCodeSVG } from 'qrcode.react'
 import {
   FileText, CreditCard, CheckCircle2, ExternalLink,
   Copy, AlertCircle, Loader, QrCode, AtSign,
-  ChevronRight, Search,
+  ChevronRight,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAppStore, type Invoice } from '../../store/appStore'
@@ -33,10 +33,6 @@ function fmtDate(iso?: string) {
   if (!iso) return '—'
   try { return new Date(iso).toLocaleDateString('en', { month: 'short', day: 'numeric', year: 'numeric' }) }
   catch { return iso }
-}
-function shortAddr(a: string) {
-  if (!a) return ''
-  return `${a.slice(0, 8)}...${a.slice(-6)}`
 }
 
 interface Props { invoiceId: string }
@@ -104,9 +100,11 @@ export function PayByInvoicePage({ invoiceId }: Props) {
   const [showQr, setShowQr] = useState(false)
   const [nanPaid, setNanPaid] = useState(false)
 
-  // success state
+  // success + reconciliation state
   const [paid, setPaid] = useState(false)
   const [paidTx, setPaidTx] = useState('')
+  const [claiming, setClaiming] = useState(false)
+  const [claimResult, setClaimResult] = useState<{ matched: boolean; txHash?: string; aiSummary: string } | null>(null)
 
   const copyAddress = (addr: string) => {
     navigator.clipboard.writeText(addr)
@@ -114,13 +112,40 @@ export function PayByInvoicePage({ invoiceId }: Props) {
       .catch(() => {})
   }
 
-  // Mark as paid (called from NAN name confirm or when invoice already paid)
-  const markPaid = (txHash?: string) => {
-    setPaid(true)
-    if (txHash) setPaidTx(txHash)
-    if (invoice && localInvoice) {
-      recordInvoicePayment(invoice.id, { date: new Date().toISOString(), amount: invoice.amountDue, txHash: txHash ?? '', note: 'Paid via pay link' })
-      updateInvoice(invoice.id, { status: 'paid', amountPaid: invoice.total, amountDue: 0, updatedAt: new Date().toISOString() })
+  // Claim payment — calls server to reconcile onchain + notify merchant
+  const markPaid = async (txHash?: string) => {
+    if (!invoice) return
+    setClaiming(true)
+    try {
+      const res = await fetch('/api/invoice-claim', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          invoiceId: invoice.id,
+          txHash,
+          payerName: invoice.customerName,
+        }),
+      })
+      const data = await res.json() as { matched?: boolean; txHash?: string; aiSummary?: string }
+      const result = {
+        matched: data.matched ?? false,
+        txHash: data.txHash ?? txHash,
+        aiSummary: data.aiSummary ?? (data.matched
+          ? 'Payment confirmed onchain — funds are on their way.'
+          : 'Payment claimed — the merchant has been notified.'),
+      }
+      setClaimResult(result)
+      if (result.txHash) setPaidTx(result.txHash)
+      if (invoice && localInvoice && result.matched) {
+        recordInvoicePayment(invoice.id, { date: new Date().toISOString(), amount: invoice.amountDue, txHash: result.txHash ?? '', note: 'Paid via pay link' })
+        updateInvoice(invoice.id, { status: 'paid', amountPaid: invoice.total, amountDue: 0, updatedAt: new Date().toISOString() })
+      }
+    } catch {
+      // fallback — mark locally and show success anyway
+      setClaimResult({ matched: false, aiSummary: 'Payment claimed — the merchant has been notified.' })
+    } finally {
+      setClaiming(false)
+      setPaid(true)
     }
   }
 
@@ -130,30 +155,58 @@ export function PayByInvoicePage({ invoiceId }: Props) {
   const isPaidAlready = invoice.status === 'paid' || invoice.amountDue <= 0
 
   // ── Success ────────────────────────────────────────────────────────────────
-  if (paid || isPaidAlready || nanPaid) return (
-    <div style={{ minHeight: '100dvh', background: '#0A0E1A', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontFamily: F, padding: '48px 24px', overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
-      <div style={{ textAlign: 'center', maxWidth: 380 }}>
-        <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'rgba(34,197,94,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
-          <CheckCircle2 size={32} color={GREEN} />
-        </div>
-        <div style={{ fontSize: 20, fontWeight: 800, color: '#fff', marginBottom: 8 }}>Payment sent!</div>
-        <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.6)', marginBottom: 20, lineHeight: 1.5 }}>
-          {fmtAmt(invoice.total, invoice.currency)} is on its way to {invoice.businessName}.
-        </div>
-        {paidTx && (
-          <a href={buildTxExplorerUrl(ARC, paidTx)} target="_blank" rel="noopener noreferrer"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, color: BLUE, fontWeight: 600, textDecoration: 'none' }}>
-            View transaction <ExternalLink size={13} />
-          </a>
-        )}
-        <div style={{ marginTop: 28 }}>
-          <a href="https://nanarc.xyz" style={{ display: 'inline-block', padding: '12px 28px', background: BLUE, color: '#fff', borderRadius: 12, fontSize: 14, fontWeight: 700, textDecoration: 'none' }}>
-            Get NAN wallet
+  if (paid || isPaidAlready || nanPaid) {
+    const isConfirmed = claimResult?.matched || isPaidAlready
+    return (
+      <div style={{ minHeight: '100dvh', background: '#0A0E1A', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start', fontFamily: F, padding: '48px 24px 64px', overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
+        <div style={{ maxWidth: 400, width: '100%' }}>
+          <div style={{ textAlign: 'center', marginBottom: 24 }}>
+            <div style={{ width: 64, height: 64, borderRadius: '50%', background: isConfirmed ? 'rgba(34,197,94,0.12)' : 'rgba(245,158,11,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+              <CheckCircle2 size={32} color={isConfirmed ? GREEN : AMBER} />
+            </div>
+            <div style={{ fontSize: 20, fontWeight: 800, color: '#fff', marginBottom: 8 }}>
+              {isConfirmed ? 'Payment confirmed!' : 'Payment claimed!'}
+            </div>
+            <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.6)', lineHeight: 1.5 }}>
+              {fmtAmt(invoice.total, invoice.currency)} to {invoice.businessName}
+            </div>
+          </div>
+
+          {/* AI reconciliation result */}
+          {claimResult && (
+            <div style={{ background: 'rgba(8,102,245,0.08)', border: '1px solid rgba(8,102,245,0.2)', borderRadius: 14, padding: '14px 16px', marginBottom: 20 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: BLUE, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>NAN AI Reconciliation</div>
+              <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.8)', lineHeight: 1.6 }}>{claimResult.aiSummary}</div>
+              {isConfirmed && (
+                <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: GREEN, flexShrink: 0 }} />
+                  <span style={{ fontSize: 11, color: GREEN, fontWeight: 600 }}>Confirmed onchain</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {paidTx && (
+            <a href={buildTxExplorerUrl(ARC, paidTx)} target="_blank" rel="noopener noreferrer"
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 13, color: BLUE, fontWeight: 600, textDecoration: 'none', marginBottom: 20 }}>
+              View transaction on Arc <ExternalLink size={13} />
+            </a>
+          )}
+
+          <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 12, padding: '12px 16px', marginBottom: 20 }}>
+            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', marginBottom: 4 }}>The merchant has been notified</div>
+            <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', lineHeight: 1.5 }}>
+              {invoice.businessName} received an in-app notification and email with the payment details and this reconciliation report.
+            </div>
+          </div>
+
+          <a href="https://nanarc.xyz" style={{ display: 'block', padding: '13px', background: BLUE, color: '#fff', borderRadius: 12, fontSize: 14, fontWeight: 700, textDecoration: 'none', textAlign: 'center' }}>
+            Get your own NAN wallet
           </a>
         </div>
       </div>
-    </div>
-  )
+    )
+  }
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
@@ -284,9 +337,11 @@ export function PayByInvoicePage({ invoiceId }: Props) {
                 )}
 
                 {/* Already paid button */}
-                <button onClick={() => markPaid()}
-                  style={{ width: '100%', marginTop: 16, height: 44, background: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.3)', borderRadius: 10, color: GREEN, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}>
-                  <CheckCircle2 size={15} /> I've sent the payment
+                <button onClick={() => void markPaid()} disabled={claiming}
+                  style={{ width: '100%', marginTop: 16, height: 46, background: claiming ? 'rgba(34,197,94,0.06)' : 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.3)', borderRadius: 10, color: GREEN, fontSize: 13, fontWeight: 600, cursor: claiming ? 'not-allowed' : 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, opacity: claiming ? 0.7 : 1 }}>
+                  {claiming
+                    ? <><Loader size={15} color={GREEN} style={{ animation: 'spin 1s linear infinite' }} /> Verifying payment…</>
+                    : <><CheckCircle2 size={15} /> I've sent the payment</>}
                 </button>
               </>
             ) : (

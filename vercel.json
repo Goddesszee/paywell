@@ -42,6 +42,10 @@
     "api/payments-data.ts": {
       "memory": 256,
       "maxDuration": 15
+    },
+    "api/invoice-claim.ts": {
+      "memory": 512,
+      "maxDuration": 30
     }
   },
   "headers": [

@@ -854,6 +854,28 @@ async function groqChat(apiKey: string, message: string, usdcBal: string, wallet
   return data.choices?.[0]?.message?.content ?? 'Sorry, I could not process that.'
 }
 
+async function sendTransactionalEmail(to: string, subject: string, html: string) {
+  const resendKey = process.env.RESEND_API_KEY
+  if (resendKey) {
+    await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ from: 'NAN Payments <notifications@nanarc.xyz>', to, subject, html }),
+    })
+    return
+  }
+  const smtpUser = process.env.SMTP_USER
+  if (smtpUser) {
+    const nodemailer = await import('nodemailer')
+    const t = nodemailer.default.createTransport({
+      host: process.env.SMTP_HOST, port: Number(process.env.SMTP_PORT ?? 587),
+      secure: process.env.SMTP_PORT === '465',
+      auth: { user: smtpUser, pass: process.env.SMTP_PASS },
+    })
+    await t.sendMail({ from: `NAN <${smtpUser}>`, to, subject, html })
+  }
+}
+
 async function sendOtpEmail(to: string, code: string) {
   const nodemailer = await import('nodemailer')
   const transporter = nodemailer.default.createTransport({
@@ -1057,12 +1079,13 @@ app.post('/api/admin/support/tickets/:id/read', requireAdmin, (_req, res) => {
 interface AppNotification {
   id: string
   userEmail: string
-  type: 'support' | 'support_reply' | 'system' | 'payment'
+  type: 'support' | 'support_reply' | 'system' | 'payment' | 'invoice_paid' | 'invoice_claimed'
   title: string
   body: string
   read: boolean
   createdAt: string
   ticketId?: string
+  invoiceId?: string
 }
 
 const notificationStore = new Map<string, AppNotification[]>() // email -> notifications
@@ -2469,6 +2492,122 @@ app.delete('/api/invoices/:id', (req, res) => {
   invoiceStore.delete(req.params.id)
   debouncedSave('invoices', Object.fromEntries(invoiceStore))
   res.json({ success: true })
+})
+
+// ── Invoice payment claim + reconciliation ────────────────────────────────────
+// POST /api/invoice-claim { invoiceId, txHash?, payerName? }
+// Scans Arc for a matching USDC transfer, generates an AI verdict, notifies
+// the merchant in-app and by email.
+const ARC_CLAIM_RPC = process.env.RPC_PROXY_BASE_URL && process.env.RPC_PROXY_TOKEN
+  ? `${process.env.RPC_PROXY_BASE_URL}/api/rpc/5042?_rpc_token=${process.env.RPC_PROXY_TOKEN}`
+  : 'https://rpc.mainnet.arc.io' // arc-studio-allow-onchain-literal
+const USDC_ARC_CLAIM = '0x3600000000000000000000000000000000000000' // arc-studio-allow-onchain-literal
+const TRANSFER_SIG_CLAIM = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef' // arc-studio-allow-onchain-literal
+
+async function claimArcRpc(method: string, params: unknown[]): Promise<unknown> {
+  const r = await fetch(ARC_CLAIM_RPC, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
+  })
+  const j = await r.json() as { result?: unknown; error?: { message: string } }
+  if (j.error) throw new Error(j.error.message)
+  return j.result
+}
+
+async function findInvoiceTransfer(toAddress: string, expectedAmount: number, issuedAt: string) {
+  try {
+    const expRaw = BigInt(Math.round(expectedAmount * 1_000_000))
+    const tol    = expRaw / 100n
+    const nowBlock = Number(await claimArcRpc('eth_blockNumber', []))
+    const ageSeconds = Math.max(0, (Date.now() - new Date(issuedAt).getTime()) / 1000)
+    const fromBlock = Math.max(0, nowBlock - Math.min(Math.ceil(ageSeconds / 1.4) + 200, Math.ceil(30 * 86400 / 1.4)))
+    const toTopic = '0x' + toAddress.replace(/^0x/, '').toLowerCase().padStart(64, '0')
+    const logs = await claimArcRpc('eth_getLogs', [{
+      fromBlock: '0x' + fromBlock.toString(16), toBlock: 'latest',
+      address: USDC_ARC_CLAIM, topics: [TRANSFER_SIG_CLAIM, null, toTopic],
+    }]) as Array<{ data: string; transactionHash: string }>
+    for (const log of (logs ?? []).reverse()) {
+      const amt = BigInt('0x' + log.data.replace(/^0x/, '').padStart(64, '0'))
+      if (amt >= expRaw - tol && amt <= expRaw + tol)
+        return { matched: true, txHash: log.transactionHash, foundAmount: Number(amt) / 1_000_000 }
+    }
+  } catch (e) { console.warn('[invoice-claim] scan failed:', e) }
+  return { matched: false, txHash: undefined, foundAmount: undefined }
+}
+
+app.post('/api/invoice-claim', async (req, res) => {
+  const { invoiceId, txHash: claimedTxHash, payerName } =
+    (req.body ?? {}) as { invoiceId?: string; txHash?: string; payerName?: string }
+  if (!invoiceId) { res.status(400).json({ success: false, error: 'invoiceId required' }); return }
+
+  const inv = invoiceStore.get(invoiceId)
+  if (!inv) { res.status(404).json({ success: false, error: 'Invoice not found' }); return }
+
+  const claimId   = `claim-${genToken(6)}`
+  const issuedAt  = inv.issueDate ?? inv.createdAt ?? new Date(Date.now() - 7 * 86400_000).toISOString()
+  const { matched, txHash: foundTxHash, foundAmount } = inv.payToAddress
+    ? await findInvoiceTransfer(inv.payToAddress, inv.amountDue, issuedAt)
+    : { matched: false, txHash: undefined, foundAmount: undefined }
+
+  const resolvedTxHash  = foundTxHash ?? claimedTxHash
+  const customerDisplay = payerName ?? inv.customerName ?? 'Your customer'
+  const currency        = inv.currency ?? 'USDC'
+
+  // AI summary
+  let aiSummary = matched
+    ? `Payment of ${(foundAmount ?? inv.amountDue).toFixed(2)} ${currency} confirmed on the Arc blockchain — funds are in your wallet.`
+    : `${customerDisplay} claims to have sent ${inv.amountDue.toFixed(2)} ${currency} — no matching transfer found yet. Check your wallet in a few minutes.`
+  const llmPrompt = matched
+    ? `Invoice ${inv.number}: ${customerDisplay} paid ${(foundAmount ?? inv.amountDue).toFixed(2)} ${currency} (tx ${resolvedTxHash?.slice(0, 14)}). One sentence confirming payment is in the merchant wallet.`
+    : `Invoice ${inv.number}: ${customerDisplay} claimed ${inv.amountDue.toFixed(2)} ${currency} but no onchain transfer found. One sentence telling the merchant to check their wallet in a few minutes.`
+  const callLlm = async (key: string, base: string, model: string) => {
+    const r = await fetch(`${base}/chat/completions`, {
+      method: 'POST', headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model, messages: [
+        { role: 'system', content: 'You are the NAN payment reconciliation AI. One concise sentence, no markdown.' },
+        { role: 'user', content: llmPrompt },
+      ], max_tokens: 80 }),
+    })
+    const d = await r.json() as { choices?: Array<{ message: { content: string } }> }
+    return d.choices?.[0]?.message?.content?.trim() ?? ''
+  }
+  if (process.env.GROQ_API_KEY) {
+    try { const s = await callLlm(process.env.GROQ_API_KEY, 'https://api.groq.com/openai/v1', 'llama-3.1-8b-instant'); if (s) aiSummary = s } catch { /* fallthrough */ }
+  } else if (process.env.OPENAI_API_KEY) {
+    try { const s = await callLlm(process.env.OPENAI_API_KEY, 'https://api.openai.com/v1', 'gpt-4o-mini'); if (s) aiSummary = s } catch { /* fallthrough */ }
+  }
+
+  // Update invoice store
+  if (matched) {
+    invoiceStore.set(invoiceId, { ...inv, status: 'paid', amountPaid: inv.total, amountDue: 0,
+      paidAt: new Date().toISOString(), paidTxHash: resolvedTxHash } as StoredInvoice & { paidAt?: string; paidTxHash?: string })
+    debouncedSave('invoices', Object.fromEntries(invoiceStore))
+  }
+
+  // In-app notification to creator
+  const creatorWallet = inv.creatorAddress ?? ''
+  if (creatorWallet) {
+    addNotification(creatorWallet, {
+      type: (matched ? 'invoice_paid' : 'invoice_claimed') as AppNotification['type'],
+      title: matched ? `Invoice ${inv.number} paid ✓` : `Payment claimed — ${inv.number}`,
+      body: aiSummary,
+      invoiceId,
+    })
+  }
+
+  // Email notification
+  if (inv.businessEmail) {
+    try {
+      const { invoiceClaimEmail } = await import('../api/_emails.js')
+      const { subject, html } = invoiceClaimEmail({
+        invoiceNumber: inv.number, customerName: customerDisplay,
+        amount: inv.amountDue, currency, matched, txHash: resolvedTxHash, aiSummary, invoiceId,
+      })
+      await sendTransactionalEmail(inv.businessEmail, subject, html)
+    } catch (e) { console.warn('[invoice-claim] email failed:', e) }
+  }
+
+  res.json({ success: true, claimId, matched, txHash: resolvedTxHash, aiSummary })
 })
 
 app.get(/^(?!\/api).*$/, (_req, res) => {

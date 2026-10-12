@@ -165,12 +165,13 @@ export interface UserProfile {
 export interface AppNotification {
   id: string
   userEmail: string
-  type: 'support' | 'support_reply' | 'system' | 'payment'
+  type: 'support' | 'support_reply' | 'system' | 'payment' | 'invoice_paid' | 'invoice_claimed'
   title: string
   body: string
   read: boolean
   createdAt: string
   ticketId?: string
+  invoiceId?: string
 }
 
 export interface AgentWalletState {

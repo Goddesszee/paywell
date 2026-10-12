@@ -17,8 +17,8 @@ export async function confirmWithRetry<T extends { error?: string; pending?: boo
       body: JSON.stringify(body),
     })
     last = await safeJson<T>(resp)
-    if (!resp.ok && resp.status !== 202) return (last.error ? last : { ...last, error: 'Confirmation failed' }) as T
+    if (!resp.ok && resp.status !== 202) return (last.error ? last : { ...last, error: 'Confirmation failed' })
     if (!last.pending) return last
   }
-  return { ...last, error: 'Still pending after several minutes. Check your activity or the explorer shortly.' } as T
+  return { ...last, error: 'Still pending after several minutes. Check your activity or the explorer shortly.' }
 }

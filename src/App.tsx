@@ -228,17 +228,52 @@ export default function App() {
     if (pr || (pay && amount > 0)) return { nanpay: '', invoice: '', pr, pay, onramp: '', send: '', to: '', amount, note, currency }
     if (onramp) return { nanpay: '', invoice: '', pr: '', pay: '', onramp, send: '', to, amount, note, currency }
     if (send && to) return { nanpay: '', invoice: '', pr: '', pay: '', onramp: '', send, to, amount, note, currency }
+    const invoiceCheck = p.get('invoiceCheck') ?? ''
+    if (invoiceCheck) return { nanpay: '', invoice: '', pr: '', pay: '', onramp: '', send: '', to: '', amount: 0, note: '', currency: 'USDC' as const, invoiceCheck }
     return null
   }, [])
 
-  if (prParams?.nanpay) {
-    return <PayByNamePage handle={prParams.nanpay} />
-  }
+  // Deep-link side-effects — run once on mount based on URL params.
+  // Handles: ?invoiceCheck=, ?send=1, ?onramp=1
+  // Must be declared BEFORE any conditional returns (Rules of Hooks).
+  useEffect(() => {
+    if (!prParams) return
+    const p = prParams as Record<string, unknown>
+    const { setActiveView, setOnrampPrefill } = useAppStore.getState()
 
-  if (prParams?.invoice) {
-    return <PayByInvoicePage invoiceId={prParams.invoice} />
-  }
+    if (p.invoiceCheck) {
+      setActiveView('invoices')
+      try { window.history.replaceState({}, '', '/') } catch { /* ignore */ }
+      return
+    }
 
+    if (p.send && p.to) {
+      try {
+        localStorage.setItem('nan_send_prefill', JSON.stringify({
+          to: p.to, amount: (p.amount as number) > 0 ? String(p.amount) : '',
+          note: p.note, currency: p.currency,
+        }))
+      } catch { /* storage unavailable */ }
+      setActiveView('send')
+      try { window.history.replaceState({}, '', '/') } catch { /* ignore */ }
+      return
+    }
+
+    if (p.onramp) {
+      setOnrampPrefill({
+        ...((p.amount as number) > 0 ? { amount: p.amount as number } : {}),
+        ...(p.to ? { destinationAddress: p.to as string } : {}),
+        ...(p.note ? { note: p.note as string } : {}),
+      })
+      setActiveView('onramp')
+      try { window.history.replaceState({}, '', '/') } catch { /* ignore */ }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Public pay-link pages — no auth/shell needed, rendered before the main app
+  if (prParams?.nanpay) return <PayByNamePage handle={prParams.nanpay} />
+  if (prParams?.invoice) return <PayByInvoicePage invoiceId={prParams.invoice} />
   if (prParams && (prParams.pr || prParams.pay)) {
     return (
       <PaymentRequestPayPage
@@ -249,35 +284,6 @@ export default function App() {
         currency={prParams.currency}
       />
     )
-  }
-
-  // ?send=1&to=<address>&amount=<n>&note=<text> — deep-link from invoice NAN tab
-  // Store prefill in localStorage, WalletPage reads it on mount to pre-fill the send form.
-  if (prParams?.send) {
-    try {
-      localStorage.setItem('nan_send_prefill', JSON.stringify({
-        to: prParams.to,
-        amount: prParams.amount > 0 ? String(prParams.amount) : '',
-        note: prParams.note,
-        currency: prParams.currency,
-      }))
-    } catch { /* storage unavailable */ }
-    useAppStore.getState().setActiveView('send')
-    try { window.history.replaceState({}, '', '/') } catch { /* ignore */ }
-  }
-
-  // ?onramp=1&to=<address>&amount=<n>&note=<text> — deep-link from invoice/payment pay-with-card
-  // Pass the merchant address as destinationAddress so USDC lands on the merchant directly.
-  if (prParams?.onramp) {
-    const { setOnrampPrefill, setActiveView } = useAppStore.getState()
-    setOnrampPrefill({
-      ...(prParams.amount > 0 ? { amount: prParams.amount } : {}),
-      ...(prParams.to ? { destinationAddress: prParams.to } : {}),
-      ...(prParams.note ? { note: prParams.note } : {}),
-    })
-    setActiveView('onramp')
-    // Clear the query string so refreshing doesn't re-trigger
-    try { window.history.replaceState({}, '', '/') } catch { /* ignore */ }
   }
 
   if (!splashDone) return <SplashScreen onDone={() => setSplashDone(true)} />

@@ -44,7 +44,7 @@ const GATEWAY_WALLET_ABI = [
 ] as const
 
 // gatewayMint(bytes attestationPayload, bytes signature) — mints on destination
-const GATEWAY_MINTER_ABI = [
+const _GATEWAY_MINTER_ABI = [
   {
     type: 'function',
     name: 'gatewayMint',

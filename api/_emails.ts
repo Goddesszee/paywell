@@ -130,6 +130,65 @@ export function newUserEmail(email: string, code: string): { subject: string; ht
   return { subject, html }
 }
 
+/** ── Invoice payment claim notification (to merchant) ─────────────────────── */
+export function invoiceClaimEmail(opts: {
+  invoiceNumber: string
+  customerName: string
+  amount: number
+  currency: string
+  matched: boolean
+  txHash?: string
+  aiSummary: string
+  invoiceId: string
+}): { subject: string; html: string } {
+  const { invoiceNumber, customerName, amount, currency, matched, txHash, aiSummary, invoiceId } = opts
+  const fmtAmt = `${amount.toLocaleString('en', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency}`
+  const statusColor = matched ? '#16a34a' : '#d97706'
+  const statusBg = matched ? 'rgba(34,197,94,0.12)' : 'rgba(245,158,11,0.12)'
+  const statusText = matched ? 'Payment confirmed onchain' : 'Awaiting onchain confirmation'
+
+  const subject = matched
+    ? `Invoice ${invoiceNumber} paid — ${fmtAmt} confirmed`
+    : `Payment claimed for Invoice ${invoiceNumber} — ${fmtAmt}`
+
+  const html = wrapper(`
+    <h1 style="margin:0 0 6px;font-size:22px;font-weight:800;color:${TEXT};letter-spacing:-0.03em;">
+      Invoice Payment ${matched ? 'Confirmed' : 'Claimed'}
+    </h1>
+    <p style="margin:0 0 20px;font-size:14px;color:${TEXT2};line-height:1.55;">
+      <strong style="color:${TEXT};">${customerName}</strong> has ${matched ? 'paid' : 'claimed to have paid'} invoice <strong style="color:${TEXT};">${invoiceNumber}</strong>.
+    </p>
+
+    <div style="margin:0 0 20px;padding:20px 24px;background:rgba(255,255,255,0.03);border-radius:14px;border:1px solid ${BORDER};">
+      <table width="100%" cellpadding="0" cellspacing="0">
+        <tr><td style="padding:6px 0;font-size:13px;color:${TEXT2};">Invoice</td>
+            <td style="padding:6px 0;font-size:13px;font-weight:700;color:${TEXT};text-align:right;">${invoiceNumber}</td></tr>
+        <tr><td style="padding:6px 0;font-size:13px;color:${TEXT2};">Amount</td>
+            <td style="padding:6px 0;font-size:15px;font-weight:800;color:${NAN_BLUE};text-align:right;">${fmtAmt}</td></tr>
+        <tr><td style="padding:6px 0;font-size:13px;color:${TEXT2};">From</td>
+            <td style="padding:6px 0;font-size:13px;font-weight:600;color:${TEXT};text-align:right;">${customerName}</td></tr>
+        <tr><td style="padding:8px 0 0;font-size:13px;color:${TEXT2};">Status</td>
+            <td style="padding:8px 0 0;text-align:right;">
+              <span style="background:${statusBg};color:${statusColor};padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700;">${statusText}</span>
+            </td></tr>
+      </table>
+    </div>
+
+    <div style="margin:0 0 20px;padding:16px 20px;background:rgba(8,102,245,0.08);border-radius:12px;border:1px solid rgba(8,102,245,0.2);">
+      <p style="margin:0 0 6px;font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:${NAN_BLUE};">NAN AI Reconciliation</p>
+      <p style="margin:0;font-size:13px;color:${TEXT};line-height:1.6;">${aiSummary}</p>
+      ${txHash ? `<p style="margin:10px 0 0;font-size:11px;color:${TEXT2};">Tx: ${txHash.slice(0, 14)}...${txHash.slice(-8)}</p>` : ''}
+    </div>
+
+    <a href="https://nanarc.xyz/?invoiceCheck=${encodeURIComponent(invoiceId)}"
+      style="display:block;margin-top:20px;padding:14px;background:${NAN_BLUE};color:#fff;text-align:center;border-radius:12px;font-size:15px;font-weight:700;text-decoration:none;">
+      View Invoice in NAN
+    </a>
+  `)
+
+  return { subject, html }
+}
+
 /** ── Returning user sign-in email ──────────────────────────────────────── */
 export function returningUserEmail(email: string, code: string): { subject: string; html: string } {
   const subject = `${code} — Your NAN sign-in code`
