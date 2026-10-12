@@ -47,6 +47,7 @@
     "express": "^5.2.1",
     "framer-motion": "^11.15.0",
     "groq-sdk": "^1.6.0",
+    "jsqr": "^1.4.0",
     "lucide-react": "^0.468.0",
     "nodemailer": "^10.0.10",
     "qrcode": "^1.5.4",

@@ -36,87 +36,118 @@ const SEND_TOKENS = [
 type SendToken = typeof SEND_TOKENS[number]
 
 // ── QR Scanner Modal ──────────────────────────────────────────────────────────
+/** Pull a recipient out of whatever the QR contains: 0x address, ethereum: URI, URL containing an address, or @handle. */
+function parseScanned(raw: string): string {
+  const text = raw.trim()
+  const addr = text.match(/0x[0-9a-fA-F]{40}/)?.[0]
+  if (addr) return addr
+  const handle = text.match(/^@?([a-z0-9][a-z0-9-]{1,30})$/i)?.[1]
+  return handle && /^@/.test(text) ? `@${handle.toLowerCase()}` : ''
+}
+
 function QRScanModal({ onScan, onClose }: { onScan: (addr: string) => void; onClose: () => void }) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const [err, setErr] = useState('')
-  const [scanning, setScanning] = useState(true)
+  const [hint, setHint] = useState('Point camera at a wallet QR code')
   const streamRef = useRef<MediaStream | null>(null)
   const rafRef = useRef<number>(0)
+  const doneRef = useRef(false)
+  const onScanRef = useRef(onScan)
+  onScanRef.current = onScan
 
   const stopStream = useCallback(() => {
     cancelAnimationFrame(rafRef.current)
     streamRef.current?.getTracks().forEach(t => t.stop())
+    streamRef.current = null
   }, [])
+
+  const finish = useCallback((raw: string) => {
+    if (doneRef.current) return
+    const addr = parseScanned(raw)
+    if (!addr) { setHint('That QR is not a wallet address — try another'); return }
+    doneRef.current = true
+    stopStream()
+    onScanRef.current(addr)
+  }, [stopStream])
 
   useEffect(() => {
     let active = true
-    navigator.mediaDevices?.getUserMedia({ video: { facingMode: 'environment' } })
-      .then(stream => {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setErr('Camera is not available in this browser. Paste the address instead.')
+      return
+    }
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false })
+      .then(async stream => {
         if (!active) { stream.getTracks().forEach(t => t.stop()); return }
         streamRef.current = stream
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream
-          void videoRef.current.play()
-        }
-        // BarcodeDetector (Chrome Android, Edge)
-        type BD = { detect(src: HTMLVideoElement): Promise<{ rawValue: string }[]> }
-        const BD = (window as unknown as { BarcodeDetector?: { new(o: object): BD } }).BarcodeDetector
-        if (BD) {
-          const detector = new BD({ formats: ['qr_code'] })
-          const tick = () => {
-            if (!active || !videoRef.current) return
-            detector.detect(videoRef.current).then(codes => {
-              if (codes.length && scanning) {
-                const raw = codes[0].rawValue
-                const addr = raw.startsWith('ethereum:') ? raw.split(':')[1].split('?')[0]
-                  : raw.startsWith('0x') && raw.length >= 40 ? raw.trim()
-                  : /^0x[0-9a-fA-F]{40}/.test(raw) ? raw.match(/0x[0-9a-fA-F]{40}/)?.[0] ?? ''
-                  : ''
-                if (addr) { setScanning(false); stopStream(); onScan(addr) }
+        const video = videoRef.current
+        if (!video) return
+        video.srcObject = stream
+        try { await video.play() } catch { /* autoplay is allowed for muted inline video */ }
+
+        type BD = { detect(src: CanvasImageSource): Promise<{ rawValue: string }[]> }
+        const BDCtor = (window as unknown as { BarcodeDetector?: { new(o: object): BD } }).BarcodeDetector
+        const detector = BDCtor ? new BDCtor({ formats: ['qr_code'] }) : null
+        const canvas = document.createElement('canvas')
+        const ctx = canvas.getContext('2d', { willReadFrequently: true })
+        const jsQR = detector ? null : (await import('jsqr')).default
+
+        const tick = async () => {
+          if (!active || doneRef.current) return
+          try {
+            if (video.readyState >= 2 && video.videoWidth) {
+              if (detector) {
+                const codes = await detector.detect(video)
+                if (codes.length) finish(codes[0].rawValue)
+              } else if (jsQR && ctx) {
+                const w = 480, h = Math.round((video.videoHeight / video.videoWidth) * w)
+                canvas.width = w; canvas.height = h
+                ctx.drawImage(video, 0, 0, w, h)
+                const img = ctx.getImageData(0, 0, w, h)
+                const res = jsQR(img.data, w, h, { inversionAttempts: 'dontInvert' })
+                if (res?.data) finish(res.data)
               }
-            }).catch(() => {}).finally(() => { rafRef.current = requestAnimationFrame(tick) })
-          }
-          rafRef.current = requestAnimationFrame(tick)
-        } else {
-          setErr('QR scanning not supported on this browser. Paste the address manually.')
+            }
+          } catch { /* keep scanning */ }
+          if (active && !doneRef.current) rafRef.current = requestAnimationFrame(() => { void tick() })
         }
+        rafRef.current = requestAnimationFrame(() => { void tick() })
       })
-      .catch(() => { if (active) setErr('Camera permission denied. Paste the address manually.') })
+      .catch((e: unknown) => {
+        if (!active) return
+        const name = (e as { name?: string })?.name
+        setErr(name === 'NotAllowedError' ? 'Camera permission denied. Allow camera access for this site in your browser settings, or paste the address.'
+          : name === 'NotFoundError' ? 'No camera found on this device. Paste the address instead.'
+          : 'Could not open the camera. Paste the address instead.')
+      })
     return () => { active = false; stopStream() }
-  }, [onScan, scanning, stopStream])
+  }, [finish, stopStream])
 
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.92)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
       <div style={{ width: '100%', maxWidth: 360, padding: '0 20px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <span style={{ color: '#fff', fontSize: 16, fontWeight: 700 }}>Scan QR code</span>
-          <button onClick={() => { stopStream(); onClose() }} style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', padding: 4 }}><X size={20} /></button>
+          <button type="button" onClick={() => { stopStream(); onClose() }} style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', padding: 8 }}><X size={22} /></button>
         </div>
         {err ? (
-          <div style={{ color: '#F87171', fontSize: 13, textAlign: 'center', padding: '40px 0' }}>{err}</div>
+          <div style={{ color: '#F87171', fontSize: 13, textAlign: 'center', padding: '40px 0', lineHeight: 1.5 }}>{err}</div>
         ) : (
           <div style={{ position: 'relative', borderRadius: 16, overflow: 'hidden', background: '#000', aspectRatio: '1' }}>
-            <video ref={videoRef} playsInline muted style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-            {/* Viewfinder corners */}
+            <video ref={videoRef} playsInline muted autoPlay style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             {['tl','tr','bl','br'].map(pos => (
               <div key={pos} style={{
-                position: 'absolute',
-                width: 28, height: 28,
-                top: pos.startsWith('t') ? 16 : undefined,
-                bottom: pos.startsWith('b') ? 16 : undefined,
-                left: pos.endsWith('l') ? 16 : undefined,
-                right: pos.endsWith('r') ? 16 : undefined,
-                borderTop: pos.startsWith('t') ? '3px solid #0866F5' : 'none',
-                borderBottom: pos.startsWith('b') ? '3px solid #0866F5' : 'none',
-                borderLeft: pos.endsWith('l') ? '3px solid #0866F5' : 'none',
-                borderRight: pos.endsWith('r') ? '3px solid #0866F5' : 'none',
+                position: 'absolute', width: 28, height: 28,
+                top: pos.startsWith('t') ? 16 : undefined, bottom: pos.startsWith('b') ? 16 : undefined,
+                left: pos.endsWith('l') ? 16 : undefined, right: pos.endsWith('r') ? 16 : undefined,
+                borderTop: pos.startsWith('t') ? '3px solid #0866F5' : 'none', borderBottom: pos.startsWith('b') ? '3px solid #0866F5' : 'none',
+                borderLeft: pos.endsWith('l') ? '3px solid #0866F5' : 'none', borderRight: pos.endsWith('r') ? '3px solid #0866F5' : 'none',
               }} />
             ))}
-            <div style={{ position: 'absolute', bottom: 12, left: 0, right: 0, textAlign: 'center', color: 'rgba(255,255,255,0.7)', fontSize: 12 }}>
-              Point camera at a wallet QR code
-            </div>
+            <div style={{ position: 'absolute', bottom: 12, left: 0, right: 0, textAlign: 'center', color: 'rgba(255,255,255,0.8)', fontSize: 12 }}>{hint}</div>
           </div>
         )}
+        <button type="button" onClick={() => { stopStream(); onClose() }} style={{ width: '100%', marginTop: 16, padding: '12px 0', borderRadius: 12, background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
       </div>
     </div>
   )
@@ -559,6 +590,14 @@ function SendFlow({
   }, [circleStatus])
   const displayStep: SendStep = (isPending || isConfirming || isCirclePending) ? 'submitting' : step
 
+  const [autoAdvance, setAutoAdvance] = useState(false)
+  useEffect(() => {
+    if (!autoAdvance) return
+    setAutoAdvance(false)
+    void (async () => { if (await validateRecipient()) setStep('amount') })()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoAdvance])
+
   const validateRecipient = async (): Promise<boolean> => {
     if (!recipient) { setRecipientError('Recipient address is required'); return false }
     // NAN handle resolution: @name → address
@@ -891,7 +930,7 @@ function SendFlow({
               </label>
               {showQRScan && (
                 <QRScanModal
-                  onScan={addr => { setRecipient(addr); setResolvedName(null); setRecipientError(''); setShowQRScan(false) }}
+                  onScan={addr => { setRecipient(addr); setResolvedName(null); setRecipientError(''); setShowQRScan(false); setAutoAdvance(true) }}
                   onClose={() => setShowQRScan(false)}
                 />
               )}
@@ -1063,6 +1102,13 @@ function SendFlow({
           </button>
         )}
       </div>
+
+      {showQRScan && (
+        <QRScanModal
+          onScan={addr => { setRecipient(addr); setResolvedName(null); setRecipientError(''); setShowQRScan(false); setAutoAdvance(true) }}
+          onClose={() => setShowQRScan(false)}
+        />
+      )}
 
       {isWrongChain && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 12, padding: '10px 14px', marginBottom: 14 }}>
