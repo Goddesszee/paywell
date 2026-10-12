@@ -19,7 +19,7 @@ import { useAppStore, type Invoice } from '../../store/appStore'
 import { buildTxExplorerUrl } from '@/onchain-facts'
 import { useNanName } from '../../hooks/useNanName'
 import { usePublicPage } from '../../hooks/usePublicPage'
-import { CircleEmailLogin } from '../CircleEmailLogin'
+import { InlineAuthPicker } from '../InlineAuthPicker'
 
 const F     = "'Inter', -apple-system, sans-serif"
 const BLUE  = '#0866F5'
@@ -113,7 +113,6 @@ export function PayByInvoicePage({ invoiceId }: Props) {
   const [nanResolved, setNanResolved] = useState<{ name: string; address: string } | null>(null)
   const [nanError, setNanError] = useState('')
   const [nanPaid, setNanPaid] = useState(false)
-  const [nanShowLogin, setNanShowLogin] = useState(false)
   const [nanSending, setNanSending] = useState(false)
   const nanRef = useRef<HTMLInputElement>(null)
 
@@ -121,7 +120,11 @@ export function PayByInvoicePage({ invoiceId }: Props) {
   const [paid, setPaid] = useState(false)
   const [paidTx, setPaidTx] = useState('')
 
-  const isNanLoggedIn = !!(auth?.userToken && (auth?.circleWalletAddress || auth?.walletAddress))
+  // Logged in via Circle wallet OR via connected wagmi wallet
+  const isNanLoggedIn = !!(
+    (auth?.userToken && (auth?.circleWalletAddress || auth?.walletAddress)) ||
+    auth?.walletAddress
+  )
 
   const resolveNan = async () => {
     const raw = nanInput.trim().replace(/\.nan$/i, '').toLowerCase()
@@ -365,33 +368,21 @@ export function PayByInvoicePage({ invoiceId }: Props) {
         {tab === 'nan' && (
           <div style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.10)', borderRadius: 16, padding: 20 }}>
 
-            {/* Step 1: not logged in — prompt to create / login */}
-            {!isNanLoggedIn && !nanShowLogin && (
-              <>
-                <div style={{ fontSize: 14, fontWeight: 700, color: '#fff', marginBottom: 6 }}>Pay with your NAN wallet</div>
-                <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.55)', lineHeight: 1.55, marginBottom: 20 }}>
-                  New to NAN? Create a free wallet in 30 seconds with just your email. Already have one? Sign in and pay instantly.
-                </div>
-                <button onClick={() => setNanShowLogin(true)}
-                  style={{ width: '100%', height: 50, background: BLUE, border: 'none', borderRadius: 12, color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                  Create wallet / Sign in to pay
-                </button>
-              </>
-            )}
-
-            {/* Inline email login */}
-            {!isNanLoggedIn && nanShowLogin && (
-              <>
-                <button onClick={() => setNanShowLogin(false)}
-                  style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: 12, cursor: 'pointer', fontFamily: F, marginBottom: 16, padding: 0 }}>
-                  <ArrowLeft size={13} /> Back
-                </button>
-                <CircleEmailLogin onSuccess={(walletAddress, userToken, email, encryptionKey) => {
+            {/* Step 1: not logged in — auth picker */}
+            {!isNanLoggedIn && (
+              <InlineAuthPicker
+                dark={true}
+                onWalletConnected={address => {
+                  // wagmi wallet connected — store minimal auth so isNanLoggedIn flips true
+                  const token = btoa(`${address}:${Date.now()}`)
+                  setAuth({ email: address, sessionToken: token, walletAddress: address, walletId: address })
+                }}
+                onCircleSuccess={(walletAddress, userToken, email, encryptionKey) => {
                   const existing = useAppStore.getState().auth
                   setAuth({ ...existing, email, sessionToken: userToken, userToken, encryptionKey: encryptionKey ?? existing?.encryptionKey, walletAddress, walletId: existing?.walletId ?? walletAddress, circleWalletAddress: walletAddress, circleWalletId: existing?.circleWalletId ?? walletAddress })
-                  setNanShowLogin(false)
-                }} />
-              </>
+                }}
+                onBack={undefined}
+              />
             )}
 
             {/* Step 2: logged in — show name input */}

@@ -3,7 +3,7 @@ import { useAccount } from 'wagmi'
 import { ShoppingCart, AlertCircle, Check, X, RefreshCw, Loader2, ArrowLeft, Mail } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
 import { onrampFee } from '../../lib/fees'
-import { CircleEmailLogin } from '../CircleEmailLogin'
+import { InlineAuthPicker } from '../InlineAuthPicker'
 
 // NAN design tokens
 const F     = "'Inter', -apple-system, sans-serif"
@@ -67,7 +67,6 @@ export function OnrampPage() {
   // In merchant-pay mode the user needs to be logged in (for KYC appUserId) but
   // USDC doesn't go to their wallet — they can log in with email right here.
   const isReady = isConnected || !!userAddress || !!auth?.userToken
-  const [showLogin, setShowLogin] = useState(false)
 
   const prefillAmount = onrampPrefill?.amount && onrampPrefill.amount > 0 ? onrampPrefill.amount : null
   const [amount, setAmount] = useState(prefillAmount ?? 100)
@@ -256,38 +255,21 @@ export function OnrampPage() {
         </div>
       )}
 
-      {/* ── Not ready — show NAN login prompt ── */}
-      {!isReady && !showLogin && (
-        <div style={{ marginBottom: 16, padding: '20px 18px', background: 'rgba(8,102,245,0.06)', borderRadius: 16, border: '1px solid rgba(8,102,245,0.18)', textAlign: 'center' }}>
-          <div style={{ fontSize: 15, fontWeight: 700, color: TEXT, marginBottom: 6 }}>Sign in to continue</div>
-          <div style={{ fontSize: 13, color: T2, marginBottom: 18, lineHeight: 1.5 }}>
-            A quick login is required so Circle can process your card payment securely.
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <button onClick={() => setShowLogin(true)}
-              style={{ height: 48, background: BLUE, color: '#fff', border: 'none', borderRadius: 12, fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-              <Mail size={16} /> Continue with email
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* ── Inline email login ── */}
-      {!isReady && showLogin && (
-        <div style={{ marginBottom: 16, padding: '18px', background: 'var(--nan-surface)', borderRadius: 16, border: '1px solid var(--nan-bdr)' }}>
-          <button onClick={() => setShowLogin(false)}
-            style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', color: T2, fontSize: 12, cursor: 'pointer', fontFamily: F, marginBottom: 14, padding: 0 }}>
-            <ArrowLeft size={13} /> Back
-          </button>
-          <CircleEmailLogin onSuccess={(walletAddress, userToken, email, encryptionKey) => {
-            const existing = useAppStore.getState().auth
-            setAuth({ ...existing, email, sessionToken: userToken, userToken, encryptionKey: encryptionKey ?? existing?.encryptionKey, walletAddress, walletId: existing?.walletId ?? walletAddress, circleWalletAddress: walletAddress, circleWalletId: existing?.circleWalletId ?? walletAddress })
-            setShowWelcome(false)
-            setShowLogin(false)
-            // Always stay on the onramp page — re-set active view so any navigation
-            // triggered deep inside login flow (e.g. name page redirect) is overridden.
-            setActiveView('onramp')
-          }} />
+      {/* ── Not ready — auth picker ── */}
+      {!isReady && (
+        <div style={{ marginBottom: 16, padding: '20px 18px', background: SURF, borderRadius: 16, border: `1px solid ${BDR}` }}>
+          <InlineAuthPicker
+            dark={false}
+            onWalletConnected={() => {
+              // wagmi wallet connected — isReady will flip true on next render
+            }}
+            onCircleSuccess={(walletAddress, userToken, email, encryptionKey) => {
+              const existing = useAppStore.getState().auth
+              setAuth({ ...existing, email, sessionToken: userToken, userToken, encryptionKey: encryptionKey ?? existing?.encryptionKey, walletAddress, walletId: existing?.walletId ?? walletAddress, circleWalletAddress: walletAddress, circleWalletId: existing?.circleWalletId ?? walletAddress })
+              setShowWelcome(false)
+              setActiveView('onramp')
+            }}
+          />
         </div>
       )}
 
@@ -372,10 +354,7 @@ export function OnrampPage() {
 
           {/* CTA */}
           <button
-            onClick={() => {
-              if (!isReady) { setShowLogin(true); return }
-              void fetchSession()
-            }}
+            onClick={() => { void fetchSession() }}
             disabled={amount <= 0}
             style={{ width: '100%', height: 54, borderRadius: 14, background: amount > 0 ? BLUE : SURF2, color: amount > 0 ? '#fff' : T2, border: 'none', cursor: amount > 0 ? 'pointer' : 'not-allowed', fontSize: 15, fontWeight: 800, fontFamily: F, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, transition: 'all 0.15s', boxShadow: amount > 0 ? '0 4px 16px rgba(8,102,245,0.30)' : 'none', letterSpacing: '-0.01em', WebkitTapHighlightColor: 'transparent' }}>
             {!isReady ? <><Mail size={16} /> Sign in &amp; pay with card</> : merchantDest ? `Pay $${amount} with card` : `Buy $${amount} of USDC`}
