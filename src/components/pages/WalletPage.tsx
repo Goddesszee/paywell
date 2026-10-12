@@ -895,8 +895,7 @@ function SendFlow({
                   onClose={() => setShowQRScan(false)}
                 />
               )}
-              <div style={{ display: 'flex', gap: 8, alignItems: 'stretch' }}>
-                <div style={{ position: 'relative', flex: 1 }}>
+              <div style={{ position: 'relative' }}>
                 <input
                   type="text"
                   placeholder="0x… or @nanhandle"
@@ -920,21 +919,6 @@ function SendFlow({
                     <CheckCircle2 size={16} color="#10B981" />
                   </div>
                 )}
-                </div>
-                {/* Scan QR button — prominent, outside the input */}
-                <button
-                  type="button"
-                  onClick={() => setShowQRScan(true)}
-                  title="Scan QR code"
-                  style={{
-                    flexShrink: 0, width: 52, borderRadius: 12,
-                    background: 'rgba(8,102,245,0.15)', border: '1px solid rgba(8,102,245,0.35)',
-                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                    cursor: 'pointer', WebkitTapHighlightColor: 'transparent', gap: 2,
-                  }}>
-                  <ScanLine size={20} color="#0866F5" />
-                  <span style={{ fontSize: 9, color: '#0866F5', fontWeight: 700, letterSpacing: '0.05em' }}>SCAN</span>
-                </button>
               </div>
               {recipient.startsWith('@') && !nameResolving && !resolvedName && !recipientError && (
                 <div style={{ fontSize: 12, color: '#0866F5', marginTop: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -1052,7 +1036,7 @@ function SendFlow({
         >
           <X size={16} color="var(--nan-text)" />
         </button>
-        <div>
+        <div style={{ flex: 1 }}>
           <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--nan-text)', letterSpacing: '-0.02em' }}>
             Send {selectedToken.symbol}
           </div>
@@ -1064,6 +1048,20 @@ function SendFlow({
             {displayStep === 'error' && 'Transaction failed'}
           </div>
         </div>
+        {displayStep === 'recipient' && (
+          <button
+            type="button"
+            onClick={() => setShowQRScan(true)}
+            title="Scan QR code"
+            style={{
+              width: 40, height: 40, borderRadius: 10, flexShrink: 0,
+              background: 'var(--nan-surface)', border: '1px solid var(--nan-bdr)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
+            }}>
+            <ScanLine size={20} color="var(--nan-text)" />
+          </button>
+        )}
       </div>
 
       {isWrongChain && (
