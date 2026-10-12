@@ -249,7 +249,9 @@ export function OnrampPage() {
       {/* ── Merchant pay banner ── */}
       {merchantDest && (
         <div style={{ marginBottom: 16, padding: '14px 16px', background: 'rgba(8,102,245,0.08)', borderRadius: 14, border: '1px solid rgba(8,102,245,0.20)' }}>
-          <div style={{ fontSize: 10, fontWeight: 700, color: BLUE, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Paying invoice</div>
+          <div style={{ fontSize: 10, fontWeight: 700, color: BLUE, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>
+            {prefillNote?.toLowerCase().includes('payment request') ? 'Paying payment request' : 'Paying invoice'}
+          </div>
           {prefillNote && <div style={{ fontSize: 14, fontWeight: 700, color: TEXT, marginBottom: 4 }}>{prefillNote}</div>}
           <div style={{ fontSize: 12, color: T2 }}>USDC will be sent directly to the merchant after purchase.</div>
         </div>

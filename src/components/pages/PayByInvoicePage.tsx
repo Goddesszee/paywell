@@ -435,7 +435,7 @@ export function PayByInvoicePage({ invoiceId, isRequest = false }: Props) {
                 {/* Open NAN CTA */}
                 {invoice.payToAddress ? (
                   <a
-                    href={`https://nanarc.xyz/?send=1&to=${encodeURIComponent(invoice.payToAddress)}&amount=${invoice.amountDue}&note=${encodeURIComponent(`Invoice ${invoice.number ?? ''} — ${invoice.businessName ?? ''}`)}&currency=${invoice.currency ?? 'USDC'}`}
+                    href={`https://nanarc.xyz/?send=1&to=${encodeURIComponent(invoice.payToAddress)}&amount=${invoice.amountDue}&note=${encodeURIComponent(`${isRequest ? 'Payment Request' : 'Invoice'} ${invoice.number ?? ''} — ${invoice.businessName ?? ''}`)}&currency=${invoice.currency ?? 'USDC'}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', height: 52, background: BLUE, color: '#fff', border: 'none', borderRadius: 14, fontSize: 15, fontWeight: 700, textDecoration: 'none', boxSizing: 'border-box', marginBottom: 12 }}
@@ -475,7 +475,7 @@ export function PayByInvoicePage({ invoiceId, isRequest = false }: Props) {
             </div>
             {invoice.payToAddress ? (
               <a
-                href={`https://nanarc.xyz/?onramp=1&to=${encodeURIComponent(invoice.payToAddress)}&amount=${invoice.amountDue}&note=${encodeURIComponent(`Invoice ${invoice.number}`)}&currency=${invoice.currency}`}
+                href={`https://nanarc.xyz/?onramp=1&to=${encodeURIComponent(invoice.payToAddress)}&amount=${invoice.amountDue}&note=${encodeURIComponent(`${isRequest ? 'Payment Request' : 'Invoice'} ${invoice.number}`)}&currency=${invoice.currency}`}
                 style={{ display: 'block', width: '100%', height: 50, background: BLUE, color: '#fff', border: 'none', borderRadius: 12, fontSize: 15, fontWeight: 700, textDecoration: 'none', textAlign: 'center', lineHeight: '50px', boxSizing: 'border-box' }}
               >
                 Buy &amp; pay with card
