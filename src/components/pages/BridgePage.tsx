@@ -507,16 +507,22 @@ export function BridgePage({ inCard = false }: { inCard?: boolean }) {
       const provider = (await connector.getProvider()) as EIP1193Provider
       const adapter  = await createViemAdapterFromProvider({ provider })
 
+      // Live step events — update progress strip in real time
+      appKit.on('bridge.approve',          () => { updateStep('approve',          { status: 'active' }) })
+      appKit.on('bridge.burn',             () => { updateStep('approve', { status: 'done' }); updateStep('burn', { status: 'active' }) })
+      appKit.on('bridge.fetchAttestation', () => { updateStep('burn', { status: 'done' }); updateStep('fetchAttestation', { status: 'active' }) })
+      appKit.on('bridge.mint',             () => { updateStep('fetchAttestation', { status: 'done' }); updateStep('mint', { status: 'active' }) })
+
       updateStep('approve', { status: 'active' })
 
-      const result = await appKit.bridge({
+      const bridgeParams = {
         from: { adapter, chain: fromChain.kitName as AppKitChain },
         to:   { adapter, chain: toChain.kitName as AppKitChain },
         amount,
         config: { ...bridgeCustomFee(parseFloat(amount)) },
-      }) as BridgeResult
+      }
+      const result = await appKit.bridge(bridgeParams) as BridgeResult
 
-      console.log('[bridge] result state:', result.state, 'steps:', result.steps?.map(s => s.name + ':' + s.state).join(', '))
 
       for (const step of result.steps ?? []) {
         const name      = step.name as StepName
