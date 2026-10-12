@@ -250,10 +250,14 @@ export default function App() {
   }
 
   // ?onramp=1&to=<address>&amount=<n>&note=<text> — deep-link from invoice/payment pay-with-card
-  // Set the prefill then fall through to the normal app so the user can log in if needed.
+  // Pass the merchant address as destinationAddress so USDC lands on the merchant directly.
   if (prParams?.onramp) {
     const { setOnrampPrefill, setActiveView } = useAppStore.getState()
-    if (prParams.amount > 0) setOnrampPrefill({ amount: prParams.amount })
+    setOnrampPrefill({
+      ...(prParams.amount > 0 ? { amount: prParams.amount } : {}),
+      ...(prParams.to ? { destinationAddress: prParams.to } : {}),
+      ...(prParams.note ? { note: prParams.note } : {}),
+    })
     setActiveView('onramp')
     // Clear the query string so refreshing doesn't re-trigger
     try { window.history.replaceState({}, '', '/') } catch { /* ignore */ }

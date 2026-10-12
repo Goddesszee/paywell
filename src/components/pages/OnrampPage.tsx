@@ -1,8 +1,9 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react'
 import { useAccount } from 'wagmi'
-import { ShoppingCart, AlertCircle, Check, X, RefreshCw, Loader2, ArrowLeft } from 'lucide-react'
+import { ShoppingCart, AlertCircle, Check, X, RefreshCw, Loader2, ArrowLeft, Mail } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
 import { onrampFee } from '../../lib/fees'
+import { CircleEmailLogin } from '../CircleEmailLogin'
 
 // NAN design tokens
 const F     = "'Inter', -apple-system, sans-serif"
@@ -53,9 +54,20 @@ const PRESETS = [20, 50, 100, 200]
 
 export function OnrampPage() {
   const { address: wagmiAddress, isConnected } = useAccount()
-  const { auth, onrampPrefill, setOnrampPrefill } = useAppStore()
-  const address = wagmiAddress ?? (auth?.circleWalletAddress as `0x${string}` | undefined)
-  const isReady = isConnected || !!address
+  const { auth, onrampPrefill, setOnrampPrefill, setAuth, setActiveView, profile, setShowWelcome } = useAppStore()
+  const userAddress = wagmiAddress ?? (auth?.circleWalletAddress as `0x${string}` | undefined)
+
+  // When a merchant destinationAddress is in the prefill, USDC goes straight to the merchant.
+  // The customer doesn't need their own wallet — they just need to authenticate for KYC.
+  const merchantDest = onrampPrefill?.destinationAddress ?? null
+  const prefillNote  = onrampPrefill?.note ?? null
+  // destinationAddress for the Circle session: merchant address if invoice flow, else user's own
+  const destinationAddress = merchantDest ?? userAddress
+
+  // In merchant-pay mode the user needs to be logged in (for KYC appUserId) but
+  // USDC doesn't go to their wallet — they can log in with email right here.
+  const isReady = isConnected || !!userAddress || !!auth?.userToken
+  const [showLogin, setShowLogin] = useState(false)
 
   const prefillAmount = onrampPrefill?.amount && onrampPrefill.amount > 0 ? onrampPrefill.amount : null
   const [amount, setAmount] = useState(prefillAmount ?? 100)
@@ -93,19 +105,22 @@ export function OnrampPage() {
 
   // ── Fetch session from server ──────────────────────────────────────────────
   const fetchSession = useCallback(async () => {
-    if (!address) return
+    if (!destinationAddress) return
     setState('loading')
     setError(null)
     setWidgetReady(false)
     credited.current = false
+
+    // appUserId identifies the customer for KYC — use their wallet or email as the ID
+    const appUserId = userAddress ?? auth?.email ?? destinationAddress
 
     try {
       const res = await fetch('/api/onramp-session', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
-          appUserId: address,
-          destinationAddress: address,
+          appUserId,
+          destinationAddress,
           amount: String(amount),
         }),
       })
@@ -135,7 +150,7 @@ export function OnrampPage() {
       setError(e instanceof Error ? e.message : 'Failed to start onramp')
       setState('error')
     }
-  }, [address, amount])
+  }, [destinationAddress, userAddress, auth, amount])
 
   // ── postMessage listener for widget lifecycle events ───────────────────────
   useEffect(() => {
@@ -203,8 +218,8 @@ export function OnrampPage() {
   // ── Copy address helper ────────────────────────────────────────────────────
   const [copied, setCopied] = useState(false)
   const copyAddress = () => {
-    if (!address) return
-    void navigator.clipboard.writeText(address).then(() => {
+    if (!destinationAddress) return
+    void navigator.clipboard.writeText(destinationAddress).then(() => {
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     })
@@ -228,11 +243,46 @@ export function OnrampPage() {
         </div>
       </div>
 
-      {/* ── Not connected ── */}
-      {!isReady && (
-        <div style={{ marginBottom: 16, padding: '14px 16px', background: 'rgba(8,102,245,0.06)', borderRadius: 14, border: '1px solid rgba(8,102,245,0.15)', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-          <AlertCircle size={15} color={BLUE} style={{ flexShrink: 0, marginTop: 1 }} />
-          <p style={{ color: T2, fontSize: 13, margin: 0, lineHeight: 1.5 }}>Connect your wallet on the Home screen to continue.</p>
+      {/* ── Merchant pay banner ── */}
+      {merchantDest && (
+        <div style={{ marginBottom: 16, padding: '14px 16px', background: 'rgba(8,102,245,0.08)', borderRadius: 14, border: '1px solid rgba(8,102,245,0.20)' }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: BLUE, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Paying invoice</div>
+          {prefillNote && <div style={{ fontSize: 14, fontWeight: 700, color: TEXT, marginBottom: 4 }}>{prefillNote}</div>}
+          <div style={{ fontSize: 12, color: T2 }}>USDC will be sent directly to the merchant after purchase.</div>
+        </div>
+      )}
+
+      {/* ── Not ready — show NAN login prompt ── */}
+      {!isReady && !showLogin && (
+        <div style={{ marginBottom: 16, padding: '20px 18px', background: 'rgba(8,102,245,0.06)', borderRadius: 16, border: '1px solid rgba(8,102,245,0.18)', textAlign: 'center' }}>
+          <div style={{ fontSize: 15, fontWeight: 700, color: TEXT, marginBottom: 6 }}>Sign in to continue</div>
+          <div style={{ fontSize: 13, color: T2, marginBottom: 18, lineHeight: 1.5 }}>
+            A quick login is required so Circle can process your card payment securely.
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <button onClick={() => setShowLogin(true)}
+              style={{ height: 48, background: BLUE, color: '#fff', border: 'none', borderRadius: 12, fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+              <Mail size={16} /> Continue with email
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Inline email login ── */}
+      {!isReady && showLogin && (
+        <div style={{ marginBottom: 16, padding: '18px', background: 'var(--nan-surface)', borderRadius: 16, border: '1px solid var(--nan-bdr)' }}>
+          <button onClick={() => setShowLogin(false)}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', color: T2, fontSize: 12, cursor: 'pointer', fontFamily: F, marginBottom: 14, padding: 0 }}>
+            <ArrowLeft size={13} /> Back
+          </button>
+          <CircleEmailLogin onSuccess={(walletAddress, userToken, email, encryptionKey) => {
+            const existing = useAppStore.getState().auth
+            setAuth({ ...existing, email, sessionToken: userToken, userToken, encryptionKey: encryptionKey ?? existing?.encryptionKey, walletAddress, walletId: existing?.walletId ?? walletAddress, circleWalletAddress: walletAddress, circleWalletId: existing?.circleWalletId ?? walletAddress })
+            setShowWelcome(false)
+            setShowLogin(false)
+            // If this is NOT a merchant-pay flow, go to home after login
+            if (!merchantDest) setActiveView(profile.displayName ? 'home' : 'name')
+          }} />
         </div>
       )}
 
@@ -240,13 +290,15 @@ export function OnrampPage() {
       {(state === 'idle' || state === 'error') && (
         <>
           {/* Destination wallet card */}
-          {isReady && address && (
+          {destinationAddress && (
             <div style={{ marginBottom: 12, padding: '14px 16px', background: SURF, borderRadius: 16, border: `1px solid ${BDR}` }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: T3, letterSpacing: '0.07em', textTransform: 'uppercase' as const, marginBottom: 8 }}>Destination</div>
+              <div style={{ fontSize: 10, fontWeight: 700, color: T3, letterSpacing: '0.07em', textTransform: 'uppercase' as const, marginBottom: 8 }}>
+                {merchantDest ? 'Merchant receives' : 'Destination'}
+              </div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
                 <div>
                   <div style={{ fontSize: 13, fontWeight: 600, color: TEXT, fontFamily: 'var(--nan-mono, monospace)', letterSpacing: '0.01em' }}>
-                    {address.slice(0, 8)}…{address.slice(-6)}
+                    {destinationAddress.slice(0, 8)}…{destinationAddress.slice(-6)}
                   </div>
                   <div style={{ fontSize: 11, color: T3, marginTop: 3 }}>Arc · USDC · ERC-20</div>
                 </div>
@@ -255,10 +307,9 @@ export function OnrampPage() {
                   {copied ? <><Check size={11} /> Copied</> : 'Copy'}
                 </button>
               </div>
-              {/* Full address disclosure */}
               <details style={{ marginTop: 10 }}>
                 <summary style={{ fontSize: 11, color: T3, cursor: 'pointer', userSelect: 'none' as const }}>Verify full address</summary>
-                <div style={{ marginTop: 6, padding: '8px 10px', background: SURF2, borderRadius: 8, fontSize: 11, color: T2, fontFamily: 'var(--nan-mono, monospace)', wordBreak: 'break-all' as const, lineHeight: 1.6 }}>{address}</div>
+                <div style={{ marginTop: 6, padding: '8px 10px', background: SURF2, borderRadius: 8, fontSize: 11, color: T2, fontFamily: 'var(--nan-mono, monospace)', wordBreak: 'break-all' as const, lineHeight: 1.6 }}>{destinationAddress}</div>
               </details>
             </div>
           )}
@@ -316,10 +367,13 @@ export function OnrampPage() {
 
           {/* CTA */}
           <button
-            onClick={() => { void fetchSession() }}
-            disabled={!isReady || amount <= 0}
-            style={{ width: '100%', height: 54, borderRadius: 14, background: isReady && amount > 0 ? BLUE : SURF2, color: isReady && amount > 0 ? '#fff' : T2, border: 'none', cursor: isReady && amount > 0 ? 'pointer' : 'not-allowed', fontSize: 15, fontWeight: 800, fontFamily: F, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, transition: 'all 0.15s', boxShadow: isReady && amount > 0 ? '0 4px 16px rgba(8,102,245,0.30)' : 'none', letterSpacing: '-0.01em', WebkitTapHighlightColor: 'transparent' }}>
-            {!isReady ? 'Connect wallet to continue' : `Buy $${amount} of USDC`}
+            onClick={() => {
+              if (!isReady) { setShowLogin(true); return }
+              void fetchSession()
+            }}
+            disabled={amount <= 0}
+            style={{ width: '100%', height: 54, borderRadius: 14, background: amount > 0 ? BLUE : SURF2, color: amount > 0 ? '#fff' : T2, border: 'none', cursor: amount > 0 ? 'pointer' : 'not-allowed', fontSize: 15, fontWeight: 800, fontFamily: F, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, transition: 'all 0.15s', boxShadow: amount > 0 ? '0 4px 16px rgba(8,102,245,0.30)' : 'none', letterSpacing: '-0.01em', WebkitTapHighlightColor: 'transparent' }}>
+            {!isReady ? <><Mail size={16} /> Sign in &amp; pay with card</> : merchantDest ? `Pay $${amount} with card` : `Buy $${amount} of USDC`}
           </button>
         </>
       )}

@@ -396,10 +396,10 @@ export interface AppState {
   gatewayPrefill: { mode: 'deposit' | 'transfer'; amount?: string; toChain?: string } | null
   setGatewayPrefill: (p: { mode: 'deposit' | 'transfer'; amount?: string; toChain?: string } | null) => void
   setBridgePrefill: (p: { amount?: string; toChain?: string } | null) => void
-  onrampPrefill: { amount?: number } | null
+  onrampPrefill: { amount?: number; destinationAddress?: string; note?: string } | null
   nanNamePrefill: { name: string; years?: 1 | 2 | 5 } | null
   setNanNamePrefill: (p: { name: string; years?: 1 | 2 | 5 } | null) => void
-  setOnrampPrefill: (p: { amount?: number } | null) => void
+  setOnrampPrefill: (p: { amount?: number; destinationAddress?: string; note?: string } | null) => void
   swapPrefill: { fromToken?: string; toToken?: string; amount?: string } | null
   setSwapPrefill: (p: { fromToken?: string; toToken?: string; amount?: string } | null) => void
 
