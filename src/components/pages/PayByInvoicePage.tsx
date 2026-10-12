@@ -35,7 +35,7 @@ function fmtDate(iso?: string) {
   catch { return iso }
 }
 
-interface Props { invoiceId: string }
+interface Props { invoiceId: string; isRequest?: boolean }
 
 function NotFound() {
   return (
@@ -67,7 +67,7 @@ function LoadingScreen() {
 // ── Tab types ─────────────────────────────────────────────────────────────────
 type Tab = 'address' | 'nan' | 'card'
 
-export function PayByInvoicePage({ invoiceId }: Props) {
+export function PayByInvoicePage({ invoiceId, isRequest = false }: Props) {
   usePublicPage()
 
   // ── Remote fetch ──────────────────────────────────────────────────────────
@@ -224,41 +224,71 @@ export function PayByInvoicePage({ invoiceId }: Props) {
         <span style={{ marginLeft: 'auto', fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>Secure payment</span>
       </div>
 
-      {/* Invoice card */}
+      {/* Card — Payment Request or Invoice */}
       <div style={{ width: '100%', maxWidth: 480, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.10)', borderRadius: 20, overflow: 'hidden', marginBottom: 20 }}>
         <div style={{ background: BLUE, padding: '20px 22px 18px' }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>Invoice {invoice.number}</div>
-          <div style={{ fontSize: 18, fontWeight: 700, color: '#fff', marginBottom: 2 }}>{invoice.businessName}</div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>
+            {isRequest ? `Payment Request · ${invoice.number}` : `Invoice ${invoice.number}`}
+          </div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: '#fff', marginBottom: 2 }}>
+            {isRequest ? `From ${invoice.businessName}` : invoice.businessName}
+          </div>
           {invoice.businessEmail && <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>{invoice.businessEmail}</div>}
         </div>
         <div style={{ padding: '20px 22px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>
+            {isRequest ? 'Amount requested' : 'Amount due'}
+          </div>
           <div style={{ fontSize: 36, fontWeight: 800, color: '#fff', letterSpacing: '-0.04em', lineHeight: 1 }}>
             {fmtAmt(invoice.amountDue, invoice.currency)}
           </div>
-          <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginTop: 6 }}>Due {fmtDate(invoice.dueDate)}</div>
+          {invoice.dueDate && <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginTop: 6 }}>Due {fmtDate(invoice.dueDate)}</div>}
         </div>
-        <div style={{ padding: '14px 22px', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'space-between' }}>
-          <div>
-            <div style={{ fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>Bill to</div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: '#fff' }}>{invoice.customerName}</div>
-          </div>
-          <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>Invoice</div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: '#fff' }}>{invoice.number}</div>
-          </div>
-        </div>
-        {invoice.items.map(item => (
-          <div key={item.id} style={{ padding: '10px 22px', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: '#fff' }}>{item.name}</div>
-              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>{item.quantity} × {fmtAmt(item.unitPrice, invoice.currency)}</div>
+
+        {/* Request: show note. Invoice: show bill-to + line items */}
+        {isRequest ? (
+          <>
+            {invoice.customerName && (
+              <div style={{ padding: '14px 22px', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'space-between' }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Requested from</div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: '#fff' }}>{invoice.customerName}</div>
+              </div>
+            )}
+            {(invoice.notes || invoice.items[0]?.name) && (
+              <div style={{ padding: '14px 22px', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'space-between' }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Note</div>
+                <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.8)', textAlign: 'right', maxWidth: '65%' }}>
+                  {invoice.notes || invoice.items[0]?.name}
+                </div>
+              </div>
+            )}
+          </>
+        ) : (
+          <>
+            <div style={{ padding: '14px 22px', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'space-between' }}>
+              <div>
+                <div style={{ fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>Bill to</div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: '#fff' }}>{invoice.customerName}</div>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>Invoice</div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: '#fff' }}>{invoice.number}</div>
+              </div>
             </div>
-          </div>
-        ))}
-        {invoice.notes && (
-          <div style={{ padding: '12px 22px', background: 'rgba(255,255,255,0.03)', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', lineHeight: 1.5 }}>{invoice.notes}</div>
-          </div>
+            {invoice.items.map(item => (
+              <div key={item.id} style={{ padding: '10px 22px', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: '#fff' }}>{item.name}</div>
+                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>{item.quantity} × {fmtAmt(item.unitPrice, invoice.currency)}</div>
+                </div>
+              </div>
+            ))}
+            {invoice.notes && (
+              <div style={{ padding: '12px 22px', background: 'rgba(255,255,255,0.03)', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', lineHeight: 1.5 }}>{invoice.notes}</div>
+              </div>
+            )}
+          </>
         )}
       </div>
 

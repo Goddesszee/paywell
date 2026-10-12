@@ -282,6 +282,11 @@ export default function App() {
   if (prParams?.nanpay) return <PayByNamePage handle={prParams.nanpay} />
   if (prParams?.invoice) return <PayByInvoicePage invoiceId={prParams.invoice} />
   if (prParams && (prParams.pr || prParams.pay)) {
+    // Quick requests (inv- prefix) use the unified invoice pay page with request styling
+    if (prParams.pr?.startsWith('inv-')) {
+      return <PayByInvoicePage invoiceId={prParams.pr} isRequest={true} />
+    }
+    // Legacy payment requests use the old PR pay page
     return (
       <PaymentRequestPayPage
         requestId={prParams.pr}
