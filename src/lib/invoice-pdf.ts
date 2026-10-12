@@ -25,9 +25,11 @@ const STATUS_STYLES: Record<string, { bg: string; color: string }> = {
 }
 
 export function buildInvoiceHtml(inv: Invoice): string {
+  const isQuick = (inv as Invoice & { mode?: string }).mode === 'quick'
+  const docTitle = isQuick ? 'PAYMENT REQUEST' : 'INVOICE'
   const ss = STATUS_STYLES[inv.status] ?? STATUS_STYLES.draft
   const statusLabel = inv.status.replace(/_/g, ' ').replace(/^\w/, c => c.toUpperCase())
-  const payLink = `${typeof window !== 'undefined' ? window.location.origin : 'https://nanarc.xyz'}?invoice=${inv.id}`
+  const payLink = invoicePaymentLink(inv)
 
   const itemRows = inv.items.map((item, i) => {
     const gross   = item.quantity * item.unitPrice
@@ -62,7 +64,7 @@ export function buildInvoiceHtml(inv: Invoice): string {
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>NAN Invoice ${inv.number}</title>
+  <title>NAN ${docTitle} ${inv.number}</title>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
     *{box-sizing:border-box;margin:0;padding:0}
@@ -110,7 +112,7 @@ export function buildInvoiceHtml(inv: Invoice): string {
       </div>
       <!-- Invoice title + status -->
       <div style="text-align:right;">
-        <div style="font-size:28px;font-weight:800;color:#fff;letter-spacing:-0.03em;margin-bottom:6px;">INVOICE</div>
+        <div style="font-size:28px;font-weight:800;color:#fff;letter-spacing:-0.03em;margin-bottom:6px;">${docTitle}</div>
         <div style="font-size:14px;font-weight:600;color:rgba(255,255,255,0.7);margin-bottom:10px;">${inv.number}</div>
         <span style="display:inline-block;background:${ss.bg};color:${ss.color};border-radius:20px;padding:4px 14px;font-size:12px;font-weight:700;">${statusLabel}</span>
       </div>
@@ -120,7 +122,7 @@ export function buildInvoiceHtml(inv: Invoice): string {
   <!-- ② Bill-to + dates -->
   <div style="display:flex;flex-wrap:wrap;gap:0;border-bottom:1px solid #E5E7EB;">
     <div style="flex:1;min-width:180px;padding:20px 32px;border-right:1px solid #E5E7EB;">
-      <div style="font-size:10px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;">Bill To</div>
+      <div style="font-size:10px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;">${isQuick ? 'Request To' : 'Bill To'}</div>
       <div style="font-size:15px;font-weight:700;color:#111827;margin-bottom:3px;">${inv.customerName}</div>
       ${inv.customerEmail ? `<div style="font-size:12px;color:#6B7280;">${inv.customerEmail}</div>` : ''}
       ${inv.customerPhone ? `<div style="font-size:12px;color:#6B7280;">${inv.customerPhone}</div>` : ''}
@@ -140,8 +142,8 @@ export function buildInvoiceHtml(inv: Invoice): string {
     </div>
   </div>
 
-  <!-- ③ Line items -->
-  <div style="padding:0;">
+  <!-- ③ Line items (full invoices only) -->
+  ${!isQuick ? `<div style="padding:0;">
     <table>
       <thead>
         <tr>
@@ -157,7 +159,7 @@ export function buildInvoiceHtml(inv: Invoice): string {
         ${itemRows || '<tr><td colspan="6" style="padding:20px;text-align:center;color:#9CA3AF;font-size:13px;">No items</td></tr>'}
       </tbody>
     </table>
-  </div>
+  </div>` : ''}
 
   <!-- ④ Totals -->
   <div style="display:flex;justify-content:flex-end;padding:0 32px 24px;border-bottom:1px solid #E5E7EB;">
@@ -241,7 +243,7 @@ export function buildInvoiceHtml(inv: Invoice): string {
       <span style="font-size:12px;font-weight:600;color:#374151;">NAN · Powered by Circle &amp; Arc</span>
     </div>
     <div style="text-align:right;">
-      <div style="font-size:11px;color:#9CA3AF;">Invoice ${inv.number} · Generated ${new Date().toLocaleDateString('en',{year:'numeric',month:'short',day:'numeric'})}</div>
+      <div style="font-size:11px;color:#9CA3AF;">${docTitle} ${inv.number} · Generated ${new Date().toLocaleDateString('en',{year:'numeric',month:'short',day:'numeric'})}</div>
       <div style="font-size:11px;color:#9CA3AF;">nanarc.xyz</div>
     </div>
   </div>
@@ -252,22 +254,27 @@ export function buildInvoiceHtml(inv: Invoice): string {
 }
 
 export function downloadInvoicePdf(inv: Invoice) {
+  const isQuick = (inv as Invoice & { mode?: string }).mode === 'quick'
+  const label   = isQuick ? 'PaymentRequest' : 'Invoice'
   const html = buildInvoiceHtml(inv)
   const blob = new Blob([html], { type: 'text/html' })
   const url  = URL.createObjectURL(blob)
   const a    = document.createElement('a')
   a.href = url
-  a.download = `NAN_Invoice_${inv.number}.html`
+  a.download = `NAN_${label}_${inv.number}.html`
   a.click()
   setTimeout(() => URL.revokeObjectURL(url), 15000)
 }
 
 export async function shareInvoice(inv: Invoice) {
+  const isQuick = (inv as Invoice & { mode?: string }).mode === 'quick'
+  const label   = isQuick ? 'PaymentRequest' : 'Invoice'
+  const title   = isQuick ? `Payment Request ${inv.number}` : `Invoice ${inv.number}`
   const html  = buildInvoiceHtml(inv)
   const blob  = new Blob([html], { type: 'text/html' })
-  const file  = new File([blob], `NAN_Invoice_${inv.number}.html`, { type: 'text/html' })
+  const file  = new File([blob], `NAN_${label}_${inv.number}.html`, { type: 'text/html' })
   if (navigator.share && navigator.canShare?.({ files: [file] })) {
-    try { await navigator.share({ title: `Invoice ${inv.number}`, files: [file] }); return } catch { /* fall through */ }
+    try { await navigator.share({ title, files: [file] }); return } catch { /* fall through */ }
   }
   const url = URL.createObjectURL(blob)
   window.open(url, '_blank')
