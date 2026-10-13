@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { AdminTreasuryPanel } from './AdminTreasuryPanel'
 import { useAppStore } from '../../store/appStore'
 import { adminFetch, adminLogin, adminLogout, getAdminToken } from '../../lib/admin-api'
 import { AdminOverviewPanel, AdminUsersPanel } from './AdminInsights'
@@ -1034,7 +1035,7 @@ function AdminFeesPanel() {
 
 function AdminDashboardInner() {
   const { activity, setActiveView } = useAppStore()
-  const [tab, setTab] = useState<'overview' | 'fees' | 'transactions' | 'support' | 'activity' | 'circle' | 'users' | 'feedback' | 'suggestions' | 'rewards' | 'audit'>('overview')
+  const [tab, setTab] = useState<'overview' | 'fees' | 'transactions' | 'support' | 'activity' | 'circle' | 'users' | 'feedback' | 'suggestions' | 'rewards' | 'treasury' | 'audit'>('overview')
   // 'My Activity' tab shows only this browser's own activity store
   // Env var check (Vite exposes VITE_ vars)
   const hasGroq = Boolean(import.meta.env.VITE_GROQ_API_KEY)
@@ -1063,6 +1064,7 @@ function AdminDashboardInner() {
     { id: 'activity',     label: 'My Activity' },
     { id: 'circle',       label: 'Circle Infra' },
     { id: 'rewards',      label: 'Rewards' },
+    { id: 'treasury',     label: 'Treasury' },
     { id: 'audit',        label: 'Audit Log' },
   ] as const
 
@@ -1199,6 +1201,7 @@ function AdminDashboardInner() {
 
         {/* ── AUDIT LOG ── */}
         {tab === 'rewards' && <AdminRewardsPanel />}
+        {tab === 'treasury' && <AdminTreasuryPanel />}
         {tab === 'audit' && <AdminAuditPanel />}
 
         {/* ── USERS ── */}

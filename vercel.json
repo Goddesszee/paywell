@@ -88,6 +88,7 @@
     { "source": "/api/admin/support/tickets/:id/reply",          "destination": "/api/community?route=admin/support/tickets/reply&_id=:id" },
     { "source": "/api/admin/support/tickets/:id/read",           "destination": "/api/community?route=admin/support/tickets/read&_id=:id" },
     { "source": "/api/admin/login",                              "destination": "/api/community?route=admin/login" },
+    { "source": "/api/admin/treasury/log",                     "destination": "/api/community?route=admin/treasury/log" },
     { "source": "/api/admin/rewards/claims",                     "destination": "/api/community?route=admin/rewards/claims" },
     { "source": "/api/admin/rewards/claims/update",              "destination": "/api/community?route=admin/rewards/claims/update" },
     { "source": "/api/admin/overview",                           "destination": "/api/community?route=admin/overview" },

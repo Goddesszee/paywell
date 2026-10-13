@@ -301,9 +301,25 @@ const RECEIVE_ABI = [{
   outputs: [{ name: 'success', type: 'bool' }],
 }] as const
 
+/**
+ * Destination CCTP domain of a CCTP message. Iris V2 nests it under `decodedMessage` (as a string) —
+ * reading `message.destinationDomain` gives undefined. If the API shape changes again, fall back to
+ * decoding the message bytes: version(4) | sourceDomain(4) | destinationDomain(4) | nonce(32) | …
+ */
+export function destinationDomainOf(m: { message?: string; destinationDomain?: number | string; decodedMessage?: { destinationDomain?: number | string } }): number | undefined {
+  const fromApi = m.decodedMessage?.destinationDomain ?? m.destinationDomain
+  if (fromApi !== undefined && fromApi !== null && fromApi !== '' && Number.isFinite(Number(fromApi))) return Number(fromApi)
+  const hex = (m.message ?? '').replace(/^0x/, '')
+  if (hex.length >= 24) {
+    const d = parseInt(hex.slice(16, 24), 16)
+    if (Number.isFinite(d)) return d
+  }
+  return undefined
+}
+
 function RecoverBridge({ c }: { c: ReturnType<typeof useNanTheme> }) {
-  const { address, isConnected } = useAccount()
-  const { switchChain } = useSwitchChain()
+  const { address, isConnected, connector } = useAccount()
+  const { switchChainAsync } = useSwitchChain()
   const chainId = useChainId()
   const [open, setOpen]         = useState(false)
   const [txHash, setTxHash]     = useState('')
@@ -323,11 +339,13 @@ function RecoverBridge({ c }: { c: ReturnType<typeof useNanTheme> }) {
       const url = `${IRIS_API}/messages/${srcChain.cctpDomain}?transactionHash=${hash}`
       const res = await fetch(url)
       if (!res.ok) throw new Error(`Iris API ${res.status}`)
-      const data = await res.json() as { messages?: { message: string; attestation: string; eventNonce: string; status: string; sourceDomain: number; destinationDomain: number }[] }
+      const data = await res.json() as { messages?: { message: string; attestation: string; eventNonce?: string; status: string; destinationDomain?: number | string; decodedMessage?: { destinationDomain?: number | string } }[] }
       const m = data.messages?.[0]
       if (!m) throw new Error('No messages found for this TX. Check the source chain and hash.')
       if (m.status !== 'complete') throw new Error(`Attestation not ready yet (status: ${m.status}). Wait a few minutes and try again.`)
-      setMsg({ message: m.message, attestation: m.attestation, destDomain: m.destinationDomain })
+      const destDomain = destinationDomainOf(m)
+      if (destDomain === undefined) throw new Error('Could not read the destination chain from this transfer. Please contact support with your burn transaction hash.')
+      setMsg({ message: m.message, attestation: m.attestation, destDomain })
       setStatus('ready')
     } catch (e) {
       setErrText(e instanceof Error ? e.message : 'Could not fetch attestation')
@@ -345,16 +363,17 @@ function RecoverBridge({ c }: { c: ReturnType<typeof useNanTheme> }) {
     try {
       // Switch to destination chain if needed
       if (chainId !== destChain.chainId) {
-        switchChain({ chainId: destChain.chainId })
-        await new Promise(r => setTimeout(r, 1500))
+        await switchChainAsync({ chainId: destChain.chainId })
       }
       const { createWalletClient, custom, publicActions } = await import('viem')
       const chainModule = await import('viem/chains')
       const allChains = Object.values(chainModule) as { id?: number }[]
       const viemChain = allChains.find(ch => ch && typeof ch === 'object' && ch.id === destChain.chainId) as { id: number; name: string; rpcUrls: { default: { http: string[] } }; nativeCurrency: { name: string; symbol: string; decimals: number } } | undefined
       if (!viemChain) throw new Error('Could not find viem chain for ' + destChain.label)
-      const provider = (window as unknown as { ethereum?: EIP1193Provider }).ethereum
-      if (!provider) throw new Error('No injected wallet found. Please connect MetaMask or similar.')
+      // Use the connected wallet's own provider (works for WalletConnect too), falling back to the injected one
+      const provider = ((await connector?.getProvider?.()) as EIP1193Provider | undefined)
+        ?? (window as unknown as { ethereum?: EIP1193Provider }).ethereum
+      if (!provider) throw new Error('No wallet found. Please connect MetaMask or another browser wallet.')
       const client = createWalletClient({ account: address, chain: viemChain, transport: custom(provider) }).extend(publicActions)
       const hash = await client.writeContract({
         address: transmitter,
@@ -369,7 +388,7 @@ function RecoverBridge({ c }: { c: ReturnType<typeof useNanTheme> }) {
       setErrText(m.includes('already') || m.includes('Used nonce') ? 'This transfer was already minted — check your destination wallet balance.' : m.slice(0, 200))
       setStatus('error')
     }
-  }, [msg, isConnected, address, chainId, switchChain])
+  }, [msg, isConnected, address, chainId, switchChainAsync, connector])
 
   if (!open) return (
     <button onClick={() => setOpen(true)}

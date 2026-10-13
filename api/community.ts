@@ -692,6 +692,16 @@ async function routeHandler(req: VercelRequest, res: VercelResponse) {
   }
 
   // ── admin: audit log ──────────────────────────────────────────────────────────
+  // ── admin: record a treasury withdrawal in the audit log ─────────────────────
+  // The withdrawal itself is signed by the contract owner's wallet in the browser; this only records it.
+  if (route === 'admin/treasury/log' && req.method === 'POST') {
+    const b = (req.body ?? {}) as { contract?: string; address?: string; to?: string; amount?: string; txHash?: string }
+    const hash = String(b.txHash ?? '')
+    if (!/^0x[0-9a-fA-F]{64}$/.test(hash)) return res.status(400).json({ success: false, error: 'valid txHash required' })
+    await auditLog(kv, 'treasury_withdraw', `Withdrew ${String(b.amount ?? '?').slice(0, 24)} USDC from ${String(b.contract ?? 'contract').slice(0, 60)} (${String(b.address ?? '').slice(0, 44)}) to ${String(b.to ?? '').slice(0, 44)}`, hash)
+    return res.status(200).json({ success: true })
+  }
+
   // ── admin: referral reward payout requests ───────────────────────────────────
   // GET  admin/rewards/claims                       list requests (newest first)
   // POST admin/rewards/claims/update {id,status,txHash?,note?}
