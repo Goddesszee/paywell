@@ -911,10 +911,14 @@ export function BridgePage({ inCard = false }: { inCard?: boolean }) {
       try {
         result = await appKit.bridge({
           from: { adapter, chain: fromChain.kitName as AppKitChain },
-          to:   { adapter, chain: toChain.kitName as AppKitChain },
+          // Circle's Forwarding Service submits the mint on the destination chain and takes its fee in USDC,
+          // so the user never needs ETH (or any gas token) there — gas is effectively paid in USDC.
+          to:   wagmiAddress && fromChain.chainId !== toChain.chainId
+            ? { chain: toChain.kitName as AppKitChain, recipientAddress: wagmiAddress, useForwarder: true }
+            : { adapter, chain: toChain.kitName as AppKitChain },
           amount,
           config: { ...bridgeCustomFee(parseFloat(amount)) },
-        }) as BridgeResult
+        } as never) as BridgeResult
       } finally {
         // Always remove listeners — prevents accumulation on retry
         appKit.off('bridge.approve',          onApprove)
