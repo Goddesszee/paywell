@@ -24,8 +24,9 @@ import { createViemAdapterFromProvider } from '@circle-fin/adapter-viem-v2'
 import type { EIP1193Provider } from 'viem'
 import {
   ArrowDownUp, CheckCircle, ExternalLink, AlertCircle,
-  Info, X, ChevronDown, ChevronUp,
+  Info, X, ChevronDown, ChevronUp, Copy, Check, Loader2,
 } from 'lucide-react'
+import { QRCodeSVG } from 'qrcode.react'
 import { ConnectKitButton } from 'connectkit'
 import { safeJson } from '../../lib/safe-json'
 import { bridgeCustomFee, feeCollectionActive } from '../../lib/fee-config'
@@ -98,6 +99,176 @@ const INITIAL_STEPS: StepState[] = [
 ]
 
 interface LiveFee { bps: number; label: string; fetched: boolean }
+
+// ── Fund Wallet Modal ─────────────────────────────────────────────────────────
+// Shown after a UCW source-chain wallet is freshly created. Lets the user either
+// fund it from their Arc wallet (intra-Circle transfer, no gas) or externally.
+interface FundModalProps {
+  chainLabel: string
+  gasToken: string
+  address: string
+  amount: string           // the bridge amount the user entered
+  arcWalletId: string
+  userToken: string
+  encryptionKey: string
+  appId: string
+  onFunded: () => void     // called after successful internal transfer → proceed to bridge
+  onDismiss: () => void
+  c: ReturnType<typeof useNanTheme>
+}
+
+function FundWalletModal({ chainLabel, gasToken, address, amount, arcWalletId, userToken, encryptionKey, appId, onFunded, onDismiss, c }: FundModalProps) {
+  const [copied, setCopied]     = useState(false)
+  const [funding, setFunding]   = useState(false)
+  const [fundErr, setFundErr]   = useState('')
+  const [fundDone, setFundDone] = useState(false)
+  const F = 'var(--nan-font)'
+  const MONO = 'var(--nan-mono)'
+
+  const copyAddr = () => {
+    navigator.clipboard.writeText(address).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000) }).catch(() => {})
+  }
+
+  const fundFromArc = async () => {
+    setFunding(true); setFundErr('')
+    try {
+      // Create an Arc → this wallet USDC transfer (token address empty = native USDC on Arc)
+      const resp = await fetch('/api/wallet', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'create-transfer',
+          userToken,
+          walletId: arcWalletId,
+          destinationAddress: address,
+          amount,
+          tokenAddress: '',
+          blockchain: 'ARC',
+        }),
+      })
+      const data = await resp.json() as { challengeId?: string; error?: string }
+      if (!resp.ok || !data.challengeId) throw new Error(data.error ?? 'Could not create transfer')
+
+      const sdk = new W3SSdk({ appSettings: { appId } })
+      sdk.setAuthentication({ userToken, encryptionKey })
+      await new Promise<void>((resolve, reject) => {
+        executeWithGuard(sdk, data.challengeId!, (err) => { if (err) { reject(new Error(err instanceof Error ? err.message : 'PIN failed')) } else { resolve() } })
+      })
+      setFundDone(true)
+      // Brief pause so the user sees the success state, then hand back
+      await new Promise(r => setTimeout(r, 1400))
+      onFunded()
+    } catch (e) {
+      setFundErr(e instanceof Error ? e.message : 'Transfer failed')
+    } finally {
+      setFunding(false)
+    }
+  }
+
+  return (
+    <div style={{
+      position: 'fixed' as const, inset: 0, zIndex: 9999,
+      background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(4px)',
+      display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+    }}>
+      <div style={{
+        width: '100%', maxWidth: 480,
+        background: c.surf, borderRadius: '20px 20px 0 0',
+        padding: '20px 20px 32px', boxSizing: 'border-box' as const,
+        fontFamily: F,
+      }}>
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+          <div>
+            <div style={{ fontSize: 16, fontWeight: 800, color: c.text, letterSpacing: '-0.02em' }}>
+              Fund your {chainLabel} wallet
+            </div>
+            <div style={{ fontSize: 11, color: c.t3, marginTop: 2 }}>
+              Send USDC + a little {gasToken} for gas to bridge from {chainLabel}
+            </div>
+          </div>
+          <button onClick={onDismiss} style={{ background: 'none', border: 'none', cursor: 'pointer', color: c.t3, padding: 4 }}>
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* QR + address */}
+        <div style={{ display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: 12, marginBottom: 16 }}>
+          <div style={{ padding: 12, background: '#fff', borderRadius: 14, boxShadow: '0 2px 12px rgba(0,0,0,0.15)' }}>
+            <QRCodeSVG value={address} size={140} />
+          </div>
+          <button
+            onClick={copyAddr}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              background: c.surf2, border: `1px solid ${c.bdr2}`,
+              borderRadius: 10, padding: '8px 14px', cursor: 'pointer',
+              fontFamily: MONO, fontSize: 12, color: c.text, fontWeight: 600,
+            }}
+          >
+            <span>{address.slice(0, 10)}…{address.slice(-8)}</span>
+            {copied ? <Check size={13} color={c.green} /> : <Copy size={13} color={c.t3} />}
+          </button>
+          {copied && <span style={{ fontSize: 11, color: c.green, fontWeight: 600 }}>Copied!</span>}
+        </div>
+
+        {/* Internal fund option */}
+        <div style={{ background: c.surf2, border: `1px solid ${c.bdr}`, borderRadius: 14, padding: '14px 16px', marginBottom: 10 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: c.text, marginBottom: 4 }}>Fund from your Arc wallet</div>
+          <div style={{ fontSize: 11, color: c.t3, marginBottom: 12, lineHeight: 1.5 }}>
+            Send <strong style={{ color: c.text }}>{amount} USDC</strong> from your Arc wallet to this {chainLabel} wallet instantly — no gas needed on your end.
+            Then tap Bridge and the bridge will proceed automatically.
+          </div>
+
+          {fundDone ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 14px', background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.20)', borderRadius: 10 }}>
+              <CheckCircle size={14} color={c.green} />
+              <span style={{ fontSize: 12, fontWeight: 700, color: c.green }}>Sent! Proceeding to bridge…</span>
+            </div>
+          ) : (
+            <>
+              {fundErr && (
+                <div style={{ fontSize: 11, color: '#EF4444', marginBottom: 8, display: 'flex', gap: 6, alignItems: 'center' }}>
+                  <AlertCircle size={12} color="#EF4444" />
+                  {fundErr}
+                </div>
+              )}
+              <button
+                onClick={() => { void fundFromArc() }}
+                disabled={funding}
+                style={{
+                  width: '100%', height: 42, borderRadius: 11,
+                  background: funding ? c.surf : c.blue,
+                  border: `1px solid ${c.blue}`,
+                  color: '#fff', fontSize: 13, fontWeight: 700,
+                  cursor: funding ? 'not-allowed' : 'pointer',
+                  fontFamily: F, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                }}
+              >
+                {funding
+                  ? <><Loader2 size={14} style={{ animation: 'nan-spin 1s linear infinite' }} />Sending…</>
+                  : `Send ${amount} USDC from Arc wallet →`}
+              </button>
+            </>
+          )}
+        </div>
+
+        {/* External option */}
+        <button
+          onClick={onDismiss}
+          style={{
+            width: '100%', height: 40, borderRadius: 11,
+            background: 'transparent', border: `1px solid ${c.bdr}`,
+            color: c.t2, fontSize: 13, fontWeight: 600,
+            cursor: 'pointer', fontFamily: F,
+          }}
+        >
+          I'll fund it externally — close
+        </button>
+      </div>
+    </div>
+  )
+}
 
 // ── Chain selector dropdown ───────────────────────────────────────────────────
 function ChainSelect({ value, onChange, exclude, label: fieldLabel, c, ucwOnly = false }: {
@@ -596,6 +767,10 @@ export function BridgePage({ inCard = false }: { inCard?: boolean }) {
   const [feeLoading,  setFeeLoading]  = useState(false)
   const [showDetails, setShowDetails] = useState(false)
 
+  // ── Fund wallet modal state ───────────────────────────────────────────────
+  interface FundModalState { address: string; walletId: string; arcWalletId: string; userToken: string; encryptionKey: string }
+  const [fundModal, setFundModal] = useState<FundModalState | null>(null)
+
   const fromChain = CHAINS[fromIdx]
   const toChain   = CHAINS[toIdx]
 
@@ -728,8 +903,16 @@ export function BridgePage({ inCard = false }: { inCard?: boolean }) {
             })
             for (let i = 0; i < 8 && !w; i++) { await new Promise(r => setTimeout(r, 1500)); w = await pick() }
             if (!w) throw new Error('Your wallet is being created — wait a few seconds and tap Bridge again.')
-            setErrMsg(`Your ${fromChain.label} wallet is ready: ${w.address}. Send USDC to this address on ${fromChain.label} (plus a little ${fromChain.gasToken} for gas), then tap Bridge again.`)
-            setStatus('error'); updateStep('approve', { status: 'idle' }); return
+            // Wallet just created — show the funding modal instead of a plain error string
+            setStatus('idle')
+            setFundModal({
+              address: w.address,
+              walletId: w.id,
+              arcWalletId: resolvedWalletId ?? '',
+              userToken: creds.userToken ?? authState.userToken,
+              encryptionKey: creds.encryptionKey,
+            })
+            return
           }
           walletId = w.id; userAddress = w.address; srcAccountType = w.accountType === 'EOA' ? 'EOA' : 'SCA'
         } catch (e) {
@@ -1110,8 +1293,58 @@ export function BridgePage({ inCard = false }: { inCard?: boolean }) {
   }
 
   // ── Main bridge UI ────────────────────────────────────────────────────────
+  // ── Wagmi-only gate ───────────────────────────────────────────────────────
+  // Bridge requires a browser wallet for now. Email/passkey users see a prompt.
+  if (isCircleUser || isPasskeyUser) {
+    return (
+      <div style={{ fontFamily: F, padding: inCard ? '0 0 2px' : '0 16px 80px' }}>
+        {!inCard && (
+          <div style={{ padding: '14px 0 12px' }}>
+            <div style={{ fontSize: 18, fontWeight: 800, color: c.text, letterSpacing: '-0.03em' }}>Bridge</div>
+          </div>
+        )}
+        <div style={{
+          marginTop: 24, padding: '28px 20px', borderRadius: 18,
+          background: c.surf, border: `1px solid ${c.bdr}`,
+          display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: 14, textAlign: 'center' as const,
+        }}>
+          <div style={{ fontSize: 32 }}>🌉</div>
+          <div style={{ fontSize: 15, fontWeight: 800, color: c.text, letterSpacing: '-0.02em' }}>
+            Connect a browser wallet to bridge
+          </div>
+          <div style={{ fontSize: 13, color: c.t2, lineHeight: 1.6, maxWidth: 280 }}>
+            Bridging is currently available for browser wallets (MetaMask, Coinbase Wallet, etc.).
+            Connect one using the button below.
+          </div>
+          <ConnectKitButton />
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div style={{ fontFamily: F, padding: inCard ? '0 0 2px' : '0 16px 80px' }}>
+
+      {/* ── Fund wallet modal (shown after UCW wallet creation) ── */}
+      {fundModal && (
+        <FundWalletModal
+          chainLabel={fromChain.label}
+          gasToken={fromChain.gasToken}
+          address={fundModal.address}
+          amount={amount || '0'}
+          arcWalletId={fundModal.arcWalletId}
+          userToken={fundModal.userToken}
+          encryptionKey={fundModal.encryptionKey}
+          appId={(import.meta.env.VITE_CIRCLE_APP_ID as string | undefined) ?? ''}
+          onFunded={() => {
+            // Close modal and re-trigger bridge (wallet now exists and is funded)
+            setFundModal(null)
+            void handleBridge()
+          }}
+          onDismiss={() => setFundModal(null)}
+          c={c}
+        />
+      )}
 
       {/* Standalone header */}
       {!inCard && (
