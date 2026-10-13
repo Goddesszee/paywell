@@ -1,153 +1,44 @@
-import React, { useState, useEffect } from 'react'
+import React, { useEffect } from 'react'
 import { ConnectKitButton } from 'connectkit'
 import { useAccount } from 'wagmi'
-import { Wallet, ArrowLeft } from 'lucide-react'
+import { Wallet } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
-import { CircleEmailLogin } from '../CircleEmailLogin'
-import { CircleGoogleLogin } from '../CircleGoogleLogin'
-import { CirclePasskeyLogin } from '../CirclePasskeyLogin'
 
-
-const F       = "'Inter', -apple-system, sans-serif"
-const BLUE    = '#0866F5'
-const TEXT    = 'var(--nan-text)'
-const TEXT2   = '#8A8F9E'
-const TEXT3   = '#50556A'
-const SURFACE = 'var(--nan-surface)'
-const BORDER  = 'var(--nan-bdr2)'
-const BG      = 'var(--nan-bg)'
-
-// Show/hide the "Continue with Google" button on the login screen.
-const SHOW_GOOGLE_LOGIN = false
-
-// Passkey login is hidden for now (Arc mainnet client key/passkey domain not ready).
-// Set to true to show the "Continue with Passkey" button again.
-const SHOW_PASSKEY_LOGIN = false
-
-type LoginMode = 'choose' | 'email' | 'google' | 'wallet' | 'passkey'
+const F     = "'Inter', -apple-system, sans-serif"
+const BLUE  = '#0866F5'
+const TEXT  = 'var(--nan-text)'
+const TEXT2 = '#8A8F9E'
+const TEXT3 = '#50556A'
+const BG    = 'var(--nan-bg)'
 
 export function LoginPage() {
   const { address, isConnected } = useAccount()
-  const { setAuth, setActiveView, profile, setShowWelcome } = useAppStore()
-  const [mode, setMode] = useState<LoginMode>('choose')
+  const { setAuth, setActiveView, setShowWelcome } = useAppStore()
 
-  // ── wallet connect effect — ONLY fires when user chose 'wallet' mode ──────
-  // Without this guard, a cached wagmi connection from a previous session would
-  // fire this effect the moment an email/Google/passkey user lands on LoginPage,
-  // overwriting their Circle auth with a wallet-based auth.
+  // When a wagmi wallet connects, sign in immediately.
   useEffect(() => {
-    if (mode !== 'wallet') return
     if (isConnected && address) {
       const token = btoa(`${address}:${Date.now()}`)
       setAuth({ email: address, sessionToken: token, walletAddress: address, walletId: address })
       setShowWelcome(true)
       setActiveView('home')
     }
-  }, [mode, isConnected, address, profile.displayName, setAuth, setActiveView, setShowWelcome])
+  }, [isConnected, address, setAuth, setActiveView, setShowWelcome])
 
-  // ── Circle email auth success ─────────────────────────────────────────────
-  // CircleEmailLogin.handleFinishAuth already called setAuth with the real
-  // circleWalletId (UUID) and circleWalletAddress. This callback must MERGE
-  // on top of that — not replace it — so circleWalletId is never wiped.
-  const { auth: currentAuth } = useAppStore.getState()
-  const onCircleSuccess = (walletAddress: string, userToken: string, email: string, encryptionKey?: string) => {
-    const existing = useAppStore.getState().auth
-    setAuth({
-      ...existing,   // keep refreshToken / deviceId saved by the login step
-      email,
-      sessionToken: userToken,
-      userToken,
-      encryptionKey: encryptionKey ?? existing?.encryptionKey,
-      walletAddress,
-      walletId: existing?.walletId ?? walletAddress,
-      circleWalletAddress: walletAddress,
-      circleWalletId: existing?.circleWalletId ?? walletAddress,
-    })
-    setShowWelcome(true)
-    setActiveView('home')
-  }
-  void currentAuth // suppress unused warning
-
-  // ── Passkey / modular wallet success ──────────────────────────────────────
-  const onPasskeySuccess = (walletAddress: string) => {
-    const token = btoa(`passkey:${walletAddress}:${Date.now()}`)
-    // circleWalletId is set to the address for passkey users — swap/bridge use
-    // isPasskeyUser to route client-side; circleWalletId is a fallback identity key.
-    setAuth({
-      email: walletAddress,
-      sessionToken: token,
-      walletAddress,
-      walletId: walletAddress,
-      circleWalletAddress: walletAddress,
-      circleWalletId: walletAddress,
-      isPasskeyUser: true,
-    })
-    setShowWelcome(true)
-    setActiveView('home')
-  }
-
-  // ── shared page wrapper ───────────────────────────────────────────────────
-  const wrap = (children: React.ReactNode) => (
+  return (
     <div style={{
       minHeight: '100dvh', background: BG, fontFamily: F,
       display: 'flex', flexDirection: 'column', alignItems: 'center',
       overflowY: 'auto',
       padding: 'max(env(safe-area-inset-top,0px),32px) 20px max(env(safe-area-inset-bottom,0px),32px)',
     }}>
-      <div style={{ width: '100%', maxWidth: 380, flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-        {children}
-      </div>
-      <p style={{ fontSize: 11, color: TEXT3, marginTop: 24, textAlign: 'center' }}>
-        Arc · Circle USDC
-      </p>
-    </div>
-  )
+      <div style={{ width: '100%', maxWidth: 380, flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 0 }}>
+        {/* Logo / heading */}
+        <div style={{ marginBottom: 36, textAlign: 'center' }}>
+          <div style={{ fontSize: 28, fontWeight: 800, color: TEXT, letterSpacing: '-0.03em', lineHeight: 1.1 }}>NAN</div>
+          <div style={{ fontSize: 13, color: TEXT2, marginTop: 6 }}>Pay with USDC on Arc</div>
+        </div>
 
-  // ── email mode — render Circle email login ────────────────────────────────
-  if (mode === 'email') {
-    return wrap(
-      <CircleEmailLogin
-        onBack={() => setMode('choose')}
-        onSuccess={onCircleSuccess}
-      />
-    )
-  }
-
-  // ── passkey mode — render Modular Wallet login ───────────────────────────
-  if (mode === 'passkey') {
-    return wrap(
-      <CirclePasskeyLogin
-        onBack={() => setMode('choose')}
-        onSuccess={onPasskeySuccess}
-      />
-    )
-  }
-
-  // ── google mode — render Circle Google login ──────────────────────────────
-  if (mode === 'google') {
-    return wrap(
-      <CircleGoogleLogin
-        onBack={() => setMode('choose')}
-        onSuccess={(walletAddress, userToken, email) => onCircleSuccess(walletAddress, userToken, email)}
-      />
-    )
-  }
-
-  // ── wallet mode — show ConnectKit, back button available ──────────────────
-  if (mode === 'wallet') {
-    return wrap(
-      <div>
-        <button onClick={() => setMode('choose')}
-          style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none',
-            cursor: 'pointer', color: TEXT2, fontSize: 14, marginBottom: 28, padding: 0, fontFamily: F }}>
-          <ArrowLeft size={14} /> Back
-        </button>
-        <h2 style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.025em', marginBottom: 6, color: TEXT }}>
-          Connect your wallet
-        </h2>
-        <p style={{ fontSize: 14, color: TEXT2, marginBottom: 22 }}>
-          Use any browser wallet to sign in to Nan.
-        </p>
         <ConnectKitButton.Custom>
           {({ show }) => (
             <button onClick={show} style={btnS(BLUE, '#fff')}>
@@ -156,93 +47,23 @@ export function LoginPage() {
             </button>
           )}
         </ConnectKitButton.Custom>
+
+        <p style={{ fontSize: 12, color: TEXT3, textAlign: 'center', marginTop: 20, lineHeight: 1.6 }}>
+          Connect MetaMask, Coinbase Wallet, or any browser wallet to get started.
+        </p>
       </div>
-    )
-  }
-
-  // ── choose mode — email first, wallet as alternative ─────────────────────
-  return wrap(
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-      {/* Email — primary CTA */}
-      <button onClick={() => setMode('email')} style={btnS(BLUE, '#fff')}>
-        <MailIcon />
-        <span>Continue with Email</span>
-      </button>
-
-      {/* Google — hidden for now. Flip SHOW_GOOGLE_LOGIN to true to bring it back; the Google
-          login flow (CircleGoogleLogin / 'google' mode) is untouched. */}
-      {SHOW_GOOGLE_LOGIN && (
-        <button onClick={() => setMode('google')} style={btnS(SURFACE, TEXT, BORDER)}>
-          <GoogleIcon />
-          <span>Continue with Google</span>
-        </button>
-      )}
-
-      {/* Divider */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '4px 0' }}>
-        <div style={{ flex: 1, height: 1, background: BORDER }} />
-        <span style={{ fontSize: 12, color: TEXT3, fontWeight: 500 }}>or</span>
-        <div style={{ flex: 1, height: 1, background: BORDER }} />
-      </div>
-
-      {/* Wallet */}
-      <button onClick={() => setMode('wallet')} style={btnS(SURFACE, TEXT, BORDER)}>
-        <Wallet size={17} />
-        <span>Continue with Wallet</span>
-      </button>
-
-      {/* Passkey / Modular Wallet */}
-      {SHOW_PASSKEY_LOGIN && (
-        <button onClick={() => setMode('passkey')} style={btnS(SURFACE, TEXT, BORDER)}>
-          <PasskeyIcon />
-          <span>Continue with Passkey</span>
-        </button>
-      )}
-
-      <p style={{ fontSize: 12, color: TEXT3, textAlign: 'center', marginTop: 14, lineHeight: 1.6 }}>
-        New here? We'll create your Circle wallet automatically.
+      <p style={{ fontSize: 11, color: TEXT3, marginTop: 24, textAlign: 'center' }}>
+        Arc · Circle USDC
       </p>
     </div>
   )
 }
 
-// ── icon helpers ───────────────────────────────────────────────────────────────
-function PasskeyIcon() {
-  return (
-    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="7" r="4"/>
-      <path d="M5.5 21a8.38 8.38 0 0 1 13 0"/>
-      <path d="M17 11l1.5 1.5L21 10"/>
-    </svg>
-  )
-}
-
-function MailIcon() {
-  return (
-    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="2" y="4" width="20" height="16" rx="2"/>
-      <path d="M2 7l10 7 10-7"/>
-    </svg>
-  )
-}
-
-function GoogleIcon() {
-  return (
-    <svg width="17" height="17" viewBox="0 0 48 48" fill="none">
-      <path d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z" fill="#FFC107"/>
-      <path d="M6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 16.318 4 9.656 8.337 6.306 14.691z" fill="#FF3D00"/>
-      <path d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238C29.211 35.091 26.715 36 24 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z" fill="#4CAF50"/>
-      <path d="M43.611 20.083H42V20H24v8h11.303a11.966 11.966 0 01-4.087 5.571l6.19 5.238C36.971 39.205 44 34 44 24c0-1.341-.138-2.65-.389-3.917z" fill="#1976D2"/>
-    </svg>
-  )
-}
-
-// ── style helpers ──────────────────────────────────────────────────────────────
-function btnS(bg: string, color: string, borderColor?: string): React.CSSProperties {
+// ── style helper ──────────────────────────────────────────────────────────────
+function btnS(bg: string, color: string): React.CSSProperties {
   return {
     width: '100%', padding: '13px 20px',
-    background: bg, color,
-    border: borderColor ? `1px solid ${borderColor}` : 'none',
+    background: bg, color, border: 'none',
     borderRadius: 12, fontSize: 15, fontWeight: 600,
     cursor: 'pointer', fontFamily: F,
     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 9,
