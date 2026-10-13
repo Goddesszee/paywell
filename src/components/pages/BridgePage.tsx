@@ -618,11 +618,13 @@ export function BridgePage({ inCard = false }: { inCard?: boolean }) {
   // eslint-disable-next-line react/set-state-in-effect
   useEffect(() => { void fetchLiveFee() }, [fetchLiveFee])
 
-  // Circle's Forwarding Service fee (USDC, covers the destination-chain mint gas). Display-only estimate.
+  // Circle's Forwarding Service fee — only applies to UCW/passkey users who use useForwarder:true.
+  // Wagmi users sign the mint themselves on the destination chain; no forwarding fee applies.
   const [fwdFee, setFwdFee] = useState(0)
   useEffect(() => {
+    const usesForwarder = isCircleUser || isPasskeyUser
     const src = fromChain.cctpDomain, dst = toChain.cctpDomain
-    if (src < 0 || dst < 0 || src === dst) { setFwdFee(0); return }
+    if (!usesForwarder || src < 0 || dst < 0 || src === dst) { setFwdFee(0); return }
     let alive = true
     void (async () => {
       try {
@@ -635,7 +637,7 @@ export function BridgePage({ inCard = false }: { inCard?: boolean }) {
       } catch { if (alive) setFwdFee(0) }
     })()
     return () => { alive = false }
-  }, [fromChain.cctpDomain, toChain.cctpDomain])
+  }, [fromChain.cctpDomain, toChain.cctpDomain, isCircleUser, isPasskeyUser])
 
   const updateStep = (name: StepName, patch: Partial<StepState>) =>
     setSteps(prev => prev.map(s => s.name === name ? { ...s, ...patch } : s))
