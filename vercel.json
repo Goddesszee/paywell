@@ -99,6 +99,7 @@
     { "source": "/api/identify",                                 "destination": "/api/community?route=identify" },
     { "source": "/api/admin/analytics",                          "destination": "/api/community?route=admin/analytics" },
     { "source": "/api/tx-track",                                 "destination": "/api/community?route=tx-track" },
+    { "source": "/api/spending-guard",                           "destination": "/api/community?route=spending-guard" },
     { "source": "/api/admin/tx-report",                          "destination": "/api/community?route=admin/tx-report" },
     { "source": "/api/notifications",                            "destination": "/api/community?route=notifications" },
     { "source": "/api/notifications/read",                       "destination": "/api/community?route=notifications/read" },

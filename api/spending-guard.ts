@@ -286,21 +286,21 @@ export async function recordDirectSpend(walletId: string, amount: number, note: 
   await saveRecord(kv, walletId, record)
 }
 
-// ── Vercel route handler ──────────────────────────────────────────────────────
+// ── HTTP route handler (called from community.ts, not a standalone function) ──
+// This keeps the file under Vercel's 12-function Hobby limit.
+// community.ts dispatches here when route === 'spending-guard'.
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  res.setHeader('Access-Control-Allow-Origin', '*')
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
-  if (req.method === 'OPTIONS') return res.status(200).end()
-
+export async function handleSpendingGuardRoute(
+  req: VercelRequest,
+  res: VercelResponse,
+): Promise<void> {
   const body   = (req.body ?? {}) as Record<string, unknown>
   const action = (body.action ?? req.query.action) as string | undefined
   const kv = getRedis()
-  if (!kv) return res.status(503).json({ success: false, ...REDIS_NOT_CONFIGURED })
+  if (!kv) { res.status(503).json({ success: false, ...REDIS_NOT_CONFIGURED }); return }
 
   const walletId = String(body.walletId ?? '').trim().toLowerCase()
-  if (!walletId) return res.status(400).json({ success: false, error: 'walletId required' })
+  if (!walletId) { res.status(400).json({ success: false, error: 'walletId required' }); return }
 
   const policy: SpendingPolicy = {
     perTxLimit:   Number(body.perTxLimit   ?? 0) || 0,
@@ -314,44 +314,44 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (action === 'check') {
       const amount = Number(body.amount ?? 0) || 0
       const result = await checkSpending(walletId, amount, policy)
-      return res.status(200).json({ success: true, ...result })
+      res.status(200).json({ success: true, ...result }); return
     }
 
     if (action === 'reserve') {
       const amount = Number(body.amount)
       const note   = String(body.note ?? '').slice(0, 200)
-      if (!amount || amount <= 0) return res.status(400).json({ success: false, error: 'amount required' })
+      if (!amount || amount <= 0) { res.status(400).json({ success: false, error: 'amount required' }); return }
       const result = await reserveSpend(walletId, amount, policy, note)
-      return res.status(200).json({ success: true, ...result })
+      res.status(200).json({ success: true, ...result }); return
     }
 
     if (action === 'confirm') {
       const reservationId = String(body.reservationId ?? '').trim()
       const txHash        = String(body.txHash ?? '').trim()
-      if (!reservationId || !txHash) return res.status(400).json({ success: false, error: 'reservationId and txHash required' })
+      if (!reservationId || !txHash) { res.status(400).json({ success: false, error: 'reservationId and txHash required' }); return }
       await confirmSpend(walletId, reservationId, txHash)
-      return res.status(200).json({ success: true })
+      res.status(200).json({ success: true }); return
     }
 
     if (action === 'cancel') {
       const reservationId = String(body.reservationId ?? '').trim()
-      if (!reservationId) return res.status(400).json({ success: false, error: 'reservationId required' })
+      if (!reservationId) { res.status(400).json({ success: false, error: 'reservationId required' }); return }
       await cancelSpend(walletId, reservationId)
-      return res.status(200).json({ success: true })
+      res.status(200).json({ success: true }); return
     }
 
     if (action === 'record') {
       const amount = Number(body.amount)
       const note   = String(body.note ?? '').slice(0, 200)
       const txHash = String(body.txHash ?? '').trim() || undefined
-      if (!amount || amount <= 0) return res.status(400).json({ success: false, error: 'amount required' })
+      if (!amount || amount <= 0) { res.status(400).json({ success: false, error: 'amount required' }); return }
       await recordDirectSpend(walletId, amount, note, txHash)
-      return res.status(200).json({ success: true })
+      res.status(200).json({ success: true }); return
     }
 
-    return res.status(400).json({ success: false, error: `Unknown action: ${String(action ?? '(none)')}` })
+    res.status(400).json({ success: false, error: `Unknown action: ${String(action ?? '(none)')}` })
   } catch (e) {
     console.error('[spending-guard]', e)
-    return res.status(500).json({ success: false, error: e instanceof Error ? e.message : 'Internal error' })
+    res.status(500).json({ success: false, error: e instanceof Error ? e.message : 'Internal error' })
   }
 }

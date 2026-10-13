@@ -15,6 +15,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import crypto from 'crypto'
 import { getRedis, REDIS_NOT_CONFIGURED } from './_redis.js'
+import { handleSpendingGuardRoute } from './spending-guard.js'
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -798,6 +799,11 @@ async function routeHandler(req: VercelRequest, res: VercelResponse) {
       auditEntries: 0, totalTickets: tickets.length, openTickets: tickets.filter(t => t.status !== 'resolved').length,
       totalTxCount: num(st.txCount), totalVolume: r2(num(st.volume)), mainVolume: r2(num(st.mainVolume)), agentVolume: r2(num(st.agentVolume)),
     })
+  }
+
+  // ── spending-guard (proxied here to stay under Vercel's 12-function limit) ───
+  if (route === 'spending-guard') {
+    return handleSpendingGuardRoute(req, res)
   }
 
   return res.status(404).json({ success: false, error: `Unknown route: ${route}` })
