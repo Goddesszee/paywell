@@ -358,8 +358,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     })
   }
 
-  // ── provision — create user PIN + agent wallet ───────────────────────────
-  // Uses UCW createUserPinWithWallets — user retains custody (correct for Agent Stack)
+  // ── provision — create user PIN + a dedicated agent wallet ──────────────
+  // The agent wallet is a SECOND Arc wallet (refId='agent') separate from the
+  // user's main NAN wallet. Both are under the same Circle user identity but
+  // have different addresses, so the agent can never spend from the main balance.
+  //
+  // Flow:
+  //   1. createUserPinWithWallets  — initialises the user + creates wallet #1 (main)
+  //      If the user is already initialised (code 155106) skip straight to step 2.
+  //   2. After the PIN challenge is accepted (frontend calls back on onComplete),
+  //      the frontend calls action=provision-agent-wallet with the userToken.
+  //   3. createWallets with refId='agent' creates wallet #2 — the agent wallet.
+  //      If that wallet already exists Circle returns a 409 / no-op, which we treat as success.
   if (action === 'provision') {
     const { userToken } = body
     if (!userToken) return err(res, 400, 'userToken required')
@@ -374,9 +384,39 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json({ ok: true, challengeId })
     } catch (e) {
       const code = (e as { response?: { data?: { code?: number } } })?.response?.data?.code
-      // 155106 = user already initialized — not an error
+      // 155106 = user already initialized — not an error; proceed to agent wallet creation
       if (code === 155106) return res.status(200).json({ ok: true, alreadyInitialized: true })
       return err(res, 500, e instanceof Error ? e.message : 'Provisioning failed')
+    }
+  }
+
+  // ── provision-agent-wallet — create the dedicated agent wallet ────────────
+  // Called by the frontend after the PIN challenge completes (step 3 above).
+  // Creates a second Arc SCA wallet tagged refId='agent' so it is always
+  // distinguishable from the user's main NAN wallet (wallets[0]).
+  if (action === 'provision-agent-wallet') {
+    const { userToken } = body
+    if (!userToken) return err(res, 400, 'userToken required')
+    try {
+      const existing = await client.listWallets({ userToken })
+      const agentWallet = (existing.data?.wallets ?? []).find(w => w.refId === 'agent')
+      if (agentWallet) {
+        // Already exists — return it directly
+        return res.status(200).json({ ok: true, walletId: agentWallet.id, address: agentWallet.address, alreadyExisted: true })
+      }
+      // Create the agent wallet as a second wallet in the user's wallet set
+      const response = await client.createWallets({
+        userToken,
+        blockchains: [Blockchain.Arc],
+        accountType: 'SCA',
+        count: 1,
+        metadata: [{ name: 'NAN Agent Wallet', refId: 'agent' }],
+      })
+      const wallet = (response.data?.wallets ?? [])[0]
+      if (!wallet) throw new Error('Agent wallet creation returned no wallet')
+      return res.status(200).json({ ok: true, walletId: wallet.id, address: wallet.address })
+    } catch (e) {
+      return err(res, 500, e instanceof Error ? e.message : 'Agent wallet creation failed')
     }
   }
 
@@ -387,9 +427,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     try {
       const response = await client.listWallets({ userToken })
       const wallets = response.data?.wallets ?? []
-      const wallet = wallets.find(w =>
-        w.blockchain?.toLowerCase().includes('arc')
-      ) ?? wallets[0]
+      // Always prefer the wallet explicitly tagged as the agent wallet (refId='agent').
+      // Fall back to the first Arc wallet only when no agent wallet exists yet.
+      const wallet = wallets.find(w => w.refId === 'agent')
+        ?? wallets.find(w => w.blockchain?.toLowerCase().includes('arc'))
+        ?? wallets[0]
       if (!wallet) return res.status(200).json({ provisioned: false })
 
       let balance_usdc = '0'
@@ -438,9 +480,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (userToken) {
       try {
         const walletList = await client.listWallets({ userToken })
-        const aw = (walletList.data?.wallets ?? []).find(w =>
-          w.blockchain?.toLowerCase().includes('arc')
-        ) ?? walletList.data?.wallets?.[0]
+        const aw = (walletList.data?.wallets ?? []).find(w => w.refId === 'agent')
+          ?? (walletList.data?.wallets ?? []).find(w => w.blockchain?.toLowerCase().includes('arc'))
+          ?? walletList.data?.wallets?.[0]
         if (aw) {
           const balRes = await client.getWalletTokenBalance({ walletId: aw.id, userToken })
           const usdcBal = (balRes.data?.tokenBalances ?? []).find(b => b.token?.symbol === 'USDC')

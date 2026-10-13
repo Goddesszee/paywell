@@ -1645,6 +1645,18 @@ export function AgentWalletExperience({ backView = 'home' }: AgentWalletExperien
   // We retry up to 10 times with 2s gaps (20s total) before giving up.
   const finishProvision = useCallback(async (loginRes: LoginResult) => {
     setScreen('creating')
+    setStatusMsg('Creating your Agent Wallet…')
+
+    // Ensure the dedicated agent wallet (refId='agent') exists before polling status.
+    // This is what makes the agent wallet a DIFFERENT address from the main NAN wallet —
+    // same Circle user, but a second wallet explicitly tagged 'agent'.
+    try {
+      await fetch('/api/agent-wallet', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'provision-agent-wallet', userToken: loginRes.userToken }),
+      })
+    } catch { /* non-fatal — status polling will still find an existing agent wallet */ }
 
     const MAX_ATTEMPTS = 10
     const DELAY_MS     = 2000
