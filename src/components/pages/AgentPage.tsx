@@ -1256,6 +1256,8 @@ function AgentChat({ onNavigate }: { onNavigate?: (page: string, query?: string)
           userAddress: address ?? auth?.walletAddress ?? '',
           sessionToken: auth?.sessionToken,
           context: {
+            // Browser-detected IANA timezone so the backend localises date/time
+            timezone: (() => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone } catch { return 'UTC' } })(),
             mainBalance: storeSnap.mainWalletBalance,
             mainAddress: address ?? auth?.walletAddress ?? '',
             isPasskeyUser: auth?.isPasskeyUser ?? false,
@@ -1304,6 +1306,7 @@ function AgentChat({ onNavigate }: { onNavigate?: (page: string, query?: string)
           'serper-search': 'Google Search via Serper',
           'alibaba-suppliers': 'Supplier directory',
           'openai-completion': 'OpenAI',
+          'duckduckgo-instant': 'DuckDuckGo',
         }
         const serviceLabel = res.service_used ? (SERVICE_LABELS[res.service_used] ?? res.service_used) : undefined
         addAgentMessage({

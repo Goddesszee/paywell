@@ -668,6 +668,7 @@ app.post('/api/chat', _paywall('0.001'), async (req, res) => {
       displayName?: string; nanHandle?: string; contactCount?: number
       contacts?: Array<{ name: string; address: string }>
       unreadNotifications?: number
+      timezone?: string
       recentActivity?: Array<{ type: string; amount: number; sign: string; description: string; counterparty?: string; timestamp: string; status: string; txHash?: string }>
       recurringTasks?: Array<{ name: string; recipient: string; amount: string; frequency: string; active: boolean; nextRunAt?: string; runCount: number }>
       openPaymentRequests?: Array<{ refNumber: string; title: string; amount: number; status: string; dueDate?: string }>
@@ -711,11 +712,14 @@ app.post('/api/chat', _paywall('0.001'), async (req, res) => {
     )
 
     // ── Rich system prompt (mirrors api/chat.ts v2 context blocks) ────────────
-    const nowDate = new Date()
-    const dateTimeStr = nowDate.toLocaleString('en-US', {
+    const userTz = ctx?.timezone ?? process.env.DEFAULT_TIMEZONE ?? 'UTC'
+    const nowMs2 = Date.now()
+    const dateTimeStr = new Intl.DateTimeFormat('en-US', {
+      timeZone: userTz,
       weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
-      hour: '2-digit', minute: '2-digit', second: '2-digit', timeZoneName: 'short',
-    })
+      hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
+      timeZoneName: 'short',
+    }).format(nowMs2)
 
     const crossChainLines = ctx?.crossChainBalances
       ? Object.entries(ctx.crossChainBalances).filter(([,v]) => parseFloat(v) > 0).map(([chain, bal]) => `  - ${chain}: ${parseFloat(bal).toFixed(2)} USDC`).join('\n')

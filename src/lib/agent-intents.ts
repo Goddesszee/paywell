@@ -94,7 +94,7 @@ export function detectDirectAction(message: string): { reply: string; action: Re
   const amtAnywhere = lower.replace(/0x[a-f0-9]{40}/gi, ' ').match(/\b(\d+(?:\.\d+)?)\s*(?:usdc|usd|dollars?)?/)
   const send = lower.match(/\b(?:send|transfer|pay)\b/)
   if (addr && send && amtAnywhere && Number(amtAnywhere[1]) > 0) {
-    const fromAgent = /agent wallet/.test(lower)
+    const fromAgent = /(?:agent wallet|from agent|from my agent)/.test(lower)
     const short = `${addr[0].slice(0, 6)}…${addr[0].slice(-4)}`
     return {
       reply: `Ready to send ${amtAnywhere[1]} USDC to ${short} from your ${fromAgent ? 'Agent Wallet' : 'main wallet'}. Please confirm below.`,
@@ -104,12 +104,38 @@ export function detectDirectAction(message: string): { reply: string; action: Re
   // Address given but no amount — let OpenAI ask for the amount naturally
   if (addr && send && !amtAnywhere) return null
 
+  // Send to a contact name or @nanname from agent wallet:
+  // "send 20 USDC to John from my agent wallet" / "pay Ada 5 USDC from agent wallet"
+  {
+    const agentSendM = text.match(
+      /\b(?:send|pay|transfer)\s+\$?(\d+(?:\.\d+)?)\s*(?:usdc|usd|dollars?)?\s+to\s+([@A-Za-z][A-Za-z0-9'._\- ]{1,40}?)\s+(?:from\s+(?:my\s+)?agent\s+wallet|via\s+agent\s+wallet)/i
+    ) ?? text.match(
+      /\b(?:send|pay|transfer)\s+(?:from\s+(?:my\s+)?agent\s+wallet\s+)?\$?(\d+(?:\.\d+)?)\s*(?:usdc|usd|dollars?)?\s+to\s+([@A-Za-z][A-Za-z0-9'._\- ]{1,40}?)\s*(?:from\s+(?:my\s+)?agent\s+wallet)?[.!?]*$/i
+    )
+    if (!isQuestion && agentSendM) {
+      const amt = agentSendM[1]
+      const recipient = agentSendM[2].trim()
+      // Only fire if there is an explicit "agent wallet" mention in the original
+      if (/(?:agent wallet|from agent|from my agent)/i.test(lower)) {
+        return {
+          reply: `Preparing to send ${amt} USDC to ${recipient} from your Agent Wallet…`,
+          action: { action: 'agent_wallet_send', params: { toAddress: recipient, amount: amt } },
+        }
+      }
+    }
+  }
+
   // Agent wallet balance / address — direct lookup without LLM round-trip
   if (!isQuestion && /\bagent wallet\b/.test(lower) && /\b(balance|how much|funds?)\b/.test(lower)) {
     return { reply: 'Checking your Agent Wallet balance…', action: { action: 'agent_wallet_balance', params: {} } }
   }
-  if (!isQuestion && /\bagent wallet\b/.test(lower) && /\b(address|wallet address|show|what is|display)\b/.test(lower)) {
+  // "show agent wallet address" / "what is my agent wallet address"
+  if (/\bagent wallet\b/.test(lower) && /\b(address|wallet address|show|display|what is|my address)\b/.test(lower)) {
     return { reply: 'Fetching your Agent Wallet address…', action: { action: 'agent_wallet_balance', params: {} } }
+  }
+  // "show my main wallet address" / "what is my main wallet address"
+  if (/\bmain wallet\b/.test(lower) && /\b(address|wallet address|show|display|what is|my address)\b/.test(lower)) {
+    return { reply: 'Here is your main wallet address:', action: { action: 'check_balance', params: {} } }
   }
 
   // Buy USDC with card/bank (Circle onramp) — amount optional

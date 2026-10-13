@@ -1369,11 +1369,24 @@ export async function executeAction(action: NanAction, ctx: ExecutorContext): Pr
       const state = store
       const main = parseFloat(state.mainWalletBalance || '0').toFixed(2)
       const agent = parseFloat(state.agentWallet.balance_usdc || '0').toFixed(2)
+      const mainAddr = ctx.connectedAddress ?? state.auth?.walletAddress ?? state.auth?.circleWalletAddress ?? ''
+      const agentAddr = state.agentWallet.address ?? ''
       const cross = Object.entries(state.crossChainBalances)
         .filter(([, v]) => parseFloat(v) > 0)
-        .map(([chain, bal]) => `${chain}: ${parseFloat(bal).toFixed(2)}`)
-        .join(' | ')
-      return `Main wallet: ${main} USDC${state.agentWallet.provisioned ? ` | Agent Wallet: ${agent} USDC` : ''}${cross ? ` | Cross-chain: ${cross}` : ''}`
+        .map(([chain, bal]) => `  - ${chain}: ${parseFloat(bal).toFixed(2)} USDC`)
+        .join('\n')
+      const lines = [
+        `**Main Wallet**`,
+        `• Balance: **${main} USDC**`,
+        mainAddr ? `• Address: \`${mainAddr}\`` : '',
+      ]
+      if (state.agentWallet.provisioned) {
+        lines.push('', `**Agent Wallet**`)
+        lines.push(`• Balance: **${agent} USDC**`)
+        if (agentAddr) lines.push(`• Address: \`${agentAddr}\``)
+      }
+      if (cross) lines.push('', `**Cross-chain**`, cross)
+      return lines.filter(l => l !== undefined).join('\n')
     }
 
     case 'generate_receipt': {
@@ -1418,8 +1431,16 @@ export async function executeAction(action: NanAction, ctx: ExecutorContext): Pr
     case 'agent_wallet_balance': {
       const bal = parseFloat(store.agentWallet.balance_usdc || '0').toFixed(2)
       const addr = store.agentWallet.address ?? ''
-      navigate('agent-wallet')
-      return `Your Agent Wallet balance is **${bal} USDC**${addr ? ` at ${addr.slice(0,6)}...${addr.slice(-4)}` : ''}.`
+      const provisioned = store.agentWallet.provisioned
+      if (!provisioned) return 'Your Agent Wallet is not set up yet. Open the Agent Wallet tab to create one.'
+      const lines = [
+        `**Agent Wallet**`,
+        `• Balance: **${bal} USDC**`,
+        addr ? `• Address: \`${addr}\`` : '',
+        store.agentWallet.blockchain ? `• Chain: ${store.agentWallet.blockchain}` : '',
+        store.agentWallet.accountType ? `• Account type: ${store.agentWallet.accountType}` : '',
+      ].filter(Boolean).join('\n')
+      return lines
     }
 
     case 'agent_wallet_fund': {
@@ -1428,13 +1449,15 @@ export async function executeAction(action: NanAction, ctx: ExecutorContext): Pr
     }
 
     case 'agent_wallet_send': {
-      const { toAddress, amount, note } = action.params
+      const { toAddress: rawTo3, amount, note } = action.params
       const userToken = store.agentWallet.userToken
       const walletId  = store.agentWallet.walletId
       if (!store.agentWallet.provisioned) return 'Your Agent Wallet is not set up yet. Go to the Agent Wallet tab to create one first.'
       if (!userToken || !walletId) return 'Your Agent Wallet session has expired. Please re-authenticate in the Agent Wallet tab.'
-      const checkedAddress = (() => { try { return getAddress(toAddress) } catch { return null } })()
-      if (!checkedAddress) return `Invalid recipient address: ${toAddress}`
+      // Resolve @nanname / contact name → 0x address
+      let checkedAddress: `0x${string}`
+      try { checkedAddress = await resolveRecipient(rawTo3, store) }
+      catch (e) { return e instanceof Error ? e.message : `Cannot resolve recipient: ${rawTo3}` }
       try {
         const r = await fetch('/api/agent-wallet', {
           method: 'POST',

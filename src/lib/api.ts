@@ -208,6 +208,8 @@ export interface NanChatContext {
   }>
   // Notifications
   unreadNotifications?: number
+  // IANA timezone string, browser-detected (e.g. "America/New_York")
+  timezone?: string
 }
 
 /** NAN AI chat — always calls the Vercel /api/chat function on the same origin,

@@ -117,6 +117,34 @@ async function callExecute(service_id: string, query: string, baseUrl: string): 
   } catch { return null }
 }
 
+/** DuckDuckGo Instant Answer API — free, no key required.
+ *  Returns a concise fact-checked snippet or null when there's nothing useful. */
+async function duckduckgoInstantAnswer(query: string): Promise<string | null> {
+  try {
+    const encoded = encodeURIComponent(query)
+    const r = await fetch(
+      `https://api.duckduckgo.com/?q=${encoded}&format=json&no_redirect=1&no_html=1&skip_disambig=1`,
+      { signal: AbortSignal.timeout(8_000) },
+    )
+    if (!r.ok) return null
+    const d = await r.json() as {
+      AbstractText?: string; AbstractSource?: string; AbstractURL?: string
+      Answer?: string; AnswerType?: string
+      RelatedTopics?: Array<{ Text?: string; FirstURL?: string }>
+      Type?: string
+    }
+    const parts: string[] = []
+    if (d.Answer) parts.push(d.Answer)
+    if (d.AbstractText) parts.push(`${d.AbstractText}${d.AbstractSource ? ` (Source: ${d.AbstractSource})` : ''}`)
+    if (parts.length === 0 && d.RelatedTopics) {
+      const snippets = d.RelatedTopics.slice(0, 3).map(t => t.Text).filter(Boolean) as string[]
+      if (snippets.length) parts.push(snippets.join(' | '))
+    }
+    const result = parts.join('\n\n').trim()
+    return result || null
+  } catch { return null }
+}
+
 // ── context type ──────────────────────────────────────────────────────────────
 interface ChatContext {
   mainBalance?: string
@@ -169,10 +197,13 @@ interface ChatContext {
   agentWalletAccountType?: string
   // Notifications
   unreadNotifications?: number
+  // Timezone (IANA, e.g. "America/New_York") — browser-detected
+  timezone?: string
 }
 
 // ── system prompt builder ─────────────────────────────────────────────────────
 function buildSystemPrompt(opts: {
+  datetimeBlock: string
   walletBlock: string
   liveDataBlock: string
   marketplaceBlock: string
@@ -182,7 +213,7 @@ function buildSystemPrompt(opts: {
   invoiceBlock: string
   agentStateBlock: string
 }): string {
-  return `You are NAN Agent — the built-in AI assistant for NAN (nanarc.xyz), an autonomous payment and DeFi platform built on Arc (Circle/USDC). Today is ${new Date().toDateString()}.
+  return `You are NAN Agent — the built-in AI assistant for NAN (nanarc.xyz), an autonomous payment and DeFi platform built on Arc (Circle/USDC). ${opts.datetimeBlock}
 
 You have COMPLETE awareness of every NAN feature, every transaction, every setting, and every piece of data in the user's account. You are NOT a generic chatbot — you are the user's personal financial AI with real-time access to their entire NAN state.
 
@@ -595,6 +626,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       liveServiceResult = await callExecute(intent.service_id, intent.query, baseUrl)
       liveServiceId = intent.service_id
     }
+    // Fallback: for general web/current-info queries without a paid search key,
+    // try DuckDuckGo Instant Answers (free, no key required)
+    if (!liveServiceResult && !intent) {
+      const isCurrentInfoQ = /\b(latest|current|today|right now|news|who is|what is|where is|recent|this year|2024|2025|2026)\b/i.test(message)
+        || /\?$/.test(message.trim())
+      const isTransactionCmd = /\b(send|transfer|pay|swap|bridge|deposit|withdraw)\b/i.test(message)
+      if (isCurrentInfoQ && !isTransactionCmd) {
+        const ddgResult = await duckduckgoInstantAnswer(message)
+        if (ddgResult) {
+          liveServiceResult = ddgResult
+          liveServiceId = 'duckduckgo-instant'
+        }
+      }
+    }
   }
 
   // ── prompt blocks ─────────────────────────────────────────────────────────
@@ -683,8 +728,20 @@ ${crossChainLines ? `- Cross-chain balances:\n${crossChainLines}\n- Total cross-
       ? `\n\n---\n## CIRCLE AGENT MARKETPLACE: no results for "${marketplaceQuery}"\n---\n\nTell the user honestly: no matching service was found.`
       : ''
 
+  // ── Date / time / timezone block ─────────────────────────────────────────
+  const tz = (ctx as { timezone?: string }).timezone ?? process.env.DEFAULT_TIMEZONE ?? 'UTC'
+  const nowMs = Date.now()
+  const dtLocal = new Intl.DateTimeFormat('en-US', {
+    timeZone: tz,
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
+    timeZoneName: 'short',
+  }).format(nowMs)
+  const dayOfWeek = new Intl.DateTimeFormat('en-US', { timeZone: tz, weekday: 'long' }).format(nowMs)
+  const datetimeBlock = `The current date and time is **${dtLocal}** (${dayOfWeek}). Use this for all scheduling, deadline, and recurring-payment calculations.`
+
   const systemPrompt = buildSystemPrompt({
-    walletBlock, liveDataBlock, marketplaceBlock,
+    datetimeBlock, walletBlock, liveDataBlock, marketplaceBlock,
     activityBlock, recurringBlock, paymentRequestBlock, invoiceBlock, agentStateBlock,
   })
 
