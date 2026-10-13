@@ -980,7 +980,8 @@ export function BridgePage({ inCard = false }: { inCard?: boolean }) {
   }
 
   const reset    = () => { setStatus('idle'); setSteps(INITIAL_STEPS); setAmount('') }
-  const canBridge = !!amount && parseFloat(amount) > 0 && status !== 'bridging'
+  const feeExceedsAmount = gross > 0 && fwdFee > 0 && gross <= fwdFee + cctpProtocolFee
+  const canBridge = !!amount && parseFloat(amount) > 0 && status !== 'bridging' && !feeExceedsAmount
 
   // ── Not connected ─────────────────────────────────────────────────────────
   if (!isConnected && !isCircleUser && !isPasskeyUser) return (
@@ -1322,6 +1323,7 @@ export function BridgePage({ inCard = false }: { inCard?: boolean }) {
           {status === 'bridging'
             ? <><span className="nan-spinner" />Bridging…</>
             : !amount || parseFloat(amount) === 0 ? 'Enter an amount'
+            : feeExceedsAmount ? `Amount too small — fees are about ${(fwdFee + cctpProtocolFee).toFixed(2)} USDC`
             : 'Review bridge'}
         </button>
       </div>
