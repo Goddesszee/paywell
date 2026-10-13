@@ -133,6 +133,7 @@ function WalletPayPanel({
   }
 
   const busy = switching || isPending || isConfirming
+  const noAmount = amount <= 0
 
   if (!isConnected) return (
     <div style={{ textAlign: 'center', padding: '12px 0' }}>
@@ -162,14 +163,21 @@ function WalletPayPanel({
           {writeError.message?.includes('rejected') ? 'Rejected in wallet.' : 'Transaction failed. Please try again.'}
         </div>
       )}
+      {noAmount && (
+        <div style={{ fontSize: 12, color: '#aaa', textAlign: 'center', marginBottom: 10 }}>
+          Enter an amount above to pay.
+        </div>
+      )}
       <button
-        onClick={handlePay} disabled={busy}
-        style={{ width: '100%', height: 52, borderRadius: 14, background: busy ? '#d0d0d0' : BLUE, border: 'none', color: '#fff', fontSize: 16, fontWeight: 700, cursor: busy ? 'not-allowed' : 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, boxShadow: busy ? 'none' : '0 4px 20px rgba(8,102,245,0.30)', transition: 'all 0.15s' }}
+        onClick={handlePay} disabled={busy || noAmount}
+        style={{ width: '100%', height: 52, borderRadius: 14, background: (busy || noAmount) ? '#d0d0d0' : BLUE, border: 'none', color: '#fff', fontSize: 16, fontWeight: 700, cursor: (busy || noAmount) ? 'not-allowed' : 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, boxShadow: (busy || noAmount) ? 'none' : '0 4px 20px rgba(8,102,245,0.30)', transition: 'all 0.15s' }}
       >
         {switching ? 'Switching to Arc…' : isPending ? 'Approve in wallet…' : isConfirming ? (
           <><span style={{ width: 18, height: 18, border: '2.5px solid rgba(255,255,255,0.35)', borderTopColor: '#fff', borderRadius: '50%', display: 'inline-block', animation: 'nbspin 0.8s linear infinite' }} />Confirming…</>
         ) : onWrongChain ? (
           <><ArrowUpRight size={18} />Switch to Arc &amp; Pay</>
+        ) : noAmount ? (
+          <><ArrowUpRight size={18} />Enter amount above</>
         ) : (
           <><ArrowUpRight size={18} />Pay {fmt(amount)} USDC to @{handle}</>
         )}
@@ -261,13 +269,20 @@ function CardPayPanel({ toAddress, amount }: { toAddress: string; amount: number
       <p style={{ fontSize: 13, color: '#555', lineHeight: 1.6, marginBottom: 16 }}>
         Pay with your debit or credit card. Circle will convert your payment to USDC and send it directly to <strong>@{toAddress.slice(0, 8)}…</strong>'s wallet. KYC handled by Circle.
       </p>
+      {amount <= 0 && (
+        <div style={{ fontSize: 12, color: '#aaa', textAlign: 'center', marginBottom: 10 }}>
+          Enter an amount above to continue.
+        </div>
+      )}
       <button
         onClick={() => { void start() }}
-        disabled={state === 'loading'}
-        style={{ width: '100%', height: 52, borderRadius: 14, background: state === 'loading' ? '#d0d0d0' : '#111', border: 'none', color: '#fff', fontSize: 15, fontWeight: 700, cursor: state === 'loading' ? 'not-allowed' : 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 9, transition: 'all 0.15s' }}
+        disabled={state === 'loading' || amount <= 0}
+        style={{ width: '100%', height: 52, borderRadius: 14, background: (state === 'loading' || amount <= 0) ? '#d0d0d0' : '#111', border: 'none', color: '#fff', fontSize: 15, fontWeight: 700, cursor: (state === 'loading' || amount <= 0) ? 'not-allowed' : 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 9, transition: 'all 0.15s' }}
       >
         {state === 'loading' ? (
           <><Loader2 size={18} style={{ animation: 'nbspin 1s linear infinite' }} />Opening checkout…</>
+        ) : amount <= 0 ? (
+          <><CreditCard size={18} />Enter amount above</>
         ) : (
           <><CreditCard size={18} />Pay {fmt(amount)} with Card</>
         )}
@@ -281,15 +296,20 @@ function CardPayPanel({ toAddress, amount }: { toAddress: string; amount: number
 
 // ── QR tab ────────────────────────────────────────────────────────────────────
 function QrTab({ toAddress, amount }: { toAddress: string; amount: number }) {
-  const amountHex = `0x${(BigInt(Math.round(amount * 10 ** USDC_DECIMALS))).toString(16)}`
-  const qrValue = `ethereum:${USDC_ADDRESS}/transfer?address=${toAddress}&uint256=${amountHex}`
+  const hasAmount = amount > 0
+  const amountHex = hasAmount ? `0x${(BigInt(Math.round(amount * 10 ** USDC_DECIMALS))).toString(16)}` : ''
+  const qrValue = hasAmount
+    ? `ethereum:${USDC_ADDRESS}/transfer?address=${toAddress}&uint256=${amountHex}`
+    : toAddress
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, padding: '8px 0' }}>
       <div style={{ background: '#fff', border: '1px solid #e8e8e8', borderRadius: 16, padding: 14 }}>
         <QRCodeSVG value={qrValue} size={180} bgColor="#ffffff" fgColor="#111111" level="M" />
       </div>
       <div style={{ textAlign: 'center', fontSize: 12, color: '#666', lineHeight: 1.5 }}>
-        Scan with MetaMask, Trust Wallet, or any EVM wallet.<br />Tap <strong>Scan</strong> and point at this code — the amount pre-fills.
+        {hasAmount
+          ? <>Scan with MetaMask, Trust Wallet, or any EVM wallet.<br />Tap <strong>Scan</strong> — the amount pre-fills.</>
+          : <>Scan to load the recipient address in your wallet.<br />Enter an amount above to pre-fill the payment.</>}
       </div>
     </div>
   )
@@ -378,8 +398,6 @@ export function PayByNamePage({ handle }: { handle: string }) {
     })()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cleanHandle])
-
-  const canPay = resolveState === 'found' && toAddress && amount > 0
 
   // ── Loading ────────────────────────────────────────────────────────────────
   if (resolveState === 'loading') return (
@@ -493,12 +511,8 @@ export function PayByNamePage({ handle }: { handle: string }) {
           ))}
         </div>
 
-        {/* Guard: amount required before payment panels */}
-        {!canPay && amount <= 0 ? (
-          <div style={{ textAlign: 'center', padding: '20px 0', color: '#aaa', fontSize: 14 }}>
-            Enter an amount above to continue.
-          </div>
-        ) : method === 'wallet' ? (
+        {/* Payment panels — always visible so payer can connect wallet or scan QR before entering amount */}
+        {method === 'wallet' ? (
           <WalletPayPanel toAddress={toAddress} amount={amount} handle={cleanHandle} onSuccess={setSuccessHash} />
         ) : method === 'card' ? (
           <CardPayPanel toAddress={toAddress} amount={amount} />
