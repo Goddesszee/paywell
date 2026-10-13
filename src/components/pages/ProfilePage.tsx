@@ -189,7 +189,7 @@ export function ProfilePage() {
       <div style={{ width: '100%', fontFamily: F, paddingBottom: 80 }}>
         {/* Header — same pattern as My Account and the other pages */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
-          <button onClick={() => setActiveView(previousView && previousView !== 'profile' ? previousView : 'home')} aria-label="Back"
+          <button onClick={() => setActiveView('home')} aria-label="Back"
             style={{ width: 32, height: 32, borderRadius: 8, background: C.surf, border: `1px solid ${C.bdr}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
             <ArrowLeft size={15} color={C.t2} />
           </button>
