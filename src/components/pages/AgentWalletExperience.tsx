@@ -1612,7 +1612,13 @@ function DashboardScreen({ C, onDisconnect }: { C: ReturnType<typeof useNanTheme
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export function AgentWalletExperience() {
+interface AgentWalletExperienceProps {
+  /** Where the back button navigates. Defaults to 'home'.
+   *  Pass 'agent' when rendering inside AgentPage so back stays within the agent. */
+  backView?: string
+}
+
+export function AgentWalletExperience({ backView = 'home' }: AgentWalletExperienceProps) {
   const C = useNanTheme()
   const { agentWallet, setAgentWallet, setActiveView } = useAppStore()
 
@@ -1857,7 +1863,7 @@ export function AgentWalletExperience() {
       <div style={{ width: '100%', minHeight: '100%', padding: 0, fontFamily: F, boxSizing: 'border-box', overflowX: 'hidden', background: C.bg }}>
         {/* header */}
         {showBack && (
-          <BackButton onBack={() => { if (screen === 'setup') setScreen('edu'); else setActiveView('home') }} C={C} />
+          <BackButton onBack={() => { if (screen === 'setup') setScreen('edu'); else setActiveView(backView) }} C={C} />
         )}
         {screen === 'dashboard' && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20, paddingTop: 4 }}>
@@ -1881,7 +1887,7 @@ export function AgentWalletExperience() {
           </div>
         )}
 
-        {screen === 'email'        && <EmailScreen      onBack={() => setActiveView('home')} onSend={handleSendOtp} C={C} />}
+        {screen === 'email'        && <EmailScreen      onBack={() => setActiveView(backView)} onSend={handleSendOtp} C={C} />}
         {screen === 'otp_sent'     && <OtpSentScreen    email={emailRef.current} onVerify={handleVerify} onResend={() => handleSendOtp(emailRef.current)} onChangeEmail={() => setScreen('email')} C={C} />}
         {(screen === 'verifying' || screen === 'wallet_setup') && <VerifyingScreen msg={statusMsg || (screen === 'verifying' ? 'Waiting for verification…' : 'Setting up your wallet…')} C={C} />}
         {screen === 'edu'          && <EduScreen         onSetup={() => setScreen('setup')} C={C} />}

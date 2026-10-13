@@ -393,7 +393,7 @@ export function AgentPage() {
         WebkitOverflowScrolling: 'touch' as React.CSSProperties['WebkitOverflowScrolling'],
       }}>
         {tab === 'chat'    && <AgentChat onNavigate={(page, _query) => { setActiveView(page); setTab('chat') }} />}
-        {tab === 'wallet'  && <AgentWalletExperience />}
+        {tab === 'wallet'  && <AgentWalletExperience backView="agent" />}
         {tab === 'network' && <NetworkTab />}
         {tab === 'policy'  && <PolicyTab />}
         {tab === 'log'     && <ExecutionLogTab />}
