@@ -605,18 +605,18 @@ export function PaymentRequestPayPage({
         </div>
 
         {/* Request info */}
-        <div style={{ padding: '24px 28px 0' }}>
+        <div style={{ padding: '24px 28px 0', overflow: 'hidden' }}>
 
           {/* From */}
           <div style={{ marginBottom: 20 }}>
             <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>
               Payment request from
             </div>
-            <div style={{ fontSize: 20, fontWeight: 800, color: '#F2F3F5', letterSpacing: '-0.02em' }}>
+            <div style={{ fontSize: 20, fontWeight: 800, color: '#F2F3F5', letterSpacing: '-0.02em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {req.creatorName || req.title || (req.creatorAddress ? `${req.creatorAddress.slice(0, 10)}…${req.creatorAddress.slice(-6)}` : 'NAN User')}
             </div>
             {req.recipientName && req.recipientName !== req.creatorName && (
-              <div style={{ fontSize: 13, color: '#8A8F9E', marginTop: 3 }}>{req.recipientName}</div>
+              <div style={{ fontSize: 13, color: '#8A8F9E', marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{req.recipientName}</div>
             )}
           </div>
 
