@@ -47,6 +47,7 @@ import {
 } from '../../lib/agent-actions'
 import { runAgentBridge, runAgentSwap } from '../../lib/agent-exec'
 import { resolveActionRecipients } from '../../lib/agent-resolve'
+import { detectDirectAction } from '../../lib/agent-intents'
 import { executeWithGuard } from '../../lib/circle-execute'
 import { AgentWalletExperience } from './AgentWalletExperience'
 import { getClientKey } from '../../lib/circle-session'
@@ -1245,7 +1246,12 @@ function AgentChat({ onNavigate }: { onNavigate?: (page: string, query?: string)
           timestamp: e.timestamp instanceof Date ? e.timestamp.toISOString() : String(e.timestamp),
         }))
 
-        const res = await nanChat({
+        // Transaction commands ("send 5 USDC to @ada", "swap…", "bridge…") are recognised right here on the
+        // device — instant, and independent of the chat service, which can be slow, rate-limited or gated.
+        const directLocal = detectDirectAction(text)
+        const res = directLocal
+          ? ({ reply: directLocal.reply, action: directLocal.action, service_used: null } as unknown as Awaited<ReturnType<typeof nanChat>>)
+          : await nanChat({
           messages: msgs,
           usdcBal: storeSnap.mainWalletBalance,
           userAddress: address ?? auth?.walletAddress ?? '',
@@ -1381,6 +1387,7 @@ function AgentChat({ onNavigate }: { onNavigate?: (page: string, query?: string)
         return
       }
     } catch (chatErr) {
+      console.warn('[agent] chat request failed — using the offline fallback', chatErr)
       // LLM call failed — try orchestration for service-like queries, then
       // show an inline keyword-based reply so the user never sees an error card
       const needsService = /flight|hotel|search|research|find|book|supplier|price|compare|weather|news|data|job|career|invoice|translate|image|video|check|lookup/i.test(text)
@@ -1428,7 +1435,7 @@ function AgentChat({ onNavigate }: { onNavigate?: (page: string, query?: string)
           setPendingAction({ action: 'send_usdc', params: { toAddress, amount } })
           setTimeout(scrollToBottom, 50)
         } else {
-          addAgentMessage({ role: 'agent', content: "To send USDC, tell me the address and amount — for example: \"Send 10 USDC to 0x...\"", action: 'info' })
+          addAgentMessage({ role: 'agent', content: "I couldn't reach the AI service just now, so I can only handle exact commands. Try: \"Send 10 USDC to @name\" or \"Send 10 USDC to 0x…\" (a 0x address or a @name), or try again in a moment.", action: 'info' })
         }
       } else if (/bridge/.test(lower)) {
         addAgentMessage({ role: 'agent', content: "You can bridge USDC to other chains from the **Bridge** page. Tell me the chain and amount — for example: \"Bridge 20 USDC to Base Sepolia\"", action: 'info' })
