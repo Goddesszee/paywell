@@ -11,7 +11,7 @@
     "api/wallet.ts": {
       "includeFiles": "node_modules/@circle-fin/**",
       "memory": 1024,
-      "maxDuration": 60
+      "maxDuration": 300
     },
     "api/onramp-session.ts": {
       "includeFiles": "node_modules/@circle-fin/**",
