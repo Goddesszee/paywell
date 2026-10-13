@@ -290,16 +290,9 @@ function StepStrip({ steps, fromExplorer, toExplorer, c }: {
 // ── Main component ────────────────────────────────────────────────────────────
 // ── RecoverBridge — re-mint stuck CCTP transfers ──────────────────────────────
 const IRIS_API = 'https://iris-api.circle.com/v2'
-const MSG_TRANSMITTER: Record<number, `0x${string}`> = {
-  1:     '0x0a992d191DEeC32aFe36203Ad87D7d289a738F81',
-  8453:  '0xAD09780d193884d503182aD4588450C416D6F9D',
-  42161: '0xC30362313FBBA5cf9163F0bb16a0e01f01A896ca',
-  10:    '0x4d41f22c5a0e5c74090899e5a8Fb597a8842b3e8',
-  137:   '0xF3be9355363857F3e001be68856A2f96b4C39Ba9',
-  43114: '0x8186359aF5F57FbB40c6b14A588d2A59C0C29880',
-  5042:  '0x5C3D9E9eA2aCe0FBCf80cF23Cf2e9dcCDCf4b38A',
-  130:   '0x5C3D9E9eA2aCe0FBCf80cF23Cf2e9dcCDCf4b38A',
-}
+// CCTP V2 MessageTransmitterV2 — Circle's contract-addresses reference lists the SAME address on every mainnet
+// EVM chain (Ethereum, Arbitrum, OP, Base, Polygon, Avalanche, Unichain, Linea, Sei, World Chain, Arc).
+const MESSAGE_TRANSMITTER_V2: `0x${string}` = '0x81D40F21F12A8F0E3252Bccb954D722d4c464B64'
 const RECEIVE_ABI = [{
   name: 'receiveMessage',
   type: 'function',
@@ -347,8 +340,7 @@ function RecoverBridge({ c }: { c: ReturnType<typeof useNanTheme> }) {
     // Find destination chain by CCTP domain
     const destChain = CHAINS.find(ch => ch.cctpDomain === msg.destDomain)
     if (!destChain) { setErrText('Unknown destination chain domain: ' + msg.destDomain); return }
-    const transmitter = MSG_TRANSMITTER[destChain.chainId]
-    if (!transmitter) { setErrText('No MessageTransmitter address for ' + destChain.label); return }
+    const transmitter = MESSAGE_TRANSMITTER_V2
     setStatus('minting'); setErrText('')
     try {
       // Switch to destination chain if needed
