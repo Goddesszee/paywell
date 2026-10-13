@@ -1294,10 +1294,18 @@ export function BridgePage({ inCard = false }: { inCard?: boolean }) {
           fontSize: 11, color: c.t2, lineHeight: 1.55,
         }}>
           <Info size={12} color={c.t2} style={{ flexShrink: 0, marginTop: 1 }} />
-          <span>
-            Bridging from <strong style={{ color: c.text }}>{fromChain.label}</strong> requires{' '}
-            <strong style={{ color: c.text }}>{fromChain.gasToken}</strong> for gas, not USDC.
-          </span>
+          {toChain.gasIsUsdc ? (
+            <span>
+              The burn on <strong style={{ color: c.text }}>{fromChain.label}</strong> requires a small amount of{' '}
+              <strong style={{ color: c.text }}>{fromChain.gasToken}</strong> for gas.
+              The mint on <strong style={{ color: c.text }}>{toChain.label}</strong> costs nothing — Arc gas is paid in USDC.
+            </span>
+          ) : (
+            <span>
+              Bridging from <strong style={{ color: c.text }}>{fromChain.label}</strong> requires{' '}
+              <strong style={{ color: c.text }}>{fromChain.gasToken}</strong> for gas on the source chain.
+            </span>
+          )}
         </div>
       )}
 
