@@ -17,7 +17,9 @@ function apiKey(): string | undefined {
   return process.env.CIRCLE_DEVELOPER_CONTROLLED_API_KEY ?? process.env.CIRCLE_API_KEY
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+// Not a Vercel function — faucet logic lives in misc.ts (route=faucet).
+// Keeping this file as a reference; the default export is intentionally removed.
+export async function faucetHandler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
