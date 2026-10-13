@@ -607,6 +607,8 @@ export function BridgePage({ inCard = false }: { inCard?: boolean }) {
       }
       let userAddress = resolvedAddress
       let walletId    = resolvedWalletId
+      const arcAddress = resolvedAddress
+      let srcAccountType: 'EOA' | 'SCA' = 'SCA'
       if (!userAddress || !walletId) { setErrMsg('Could not load Circle wallet — please log out and log in again.'); setStatus('error'); return }
 
       // Bridging FROM another chain: the email wallet needs its own wallet on that chain (Circle creates one per
@@ -619,10 +621,11 @@ export function BridgePage({ inCard = false }: { inCard?: boolean }) {
           const tok = creds.userToken ?? authState.userToken
           const list = async () => {
             const r = await fetch('/api/wallet', { headers: { 'x-user-token': tok } })
-            const d = await safeJson<{ wallets?: { id: string; address: string; blockchain?: string }[]; error?: string }>(r)
+            const d = await safeJson<{ wallets?: { id: string; address: string; blockchain?: string; accountType?: string }[]; error?: string }>(r)
             return d.wallets ?? []
           }
-          let w = (await list()).find(x => x.blockchain === bc)
+          const pick = async () => { const l = (await list()).filter(x => x.blockchain === bc); return l.find(x => x.accountType === 'EOA') ?? l[0] }
+          let w = await pick()
           if (!w) {
             if (!creds.encryptionKey) throw new Error(SESSION_EXPIRED_MSG)
             const cr = await fetch('/api/wallet', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'ucw-create-wallet', userToken: tok, blockchain: bc }) })
@@ -633,12 +636,12 @@ export function BridgePage({ inCard = false }: { inCard?: boolean }) {
             await new Promise<void>((resolve, reject) => {
               executeWithGuard(sdk0, cd.challengeId!, (err) => { err ? reject(new Error(err instanceof Error ? err.message : 'PIN approval failed')) : resolve() })
             })
-            for (let i = 0; i < 8 && !w; i++) { await new Promise(r => setTimeout(r, 1500)); w = (await list()).find(x => x.blockchain === bc) }
+            for (let i = 0; i < 8 && !w; i++) { await new Promise(r => setTimeout(r, 1500)); w = await pick() }
             if (!w) throw new Error('Your wallet is being created — wait a few seconds and tap Bridge again.')
-            setErrMsg(`Your ${fromChain.label} wallet is ready: ${w.address}. Send USDC to this address on ${fromChain.label} (plus a little for gas), then tap Bridge again.`)
+            setErrMsg(`Your ${fromChain.label} wallet is ready: ${w.address}. Send USDC to this address on ${fromChain.label} (plus a little ${fromChain.gasToken} for gas), then tap Bridge again.`)
             setStatus('error'); updateStep('approve', { status: 'idle' }); return
           }
-          walletId = w.id; userAddress = w.address
+          walletId = w.id; userAddress = w.address; srcAccountType = w.accountType === 'EOA' ? 'EOA' : 'SCA'
         } catch (e) {
           setErrMsg(e instanceof Error ? e.message : 'Could not prepare your wallet.'); setStatus('error'); return
         }
@@ -673,6 +676,8 @@ export function BridgePage({ inCard = false }: { inCard?: boolean }) {
             fromChain: fromChain.kitName,
             destChain: toChain.kitName,
             amount,
+            recipientAddress: arcAddress,
+            accountType: srcAccountType,
           }),
         })
         if (!streamResp.ok || !streamResp.body) {
@@ -1156,7 +1161,7 @@ export function BridgePage({ inCard = false }: { inCard?: boolean }) {
       </div>
 
       {/* ── Gas token notice ── */}
-      {!fromChain.gasIsUsdc && !isCircleUser && (
+      {!fromChain.gasIsUsdc && (
         <div style={{
           display: 'flex', gap: 8, alignItems: 'flex-start',
           background: c.surf2, border: `1px solid ${c.bdr}`, borderRadius: 11,
@@ -1173,7 +1178,7 @@ export function BridgePage({ inCard = false }: { inCard?: boolean }) {
       )}
 
       {/* ── Paymaster notice ── */}
-      {!fromChain.gasIsUsdc && !isCircleUser && fromChain.paymasterSupported && (
+      {false && !fromChain.gasIsUsdc && fromChain.paymasterSupported && (
         <div style={{
           display: 'flex', gap: 8, alignItems: 'flex-start',
           background: c.blueDim, border: `1px solid ${c.blueBd}`, borderRadius: 11,

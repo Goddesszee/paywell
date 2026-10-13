@@ -208,7 +208,9 @@ async function handleWallet(req: VercelRequest, res: VercelResponse) {
       const response = await client.createWallet({
         userToken,
         blockchains: [blockchain as never],
-        accountType: 'SCA',
+        // EOA on other chains: the user pays gas in that chain's native token (ETH on Base/Ethereum),
+        // so no Gas Station policy is needed there. (Arc stays SCA — its gas is USDC.)
+        accountType: 'EOA',
       })
       return res.json({ challengeId: response.data?.challengeId })
     } catch (e) {
@@ -422,7 +424,7 @@ async function handleWallet(req: VercelRequest, res: VercelResponse) {
   // The client reads the stream line-by-line, shows the PIN popup for each challenge,
   // and waits for the next line. The Vercel function stays open for the full bridge.
   if (action === 'ucw-bridge-stream') {
-    const { userToken, walletAddress, walletId, fromChain, destChain, amount } = body
+    const { userToken, walletAddress, walletId, fromChain, destChain, amount, accountType: walletAccountType, recipientAddress } = body
     if (!userToken || !walletAddress || !walletId || !destChain || !amount)
       return err(res, 400, 'userToken, walletAddress, walletId, destChain, amount required')
 
@@ -449,7 +451,7 @@ async function handleWallet(req: VercelRequest, res: VercelResponse) {
     }
 
     try {
-      const { createCircleUserWalletAdapter } = await import('@circle-fin/adapter-circle-wallets/ucw/server')
+      const { createCircleUserWalletAdapter, toCircleBlockchain } = await import('@circle-fin/adapter-circle-wallets/ucw/server')
       const kit = new AppKit()
 
       // Queue of pending challenges — onChallenge may fire multiple times (approve + burn)
@@ -466,29 +468,38 @@ async function handleWallet(req: VercelRequest, res: VercelResponse) {
         console.log('[ucw-bridge-stream]', srcChain, '->', dstChain, 'challenge', step, challengeId)
       }
 
+      // Source on another chain (EOA or SCA wallet created there): sign with that one wallet and let Circle's
+      // forwarder mint to the user's Arc address, so no wallet/gas is needed on the destination.
+      const useFwd = srcChain !== 'Arc' && /^0x[0-9a-fA-F]{40}$/.test(String(recipientAddress ?? ''))
       const isSameChain = srcChain === dstChain
-      const adapter = isSameChain
+      const adapter = walletAccountType === 'EOA'
         ? await createCircleUserWalletAdapter({
-            apiKey: key, userToken, walletId,
-            walletAddress: walletAddress as `0x${string}`,
-            chain: srcChain, accountType: 'SCA',
-            onChallenge,
-          })
-        : await createCircleUserWalletAdapter({
             apiKey: key, userToken,
-            chains: [srcChain, dstChain] as [string, string],
-            accountType: 'SCA',
+            wallet: { id: walletId, address: walletAddress as `0x${string}`, accountType: 'EOA', blockchain: toCircleBlockchain(srcChain as never) },
             onChallenge,
-          })
+          } as never)
+        : (isSameChain || useFwd)
+          ? await createCircleUserWalletAdapter({
+              apiKey: key, userToken, walletId,
+              walletAddress: walletAddress as `0x${string}`,
+              chain: srcChain, accountType: 'SCA',
+              onChallenge,
+            })
+          : await createCircleUserWalletAdapter({
+              apiKey: key, userToken,
+              chains: [srcChain, dstChain] as [string, string],
+              accountType: 'SCA',
+              onChallenge,
+            })
 
       // Run the bridge — this awaits the full flow (approve + burn + attestation + mint)
       // The onChallenge callback above streams each challengeId as it arrives.
       const result = await kit.bridge({
         from: { adapter, chain: srcChain },
-        to:   { adapter, chain: dstChain },
+        to:   useFwd ? { chain: dstChain, recipientAddress: String(recipientAddress), useForwarder: true } : { adapter, chain: dstChain },
         amount,
         config: { ...bridgeFeeCfg(String(amount)) },
-      }) as { steps?: { name: string; state: string; txHash?: string }[]; state?: string }
+      } as never) as { steps?: { name: string; state: string; txHash?: string }[]; state?: string }
 
       const burnStep = result.steps?.find(s => s.name === 'burn')
       const mintStep = result.steps?.find(s => s.name === 'mint')
