@@ -54,8 +54,8 @@ function ContractCard({ kind, address, label }: { kind: Kind; address: `0x${stri
   const bal    = useReadContract({ address: USDC, abi: ERC20_ABI, functionName: 'balanceOf', args: [address], chainId: ARC_CHAIN_ID })
   const locked = useReadContract({ address, abi: ESCROW_ABI, functionName: 'lockedBalance', chainId: ARC_CHAIN_ID, query: { enabled: kind === 'escrow' } })
 
-  const balance = (bal.data as bigint | undefined) ?? 0n
-  const lockedAmt = kind === 'escrow' ? ((locked.data as bigint | undefined) ?? 0n) : 0n
+  const balance = (bal.data) ?? 0n
+  const lockedAmt = kind === 'escrow' ? ((locked.data) ?? 0n) : 0n
   const withdrawable = balance > lockedAmt ? balance - lockedAmt : 0n
   const ownerAddr = owner.data as string | undefined
   const isOwner = !!me && !!ownerAddr && me.toLowerCase() === ownerAddr.toLowerCase()
@@ -65,7 +65,7 @@ function ContractCard({ kind, address, label }: { kind: Kind; address: `0x${stri
   const [busy, setBusy] = useState(false)
   const [lastTx, setLastTx] = useState('')
 
-  const dest = (to.trim() || me || '') as string
+  const dest = (to.trim() || me || '')
   const amountWei = (() => { try { return amount ? parseUnits(amount, 6) : 0n } catch { return 0n } })()
   const problem =
     !me ? 'Connect the owner wallet'
@@ -149,7 +149,7 @@ export function AdminTreasuryPanel() {
         Withdraw USDC held by the platform contracts. Only the contract&apos;s owner wallet can do this — connect it below and approve in your wallet.
       </div>
       <ContractCard kind="registry" address={REGISTRY as `0x${string}`} label="NAN Name Registry" />
-      {isAddress(ESCROW) && <ContractCard kind="escrow" address={ESCROW as `0x${string}`} label="Paywell Escrow (surplus only)" />}
+      {isAddress(ESCROW) && <ContractCard kind="escrow" address={ESCROW} label="Paywell Escrow (surplus only)" />}
     </div>
   )
 }
