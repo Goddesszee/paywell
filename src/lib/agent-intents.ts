@@ -89,10 +89,23 @@ export function detectDirectAction(message: string): { reply: string; action: Re
     }
   }
 
+  // ── sender-address context phrases ──
+  // When the user says "with my wallet address 0x...", "from my address 0x...",
+  // "my wallet is 0x...", "using address 0x...", the 0x address is the SOURCE,
+  // not the recipient. Detect these and bail out to the LLM so it can ask for
+  // the actual recipient address.
+  const SENDER_ADDR_RE = /\b(?:with\s+my\s+(?:wallet\s+)?address|from\s+my\s+(?:wallet\s+)?address|my\s+(?:wallet\s+)?(?:address\s+is|address:)|using\s+(?:my\s+)?(?:wallet\s+)?address|sender(?:'s)?\s+address|source\s+address|from\s+address|my\s+address\s+is)\s+0x[a-fA-F0-9]{40}/i
+
   const addr = text.match(/0x[a-fA-F0-9]{40}\b/)
   // Amount can appear before OR after the address: "send 10 USDC to 0x..." or "send to 0x... 10 USDC" or "0x... 10 USDC"
   const amtAnywhere = lower.replace(/0x[a-f0-9]{40}/gi, ' ').match(/\b(\d+(?:\.\d+)?)\s*(?:usdc|usd|dollars?)?/)
   const send = lower.match(/\b(?:send|transfer|pay)\b/)
+
+  // If the address is preceded by sender-context language, do NOT use it as recipient.
+  // Pass through to the LLM which will correctly identify the address as the sender's
+  // and ask for the actual recipient's address.
+  if (addr && SENDER_ADDR_RE.test(text)) return null
+
   if (addr && send && amtAnywhere && Number(amtAnywhere[1]) > 0) {
     const fromAgent = /(?:agent wallet|from agent|from my agent)/.test(lower)
     const short = `${addr[0].slice(0, 6)}…${addr[0].slice(-4)}`

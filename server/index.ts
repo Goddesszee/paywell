@@ -786,6 +786,7 @@ ROUTING RULES:
 - "from my agent wallet" → agent_wallet_send or agent_wallet_balance
 - Main wallet address: ${ctx?.mainAddress ?? walletAddr}
 - Agent Wallet address: ${ctx?.agentAddress ?? '(not provisioned)'}
+- SENDER ADDRESS RULE (CRITICAL): If the user says "with my wallet address 0x...", "from my wallet address 0x...", "my address is 0x...", "using address 0x...", that 0x address is the USER'S OWN SOURCE WALLET — NOT the recipient. Do NOT put it in "toAddress". Ask for the actual recipient address instead.
 - Never say "I will do X" without the matching action block.
 - Never fabricate addresses, hashes, balances, or prices.
 
