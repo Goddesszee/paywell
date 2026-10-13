@@ -9,6 +9,7 @@
  */
 import { Suspense, lazy, useState } from 'react'
 import { History, Settings2, ArrowRightLeft, ArrowUpDown } from 'lucide-react'
+import { useAccount } from 'wagmi'
 import { useNanTheme } from '../../hooks/useNanTheme'
 import { useAppStore } from '../../store/appStore'
 import { ErrorBoundary } from '../ErrorBoundary'
@@ -35,10 +36,11 @@ function PageLoading() {
 }
 
 /** Card header — tab switcher + subtitle + icon actions all on one compact row */
-function TradeHeader({ tab, setTab, c }: {
+function TradeHeader({ tab, setTab, c, bridgeAvailable }: {
   tab: Tab
   setTab: (t: Tab) => void
   c: ReturnType<typeof useNanTheme>
+  bridgeAvailable: boolean
 }) {
   const setActiveView = useAppStore(s => s.setActiveView)
 
@@ -71,7 +73,7 @@ function TradeHeader({ tab, setTab, c }: {
           border: `1px solid ${c.bdr}`,
           marginLeft: 4,
         }}>
-          {(['swap', 'bridge'] as Tab[]).map(t => (
+          {(['swap', 'bridge'] as Tab[]).filter(t => t !== 'bridge' || bridgeAvailable).map(t => (
             <button
               key={t}
               onClick={() => setTab(t)}
@@ -233,7 +235,13 @@ interface TradePageProps {
 
 export function TradePage({ initialTab = 'swap' }: TradePageProps) {
   const c = useNanTheme()
-  const [tab, setTab] = useState<Tab>(initialTab)
+  const { address: wagmiAddress } = useAccount()
+  const auth = useAppStore(s => s.auth)
+  const isPasskeyUser = !wagmiAddress && !!auth?.isPasskeyUser
+  const isCircleUser  = !wagmiAddress && !!auth?.circleWalletAddress && !isPasskeyUser
+  // Email/passkey users can only swap — bridge requires a browser wallet
+  const bridgeAvailable = !isCircleUser && !isPasskeyUser
+  const [tab, setTab] = useState<Tab>(initialTab === 'bridge' && !bridgeAvailable ? 'swap' : initialTab)
 
   return (
     <div style={{
@@ -252,7 +260,7 @@ export function TradePage({ initialTab = 'swap' }: TradePageProps) {
           ? '0 8px 40px rgba(0,0,0,0.40), 0 1px 0 rgba(255,255,255,0.03) inset'
           : '0 4px 20px rgba(0,0,0,0.08)',
       }}>
-        <TradeHeader tab={tab} setTab={setTab} c={c} />
+        <TradeHeader tab={tab} setTab={setTab} c={c} bridgeAvailable={bridgeAvailable} />
         <ErrorBoundary key={tab}>
           <Suspense fallback={<PageLoading />}>
             {tab === 'swap' ? <SwapInCard /> : <BridgeInCard />}
