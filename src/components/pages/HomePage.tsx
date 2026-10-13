@@ -646,7 +646,7 @@ export function HomePage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 22, gap: 4 }}>
         <ActionBtn Icon={Send}            label="Send"      primary onClick={() => setActiveView('send')}    C={C} />
         <ActionBtn Icon={ArrowDownToLine} label="Receive"           onClick={() => setActiveView('receive')} C={C} />
-        <ActionBtn Icon={ArrowLeftRight}  label="Convert"           onClick={() => setActiveView('swap')}    C={C} />
+        <ActionBtn Icon={ArrowLeftRight}  label="Trade"             onClick={() => setActiveView('trade')}   C={C} />
         <ActionBtn Icon={Bot}             label="NAN AI"    ai      onClick={() => setActiveView('agent')}   C={C} />
       </div>
 

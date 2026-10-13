@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import {
   Home, Activity, Menu, X, LayoutDashboard,
-  ArrowLeftRight, ArrowUpDown, Settings, ChevronRight,
+  ArrowLeftRight, Settings, ChevronRight,
   Layers, Repeat, Bot, Wallet,
   MessageSquare, HelpCircle, Info, User, Users, Search, Bookmark,
   Star, Lightbulb, ArrowRight, Clock, ShoppingBag, FileDown,
@@ -29,8 +29,7 @@ interface SearchResult {
 const ALL_RESULTS: SearchResult[] = [
   { id:'send',        title:'Send USDC',           subtitle:'Transfer to any wallet',             category:'Payments',    Icon:ArrowRight,     iconColor:BLUE,      action:'send' },
   { id:'receive',     title:'Receive USDC',         subtitle:'Share your address',                 category:'Payments',    Icon:ArrowRight,     iconColor:'#10B981', action:'receive' },
-  { id:'swap',        title:'Swap tokens',          subtitle:'Exchange USDC for other tokens',     category:'Finance',     Icon:Repeat,         iconColor:'#F59E0B', action:'swap' },
-  { id:'bridge',      title:'Bridge USDC',          subtitle:'Move USDC across chains',            category:'Finance',     Icon:ArrowLeftRight, iconColor:BLUE,      action:'bridge' },
+  { id:'trade',       title:'Trade',                subtitle:'Swap or bridge USDC across chains',  category:'Finance',     Icon:ArrowLeftRight, iconColor:'#F59E0B', action:'trade' },
   { id:'buy',         title:'Buy USDC',             subtitle:'Purchase with card or bank',         category:'Finance',     Icon:ShoppingBag,    iconColor:BLUE,      action:'onramp' },
   { id:'gateway',     title:'Gateway',              subtitle:'Unified cross-chain balance',        category:'Finance',     Icon:Layers,         iconColor:BLUE,      action:'gateway' },
 
@@ -290,9 +289,10 @@ function CommandPalette({ onClose, onGo }: { onClose: () => void; onGo: (action:
 
 // ── Nav items (mobile bottom bar) ─────────────────────────────────────────────
 const NAV_ITEMS = [
-  { id: 'home',    label: 'Home',    Icon: Home },
-  { id: 'bridge',  label: 'Bridge',  Icon: ArrowLeftRight },
-  { id: 'gateway', label: 'Gateway', Icon: Layers },
+  { id: 'home',     label: 'Home',     Icon: Home },
+  { id: 'trade',    label: 'Trade',    Icon: ArrowLeftRight },
+  { id: 'invoices', label: 'Invoices', Icon: FileText },
+  { id: 'gateway',  label: 'Gateway',  Icon: Layers },
 ]
 
 // ── Sidebar sections (desktop sidebar only — mobile drawer uses MOBILE_SECTIONS) ──
@@ -309,8 +309,7 @@ const SIDEBAR_SECTIONS = [
     { id: 'activity',          label: 'Transactions',     Icon: Activity,    desc: 'Transaction history' },
   ]},
   { title: 'Finance', items: [
-    { id: 'bridge',    label: 'Bridge',    Icon: ArrowLeftRight, desc: 'Move USDC across chains' },
-    { id: 'swap',      label: 'Swap',      Icon: ArrowUpDown,    desc: 'Exchange tokens' },
+    { id: 'trade',     label: 'Trade',     Icon: ArrowLeftRight, desc: 'Swap & bridge USDC' },
     { id: 'gateway',   label: 'Gateway',   Icon: Layers,         desc: 'Unified cross-chain balance' },
   ]},
   { title: 'Automation', items: [
@@ -347,8 +346,9 @@ const MOBILE_DRAWER_SECTIONS = SIDEBAR_SECTIONS.filter(s => s.title !== 'Help & 
   items: s.items.filter(i =>
     i.id !== 'home' &&
     i.id !== 'dashboard' &&
-    i.id !== 'swap' &&
-    i.id !== 'bridge' &&
+    i.id !== 'trade' &&      // Trade is in the bottom nav
+    i.id !== 'invoices' &&   // Invoices is in the bottom nav
+    i.id !== 'gateway' &&    // Gateway is in the bottom nav
     i.id !== 'favorites' &&
     i.id !== 'contacts' &&
     !(s.title === 'Payments' && i.label === 'Transactions') &&
@@ -505,6 +505,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               {activeView === 'agent-wallet' ? 'Agent Wallet'
                 : activeView === 'nan-name' ? 'NAN Name'
                 : activeView === 'payment-requests' ? 'Invoices & Requests'
+                : activeView === 'trade' ? 'Trade'
                 : activeView.charAt(0).toUpperCase() + activeView.slice(1)}
             </div>
 

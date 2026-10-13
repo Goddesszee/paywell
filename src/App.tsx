@@ -320,6 +320,8 @@ export default function App() {
       {activeView === 'receive' && <WalletPage initialSubView="receive" />}
       {activeView === 'agent' && <AgentPage />}
       {activeView === 'agent-wallet' && <AgentWalletExperience />}
+      {activeView === 'trade'  && <ErrorBoundary key="trade"><Suspense fallback={<PageLoading />}><TradePage /></Suspense></ErrorBoundary>}
+      {/* Legacy deep-links: bridge / swap redirect to the unified Trade page */}
       {activeView === 'bridge' && <ErrorBoundary key="bridge"><Suspense fallback={<PageLoading />}><TradePage initialTab="bridge" /></Suspense></ErrorBoundary>}
       {activeView === 'swap'   && <ErrorBoundary key="swap"><Suspense fallback={<PageLoading />}><TradePage initialTab="swap" /></Suspense></ErrorBoundary>}
       {activeView === 'onramp' && <OnrampPage />}
