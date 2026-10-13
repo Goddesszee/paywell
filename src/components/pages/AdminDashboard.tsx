@@ -847,9 +847,9 @@ function AdminTxPanel() {
       {/* Volume summary cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 20, marginTop: 16 }}>
         {[
-          { label: 'Total Volume', value: report ? `$${report.totalVolume.toFixed(2)}` : '—', sub: `${report?.txCount ?? 0} transactions`, color: '#0866F5' },
-          { label: 'Main Wallet', value: report ? `$${report.mainVolume.toFixed(2)}` : '—', sub: 'User transactions', color: '#10B981' },
-          { label: 'Agent Wallet', value: report ? `$${report.agentVolume.toFixed(2)}` : '—', sub: 'Agent spend', color: '#F59E0B' },
+          { label: 'Total Volume', value: report ? `$${report.totalVolume.toFixed(2)}` : '$0.00', sub: `${report?.txCount ?? 0} transactions`, color: '#0866F5' },
+          { label: 'Main Wallet', value: report ? `$${report.mainVolume.toFixed(2)}` : '$0.00', sub: 'User transactions', color: '#10B981' },
+          { label: 'Agent Wallet', value: report ? `$${report.agentVolume.toFixed(2)}` : '$0.00', sub: 'Agent spend', color: '#F59E0B' },
         ].map(card => (
           <div key={card.label} style={{ background: S, border: `1px solid ${B}`, borderRadius: 12, padding: '14px 16px' }}>
             <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--nan-text3)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>{card.label}</div>
@@ -1144,14 +1144,14 @@ function AdminDashboardInner() {
                 {activity.map((a, i) => (
                   <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', padding: '12px 16px', borderBottom: i < activity.length - 1 ? `1px solid ${B}` : 'none', alignItems: 'center' }}>
                     <div style={{ fontSize: 13, fontWeight: 600, textTransform: 'capitalize' }}>{a.type}</div>
-                    <div style={{ fontSize: 13, fontWeight: 700 }}>{a.amount?.toFixed(2) ?? '—'} USDC</div>
+                    <div style={{ fontSize: 13, fontWeight: 700 }}>{a.amount?.toFixed(2) ?? '0.00'} USDC</div>
                     <div>
                       <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--nan-text)', background: 'var(--nan-surface2)', padding: '2px 7px', borderRadius: 20 }}>
                         {a.status}
                       </span>
                     </div>
                     <div style={{ fontSize: 11, color: 'var(--nan-text2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {a.txHash ? a.txHash.slice(0, 12) + '...' : '—'}
+                      {a.txHash ? a.txHash.slice(0, 12) + '...' : 'No hash'}
                     </div>
                   </div>
                 ))}

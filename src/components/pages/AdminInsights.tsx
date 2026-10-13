@@ -6,7 +6,7 @@ const SANS = "'Inter', -apple-system, sans-serif"
 const S = 'var(--nan-surface)'
 const B = 'var(--nan-bdr)'
 const usd = (n: number) => `$${n.toLocaleString('en', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-const short = (a: string) => (a ? `${a.slice(0, 6)}…${a.slice(-4)}` : '—')
+const short = (a: string) => (a ? `${a.slice(0, 6)}…${a.slice(-4)}` : 'N/A')
 const when = (iso: string) => new Date(iso).toLocaleString('en', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
 
 interface UserRow {
@@ -116,7 +116,7 @@ export function AdminOverviewPanel({ goTo }: { goTo: (tab: string) => void }) {
         <Stat title="Wallets" value={String(d.users.wallets)} sub={`${d.users.agentWallets} agent wallets`} />
         <Stat title="Active 24h" value={String(d.users.active24h)} sub={`${d.users.active7d} in 7 days`} />
         <Stat title="Login types" value={String(Object.keys(d.users.byLogin).length)}
-          sub={Object.entries(d.users.byLogin).map(([k, v]) => `${v} ${k}`).join(' · ') || '—'} />
+          sub={Object.entries(d.users.byLogin).map(([k, v]) => `${v} ${k}`).join(' · ') || 'No logins yet'} />
       </Grid>
 
       <H>Volume</H>
@@ -164,7 +164,7 @@ export function AdminOverviewPanel({ goTo }: { goTo: (tab: string) => void }) {
       <H>Support, feedback &amp; ideas</H>
       <Grid cols={150}>
         <div onClick={() => goTo('support')} style={{ cursor: 'pointer' }}><Stat title="Support tickets" value={String(d.support.total)} sub={`${d.support.open} open · ${d.support.inProgress} in progress · ${d.support.unread} unread`} accent={d.support.unread ? '#EF4444' : undefined} /></div>
-        <div onClick={() => goTo('feedback')} style={{ cursor: 'pointer' }}><Stat title="Feedback" value={String(d.feedback.total)} sub={`${d.feedback.avgRating || '—'}/5 avg · ${d.feedback.unreviewed} to review`} /></div>
+        <div onClick={() => goTo('feedback')} style={{ cursor: 'pointer' }}><Stat title="Feedback" value={String(d.feedback.total)} sub={`${d.feedback.avgRating || '0'}/5 avg · ${d.feedback.unreviewed} to review`} /></div>
         <div onClick={() => goTo('suggestions')} style={{ cursor: 'pointer' }}><Stat title="Suggestions" value={String(d.suggestions.total)} sub={`${d.suggestions.open} open · ${d.suggestions.planned} planned · ${d.suggestions.implemented} shipped`} /></div>
         <div onClick={() => goTo('audit')} style={{ cursor: 'pointer' }}><Stat title="Admin actions" value={String(d.auditEntries)} sub="Logged in audit trail" /></div>
       </Grid>
