@@ -534,7 +534,12 @@ async function handleWallet(req: VercelRequest, res: VercelResponse) {
     return res.end()
   }
 
-  // ── ucw-bridge-start — legacy single-challenge path (kept for compatibility) ─
+  // ── ucw-bridge-start — LEGACY: broken for CCTP V2 two-challenge flows ─────────
+  // CCTP V2 requires TWO PIN challenges (approve + burn). This action only captures
+  // the first one; the second fires into a dead promise and the burn step completes
+  // without user confirmation or a visible step-tracker update.
+  // DO NOT USE for new code — use ucw-bridge-stream instead.
+  // Kept here only to avoid a 400 for any old callers that haven't migrated.
   if (action === 'ucw-bridge-start') {
     const { userToken, walletAddress, walletId, fromChain, destChain, amount, recipientAddress: _recipientAddress } = body
     if (!userToken || !walletAddress || !walletId || !destChain || !amount)

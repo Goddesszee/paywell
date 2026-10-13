@@ -53,6 +53,7 @@ function QRScanModal({ onScan, onClose }: { onScan: (addr: string) => void; onCl
   const rafRef = useRef<number>(0)
   const doneRef = useRef(false)
   const onScanRef = useRef(onScan)
+  // oxlint-disable-next-line react/refs -- intentional stable-ref sync pattern; assignment is outside JSX
   onScanRef.current = onScan
 
   const stopStream = useCallback(() => {
@@ -73,6 +74,7 @@ function QRScanModal({ onScan, onClose }: { onScan: (addr: string) => void; onCl
   useEffect(() => {
     let active = true
     if (!navigator.mediaDevices?.getUserMedia) {
+      // oxlint-disable-next-line react/set-state-in-effect -- unavoidable: sets error before async camera setup
       setErr('Camera is not available in this browser. Paste the address instead.')
       return
     }

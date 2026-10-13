@@ -10,6 +10,7 @@
  * userToken + encryptionKey, then polls the CCTP attestation API.
  */
 import { useState, useEffect, useCallback } from 'react'
+import { W3SSdk } from '@circle-fin/w3s-pw-web-sdk'
 import { ArrowRight, ArrowLeftRight, CheckCircle2, ExternalLink, Loader2, AlertCircle, Info, RefreshCw } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
 import { executeWithGuard } from '../../lib/circle-execute'
@@ -96,93 +97,133 @@ export function AgentBridgeTab({ C }: Props) {
     const userToken = agentWallet.userToken
     if (!userToken) { setErrMsg('Agent Wallet session expired. Re-authenticate.'); setStatus('error'); return }
     const walletId = agentWallet.walletId
-    if (!walletId) { setErrMsg('Agent Wallet ID not found. Re-authenticate.'); setStatus('error'); return }
+    const walletAddress = agentWallet.address
+    if (!walletId || !walletAddress) { setErrMsg('Agent Wallet ID not found. Re-authenticate.'); setStatus('error'); return }
 
     setStatus('bridging'); setErrMsg(''); setSteps(INITIAL_STEPS)
 
-    // Lazily import the agent SDK (same module used for provision)
-    let agentSdk: { execute: (challengeId: string) => Promise<{ txHash?: string }> } | null = null
+    // Initialise the W3S SDK once — used to show PIN popups for each challenge.
+    const appId = (import.meta.env.VITE_CIRCLE_APP_ID as string | undefined) ?? ''
+    let sdk: InstanceType<typeof W3SSdk>
     try {
-      const { W3SSdk } = await import('@circle-fin/w3s-pw-web-sdk')
-      const appId = (import.meta.env.VITE_CIRCLE_APP_ID as string | undefined) ?? ''
-      const sdk = new W3SSdk({ appSettings: { appId } })
+      sdk = new W3SSdk({ appSettings: { appId } })
       if (agentWallet.encryptionKey) sdk.setAuthentication({ userToken, encryptionKey: agentWallet.encryptionKey })
-      agentSdk = {
-        execute: (challengeId: string) =>
-          new Promise<{ txHash?: string }>((resolve, reject) => {
-            executeWithGuard(sdk, challengeId, (err) => {
-              if (err) return reject(new Error(err.message ?? 'SDK execute failed'))
-              resolve({})
-            })
-          }),
-      }
     } catch {
       setErrMsg('Circle SDK not available. Ensure VITE_CIRCLE_APP_ID is set.')
       setStatus('error'); return
     }
 
+    // Helper: run one PIN challenge and await approval.
+    const runChallenge = (challengeId: string) =>
+      new Promise<void>((resolve, reject) => {
+        executeWithGuard(sdk, challengeId, (err) => {
+          if (err) return reject(new Error(err instanceof Error ? err.message : 'PIN approval failed'))
+          resolve()
+        })
+      })
+
     try {
-      // Step 1 — Approve USDC for TokenMessengerV2
+      // Use the same ucw-bridge-stream endpoint as BridgePage — it runs the full
+      // CCTP V2 flow server-side (approve + burn + attestation + mint via Forwarding
+      // Service) and streams one JSON line per challenge so we can show the PIN popup
+      // for each. This gives us real txHashes for every step and confirmed mint state.
       updateStep('approve', { status: 'active' })
-      const approveRes = await fetch('/api/agent-wallet', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-user-token': userToken },
-        body: JSON.stringify({
-          action: 'bridge',
-          userToken, walletId, amount,
-          toChain: toChain.kitName,
-          destinationDomain: toChain.cctpDomain,
-          recipientAddress: agentWallet.address,
-        }),
-      })
-      const approveData = await approveRes.json() as {
-        ok?: boolean; step?: string; challengeId?: string; error?: string
-        burnParams?: { walletId: string; amountMicro: string; destDomain: number; recipientBytes32: string }
-      }
-      if (!approveRes.ok || approveData.error) throw new Error(approveData.error ?? 'Approve request failed')
-      if (!approveData.challengeId) throw new Error('No challengeId for approve step')
 
-      // Execute the approve challenge (user signs via PIN popup)
-      const approveExec = await agentSdk.execute(approveData.challengeId)
-      updateStep('approve', { status: 'done', txHash: approveExec.txHash })
-
-      // Step 2 — depositForBurn (CCTP burn)
-      // Use burnParams passed back by the approve step — they contain the
-      // pre-computed walletId, amountMicro, destDomain, and recipientBytes32
-      // that the backend already resolved. Sending raw fields here would give
-      // the backend undefined values and trigger "API parameter invalid".
-      updateStep('burn', { status: 'active' })
-      const bp = approveData.burnParams
-      if (!bp) throw new Error('Approve step did not return burnParams — please retry')
-      const burnRes = await fetch('/api/agent-wallet', {
+      const streamResp = await fetch('/api/wallet', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-user-token': userToken },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          action: 'bridge-burn',
+          action: 'ucw-bridge-stream',
           userToken,
-          walletId:        bp.walletId,
-          amountMicro:     bp.amountMicro,
-          destDomain:      bp.destDomain,
-          recipientBytes32: bp.recipientBytes32,
+          walletAddress,
+          walletId,
+          fromChain: fromChain.kitName,
+          destChain: toChain.kitName,
+          amount,
+          // Bridge to the same agent wallet address on the destination chain.
+          recipientAddress: walletAddress,
+          accountType: 'SCA',
         }),
       })
-      const burnData = await burnRes.json() as { ok?: boolean; step?: string; challengeId?: string; error?: string }
-      if (!burnRes.ok || burnData.error) throw new Error(burnData.error ?? 'Burn request failed')
-      if (!burnData.challengeId) throw new Error('No challengeId for burn step')
 
-      const burnExec = await agentSdk.execute(burnData.challengeId)
-      updateStep('burn', { status: 'done', txHash: burnExec.txHash })
+      if (!streamResp.ok || !streamResp.body) {
+        const errData = await streamResp.json().catch(() => ({})) as { error?: string }
+        throw new Error(errData.error ?? `Bridge failed (HTTP ${streamResp.status})`)
+      }
 
-      // Steps 3+4 — attestation + mint handled by Circle forwarder (no user action needed)
-      updateStep('attest', { status: 'active' })
-      await new Promise(r => setTimeout(r, 3000))
-      updateStep('attest', { status: 'done' })
-      updateStep('mint',   { status: 'done' })
+      const reader = streamResp.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+      let gotDone = false
+      let mintOk = false
+      let lastTxHash = ''
 
-      const finalTx = burnExec.txHash ?? ''
-      setMintTx(finalTx)
+      // step name → which UI step to mark active when this challenge fires
+      const STEP_UI: Record<string, { active: StepKey; done?: StepKey }> = {
+        approve: { active: 'approve' },
+        burn:    { active: 'burn', done: 'approve' },
+      }
+
+      outer: while (true) {
+        const { value, done } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() ?? ''
+        for (const line of lines) {
+          const trimmed = line.trim()
+          if (!trimmed) continue
+          let evt: { type: string; challengeId?: string; step?: string; txHash?: string; message?: string; steps?: { name: string; state: string; txHash?: string }[] }
+          try { evt = JSON.parse(trimmed) as typeof evt } catch { continue }
+
+          if (evt.type === 'challenge' && evt.challengeId) {
+            const ui = STEP_UI[evt.step ?? '']
+            if (ui?.done) updateStep(ui.done, { status: 'done' })
+            if (ui?.active) updateStep(ui.active, { status: 'active' })
+
+            // Show Circle PIN popup for this challenge.
+            await runChallenge(evt.challengeId)
+
+            const stepName = evt.step as StepKey | undefined
+            if (stepName) updateStep(stepName, { status: 'done' })
+            if (stepName === 'approve') updateStep('burn', { status: 'active' })
+            if (stepName === 'burn') updateStep('attest', { status: 'active' })
+
+          } else if (evt.type === 'done') {
+            const doneSteps = evt.steps ?? []
+            for (const s of doneSteps) {
+              updateStep(s.name as StepKey, {
+                status: s.state === 'success' ? 'done' : s.state === 'error' ? 'error' : 'idle',
+                txHash: s.txHash,
+              })
+            }
+            // mintOk: either the kit confirmed the mint step, or all non-mint steps succeeded
+            // (Forwarding Service completes mint async — the stream may return before mint lands).
+            mintOk = doneSteps.some(s => s.name === 'mint' && s.state === 'success')
+              || doneSteps.filter(s => s.name !== 'mint').every(s => s.state === 'success')
+            if (mintOk) {
+              updateStep('attest', { status: 'done' })
+              updateStep('mint',   { status: 'done' })
+            }
+            // Prefer mint txHash; fall back to burn txHash.
+            lastTxHash = doneSteps.find(s => s.name === 'mint')?.txHash
+              ?? doneSteps.find(s => s.name === 'burn')?.txHash
+              ?? evt.txHash ?? ''
+            gotDone = true
+            break outer
+
+          } else if (evt.type === 'error') {
+            throw new Error(evt.message ?? 'Bridge failed')
+          }
+        }
+      }
+
+      if (!gotDone) throw new Error('The connection ended before the bridge finished. Check your balance on the destination chain before trying again.')
+      if (!mintOk) throw new Error(`USDC was sent but has not arrived on ${toChain.label} yet. Check your ${toChain.label} balance in a few minutes before bridging again.`)
+
+      setMintTx(lastTxHash)
       setStatus('done')
-      addActivity({ type: 'bridge', description: `Agent Bridge → ${toChain.label}`, amount: gross, sign: '-', status: 'confirmed', counterparty: toChain.label, txHash: finalTx || undefined })
+      addActivity({ type: 'bridge', description: `Agent Bridge → ${toChain.label}`, amount: gross, sign: '-', status: 'confirmed', counterparty: toChain.label, txHash: lastTxHash || undefined })
     } catch (e) {
       setStatus('error')
       setErrMsg(e instanceof Error ? e.message : 'Bridge failed.')

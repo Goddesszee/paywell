@@ -55,6 +55,8 @@ interface BridgeChain {
   gasIsUsdc: boolean
   paymasterSupported: boolean
   paymasterNote?: string
+  /** false = not in Circle's UCW supported-blockchain list; wagmi users can still bridge here */
+  ucwSupported: boolean
 }
 
 // Circle blockchain ids for creating an email/Google (UCW) wallet on another chain.
@@ -67,19 +69,22 @@ function cleanBridgeError(msg: string): string {
 
 const UCW_CHAIN_ENUM: Record<number, string> = { 1: 'ETH', 8453: 'BASE', 42161: 'ARB', 10: 'OP', 137: 'MATIC', 43114: 'AVAX', 130: 'UNI' }
 
-// CCTP V2 supported mainnets — identical to original.
+// CCTP V2 supported mainnets.
+// ucwSupported=false: chain is not in Circle's UCW supported-blockchain list
+// (developers.circle.com/wallets/supported-blockchains) so email/Google users
+// cannot have a managed wallet there. Wagmi users are unaffected.
 const CHAINS: BridgeChain[] = [
-  { label:'Arc',          kitName:'Arc',              chainId:5042,    cctpDomain:26, explorer:'https://explorer.arc.io/tx/',                       gasToken:'USDC', gasIsUsdc:true,  paymasterSupported:false },
-  { label:'Ethereum',     kitName:'Ethereum',         chainId:1,       cctpDomain:0,  explorer:'https://etherscan.io/tx/',                           gasToken:'ETH',  gasIsUsdc:false, paymasterSupported:true,  paymasterNote:'Paymaster v0.8 — pay gas in USDC (ERC-4337 wallet required)' },
-  { label:'Base',         kitName:'Base',             chainId:8453,    cctpDomain:6,  explorer:'https://basescan.org/tx/',                           gasToken:'ETH',  gasIsUsdc:false, paymasterSupported:true,  paymasterNote:'Paymaster v0.7 + v0.8 — pay gas in USDC (10% surcharge, ERC-4337 required)' },
-  { label:'Arbitrum One', kitName:'Arbitrum',         chainId:42161,   cctpDomain:3,  explorer:'https://arbiscan.io/tx/',                            gasToken:'ETH',  gasIsUsdc:false, paymasterSupported:true,  paymasterNote:'Paymaster v0.7 + v0.8 — pay gas in USDC (10% surcharge, ERC-4337 required)' },
-  { label:'OP Mainnet',   kitName:'Optimism',         chainId:10,      cctpDomain:2,  explorer:'https://optimistic.etherscan.io/tx/',                gasToken:'ETH',  gasIsUsdc:false, paymasterSupported:true,  paymasterNote:'Paymaster v0.8 — pay gas in USDC (ERC-4337 wallet required)' },
-  { label:'Polygon',      kitName:'Polygon',          chainId:137,     cctpDomain:7,  explorer:'https://polygonscan.com/tx/',                        gasToken:'POL',  gasIsUsdc:false, paymasterSupported:true,  paymasterNote:'Paymaster v0.8 — pay gas in USDC (ERC-4337 wallet required)' },
-  { label:'Avalanche',    kitName:'Avalanche',        chainId:43114,   cctpDomain:1,  explorer:'https://snowtrace.io/tx/',                           gasToken:'AVAX', gasIsUsdc:false, paymasterSupported:true,  paymasterNote:'Paymaster v0.8 — pay gas in USDC (ERC-4337 wallet required)' },
-  { label:'Unichain',     kitName:'Unichain',         chainId:130,     cctpDomain:10, explorer:'https://uniscan.xyz/tx/',                            gasToken:'ETH',  gasIsUsdc:false, paymasterSupported:true,  paymasterNote:'Paymaster v0.8 — pay gas in USDC (ERC-4337 wallet required)' },
-  { label:'Linea',        kitName:'Linea',            chainId:59144,   cctpDomain:11, explorer:'https://lineascan.build/tx/',                        gasToken:'ETH',  gasIsUsdc:false, paymasterSupported:false },
-  { label:'Sei',          kitName:'Sei',              chainId:1329,    cctpDomain:16, explorer:'https://seistream.app/tx/',                          gasToken:'SEI',  gasIsUsdc:false, paymasterSupported:false },
-  { label:'World Chain',  kitName:'World_Chain',       chainId:480,     cctpDomain:14, explorer:'https://worldchain-mainnet.explorer.alchemy.com/tx/',gasToken:'ETH',  gasIsUsdc:false, paymasterSupported:false },
+  { label:'Arc',          kitName:'Arc',              chainId:5042,    cctpDomain:26, explorer:'https://explorer.arc.io/tx/',                        gasToken:'USDC', gasIsUsdc:true,  paymasterSupported:false, ucwSupported:true  },
+  { label:'Ethereum',     kitName:'Ethereum',         chainId:1,       cctpDomain:0,  explorer:'https://etherscan.io/tx/',                           gasToken:'ETH',  gasIsUsdc:false, paymasterSupported:true,  paymasterNote:'Paymaster v0.8 — pay gas in USDC (ERC-4337 wallet required)',                       ucwSupported:true  },
+  { label:'Base',         kitName:'Base',             chainId:8453,    cctpDomain:6,  explorer:'https://basescan.org/tx/',                           gasToken:'ETH',  gasIsUsdc:false, paymasterSupported:true,  paymasterNote:'Paymaster v0.7 + v0.8 — pay gas in USDC (10% surcharge, ERC-4337 required)',       ucwSupported:true  },
+  { label:'Arbitrum One', kitName:'Arbitrum',         chainId:42161,   cctpDomain:3,  explorer:'https://arbiscan.io/tx/',                            gasToken:'ETH',  gasIsUsdc:false, paymasterSupported:true,  paymasterNote:'Paymaster v0.7 + v0.8 — pay gas in USDC (10% surcharge, ERC-4337 required)',       ucwSupported:true  },
+  { label:'OP Mainnet',   kitName:'Optimism',         chainId:10,      cctpDomain:2,  explorer:'https://optimistic.etherscan.io/tx/',                gasToken:'ETH',  gasIsUsdc:false, paymasterSupported:true,  paymasterNote:'Paymaster v0.8 — pay gas in USDC (ERC-4337 wallet required)',                       ucwSupported:true  },
+  { label:'Polygon',      kitName:'Polygon',          chainId:137,     cctpDomain:7,  explorer:'https://polygonscan.com/tx/',                        gasToken:'POL',  gasIsUsdc:false, paymasterSupported:true,  paymasterNote:'Paymaster v0.8 — pay gas in USDC (ERC-4337 wallet required)',                       ucwSupported:true  },
+  { label:'Avalanche',    kitName:'Avalanche',        chainId:43114,   cctpDomain:1,  explorer:'https://snowtrace.io/tx/',                           gasToken:'AVAX', gasIsUsdc:false, paymasterSupported:true,  paymasterNote:'Paymaster v0.8 — pay gas in USDC (ERC-4337 wallet required)',                       ucwSupported:true  },
+  { label:'Unichain',     kitName:'Unichain',         chainId:130,     cctpDomain:10, explorer:'https://uniscan.xyz/tx/',                            gasToken:'ETH',  gasIsUsdc:false, paymasterSupported:true,  paymasterNote:'Paymaster v0.8 — pay gas in USDC (ERC-4337 wallet required)',                       ucwSupported:true  },
+  { label:'Linea',        kitName:'Linea',            chainId:59144,   cctpDomain:11, explorer:'https://lineascan.build/tx/',                        gasToken:'ETH',  gasIsUsdc:false, paymasterSupported:false,                                                                                                      ucwSupported:false },
+  { label:'Sei',          kitName:'Sei',              chainId:1329,    cctpDomain:16, explorer:'https://seistream.app/tx/',                          gasToken:'SEI',  gasIsUsdc:false, paymasterSupported:false,                                                                                                      ucwSupported:false },
+  { label:'World Chain',  kitName:'World_Chain',      chainId:480,     cctpDomain:14, explorer:'https://worldchain-mainnet.explorer.alchemy.com/tx/', gasToken:'ETH',  gasIsUsdc:false, paymasterSupported:false,                                                                                                      ucwSupported:false },
 ]
 
 type StepName = 'approve' | 'burn' | 'fetchAttestation' | 'mint'
@@ -95,12 +100,14 @@ const INITIAL_STEPS: StepState[] = [
 interface LiveFee { bps: number; label: string; fetched: boolean }
 
 // ── Chain selector dropdown ───────────────────────────────────────────────────
-function ChainSelect({ value, onChange, exclude, label: fieldLabel, c }: {
+function ChainSelect({ value, onChange, exclude, label: fieldLabel, c, ucwOnly = false }: {
   value: number
   onChange: (i: number) => void
   exclude?: number
   label: string
   c: ReturnType<typeof useNanTheme>
+  /** When true, chains with ucwSupported=false are disabled and labelled "(browser wallet only)" */
+  ucwOnly?: boolean
 }) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
@@ -157,7 +164,8 @@ function ChainSelect({ value, onChange, exclude, label: fieldLabel, c }: {
             maxHeight: 256, overflowY: 'auto' as const, zIndex: 200,
           }}>
             {CHAINS.map((ch, i) => {
-              const disabled = ch.cctpDomain < 0 || i === exclude
+              const ucwBlocked = ucwOnly && !ch.ucwSupported
+              const disabled = ch.cctpDomain < 0 || i === exclude || ucwBlocked
               const isSelected = i === value
               return (
                 <button
@@ -179,7 +187,11 @@ function ChainSelect({ value, onChange, exclude, label: fieldLabel, c }: {
                     WebkitTapHighlightColor: 'transparent',
                   }}
                 >
-                  <span>{ch.label}{ch.cctpDomain < 0 ? ' (no CCTP)' : ''}</span>
+                  <span>
+                    {ch.label}
+                    {ch.cctpDomain < 0 ? ' (no CCTP)' : ''}
+                    {ucwBlocked ? ' (browser wallet only)' : ''}
+                  </span>
                   {isSelected && <CheckCircle size={12} color={c.blue} />}
                 </button>
               )
@@ -712,7 +724,7 @@ export function BridgePage({ inCard = false }: { inCard?: boolean }) {
             const sdk0 = new W3SSdk({ appSettings: { appId: (import.meta.env.VITE_CIRCLE_APP_ID as string | undefined) ?? '' } })
             sdk0.setAuthentication({ userToken: tok, encryptionKey: creds.encryptionKey })
             await new Promise<void>((resolve, reject) => {
-              executeWithGuard(sdk0, cd.challengeId!, (err) => { err ? reject(new Error(err instanceof Error ? err.message : 'PIN approval failed')) : resolve() })
+              executeWithGuard(sdk0, cd.challengeId!, (err) => { if (err) { reject(new Error(err instanceof Error ? err.message : 'PIN approval failed')) } else { resolve() } })
             })
             for (let i = 0; i < 8 && !w; i++) { await new Promise(r => setTimeout(r, 1500)); w = await pick() }
             if (!w) throw new Error('Your wallet is being created — wait a few seconds and tap Bridge again.')
@@ -730,7 +742,9 @@ export function BridgePage({ inCard = false }: { inCard?: boolean }) {
       let recipient = arcAddress
       if (fromChain.chainId === 5042 && toChain.chainId !== 5042) {
         const dbc = UCW_CHAIN_ENUM[toChain.chainId]
-        if (!dbc) { setErrMsg(`Bridging to ${toChain.label} with an email wallet isn't supported yet. Connect MetaMask or another browser wallet instead.`); setStatus('error'); return }
+        // Linea (59144), Sei (1329), World Chain (480) are not in UCW_CHAIN_ENUM — Circle UCW does not
+        // support wallet creation on those chains for email/Google users yet.
+        if (!dbc) { setErrMsg(`Email wallets can't bridge to ${toChain.label} yet — connect MetaMask or another browser wallet instead.`); setStatus('error'); return }
         try {
           const creds = await ensureCircleCreds()
           const tok = creds.userToken ?? authState.userToken
@@ -748,7 +762,7 @@ export function BridgePage({ inCard = false }: { inCard?: boolean }) {
             const sdkD = new W3SSdk({ appSettings: { appId: (import.meta.env.VITE_CIRCLE_APP_ID as string | undefined) ?? '' } })
             sdkD.setAuthentication({ userToken: tok, encryptionKey: creds.encryptionKey })
             await new Promise<void>((resolve, reject) => {
-              executeWithGuard(sdkD, cd.challengeId!, (err) => { err ? reject(new Error(err instanceof Error ? err.message : 'PIN approval failed')) : resolve() })
+              executeWithGuard(sdkD, cd.challengeId!, (err) => { if (err) { reject(new Error(err instanceof Error ? err.message : 'PIN approval failed')) } else { resolve() } })
             })
             for (let i = 0; i < 8 && !dw; i++) { await new Promise(r => setTimeout(r, 1500)); dw = (await listD())[0] }
             if (!dw) throw new Error(`Your ${toChain.label} wallet is being created — wait a few seconds and tap Bridge again.`)
@@ -1033,7 +1047,8 @@ export function BridgePage({ inCard = false }: { inCard?: boolean }) {
 
   const reset    = () => { setStatus('idle'); setSteps(INITIAL_STEPS); setAmount('') }
   const feeExceedsAmount = gross > 0 && fwdFee > 0 && gross <= fwdFee + cctpProtocolFee
-  const canBridge = !!amount && parseFloat(amount) > 0 && status !== 'bridging' && !feeExceedsAmount
+  const isSameChain = fromIdx === toIdx
+  const canBridge = !!amount && parseFloat(amount) > 0 && status !== 'bridging' && !feeExceedsAmount && !isSameChain
 
   // ── Not connected ─────────────────────────────────────────────────────────
   if (!isConnected && !isCircleUser && !isPasskeyUser) return (
@@ -1123,6 +1138,7 @@ export function BridgePage({ inCard = false }: { inCard?: boolean }) {
             onChange={v => { setFromIdx(v); if (v === toIdx) setToIdx(v === 0 ? 1 : 0) }}
             label="From"
             c={c}
+            ucwOnly={isCircleUser || isPasskeyUser}
           />
 
           {/* Swap chains button */}
@@ -1146,6 +1162,7 @@ export function BridgePage({ inCard = false }: { inCard?: boolean }) {
             onChange={v => { setToIdx(v); if (v === fromIdx) setFromIdx(v === 0 ? 1 : 0) }}
             label="To"
             c={c}
+            ucwOnly={isCircleUser || isPasskeyUser}
           />
         </div>
 
@@ -1382,6 +1399,7 @@ export function BridgePage({ inCard = false }: { inCard?: boolean }) {
           }}>
           {status === 'bridging'
             ? <><span className="nan-spinner" />Bridging…</>
+            : isSameChain ? 'Select a different destination chain'
             : !amount || parseFloat(amount) === 0 ? 'Enter an amount'
             : feeExceedsAmount ? `Amount too small — fees are about ${(fwdFee + cctpProtocolFee).toFixed(2)} USDC`
             : 'Review bridge'}
