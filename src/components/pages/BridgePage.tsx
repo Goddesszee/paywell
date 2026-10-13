@@ -1338,7 +1338,7 @@ export function BridgePage({ inCard = false }: { inCard?: boolean }) {
       {/* ── Error ── */}
       {status === 'error' && errMsg && (
         errMsg === 'SESSION_EXPIRED' ? (
-          <div style={{ padding: '10px 12px', background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.20)', borderRadius: 11, margin: inCard ? '8px 14px 0' : '0 0 8px' }}>
+          <div style={{ padding: '10px 12px', background: 'rgba(245,158,11,0.07)', border: '1px solid rgba(245,158,11,0.22)', borderRadius: 11, margin: inCard ? '8px 14px 0' : '0 0 8px' }}>
             <div style={{ fontSize: 12, fontWeight: 700, color: c.text, marginBottom: 3 }}>PIN required</div>
             <div style={{ fontSize: 11, color: c.t2, marginBottom: 8, lineHeight: 1.5 }}>Enter your amount again and confirm with your Circle PIN.</div>
             <button
@@ -1350,12 +1350,12 @@ export function BridgePage({ inCard = false }: { inCard?: boolean }) {
         ) : (
           <div style={{
             display: 'flex', gap: 7, alignItems: 'flex-start',
-            padding: '9px 11px', background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.20)', borderRadius: 11,
+            padding: '9px 11px', background: 'rgba(245,158,11,0.07)', border: '1px solid rgba(245,158,11,0.22)', borderRadius: 11,
             margin: inCard ? '8px 14px 0' : '0 0 8px',
             fontSize: 11, color: c.t2, lineHeight: 1.5,
           }}>
-            <AlertCircle size={12} color={c.red} style={{ flexShrink: 0, marginTop: 1 }} />
-            <span><strong style={{ color: c.text }}>Bridge failed:</strong> {errMsg}</span>
+            <AlertCircle size={12} color={c.gold} style={{ flexShrink: 0, marginTop: 1 }} />
+            <span><strong style={{ color: c.text }}>Something went wrong:</strong> {errMsg}</span>
           </div>
         )
       )}

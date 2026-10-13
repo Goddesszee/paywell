@@ -705,8 +705,8 @@ export function SwapPage({ inCard = false }: { inCard?: boolean }) {
       {/* ── Error state ── */}
       {phase === 'error' && errMsg && (
         errMsg === 'SESSION_EXPIRED' ? (
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '10px 12px', background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.20)', borderRadius: 11, margin: inCard ? '8px 14px 0' : '0 0 8px' }}>
-            <AlertCircle size={12} color="#EF4444" style={{ flexShrink: 0, marginTop: 1 }} />
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '10px 12px', background: 'rgba(245,158,11,0.07)', border: '1px solid rgba(245,158,11,0.22)', borderRadius: 11, margin: inCard ? '8px 14px 0' : '0 0 8px' }}>
+            <AlertCircle size={12} color={c.gold} style={{ flexShrink: 0, marginTop: 1 }} />
             <div>
               <div style={{ fontSize: 12, fontWeight: 700, color: c.text, marginBottom: 3 }}>PIN required</div>
               <div style={{ fontSize: 11, color: c.t2, marginBottom: 7, lineHeight: 1.5 }}>Get a new quote and confirm with your Circle PIN.</div>
@@ -717,8 +717,8 @@ export function SwapPage({ inCard = false }: { inCard?: boolean }) {
             </div>
           </div>
         ) : (
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 7, padding: '9px 11px', background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.20)', borderRadius: 11, margin: inCard ? '8px 14px 0' : '0 0 8px', fontSize: 11, color: c.t2, lineHeight: 1.5 }}>
-            <AlertCircle size={12} color="#EF4444" style={{ flexShrink: 0, marginTop: 1 }} /><span>{errMsg}</span>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 7, padding: '9px 11px', background: 'rgba(245,158,11,0.07)', border: '1px solid rgba(245,158,11,0.22)', borderRadius: 11, margin: inCard ? '8px 14px 0' : '0 0 8px', fontSize: 11, color: c.t2, lineHeight: 1.5 }}>
+            <AlertCircle size={12} color={c.gold} style={{ flexShrink: 0, marginTop: 1 }} /><span>{errMsg}</span>
           </div>
         )
       )}
