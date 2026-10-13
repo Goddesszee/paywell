@@ -126,6 +126,7 @@ export interface PaymentRequest {
   activityId?: string
   creatorAddress?: string
   creatorName?: string
+  creatorNanHandle?: string
 }
 
 // ── Favorite type ────────────────────────────────────────────────────────────
@@ -255,8 +256,10 @@ export interface Invoice {
   payments: InvoicePayment[]
   amountPaid: number
   amountDue: number
-  // Wallet address to receive payment on-chain
+  // Wallet address to receive payment on-chain (either this or payToNanHandle required)
   payToAddress?: string
+  // NAN name handle (e.g. "alice") — alternative to a raw wallet address
+  payToNanHandle?: string
   // Optional link to a PaymentRequest
   paymentRequestId?: string
   // 'quick' = simple payment request (amount + note); 'full' = itemized invoice

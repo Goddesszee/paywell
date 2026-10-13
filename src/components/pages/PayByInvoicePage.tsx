@@ -258,6 +258,9 @@ export function PayByInvoicePage({ invoiceId, isRequest = false }: Props) {
           <div style={{ fontSize: 18, fontWeight: 700, color: '#fff', marginBottom: 2 }}>
             {isRequest ? `From ${invoice.businessName}` : invoice.businessName}
           </div>
+          {invoice.payToNanHandle && (
+            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.85)', fontWeight: 700, marginBottom: 2 }}>@{invoice.payToNanHandle}</div>
+          )}
           {invoice.businessEmail && <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>{invoice.businessEmail}</div>}
         </div>
         <div style={{ padding: '20px 22px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
@@ -487,9 +490,11 @@ export function PayByInvoicePage({ invoiceId, isRequest = false }: Props) {
                 </div>
 
                 {/* Open NAN CTA */}
-                {invoice.payToAddress ? (
+                {(invoice.payToNanHandle || invoice.payToAddress) ? (
                   <a
-                    href={`https://nanarc.xyz/?send=1&to=${encodeURIComponent(invoice.payToAddress)}&amount=${invoice.amountDue}&note=${encodeURIComponent(`${isRequest ? 'Payment Request' : 'Invoice'} ${invoice.number ?? ''} — ${invoice.businessName ?? ''}`)}&currency=${invoice.currency ?? 'USDC'}`}
+                    href={invoice.payToNanHandle
+                      ? `https://nanarc.xyz/@${invoice.payToNanHandle}?amount=${invoice.amountDue}&note=${encodeURIComponent(`${isRequest ? 'Payment Request' : 'Invoice'} ${invoice.number ?? ''} — ${invoice.businessName ?? ''}`)}`
+                      : `https://nanarc.xyz/?send=1&to=${encodeURIComponent(invoice.payToAddress!)}&amount=${invoice.amountDue}&note=${encodeURIComponent(`${isRequest ? 'Payment Request' : 'Invoice'} ${invoice.number ?? ''} — ${invoice.businessName ?? ''}`)}&currency=${invoice.currency ?? 'USDC'}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', height: 52, background: BLUE, color: '#fff', border: 'none', borderRadius: 14, fontSize: 15, fontWeight: 700, textDecoration: 'none', boxSizing: 'border-box', marginBottom: 12 }}

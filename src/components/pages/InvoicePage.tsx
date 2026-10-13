@@ -161,6 +161,7 @@ interface DraftForm {
   customerName: string; customerEmail: string; customerAddress: string
   issueDate: string; dueDate: string; currency: string
   notes: string; paymentInstructions: string; payToAddress: string
+  payToNanHandle: string
   items: InvoiceLineItem[]
   // quick mode fields
   quickAmount: string; quickNote: string; quickRecipient: string
@@ -173,6 +174,7 @@ function emptyForm(defaultAddress = ''): DraftForm {
     issueDate: today(), dueDate: inDays(30),
     currency: 'USDC', notes: '', paymentInstructions: '',
     payToAddress: defaultAddress,
+    payToNanHandle: '',
     items: [emptyItem()],
     quickAmount: '', quickNote: '', quickRecipient: '',
   }
@@ -244,6 +246,7 @@ export function InvoicePage() {
       currency: form.currency,
       notes: form.quickNote.trim() || undefined,
       payToAddress: walletAddress || undefined,
+      payToNanHandle: form.payToNanHandle.trim().replace(/^@/, '') || undefined,
       items: [{ id: uid(), name: form.quickNote.trim() || 'Payment', quantity: 1, unitPrice: amount }],
       subtotal: amount, discountTotal: 0, taxTotal: 0, total: amount,
       payments: [], amountPaid: 0, amountDue: amount,
@@ -277,6 +280,7 @@ export function InvoicePage() {
       notes: form.notes.trim() || undefined,
       paymentInstructions: form.paymentInstructions.trim() || undefined,
       payToAddress: form.payToAddress.trim() || undefined,
+      payToNanHandle: form.payToNanHandle.trim().replace(/^@/, '') || undefined,
       items: form.items.filter(i => i.name.trim()),
       ...t, payments: [], amountPaid: 0, amountDue: t.total,
       status, mode: 'full' as const,
@@ -307,6 +311,7 @@ export function InvoicePage() {
       notes: form.notes.trim() || undefined,
       paymentInstructions: form.paymentInstructions.trim() || undefined,
       payToAddress: form.payToAddress.trim() || undefined,
+      payToNanHandle: form.payToNanHandle.trim().replace(/^@/, '') || undefined,
       items: form.items.filter(i => i.name.trim()),
       ...t, amountDue: Math.max(0, t.total - (selected?.amountPaid ?? 0)),
       updatedAt: new Date().toISOString(),
@@ -324,6 +329,7 @@ export function InvoicePage() {
       issueDate: inv.issueDate, dueDate: inv.dueDate, currency: inv.currency,
       notes: inv.notes ?? '', paymentInstructions: inv.paymentInstructions ?? '',
       payToAddress: inv.payToAddress ?? '',
+      payToNanHandle: (inv as Invoice & { payToNanHandle?: string }).payToNanHandle ?? '',
       items: inv.items.length > 0 ? inv.items : [emptyItem()],
       quickAmount: '', quickNote: '', quickRecipient: '',
     })
@@ -521,6 +527,20 @@ export function InvoicePage() {
               <Copy size={11} /> Copy
             </button>
           </div>
+          {((selected as Invoice & { payToNanHandle?: string }).payToNanHandle || selected.payToAddress) && (
+            <div style={{ marginTop: 8, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+              {(selected as Invoice & { payToNanHandle?: string }).payToNanHandle && (
+                <span style={{ fontSize: 11, color: BLUE, fontWeight: 700 }}>
+                  @{(selected as Invoice & { payToNanHandle?: string }).payToNanHandle}
+                </span>
+              )}
+              {selected.payToAddress && (
+                <span style={{ fontSize: 11, color: T3, fontFamily: 'monospace' }}>
+                  {selected.payToAddress.slice(0, 10)}…{selected.payToAddress.slice(-6)}
+                </span>
+              )}
+            </div>
+          )}
         </div>
 
         {selected.notes && (
@@ -680,6 +700,19 @@ export function InvoicePage() {
               <input value={form.quickNote} onChange={e => setForm(f => ({ ...f, quickNote: e.target.value }))}
                 placeholder="What's this for?" style={inputBase} />
             </Field>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <Field label="Your NAN handle (optional)">
+                <input value={form.payToNanHandle} onChange={e => setForm(f => ({ ...f, payToNanHandle: e.target.value }))}
+                  placeholder="@yourname" style={inputBase} />
+              </Field>
+              <Field label="Your wallet address (optional)">
+                <input value={form.payToAddress} onChange={e => setForm(f => ({ ...f, payToAddress: e.target.value }))}
+                  placeholder="0x…" style={{ ...inputBase, fontFamily: 'monospace', fontSize: 12 }} />
+              </Field>
+            </div>
+            <div style={{ fontSize: 11, color: T3, lineHeight: 1.5 }}>
+              Payers can pay via your NAN handle OR wallet address. At least one is recommended so crypto payments work.
+            </div>
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
             <button onClick={() => setNewMode('choose')} style={btnGhost}>Cancel</button>
@@ -706,14 +739,18 @@ export function InvoicePage() {
           <Field label="Business name *" error={errors.businessName}>
             <input value={form.businessName} onChange={e => setForm(f => ({ ...f, businessName: e.target.value }))} placeholder="Your name or company" style={{ ...inputBase, borderColor: errors.businessName ? 'rgba(239,68,68,0.5)' : BDR }} />
           </Field>
+          <Field label="Email">
+            <input value={form.businessEmail} onChange={e => setForm(f => ({ ...f, businessEmail: e.target.value }))} placeholder="you@email.com" style={inputBase} />
+          </Field>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-            <Field label="Email">
-              <input value={form.businessEmail} onChange={e => setForm(f => ({ ...f, businessEmail: e.target.value }))} placeholder="you@email.com" style={inputBase} />
+            <Field label="NAN handle (optional)">
+              <input value={form.payToNanHandle} onChange={e => setForm(f => ({ ...f, payToNanHandle: e.target.value }))} placeholder="@yourname" style={inputBase} />
             </Field>
-            <Field label="Wallet address">
+            <Field label="Wallet address (optional)">
               <input value={form.payToAddress} onChange={e => setForm(f => ({ ...f, payToAddress: e.target.value }))} placeholder="0x…" style={{ ...inputBase, fontFamily: 'monospace', fontSize: 12 }} />
             </Field>
           </div>
+          <div style={{ fontSize: 11, color: T3 }}>Payers can use either your NAN handle or wallet address.</div>
         </div>
 
         <div style={{ background: SURF, border: `1px solid ${BDR}`, borderRadius: 14, padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>

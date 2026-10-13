@@ -357,6 +357,7 @@ function CreateForm({
   const [dueDate, setDueDate] = useState('')
   const [note, setNote] = useState('')
   const [reference, setReference] = useState('')
+  const [nanHandle, setNanHandle] = useState('')
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [submitting, setSubmitting] = useState(false)
 
@@ -389,6 +390,7 @@ function CreateForm({
       reference: reference.trim() || undefined,
       status: 'pending',
       creatorAddress: ownAddress,
+      creatorNanHandle: nanHandle.trim().replace(/^@/, '') || undefined,
     })
     // Find the newly created request
     const { paymentRequests } = useAppStore.getState()
@@ -499,6 +501,14 @@ function CreateForm({
           <input
             value={reference} onChange={e => setReference(e.target.value)}
             placeholder="e.g. Invoice #1234, Project code"
+            style={inputStyle}
+          />
+        </Field>
+
+        <Field labelColor={C.t2} label="Your NAN handle (optional)">
+          <input
+            value={nanHandle} onChange={e => setNanHandle(e.target.value)}
+            placeholder="@yourname — lets payers use your NAN name"
             style={inputStyle}
           />
         </Field>

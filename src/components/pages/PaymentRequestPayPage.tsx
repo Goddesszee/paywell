@@ -404,9 +404,12 @@ function CardPanel({ req }: { req: PaymentRequest }) {
 // ── NAN name panel ────────────────────────────────────────────────────────────
 function NanPanel({ req }: { req: PaymentRequest }) {
   const [paid, setPaid] = useState(false)
-  const nanUrl = req.creatorAddress
-    ? `https://nanarc.xyz/?send=1&to=${encodeURIComponent(req.creatorAddress)}&amount=${req.amount}&note=${encodeURIComponent(`Payment Request — ${req.title}`)}&currency=${req.currency ?? 'USDC'}`
-    : ''
+  const handle = (req as PaymentRequest & { creatorNanHandle?: string }).creatorNanHandle
+  const nanUrl = handle
+    ? `https://nanarc.xyz/@${handle}?amount=${req.amount}&note=${encodeURIComponent(`Payment Request — ${req.title}`)}`
+    : req.creatorAddress
+      ? `https://nanarc.xyz/?send=1&to=${encodeURIComponent(req.creatorAddress)}&amount=${req.amount}&note=${encodeURIComponent(`Payment Request — ${req.title}`)}&currency=${req.currency ?? 'USDC'}`
+      : ''
 
   if (paid) return (
     <div style={{ textAlign: 'center', padding: '24px 0' }}>
@@ -446,7 +449,7 @@ function NanPanel({ req }: { req: PaymentRequest }) {
           <span style={{ fontSize: 12, color: '#8A8F9E' }}>To</span>
           <span style={{ fontSize: 13, fontWeight: 600, color: '#F2F3F5', overflow: 'hidden',
             textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '60%', textAlign: 'right' }}>
-            {req.creatorName || (req.creatorAddress ? `${req.creatorAddress.slice(0,10)}…${req.creatorAddress.slice(-6)}` : 'Recipient')}
+            {handle ? `@${handle}` : req.creatorName || (req.creatorAddress ? `${req.creatorAddress.slice(0,10)}…${req.creatorAddress.slice(-6)}` : 'Recipient')}
           </span>
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 8, borderTop: `1px solid ${BDR}` }}>
@@ -711,6 +714,9 @@ export function PaymentRequestPayPage({
             <div style={{ fontSize: 20, fontWeight: 800, color: '#F2F3F5', letterSpacing: '-0.02em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {req.creatorName || req.title || (req.creatorAddress ? `${req.creatorAddress.slice(0, 10)}…${req.creatorAddress.slice(-6)}` : 'NAN User')}
             </div>
+            {(req as PaymentRequest & { creatorNanHandle?: string }).creatorNanHandle && (
+              <div style={{ fontSize: 13, color: '#0066FF', fontWeight: 700, marginTop: 2 }}>@{(req as PaymentRequest & { creatorNanHandle?: string }).creatorNanHandle}</div>
+            )}
             {req.recipientName && req.recipientName !== req.creatorName && (
               <div style={{ fontSize: 13, color: '#8A8F9E', marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{req.recipientName}</div>
             )}
