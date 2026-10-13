@@ -689,6 +689,8 @@ export function BridgePage({ inCard = false }: { inCard?: boolean }) {
         const decoder = new TextDecoder()
         let buffer = ''
         let lastTxHash = ''
+        let gotDone = false
+        let mintOk = false
 
         const STEP_UI: Record<string, { active: StepName; done?: StepName }> = {
           approve: { active: 'approve' },
@@ -735,8 +737,12 @@ export function BridgePage({ inCard = false }: { inCard?: boolean }) {
                 })
               }
               lastTxHash = evt.txHash ?? ''
-              updateStep('fetchAttestation', { status: 'done' })
-              updateStep('mint', { status: 'done', txHash: lastTxHash })
+              gotDone = true
+              mintOk = doneSteps.some(s => s.name === 'mint' && s.state === 'success')
+              if (mintOk) {
+                updateStep('fetchAttestation', { status: 'done' })
+                updateStep('mint', { status: 'done', txHash: lastTxHash })
+              }
               break outer
             } else if (evt.type === 'error') {
               throw new Error(evt.message ?? 'Bridge failed')
@@ -744,6 +750,8 @@ export function BridgePage({ inCard = false }: { inCard?: boolean }) {
           }
         }
 
+        if (!gotDone) throw new Error('The connection ended before the bridge finished, so it is not confirmed. Check your balance and the explorer before trying again.')
+        if (!mintOk) throw new Error(`Your USDC was sent but has not arrived on ${toChain.label} yet, so this is not confirmed. Check your ${toChain.label} balance in a few minutes before bridging again.`)
         setStatus('done')
         addActivity({ type: 'bridge', description: `Bridge to ${toChain.label}`, amount: gross, sign: '-', status: 'confirmed', counterparty: toChain.label, txHash: lastTxHash })
       } catch (e: unknown) {
