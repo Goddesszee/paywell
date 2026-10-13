@@ -115,7 +115,10 @@ async function handleWallet(req: VercelRequest, res: VercelResponse) {
     try {
       const client = ucwClient()
       const response = await client.listWallets({ userToken })
-      const wallets = response.data?.wallets ?? []
+      // Always list the Arc wallet first: much of the app (swap, send, login) takes wallets[0] as the user's
+      // main wallet, and wallets created on other chains (for bridging) must never become the main one.
+      const wallets = [...(response.data?.wallets ?? [])].sort((a, b) =>
+        Number(/^ARC(-|$)/.test(String(b.blockchain))) - Number(/^ARC(-|$)/.test(String(a.blockchain))))
 
       // Write a session record to Redis so community endpoints (suggestions,
       // feedback, support) can resolve this user from their sessionToken.
