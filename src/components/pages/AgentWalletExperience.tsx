@@ -1808,6 +1808,8 @@ export function AgentWalletExperience({ backView = 'home' }: AgentWalletExperien
     })
     const data = await res.json() as OtpTokens & { error?: string }
     if (data.error) throw new Error(data.error)
+    // Re-register the agent callback alongside the OTP tokens so the singleton
+    // SDK fires _agentLoginCb (not CircleEmailLogin's callback) after verifyOtp().
     _agentSdk.updateConfigs({
       appSettings: { appId: CIRCLE_APP_ID ?? 'pending-configuration' },
       loginConfigs: {
@@ -1815,14 +1817,26 @@ export function AgentWalletExperience({ backView = 'home' }: AgentWalletExperien
         deviceEncryptionKey: data.deviceEncryptionKey,
         otpToken:            data.otpToken,
       },
-    })
+    }, _agentLoginCb as never)
     setScreen('otp_sent')
   }, [])
 
   // ── Step 2: open Circle OTP popup ────────────────────────────────────────
+  // The W3SSdk is a module-level singleton shared with CircleEmailLogin. Whichever
+  // component last called updateConfigs() owns the onLoginComplete callback.
+  // Re-register our callback immediately before opening the popup so the agent OTP
+  // result is never hijacked by the main-app CircleEmailLogin callback.
   const handleVerify = useCallback(() => {
     setScreen('verifying')
     setStatusMsg('Waiting for verification…')
+    if (_agentSdk && _agentLoginCb) {
+      // Re-claim the singleton's login callback right before opening the agent OTP popup.
+      // This mirrors what CircleEmailLogin.verifyOtp() does on line 304.
+      _agentSdk.updateConfigs(
+        { appSettings: { appId: CIRCLE_APP_ID ?? 'pending-configuration' } },
+        _agentLoginCb,
+      )
+    }
     _agentSdk?.verifyOtp()
   }, [])
 
