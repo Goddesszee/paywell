@@ -400,7 +400,7 @@ export function PaymentRequestPage({ params }: { params: PaymentParams }) {
 function FullPage({ children }: { children: React.ReactNode }) {
   return (
     <div style={{
-      minHeight: '100vh', background: 'var(--nan-bg)', fontFamily: FONT,
+      minHeight: '100dvh', background: 'var(--nan-bg)', fontFamily: FONT,
       display: 'flex', flexDirection: 'column', alignItems: 'center',
       padding: '24px 20px 40px',
     }}>

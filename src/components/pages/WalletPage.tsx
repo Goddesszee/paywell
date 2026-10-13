@@ -1358,7 +1358,7 @@ function ReceiveView({ address, onBack }: { address: string; onBack: () => void 
 
   return (
     <div style={{
-      minHeight: 'calc(100vh - 60px)',
+      minHeight: 'calc(100dvh - 60px)',
       display: 'flex', flexDirection: 'column',
       width: '100%',
       padding: '20px 20px 32px',

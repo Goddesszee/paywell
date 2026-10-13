@@ -1069,7 +1069,7 @@ function AdminDashboardInner() {
   ] as const
 
   return (
-    <div style={{ height: '100vh', background: 'var(--nan-bg)', fontFamily: SANS, color: 'var(--nan-text)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+    <div style={{ height: '100dvh', background: 'var(--nan-bg)', fontFamily: SANS, color: 'var(--nan-text)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       {/* Header */}
       <div style={{ background: 'var(--nan-surface2)', borderBottom: '1px solid var(--nan-bdr)', padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 50 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
