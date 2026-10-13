@@ -290,7 +290,6 @@ function CommandPalette({ onClose, onGo }: { onClose: () => void; onGo: (action:
 // ── Nav items (mobile bottom bar) ─────────────────────────────────────────────
 const NAV_ITEMS = [
   { id: 'home',     label: 'Home',     Icon: Home },
-  { id: 'trade',    label: 'Trade',    Icon: ArrowLeftRight },
   { id: 'invoices', label: 'Invoices', Icon: FileText },
   { id: 'gateway',  label: 'Gateway',  Icon: Layers },
 ]
@@ -346,7 +345,6 @@ const MOBILE_DRAWER_SECTIONS = SIDEBAR_SECTIONS.filter(s => s.title !== 'Help & 
   items: s.items.filter(i =>
     i.id !== 'home' &&
     i.id !== 'dashboard' &&
-    i.id !== 'trade' &&      // Trade is in the bottom nav
     i.id !== 'invoices' &&   // Invoices is in the bottom nav
     i.id !== 'gateway' &&    // Gateway is in the bottom nav
     i.id !== 'favorites' &&
