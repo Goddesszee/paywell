@@ -15,7 +15,7 @@ import React, { useState, useEffect, useCallback } from 'react'
 import {
   CreditCard, Wallet, ArrowUpRight, AlertCircle,
   CheckCircle2, ExternalLink, Copy, Check, Loader2,
-  ChevronDown, ChevronUp, AtSign,
+  Smartphone, AtSign,
 } from 'lucide-react'
 import {
   useWriteContract, useWaitForTransactionReceipt,
@@ -315,6 +315,70 @@ function QrTab({ toAddress, amount }: { toAddress: string; amount: number }) {
   )
 }
 
+// ── Copy address panel ────────────────────────────────────────────────────────
+function CopyAddressPanel({ toAddress, amount, handle }: { toAddress: string; amount: number; handle: string }) {
+  const [copiedAddr, setCopiedAddr] = useState(false)
+  const [copiedAmt, setCopiedAmt]   = useState(false)
+
+  const copy = (text: string, which: 'addr' | 'amt') => {
+    void navigator.clipboard.writeText(text)
+    if (which === 'addr') { setCopiedAddr(true); setTimeout(() => setCopiedAddr(false), 2000) }
+    else                  { setCopiedAmt(true);  setTimeout(() => setCopiedAmt(false),  2000) }
+    toast.success('Copied!')
+  }
+
+  const steps = [
+    { n: '1', text: 'Open your wallet app or exchange' },
+    { n: '2', text: amount > 0 ? `Send exactly ${amount.toLocaleString('en', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDC on Arc` : 'Enter an amount above, then send that exact amount in USDC on Arc' },
+    { n: '3', text: 'Paste the address below as the recipient' },
+  ]
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div style={{ background: '#f7f8fa', borderRadius: 12, padding: '14px 16px' }}>
+        {steps.map((s, i) => (
+          <div key={s.n} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: i < steps.length - 1 ? 10 : 0 }}>
+            <span style={{ width: 20, height: 20, borderRadius: '50%', background: BLUE, color: '#fff', fontSize: 11, fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 }}>{s.n}</span>
+            <span style={{ fontSize: 13, color: '#444', lineHeight: 1.4 }}>{s.text}</span>
+          </div>
+        ))}
+      </div>
+
+      {amount > 0 && (
+        <div>
+          <div style={{ fontSize: 11, fontWeight: 600, color: '#888', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Amount</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ flex: 1, background: '#f7f8fa', border: '1px solid #e8e8e8', borderRadius: 10, padding: '10px 14px', fontFamily: MONO, fontSize: 15, fontWeight: 700, color: '#111' }}>
+              {amount.toLocaleString('en', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDC
+            </div>
+            <button onClick={() => copy(String(amount), 'amt')}
+              style={{ width: 40, height: 40, borderRadius: 10, background: copiedAmt ? '#e8f8ef' : '#f7f8fa', border: `1px solid ${copiedAmt ? '#b6e8cb' : '#e8e8e8'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.15s', flexShrink: 0 }}>
+              {copiedAmt ? <Check size={15} color="#1a7a42" /> : <Copy size={15} color="#666" />}
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div>
+        <div style={{ fontSize: 11, fontWeight: 600, color: '#888', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Recipient address (USDC · Arc)</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ flex: 1, background: '#f7f8fa', border: '1px solid #e8e8e8', borderRadius: 10, padding: '10px 14px', fontFamily: MONO, fontSize: 12, color: '#111', wordBreak: 'break-all', lineHeight: 1.5 }}>
+            {toAddress}
+          </div>
+          <button onClick={() => copy(toAddress, 'addr')}
+            style={{ width: 40, height: 40, borderRadius: 10, background: copiedAddr ? '#e8f8ef' : '#f7f8fa', border: `1px solid ${copiedAddr ? '#b6e8cb' : '#e8e8e8'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.15s', flexShrink: 0 }}>
+            {copiedAddr ? <Check size={15} color="#1a7a42" /> : <Copy size={15} color="#666" />}
+          </button>
+        </div>
+      </div>
+
+      <div style={{ fontSize: 11, color: '#bbb', textAlign: 'center', paddingTop: 4 }}>
+        Paying @{handle} · USDC on Arc
+      </div>
+    </div>
+  )
+}
+
 // ── Amount editor ─────────────────────────────────────────────────────────────
 const QUICK = [10, 25, 50, 100]
 
@@ -352,7 +416,7 @@ function AmountPicker({ value, onChange, fixed }: { value: number; onChange: (n:
 }
 
 // ── Main public page ──────────────────────────────────────────────────────────
-type PayMethod = 'wallet' | 'card' | 'qr'
+type PayMethod = 'wallet' | 'card' | 'qr' | 'copy'
 type ResolveState = 'loading' | 'found' | 'notfound' | 'noregistry'
 
 // Derive URL amount once at module parse time — avoids setState-in-effect
@@ -385,8 +449,6 @@ export function PayByNamePage({ handle }: { handle: string }) {
   const [fixedAmount]           = useState(() => getUrlAmount().fixed)
   const [method, setMethod]     = useState<PayMethod>('wallet')
   const [successHash, setSuccessHash] = useState<string | null>(null)
-  const [copiedAddr, setCopiedAddr]   = useState(false)
-  const [showAddr, setShowAddr]       = useState(false)
 
   // Resolve handle (only runs when NAME_REGISTRY is set and cleanHandle is non-empty)
   useEffect(() => {
@@ -473,37 +535,18 @@ export function PayByNamePage({ handle }: { handle: string }) {
       {/* Amount */}
       <AmountPicker value={amount} onChange={setAmount} fixed={fixedAmount} />
 
-      {/* Wallet address disclosure (collapsed by default) */}
-      <button
-        onClick={() => setShowAddr(v => !v)}
-        style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', cursor: 'pointer', padding: '6px 0', fontFamily: F, color: '#999', fontSize: 12, marginTop: 4 }}
-      >
-        {showAddr ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
-        {showAddr ? 'Hide recipient address' : 'Show recipient address'}
-      </button>
-      {showAddr && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: '#f7f8fa', border: '1px solid #e8e8e8', borderRadius: 10, marginBottom: 8 }}>
-          <span style={{ flex: 1, fontFamily: MONO, fontSize: 11, color: '#555', wordBreak: 'break-all', lineHeight: 1.5 }}>{toAddress}</span>
-          <button
-            onClick={() => { void navigator.clipboard.writeText(toAddress).then(() => { setCopiedAddr(true); setTimeout(() => setCopiedAddr(false), 2000) }) }}
-            style={{ flexShrink: 0, width: 30, height: 30, borderRadius: 8, background: copiedAddr ? 'rgba(16,185,129,0.10)' : '#fff', border: `1px solid ${copiedAddr ? 'rgba(16,185,129,0.30)' : '#e8e8e8'}`, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-          >
-            {copiedAddr ? <Check size={13} color="#10B981" /> : <Copy size={13} color="#888" />}
-          </button>
-        </div>
-      )}
-
       {/* Payment method tabs */}
       <div style={{ marginTop: 16 }}>
         <div style={{ display: 'flex', gap: 5, background: '#f4f4f4', borderRadius: 13, padding: 4, marginBottom: 20 }}>
           {([
-            { id: 'wallet', icon: <Wallet size={16} />,     label: 'Crypto Wallet' },
-            { id: 'card',   icon: <CreditCard size={16} />, label: 'Buy with Card' },
-            { id: 'qr',     icon: <AtSign size={16} />,     label: 'Scan QR' },
+            { id: 'wallet', icon: <Wallet size={15} />,     label: 'Wallet' },
+            { id: 'card',   icon: <CreditCard size={15} />, label: 'Card' },
+            { id: 'qr',     icon: <Smartphone size={15} />, label: 'Scan QR' },
+            { id: 'copy',   icon: <Copy size={15} />,       label: 'Copy' },
           ] as { id: PayMethod; icon: React.ReactNode; label: string }[]).map(t => (
             <button
               key={t.id} onClick={() => setMethod(t.id)}
-              style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, padding: '10px 6px', borderRadius: 10, cursor: 'pointer', transition: 'all 0.12s', background: method === t.id ? '#fff' : 'transparent', border: method === t.id ? '1px solid #e0e0e0' : '1px solid transparent', boxShadow: method === t.id ? '0 2px 8px rgba(0,0,0,0.06)' : 'none', color: method === t.id ? '#111' : '#999' }}
+              style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, padding: '10px 4px', borderRadius: 10, cursor: 'pointer', transition: 'all 0.12s', background: method === t.id ? '#fff' : 'transparent', border: method === t.id ? '1px solid #e0e0e0' : '1px solid transparent', boxShadow: method === t.id ? '0 2px 8px rgba(0,0,0,0.06)' : 'none', color: method === t.id ? '#111' : '#999' }}
             >
               <div style={{ color: method === t.id ? BLUE : '#bbb', transition: 'color 0.12s' }}>{t.icon}</div>
               <span style={{ fontSize: 10, fontWeight: method === t.id ? 700 : 500, fontFamily: F, whiteSpace: 'nowrap' }}>{t.label}</span>
@@ -511,13 +554,15 @@ export function PayByNamePage({ handle }: { handle: string }) {
           ))}
         </div>
 
-        {/* Payment panels — always visible so payer can connect wallet or scan QR before entering amount */}
+        {/* Payment panels */}
         {method === 'wallet' ? (
           <WalletPayPanel toAddress={toAddress} amount={amount} handle={cleanHandle} onSuccess={setSuccessHash} />
         ) : method === 'card' ? (
           <CardPayPanel toAddress={toAddress} amount={amount} />
-        ) : (
+        ) : method === 'qr' ? (
           <QrTab toAddress={toAddress} amount={amount} />
+        ) : (
+          <CopyAddressPanel toAddress={toAddress} amount={amount} handle={cleanHandle} />
         )}
       </div>
 
