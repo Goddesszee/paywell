@@ -164,10 +164,26 @@ async function handleWallet(req: VercelRequest, res: VercelResponse) {
     }
   }
 
-  // ── request-otp — email login ─────────────────────────────────────────────
+  // ── request-otp — email login (rate-limited: 5 per email per 10 min) ────────
   if (action === 'request-otp') {
     const { deviceId, email } = body
     if (!deviceId || !email) return err(res, 400, 'deviceId and email required')
+
+    // Rate limit: max 5 OTP requests per normalised email per 10 minutes.
+    // Gracefully skipped when Redis is not configured (no silent failure).
+    try {
+      const { getRedis } = await import('./_redis.js')
+      const kv = getRedis()
+      if (kv) {
+        const key = `otp_rl:${email.toLowerCase().trim()}`
+        const count = await kv.incr(key)
+        if (count === 1) await kv.expire(key, 600) // 10-minute window
+        if (count > 5) {
+          return res.status(429).json({ error: 'Too many code requests. Please wait 10 minutes and try again.' })
+        }
+      }
+    } catch { /* Redis unavailable — allow request through */ }
+
     try {
       const client = ucwClient()
       const response = await client.createDeviceTokenForEmailLogin({ deviceId, email })

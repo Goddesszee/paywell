@@ -114,5 +114,11 @@
     { "source": "/api/about",                                     "destination": "/api/misc?route=about" },
     { "source": "/api/faqs",                                     "destination": "/api/misc?route=faqs" },
     { "source": "/(.*)",                                         "destination": "/index.html" }
+  ],
+  "crons": [
+    {
+      "path": "/api/cron-recurring",
+      "schedule": "0 * * * *"
+    }
   ]
 }

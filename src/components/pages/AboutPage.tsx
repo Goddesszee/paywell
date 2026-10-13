@@ -84,6 +84,16 @@ export function AboutPage() {
         </button>
       </div>
 
+      {/* Legal */}
+      <div style={{ display: 'flex', gap: 16, justifyContent: 'center', paddingTop: 4, paddingBottom: 8 }}>
+        <button onClick={() => setActiveView('terms')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: 'var(--nan-text3)', fontFamily: SANS, textDecoration: 'underline', padding: 0 }}>
+          Terms of Service
+        </button>
+        <button onClick={() => setActiveView('privacy')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: 'var(--nan-text3)', fontFamily: SANS, textDecoration: 'underline', padding: 0 }}>
+          Privacy Policy
+        </button>
+      </div>
+
     </div>
   )
 }

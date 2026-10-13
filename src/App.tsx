@@ -37,6 +37,7 @@ import { DashboardPage } from './components/pages/DashboardPage'
 import { ExportsPage } from './components/pages/ExportsPage'
 
 import { ContactsPage } from './components/pages/ContactsPage'
+import { TermsPage, PrivacyPage } from './components/pages/LegalPage'
 import { NanNamePage } from './components/pages/NanNamePage'
 import { ReferralPage } from './components/pages/ReferralPage'
 import { MainnetSetupPage } from './components/pages/MainnetSetupPage'
@@ -313,42 +314,44 @@ export default function App() {
     <>
     <WelcomeBalloon />
     <AppShell>
-      {activeView === 'home' && <HomePage />}
-      {activeView === 'dashboard' && <DashboardPage />}
-      {activeView === 'wallet' && <WalletPage />}
-      {activeView === 'send' && <WalletPage initialSubView="send" />}
-      {activeView === 'receive' && <WalletPage initialSubView="receive" />}
-      {activeView === 'agent' && <AgentPage />}
-      {activeView === 'agent-wallet' && <AgentWalletExperience />}
-      {activeView === 'trade'  && <ErrorBoundary key="trade"><Suspense fallback={<PageLoading />}><TradePage /></Suspense></ErrorBoundary>}
-      {/* Legacy deep-links: bridge / swap redirect to the unified Trade page */}
-      {activeView === 'bridge' && <ErrorBoundary key="bridge"><Suspense fallback={<PageLoading />}><TradePage initialTab="bridge" /></Suspense></ErrorBoundary>}
-      {activeView === 'swap'   && <ErrorBoundary key="swap"><Suspense fallback={<PageLoading />}><TradePage initialTab="swap" /></Suspense></ErrorBoundary>}
-      {activeView === 'onramp' && <OnrampPage />}
-      {activeView === 'faucet' && <FaucetPage />}
-      {activeView === 'activity' && <ActivityPage />}
-      {activeView === 'settings' && <SettingsPage />}
-      {activeView === 'help' && <SettingsPage />}
-      {activeView === 'gateway' && <GatewayPage />}
-      {activeView === 'recurring' && <RecurringPage />}
-      {activeView === 'notifications' && <NotificationsPage />}
-      {activeView === 'support' && <SupportPage />}
-      {activeView === 'faq' && <FAQPage />}
-      {activeView === 'about' && <AboutPage />}
-      {activeView === 'feedback' && <FeedbackPage />}
-      {activeView === 'suggestions' && <SuggestionsPage />}
-      {activeView === 'profile' && <ProfilePage />}
-      {activeView === 'search' && <SearchPage />}
-      {activeView === 'favorites' && <FavoritesPage />}
-      {activeView === 'exports' && <ExportsPage />}
-      {activeView === 'payment-requests' && <PaymentRequestsRedirect />}
-      {activeView === 'contacts' && <ContactsPage />}
-      {activeView === 'nan-name' && <NanNamePage />}
-      {activeView === 'referral' && <ReferralPage />}
-      {activeView === 'invoices' && <InvoicePage />}
-      {activeView === 'payroll' && <BatchPayrollPage />}
+      <ErrorBoundary key={activeView}>
+        {activeView === 'home' && <HomePage />}
+        {activeView === 'dashboard' && <DashboardPage />}
+        {activeView === 'wallet' && <WalletPage />}
+        {activeView === 'send' && <WalletPage initialSubView="send" />}
+        {activeView === 'receive' && <WalletPage initialSubView="receive" />}
+        {activeView === 'agent' && <AgentPage />}
+        {activeView === 'agent-wallet' && <AgentWalletExperience />}
+        {activeView === 'trade'  && <Suspense fallback={<PageLoading />}><TradePage /></Suspense>}
+        {activeView === 'bridge' && <Suspense fallback={<PageLoading />}><TradePage initialTab="bridge" /></Suspense>}
+        {activeView === 'swap'   && <Suspense fallback={<PageLoading />}><TradePage initialTab="swap" /></Suspense>}
+        {activeView === 'onramp' && <OnrampPage />}
+        {activeView === 'faucet' && <FaucetPage />}
+        {activeView === 'activity' && <ActivityPage />}
+        {activeView === 'settings' && <SettingsPage />}
+        {activeView === 'help' && <SettingsPage />}
+        {activeView === 'gateway' && <GatewayPage />}
+        {activeView === 'recurring' && <RecurringPage />}
+        {activeView === 'notifications' && <NotificationsPage />}
+        {activeView === 'support' && <SupportPage />}
+        {activeView === 'faq' && <FAQPage />}
+        {activeView === 'about' && <AboutPage />}
+        {activeView === 'feedback' && <FeedbackPage />}
+        {activeView === 'suggestions' && <SuggestionsPage />}
+        {activeView === 'profile' && <ProfilePage />}
+        {activeView === 'search' && <SearchPage />}
+        {activeView === 'favorites' && <FavoritesPage />}
+        {activeView === 'exports' && <ExportsPage />}
+        {activeView === 'payment-requests' && <PaymentRequestsRedirect />}
+        {activeView === 'contacts' && <ContactsPage />}
+        {activeView === 'nan-name' && <NanNamePage />}
+        {activeView === 'referral' && <ReferralPage />}
+        {activeView === 'invoices' && <InvoicePage />}
+        {activeView === 'payroll' && <BatchPayrollPage />}
+        {activeView === 'terms' && <TermsPage />}
+        {activeView === 'privacy' && <PrivacyPage />}
+      </ErrorBoundary>
     </AppShell>
     </>
-
   )
 }

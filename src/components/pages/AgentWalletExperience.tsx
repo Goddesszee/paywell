@@ -1090,7 +1090,12 @@ const PRIMARY_TABS: { id: DashTab; label: string }[] = [
 ]
 
 function DashboardScreen({ C, onDisconnect }: { C: ReturnType<typeof useNanTheme>; onDisconnect: () => void }) {
-  const { agentWallet, setAgentWallet, agentSpendLog, activity, recurringTasks, setActiveView } = useAppStore()
+  const { agentWallet, setAgentWallet, agentSpendLog, activity, recurringTasks, setActiveView, auth } = useAppStore()
+  // Detect if agent wallet shares the same address as the main NAN wallet
+  // (affects users who set up the agent wallet before the refId='agent' fix)
+  const mainAddr = (auth?.circleWalletAddress ?? auth?.walletAddress ?? '').toLowerCase()
+  const agentAddr = (agentWallet.address ?? '').toLowerCase()
+  const sameAddressAsMain = !!(mainAddr && agentAddr && mainAddr === agentAddr)
   const [dashTab, setDashTab]         = useState<DashTab>('overview')
   const [refreshing, setRefreshing]   = useState(false)
   const [copied, setCopied]           = useState(false)
@@ -1147,6 +1152,8 @@ function DashboardScreen({ C, onDisconnect }: { C: ReturnType<typeof useNanTheme
     setTimeout(() => setCopied(false), 2000)
   }
 
+  const [migDismissed, setMigDismissed] = useState(false)
+
   const chainLabel = agentWallet.blockchain
     ? agentWallet.blockchain.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
     : 'Arc'
@@ -1201,6 +1208,33 @@ function DashboardScreen({ C, onDisconnect }: { C: ReturnType<typeof useNanTheme
           </button>
         </div>
       </div>
+
+      {/* ── Migration notice: agent address = main address (pre-fix users) ─── */}
+      {sameAddressAsMain && !migDismissed && (
+        <div style={{ margin: '10px 16px 0', padding: '12px 14px', borderRadius: 12, background: 'rgba(255,149,0,0.08)', border: '1px solid rgba(255,149,0,0.3)', display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+          <AlertTriangle size={16} color={AMBER} style={{ flexShrink: 0, marginTop: 1 }} />
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: AMBER, marginBottom: 3 }}>Agent Wallet update needed</div>
+            <div style={{ fontSize: 12, color: C.t2, lineHeight: 1.5, marginBottom: 10 }}>
+              Your Agent Wallet currently shares the same address as your main NAN wallet. Tap "Fix Now" to disconnect and reconnect — this creates a separate dedicated address.
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                onClick={onDisconnect}
+                style={{ padding: '7px 14px', borderRadius: 8, background: AMBER, color: '#fff', border: 'none', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: F }}
+              >
+                Fix Now
+              </button>
+              <button
+                onClick={() => setMigDismissed(true)}
+                style={{ padding: '7px 14px', borderRadius: 8, background: 'none', color: C.t3, border: `1px solid ${C.bdr}`, fontSize: 12, cursor: 'pointer', fontFamily: F }}
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Scrollable content ──────────────────────────────────────────────── */}
       <div style={{

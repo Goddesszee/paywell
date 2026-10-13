@@ -220,6 +220,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
       list.push(task)
       await kv.set(storeKey, list.slice(0, 200), { ex: 60 * 60 * 24 * 365 })
+      // Register this wallet in the global cron index so the hourly cron can find it
+      if (task.active && task.frequency !== 'manual') {
+        try { await kv.sadd('rt_index', wallet) } catch { /* non-fatal */ }
+      }
       return res.json({ success: true, task })
     }
 
