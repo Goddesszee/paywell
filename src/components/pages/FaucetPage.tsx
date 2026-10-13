@@ -1,7 +1,5 @@
-import React, { useState } from 'react'
-import { useAccount } from 'wagmi'
-
-import { ArrowLeft, Droplet, AlertCircle, CheckCircle2, ExternalLink } from 'lucide-react'
+import React from 'react'
+import { ArrowLeft, Zap } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
 
 const PW_BG      = 'var(--nan-bg)'
@@ -13,69 +11,13 @@ const PW_BLACK   = 'var(--nan-blue)'
 const PW_WHITE   = 'var(--nan-surface2)'
 const SANS       = 'Inter, sans-serif'
 
+/**
+ * FaucetPage — mainnet variant.
+ * The testnet faucet is disabled on mainnet. This page redirects users to
+ * the Onramp (Buy USDC) flow as the correct way to fund their wallet.
+ */
 export function FaucetPage() {
-  const { address: wagmiAddress, isConnected: wagmiConnected } = useAccount()
   const setActiveView = useAppStore(s => s.setActiveView)
-  const auth = useAppStore(s => s.auth)
-  const mainWalletAddress = useAppStore(s => s.mainWalletAddress)
-  // Email / Google / passkey users use their Circle wallet instead of a browser-wallet connection
-  const nanWallet = auth?.circleWalletAddress || auth?.walletAddress || mainWalletAddress || ''
-  const address = wagmiAddress ?? (nanWallet ? (nanWallet as `0x${string}`) : undefined)
-  const isConnected = wagmiConnected || Boolean(nanWallet)
-
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState<string | null>(null)
-  const [cooldownMs, setCooldownMs] = useState<number | null>(null)
-
-  const handleClaim = async () => {
-    if (!isConnected || !address) {
-      setError('Connect your wallet first')
-      return
-    }
-
-    setLoading(true)
-    setError(null)
-    setSuccess(null)
-    setCooldownMs(null)
-
-    try {
-      const res = await fetch('/api/misc?route=faucet', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ address }),
-      })
-
-      const data = await res.json().catch(() => ({})) as {
-        ok?: boolean
-        message?: string
-        retryAfterMs?: number
-      }
-
-      if (!res.ok) {
-        if (res.status === 503) {
-          setError('Add CIRCLE_DEVELOPER_CONTROLLED_API_KEY to Vercel environment variables to activate the faucet')
-          return
-        }
-        if (res.status === 429) {
-          setCooldownMs(data.retryAfterMs ?? null)
-          setError(data.message ?? 'This address already claimed testnet funds recently')
-          return
-        }
-        throw new Error(data.message ?? `Faucet returned HTTP ${res.status}`)
-      }
-
-      setSuccess(data.message ?? 'USDC is on its way.')
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to request funds')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const cooldownLabel = cooldownMs != null
-    ? `Try again in ${Math.max(1, Math.ceil(cooldownMs / (60 * 60 * 1000)))}h`
-    : null
 
   return (
     <div style={{ minHeight: '100dvh', background: PW_BG, fontFamily: SANS }}>
@@ -85,116 +27,66 @@ export function FaucetPage() {
         background: PW_BG, borderBottom: `1px solid ${PW_BORDER}`,
         display: 'flex', alignItems: 'center', gap: 12, padding: '0 16px', height: 56,
       }}>
-        <button onClick={() => setActiveView('home')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 8 }}>
+        <button
+          onClick={() => setActiveView('home')}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 8 }}
+        >
           <ArrowLeft size={20} color={PW_TEXT} />
         </button>
-        <span style={{ fontWeight: 700, fontSize: 17, color: PW_TEXT }}>Testnet Faucet</span>
+        <span style={{ fontWeight: 700, fontSize: 17, color: PW_TEXT }}>Add Funds</span>
       </div>
 
-      <div style={{ width: '100%', padding: '24px 16px 40px' }}>
+      <div style={{ width: '100%', padding: '40px 16px' }}>
         {/* Icon */}
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 24 }}>
           <div style={{
             width: 56, height: 56, borderRadius: 16,
             background: PW_BLACK, display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
-            <Droplet size={28} color={PW_WHITE} />
+            <Zap size={28} color={PW_WHITE} />
           </div>
         </div>
 
-        <p style={{ textAlign: 'center', fontSize: 14, color: PW_TEXT_2, marginBottom: 20, lineHeight: 1.5 }}>
-          Request USDC for development and testing. For real USDC, use Buy USDC.
+        <h2 style={{ textAlign: 'center', fontSize: 22, fontWeight: 800, color: PW_TEXT, marginBottom: 10 }}>
+          Buy USDC
+        </h2>
+        <p style={{ textAlign: 'center', fontSize: 14, color: PW_TEXT_2, marginBottom: 32, lineHeight: 1.6 }}>
+          NAN runs on mainnet. Add real USDC to your wallet using a card,
+          Apple Pay, Google Pay, or bank transfer.
         </p>
 
-        {/* Destination */}
-        {isConnected && address && (
-          <div style={{ marginBottom: 20, padding: 14, background: PW_SURFACE, borderRadius: 12, border: `1px solid ${PW_BORDER}` }}>
-            <div style={{ fontSize: 11, fontWeight: 600, color: PW_TEXT_2, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 4 }}>Receiving Wallet</div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: PW_TEXT, fontFamily: 'monospace' }}>
-              {address.slice(0, 10)}...{address.slice(-8)}
-            </div>
-            <div style={{ fontSize: 12, color: PW_TEXT_2, marginTop: 2 }}>Arc · USDC</div>
-          </div>
-        )}
+        <div style={{
+          padding: 20, background: PW_SURFACE, borderRadius: 16,
+          border: `1px solid ${PW_BORDER}`, marginBottom: 20,
+        }}>
+          <p style={{ fontSize: 13, color: PW_TEXT_2, margin: 0, lineHeight: 1.6 }}>
+            The testnet faucet is not available on mainnet. Use <strong style={{ color: PW_TEXT }}>Buy USDC</strong> to
+            fund your wallet instantly with a real payment. A 1% platform fee applies.
+          </p>
+        </div>
 
-        {!isConnected && (
-          <div style={{ marginBottom: 20, padding: 16, background: 'rgba(245,158,11,0.10)', borderRadius: 12, border: '1px solid rgba(245,158,11,0.25)', textAlign: 'center' }}>
-            <p style={{ color: 'var(--nan-text)', fontSize: 14, margin: 0 }}>Connect your wallet on the Home screen first</p>
-          </div>
-        )}
+        <button
+          onClick={() => setActiveView('onramp')}
+          style={{
+            width: '100%', height: 56, borderRadius: 16,
+            background: PW_BLACK, color: PW_WHITE,
+            border: 'none', cursor: 'pointer',
+            fontSize: 16, fontWeight: 700, fontFamily: SANS,
+          }}
+        >
+          Buy USDC →
+        </button>
 
-        {/* Error */}
-        {error && (
-          <div style={{ display: 'flex', gap: 10, padding: 14, background: 'rgba(255,68,68,0.10)', borderRadius: 12, border: '1px solid rgba(255,68,68,0.25)', marginBottom: 16 }}>
-            <AlertCircle size={18} color="#DC2626" style={{ flexShrink: 0, marginTop: 1 }} />
-            <div>
-              <p style={{ color: 'var(--nan-red, #FF4444)', fontSize: 14, margin: 0, lineHeight: 1.4 }}>{error}</p>
-              {cooldownLabel && (
-                <p style={{ color: 'var(--nan-red, #FF4444)', fontSize: 12, margin: '4px 0 0', opacity: 0.8 }}>{cooldownLabel}</p>
-              )}
-              <a
-                href="https://faucet.circle.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 8, fontSize: 13, fontWeight: 600, color: 'var(--nan-red, #FF4444)', textDecoration: 'underline' }}
-              >
-                Open Circle's faucet directly <ExternalLink size={12} />
-              </a>
-            </div>
-          </div>
-        )}
-
-        {/* Success */}
-        {success && (
-          <div style={{ textAlign: 'center', padding: '32px 16px', background: PW_SURFACE, borderRadius: 16, marginBottom: 20 }}>
-            <CheckCircle2 size={36} color="#16A34A" style={{ marginBottom: 12 }} />
-            <p style={{ fontWeight: 700, fontSize: 17, color: PW_TEXT, marginBottom: 6 }}>Request Sent</p>
-            <p style={{ fontSize: 14, color: PW_TEXT_2, marginBottom: 0 }}>{success}</p>
-          </div>
-        )}
-
-        {/* CTA */}
-        {!success && (
-          <button
-            onClick={() => { void handleClaim() }}
-            disabled={loading || !isConnected}
-            style={{
-              width: '100%', height: 56, borderRadius: 16,
-              background: loading || !isConnected ? 'rgba(255,255,255,0.08)' : PW_BLACK,
-              color: loading || !isConnected ? PW_TEXT_2 : PW_WHITE,
-              border: 'none', cursor: loading || !isConnected ? 'not-allowed' : 'pointer',
-              fontSize: 16, fontWeight: 700, fontFamily: SANS,
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-            }}
-          >
-            {loading ? 'Requesting…' : 'Claim USDC →'}
-          </button>
-        )}
-
-        {success && (
-          <button onClick={() => { setSuccess(null); setError(null) }} style={{
+        <button
+          onClick={() => setActiveView('home')}
+          style={{
             width: '100%', height: 48, borderRadius: 14, background: 'transparent',
             color: PW_TEXT_2, border: `1.5px solid ${PW_BORDER}`, cursor: 'pointer',
-            fontSize: 14, fontWeight: 600, fontFamily: SANS, marginTop: 4,
-          }}>
-            Back
-          </button>
-        )}
-
-        {/* Info note */}
-        <p style={{ textAlign: 'center', fontSize: 12, color: PW_TEXT_2, marginTop: 16, lineHeight: 1.5 }}>
-          Powered by Circle's testnet faucet · One claim per wallet every 24 hours
-        </p>
-        <div style={{ textAlign: 'center', marginTop: 8 }}>
-          <a
-            href="https://faucet.circle.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, fontWeight: 600, color: PW_TEXT_2, textDecoration: 'underline' }}
-          >
-            Or open Circle's faucet directly <ExternalLink size={11} />
-          </a>
-        </div>
+            fontSize: 14, fontWeight: 600, fontFamily: SANS, marginTop: 12,
+          }}
+        >
+          Back to Home
+        </button>
       </div>
     </div>
   )
