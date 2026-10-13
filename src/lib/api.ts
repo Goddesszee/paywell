@@ -159,6 +159,9 @@ export interface NanChatContext {
   agentWalletAccountType?: string
   // Policy
   dailyLimit?: number
+  weeklyLimit?: number
+  monthlyLimit?: number
+  overallLimit?: number
   perTxLimit?: number
   perServiceLimit?: number
   remainingToday?: number
@@ -167,6 +170,14 @@ export interface NanChatContext {
   requireApprovalAbove?: number
   autoApproveUnder?: number
   agentDailyUsed?: number
+  agentWeeklyUsed?: number
+  agentMonthlyUsed?: number
+  agentTotalUsed?: number
+  // NAN name
+  nanHandle?: string
+  // Contacts
+  contactCount?: number
+  contacts?: Array<{ name: string; address: string }>
   // Cross-chain
   crossChainBalances?: Record<string, string>
   crossChainSummary?: string

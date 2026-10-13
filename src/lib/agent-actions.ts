@@ -861,7 +861,19 @@ export function describeAction(action: NanAction): { title: string; lines: Array
 
 // ── Confirmation gate ─────────────────────────────────────────────────────────
 
-export function requiresConfirmation(action: NanAction): boolean {
+/**
+ * Whether a UI confirmation card should be shown before executing this action.
+ * Pass `autonomousExecution=true` (only when the user gave an explicit, unambiguous
+ * instruction AND the backend policy guard already cleared the request) to bypass
+ * confirmation for financial sends. All other destructive actions always require
+ * confirmation regardless.
+ */
+export function requiresConfirmation(action: NanAction, autonomousExecution = false): boolean {
+  // Financial sends can be executed autonomously when the caller has already
+  // verified balances and limits server-side.
+  if (autonomousExecution) {
+    if (action.action === 'send_usdc' || action.action === 'agent_send' || action.action === 'ucw_send') return false
+  }
   switch (action.action) {
     case 'add_recurring':
     case 'add_agent_recurring':
@@ -948,6 +960,13 @@ export type ExecutorContext = {
   runBridge?: (params: { amount: string; toChain: string }) => Promise<string>
   /** Runs a swap end to end from the chat (all login types). Throws on failure. */
   runSwap?: (params: { fromToken: string; toToken: string; amount: string }) => Promise<string>
+  /**
+   * When true, financial actions (send_usdc, agent_send, agent_wallet_send) skip
+   * the UI confirmation card and execute immediately, provided all policy checks
+   * pass. Used by AgentChat when the user gave an explicit unambiguous instruction
+   * and all limits are satisfied. Defaults to false.
+   */
+  autonomousExecution?: boolean
 }
 
 // ── Main executor ─────────────────────────────────────────────────────────────
@@ -1031,7 +1050,17 @@ async function sendMainWallet(params: { toAddress: string; amount: string; note?
     throw new Error(friendlyWagmiError(e))
   }
   store.addActivity({ type: 'sent', description: note ?? 'Agent-initiated send', amount: n, sign: '-', status: 'confirmed', counterparty: short, txHash })
-  return `Sent ${amount} USDC to ${short} — tx: ${txHash.slice(0, 12)}…`
+  return [
+    `**Transaction confirmed**`,
+    `• Amount: ${amount} USDC`,
+    `• Asset: USDC on Arc`,
+    `• Recipient: ${toAddress}`,
+    `• Source wallet: Main wallet`,
+    `• Network: Arc`,
+    `• Status: Confirmed`,
+    `• Tx hash: ${txHash}`,
+    `• [View on explorer](https://explorer.arc.io/tx/${txHash})`,
+  ].join('\n')
 }
 
 export async function executeAction(action: NanAction, ctx: ExecutorContext): Promise<string> {
@@ -1092,34 +1121,115 @@ export async function executeAction(action: NanAction, ctx: ExecutorContext): Pr
 
     case 'agent_send': {
       const { toAddress: rawTo2, amount, note } = action.params
-      const toAddress = getAddress(rawTo2)
+      // Resolve name/contact to 0x address before anything else
+      let toAddress: `0x${string}`
+      try { toAddress = await resolveRecipient(rawTo2, store) }
+      catch (e) { throw new Error(e instanceof Error ? e.message : `"${rawTo2}" is not a valid address.`) }
+
       const userToken = ctx.agentWalletUserToken
       if (!userToken) throw new Error('Agent Wallet session not active. Authenticate in the Agent Wallet tab first.')
 
-      // ── Daily limit enforcement ────────────────────────────────────────────
       const perms = store.agentPermissions
       const txAmt = parseFloat(amount)
-      if (perms.perTxLimit && txAmt > perms.perTxLimit)
-        throw new Error(`This transaction (${txAmt} USDC) exceeds your per-transaction agent limit of ${perms.perTxLimit} USDC. Raise the limit in Agent Wallet settings or approve manually.`)
-      const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0)
-      const spentToday = store.agentSpendLog
-        .filter(s => new Date(s.timestamp).getTime() >= todayStart.getTime())
-        .reduce((sum, s) => sum + s.amount_usdc, 0)
-      if (perms.dailyLimit && spentToday + txAmt > perms.dailyLimit)
-        throw new Error(`Daily agent spend limit reached (${spentToday.toFixed(2)}/${perms.dailyLimit} USDC used today). Raise the limit in Agent Wallet settings or wait until tomorrow.`)
+      if (!Number.isFinite(txAmt) || txAmt <= 0) throw new Error(`"${amount}" is not a valid amount.`)
+
+      // ── Client-side pre-check (fast, before calling the server) ───────────
+      const agentBal = parseFloat(store.agentWallet.balance_usdc || '0')
+      if (agentBal < txAmt)
+        throw new Error(`Insufficient Agent Wallet balance: ${agentBal.toFixed(2)} USDC available, ${txAmt.toFixed(2)} USDC required.`)
+
+      if (perms.perTxLimit > 0 && txAmt > perms.perTxLimit)
+        throw new Error(`This transaction (${txAmt.toFixed(2)} USDC) exceeds your per-transaction limit of ${perms.perTxLimit.toFixed(2)} USDC.`)
+
+      const now = Date.now()
+      const DAY = 86_400_000, WEEK = 7 * DAY, MONTH = 30 * DAY
+      const spentDay   = store.agentSpendLog.filter(s => now - new Date(s.timestamp).getTime() < DAY).reduce((t, s) => t + s.amount_usdc, 0)
+      const spentWeek  = store.agentSpendLog.filter(s => now - new Date(s.timestamp).getTime() < WEEK).reduce((t, s) => t + s.amount_usdc, 0)
+      const spentMonth = store.agentSpendLog.filter(s => now - new Date(s.timestamp).getTime() < MONTH).reduce((t, s) => t + s.amount_usdc, 0)
+      const spentTotal = store.agentSpendLog.reduce((t, s) => t + s.amount_usdc, 0)
+
+      if (perms.dailyLimit   > 0 && spentDay   + txAmt > perms.dailyLimit)
+        throw new Error(`Daily agent limit reached (${spentDay.toFixed(2)}/${perms.dailyLimit.toFixed(2)} USDC used today). Remaining: ${Math.max(0, perms.dailyLimit - spentDay).toFixed(2)} USDC.`)
+      if (perms.weeklyLimit  > 0 && spentWeek  + txAmt > perms.weeklyLimit)
+        throw new Error(`Weekly agent limit reached (${spentWeek.toFixed(2)}/${perms.weeklyLimit.toFixed(2)} USDC used this week). Remaining: ${Math.max(0, perms.weeklyLimit - spentWeek).toFixed(2)} USDC.`)
+      if (perms.monthlyLimit > 0 && spentMonth + txAmt > perms.monthlyLimit)
+        throw new Error(`Monthly agent limit reached (${spentMonth.toFixed(2)}/${perms.monthlyLimit.toFixed(2)} USDC used this month). Remaining: ${Math.max(0, perms.monthlyLimit - spentMonth).toFixed(2)} USDC.`)
+      if (perms.overallLimit > 0 && spentTotal + txAmt > perms.overallLimit)
+        throw new Error(`Overall spending limit reached (${spentTotal.toFixed(2)}/${perms.overallLimit.toFixed(2)} USDC lifetime). Remaining: ${Math.max(0, perms.overallLimit - spentTotal).toFixed(2)} USDC.`)
       // ──────────────────────────────────────────────────────────────────────
+
+      // ── Also call server-side guard for authoritative check + race prevention
+      const agentWalletId = store.agentWallet.walletId ?? ''
+      if (agentWalletId) {
+        const guardRes = await fetch('/api/spending-guard', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'reserve',
+            walletId: agentWalletId,
+            amount: txAmt,
+            note: note ?? `Send to ${toAddress.slice(0, 10)}…`,
+            perTxLimit:   perms.perTxLimit   || 0,
+            dailyLimit:   perms.dailyLimit   || 0,
+            weeklyLimit:  perms.weeklyLimit  || 0,
+            monthlyLimit: perms.monthlyLimit || 0,
+            overallLimit: perms.overallLimit || 0,
+          }),
+        }).then(r => r.json()).catch(() => ({ success: true, allowed: true })) as { success?: boolean; allowed?: boolean; reason?: string; reservationId?: string }
+
+        if (guardRes.allowed === false)
+          throw new Error(guardRes.reason ?? 'Spending limit exceeded (server-side check).')
+        const reservationId = guardRes.reservationId
+
+        // ── Submit the transaction ───────────────────────────────────────────
+        const r = await fetch('/api/agent-wallet', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-user-token': userToken },
+          body: JSON.stringify({ action: 'send-usdc', userToken, toAddress, amount }),
+        })
+        const d = await r.json() as { ok?: boolean; challengeId?: string; txHash?: string; transactionId?: string; error?: string; not_configured?: boolean }
+
+        // If submission failed, cancel the reservation so limits aren't consumed
+        if (!r.ok || d.error || d.not_configured) {
+          if (reservationId) void fetch('/api/spending-guard', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'cancel', walletId: agentWalletId, reservationId }) }).catch(() => {})
+          if (d.not_configured) throw new Error('Agent Wallet API not configured (CIRCLE_API_KEY missing).')
+          throw new Error(d.error ?? 'Transfer failed')
+        }
+
+        // agent-wallet send-usdc returns a challengeId (UCW PIN required) — signal caller
+        if (d.challengeId) {
+          // Cancel reservation — the PIN flow will record its own spend on confirmation
+          if (reservationId) void fetch('/api/spending-guard', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'cancel', walletId: agentWalletId, reservationId }) }).catch(() => {})
+          return `__AGENT_WALLET_CHALLENGE__:${d.challengeId}::${toAddress}::${amount}::${note ?? ''}`
+        }
+
+        const txRef = d.txHash ?? d.transactionId ?? ''
+        // Confirm reservation with real txHash
+        if (reservationId && txRef) void fetch('/api/spending-guard', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'confirm', walletId: agentWalletId, reservationId, txHash: txRef }) }).catch(() => {})
+
+        const short = `${toAddress.slice(0, 10)}…`
+        store.addAgentSpend({ id: `spend-${Date.now()}`, service_id: 'agent-send', service_name: note ?? `Send to ${short}`, amount_usdc: txAmt, txId: txRef || undefined, paid: true, timestamp: new Date().toISOString() })
+        store.addActivity({ type: 'sent', description: note ?? 'Agent send', amount: txAmt, sign: '-', status: txRef ? 'confirmed' : 'pending', counterparty: short, txHash: txRef || undefined, agentInitiated: true })
+
+        const explorerLink = txRef ? ` — [View on explorer](https://explorer.arc.io/tx/${txRef})` : ''
+        return `Sent ${amount} USDC from Agent Wallet to ${short}${explorerLink}`
+      }
+
+      // ── Fallback: no walletId stored yet (shouldn't normally happen) ───────
       const r = await fetch('/api/agent-wallet', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-user-token': userToken },
         body: JSON.stringify({ action: 'send-usdc', userToken, toAddress, amount }),
       })
-      const d = await r.json() as { ok?: boolean; txHash?: string; transactionId?: string; error?: string; not_configured?: boolean }
+      const d = await r.json() as { ok?: boolean; challengeId?: string; txHash?: string; transactionId?: string; error?: string; not_configured?: boolean }
       if (d.not_configured) throw new Error('Agent Wallet API not configured (CIRCLE_API_KEY missing).')
       if (!r.ok || d.error) throw new Error(d.error ?? 'Transfer failed')
-      const txRef = d.txHash ?? d.transactionId
-      store.addAgentSpend({ id: `spend-${Date.now()}`, service_id: 'agent-send', service_name: note ?? `Send to ${toAddress.slice(0, 10)}…`, amount_usdc: parseFloat(amount), txId: txRef, paid: true, timestamp: new Date().toISOString() })
-      store.addActivity({ type: 'sent', description: note ?? 'Agent send', amount: parseFloat(amount), sign: '-', status: 'confirmed', counterparty: toAddress.slice(0, 10) + '…', txHash: txRef })
-      return `Sent ${amount} USDC from Agent Wallet to ${toAddress.slice(0, 10)}…${txRef ? ` (tx: ${txRef.slice(0, 10)}…)` : ''}`
+      if (d.challengeId) return `__AGENT_WALLET_CHALLENGE__:${d.challengeId}::${toAddress}::${amount}::${note ?? ''}`
+      const txRef = d.txHash ?? d.transactionId ?? ''
+      const short = `${toAddress.slice(0, 10)}…`
+      store.addAgentSpend({ id: `spend-${Date.now()}`, service_id: 'agent-send', service_name: note ?? `Send to ${short}`, amount_usdc: txAmt, txId: txRef || undefined, paid: true, timestamp: new Date().toISOString() })
+      store.addActivity({ type: 'sent', description: note ?? 'Agent send', amount: txAmt, sign: '-', status: txRef ? 'confirmed' : 'pending', counterparty: short, txHash: txRef || undefined, agentInitiated: true })
+      return `Sent ${amount} USDC from Agent Wallet to ${short}${txRef ? ` — [View on explorer](https://explorer.arc.io/tx/${txRef})` : ''}`
     }
 
     case 'ucw_send':

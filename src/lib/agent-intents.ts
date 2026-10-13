@@ -104,6 +104,14 @@ export function detectDirectAction(message: string): { reply: string; action: Re
   // Address given but no amount — let OpenAI ask for the amount naturally
   if (addr && send && !amtAnywhere) return null
 
+  // Agent wallet balance / address — direct lookup without LLM round-trip
+  if (!isQuestion && /\bagent wallet\b/.test(lower) && /\b(balance|how much|funds?)\b/.test(lower)) {
+    return { reply: 'Checking your Agent Wallet balance…', action: { action: 'agent_wallet_balance', params: {} } }
+  }
+  if (!isQuestion && /\bagent wallet\b/.test(lower) && /\b(address|wallet address|show|what is|display)\b/.test(lower)) {
+    return { reply: 'Fetching your Agent Wallet address…', action: { action: 'agent_wallet_balance', params: {} } }
+  }
+
   // Buy USDC with card/bank (Circle onramp) — amount optional
   if (!/^(how|what|why|where|when|can|could|is|are|does|do|which)\b/.test(lower) && /\b(buy|purchase|top ?up|onramp|on-ramp)\b/.test(lower) && /\b(usdc|usd|dollars?|crypto|funds|card|bank)\b/.test(lower) && !/\b(service|agent|shop|swap|bridge)\b/.test(lower)) {
     const amt = lower.match(/\$\s*(\d+(?:\.\d+)?)|(\d+(?:\.\d+)?)\s*(?:usdc|usd|dollars?)\b/)

@@ -59,6 +59,9 @@ export interface ActivityItem {
 export interface AgentPermissions {
   enabled: boolean
   dailyLimit: number
+  weeklyLimit: number
+  monthlyLimit: number
+  overallLimit: number
   perTxLimit: number
   perServiceLimit: number
   allowedCategories: string[]
@@ -494,7 +497,9 @@ export const useAppStore = create<AppState>()(
       },
 
       agentPermissions: {
-        enabled: true, dailyLimit: 20, perTxLimit: 10, perServiceLimit: 5,
+        enabled: true,
+        dailyLimit: 20, weeklyLimit: 100, monthlyLimit: 300, overallLimit: 0,
+        perTxLimit: 10, perServiceLimit: 5,
         allowedCategories: ['tech', 'digital', 'home'],
         requireApproval: false, autoApproveUnder: 1, requireApprovalAbove: 5,
       },

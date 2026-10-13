@@ -142,14 +142,25 @@ interface ChatContext {
   openPaymentRequests?: Array<{ refNumber: string; title: string; amount: number; status: string; dueDate?: string }>
   // Invoices (recent)
   recentInvoices?: Array<{ number: string; customerName: string; total: number; status: string; dueDate: string; amountDue: number }>
+  // Contacts
+  contactCount?: number
+  contacts?: Array<{ name: string; address: string }>
+  // NAN name
+  nanHandle?: string
   // Profile
   displayName?: string
   // Agent policy
   requireApproval?: boolean
   requireApprovalAbove?: number
   autoApproveUnder?: number
+  weeklyLimit?: number
+  monthlyLimit?: number
+  overallLimit?: number
   // Spending today
   agentDailyUsed?: number
+  agentWeeklyUsed?: number
+  agentMonthlyUsed?: number
+  agentTotalUsed?: number
   // Execution log (last 5)
   recentAgentActions?: Array<{ userRequest: string; serviceName?: string; status: string; cost: number; timestamp: string }>
   // Agent wallet state
@@ -481,7 +492,27 @@ The wallet block above shows the user's login type for context only; it does not
 - When emitting an action, write 1-2 sentences describing what you're doing BEFORE the block.
 - Never emit more than one action block per reply.
 - Never emit an action if a required param (like address) is missing — ask for it first.
-- For amounts: always show 2 decimal places (e.g. "139.17 USDC" not "139.174503 USDC").`
+- For amounts: always show 2 decimal places (e.g. "139.17 USDC" not "139.174503 USDC").
+
+---
+
+## AUTONOMOUS EXECUTION RULES
+
+When the user gives an explicit, unambiguous instruction to send, the app executes the transaction without a confirmation card. This applies when ALL are true:
+1. The instruction has a clear verb (send / pay / transfer), a specific amount, and a recipient.
+2. No question word at the start (how / what / can / should / would / could).
+3. The amount does not exceed the per-transaction limit (perTxLimit).
+4. The amount does not push any window over its limit: daily, weekly, monthly, or overall (if set).
+5. The Agent Wallet has sufficient balance (for agent_send).
+
+If ANY limit would be breached, respond with the specific limit name and amount:
+- "This transaction (X USDC) exceeds your per-transaction limit of Y USDC."
+- "Daily limit reached: spent A USDC today (limit B USDC). Remaining: C USDC."
+- "Weekly limit reached: spent A USDC this week (limit B USDC). Remaining: C USDC."
+- "Monthly limit reached: spent A USDC this month (limit B USDC). Remaining: C USDC."
+- "Overall spending limit reached: spent A USDC total (limit B USDC). Remaining: C USDC."
+
+The main wallet always requires a wallet signature popup. The Agent Wallet requires a Circle PIN popup. These are mandatory signing steps, not confirmation cards.`
 }
 
 // ── main handler ─────────────────────────────────────────────────────────────
@@ -572,9 +603,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const crossChainLines = ctx.crossChainBalances
     ? Object.entries(ctx.crossChainBalances).map(([chain, bal]) => `  - ${chain}: ${parseFloat(bal).toFixed(2)} USDC`).join('\n')
     : ''
+  const contactLines = (ctx.contacts && ctx.contacts.length > 0)
+    ? ctx.contacts.slice(0, 10).map(c => `  - ${c.name}: ${c.address}`).join('\n')
+    : ''
   const walletBlock = `
 ## LIVE WALLET STATE (real-time, injected at request time)
-- User: ${ctx.displayName ? `**${ctx.displayName}**` : '(no display name set)'}
+- User: ${ctx.displayName ? `**${ctx.displayName}**` : '(no display name set)'}${ctx.nanHandle ? ` · NAN name: @${ctx.nanHandle.replace(/^@/, '')}` : ''}
 - Main wallet: **${parseFloat(ctx.mainBalance ?? body.usdcBal ?? '0').toFixed(2)} USDC** on Arc
   Address: ${ctx.mainAddress ?? body.userAddress ?? 'not connected'}
 - Agent Wallet: **${parseFloat(ctx.agentBalance ?? '0').toFixed(2)} USDC** (${ctx.agentWalletProvisioned ? 'provisioned' : 'NOT set up'})
@@ -586,6 +620,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 - Per-tx limit: ${ctx.perTxLimit ?? 'not set'} USDC · Per-service limit: ${ctx.perServiceLimit ?? 'not set'} USDC
 - Require approval above: ${ctx.requireApprovalAbove ?? 'not set'} USDC · Auto-approve under: ${ctx.autoApproveUnder ?? 'not set'} USDC
 - Unread notifications: ${ctx.unreadNotifications ?? 0}
+- Saved contacts: ${ctx.contactCount ?? 0}${contactLines ? `\n${contactLines}` : ''}
 ${crossChainLines ? `- Cross-chain balances:\n${crossChainLines}\n- Total cross-chain: ${ctx.totalCrossChainBalance ?? '0.00'} USDC` : '- No cross-chain balances yet'}
 `
 

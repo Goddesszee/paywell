@@ -655,37 +655,169 @@ app.post('/api/chat', _paywall('0.001'), async (req, res) => {
     const session = requireSession(req, res)
     if (!session) return
 
-    const { message, messages, usdcBal, userAddress } = req.body as {
+    type ChatCtx = {
+      mainBalance?: string; mainAddress?: string
+      agentBalance?: string; agentAddress?: string
+      agentWalletProvisioned?: boolean; agentWalletId?: string
+      agentWalletBlockchain?: string; agentWalletAccountType?: string
+      isCircleUcwUser?: boolean; isPasskeyUser?: boolean
+      agentEnabled?: boolean; dailyLimit?: number; perTxLimit?: number
+      perServiceLimit?: number; remainingToday?: number; agentDailyUsed?: number
+      requireApproval?: boolean; requireApprovalAbove?: number; autoApproveUnder?: number
+      crossChainBalances?: Record<string, string>; totalCrossChainBalance?: string
+      displayName?: string; nanHandle?: string; contactCount?: number
+      contacts?: Array<{ name: string; address: string }>
+      unreadNotifications?: number
+      recentActivity?: Array<{ type: string; amount: number; sign: string; description: string; counterparty?: string; timestamp: string; status: string; txHash?: string }>
+      recurringTasks?: Array<{ name: string; recipient: string; amount: string; frequency: string; active: boolean; nextRunAt?: string; runCount: number }>
+      openPaymentRequests?: Array<{ refNumber: string; title: string; amount: number; status: string; dueDate?: string }>
+      recentInvoices?: Array<{ number: string; customerName: string; total: number; status: string; dueDate: string; amountDue: number }>
+      recentAgentActions?: Array<{ userRequest: string; serviceName?: string; status: string; cost: number; timestamp: string }>
+    }
+
+    const { message, messages, history, usdcBal, userAddress, context: ctx } = req.body as {
       message?: string
       messages?: Array<{ role: string; content: string }>
+      history?: Array<{ role: string; content: string }>
       usdcBal?: string
       userAddress?: string
+      context?: ChatCtx
     }
 
     const groqKey = process.env.GROQ_API_KEY
     const openaiKey = process.env.OPENAI_API_KEY
-    const userMsg = message ?? messages?.[messages.length - 1]?.content ?? ''
-    const walletAddr = userAddress ?? session.walletAddress
 
-    // Build spending analytics context from the tx ledger for this wallet
+    // Accept messages[] or message + history[]
+    let userMsg: string
+    let msgHistory: Array<{ role: string; content: string }>
+    if (messages && messages.length > 0) {
+      userMsg = messages[messages.length - 1]?.content ?? ''
+      msgHistory = messages.slice(0, -1)
+    } else {
+      userMsg = message ?? ''
+      msgHistory = history ?? []
+    }
+    const walletAddr = userAddress ?? ctx?.mainAddress ?? session.walletAddress
+
+    // Build spending analytics context from the local tx ledger (available in memory for self-hosted)
     const walletTxs = txLedger.filter(t => t.walletAddress === walletAddr)
-    const now = Date.now()
-    const monthStart = new Date(now); monthStart.setDate(1); monthStart.setHours(0,0,0,0)
+    const nowMs = Date.now()
+    const monthStart = new Date(nowMs); monthStart.setDate(1); monthStart.setHours(0,0,0,0)
     const monthTxs = walletTxs.filter(t => new Date(t.timestamp).getTime() >= monthStart.getTime())
     const monthSent = monthTxs.filter(t => t.type === 'sent').reduce((s, t) => s + t.amount, 0)
     const monthReceived = monthTxs.filter(t => t.type === 'received').reduce((s, t) => s + t.amount, 0)
     const recent30 = walletTxs.slice(0, 30).map(t =>
       `${t.type === 'sent' ? '-' : '+'}${t.amount.toFixed(2)} USDC · ${t.description} · ${new Date(t.timestamp).toLocaleDateString('en', { month: 'short', day: 'numeric' })}`
     )
-    const spendingContext = walletTxs.length > 0
-      ? `\n\nUSER SPENDING CONTEXT (current month):\n- Sent: ${monthSent.toFixed(2)} USDC\n- Received: ${monthReceived.toFixed(2)} USDC\n- Total transactions: ${walletTxs.length}\nRecent transactions:\n${recent30.slice(0, 10).join('\n')}`
+
+    // ── Rich system prompt (mirrors api/chat.ts v2 context blocks) ────────────
+    const nowDate = new Date()
+    const dateTimeStr = nowDate.toLocaleString('en-US', {
+      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+      hour: '2-digit', minute: '2-digit', second: '2-digit', timeZoneName: 'short',
+    })
+
+    const crossChainLines = ctx?.crossChainBalances
+      ? Object.entries(ctx.crossChainBalances).filter(([,v]) => parseFloat(v) > 0).map(([chain, bal]) => `  - ${chain}: ${parseFloat(bal).toFixed(2)} USDC`).join('\n')
       : ''
+    const contactLines = ctx?.contacts?.slice(0, 10).map(c => `  - ${c.name}: ${c.address}`).join('\n') ?? ''
+
+    const walletBlock = `
+## LIVE WALLET STATE
+- User: ${ctx?.displayName ?? session.email ?? '(no name)'}${ctx?.nanHandle ? ` · NAN name: @${ctx.nanHandle.replace(/^@/, '')}` : ''}
+- Main wallet: **${parseFloat(ctx?.mainBalance ?? usdcBal ?? '0').toFixed(2)} USDC** on Arc
+  Address: ${ctx?.mainAddress ?? walletAddr ?? 'not connected'}
+- Agent Wallet: **${parseFloat(ctx?.agentBalance ?? '0').toFixed(2)} USDC** (${ctx?.agentWalletProvisioned ? 'provisioned' : 'NOT set up'})
+  ${ctx?.agentAddress ? `Address: ${ctx.agentAddress}` : '(no address)'}
+  ${ctx?.agentWalletBlockchain ? `Blockchain: ${ctx.agentWalletBlockchain} · AccountType: ${ctx.agentWalletAccountType ?? 'SCA'}` : ''}
+- Login type: ${ctx?.isPasskeyUser ? 'Passkey / Modular Wallet' : ctx?.isCircleUcwUser ? 'Circle email/Google wallet' : 'Browser wallet / unknown'}
+- Agent enabled: ${ctx?.agentEnabled !== false ? 'YES' : 'NO'}
+- Daily limit: ${ctx?.dailyLimit ?? 'not set'} USDC · Used today: ${(ctx?.agentDailyUsed ?? 0).toFixed(2)} USDC · Remaining: ${ctx?.remainingToday !== undefined ? ctx.remainingToday.toFixed(2) : 'unknown'} USDC
+- Per-tx limit: ${ctx?.perTxLimit ?? 'not set'} USDC · Per-service limit: ${ctx?.perServiceLimit ?? 'not set'} USDC
+- Saved contacts: ${ctx?.contactCount ?? 0}${contactLines ? `\n${contactLines}` : ''}
+${crossChainLines ? `- Cross-chain balances:\n${crossChainLines}\n- Total cross-chain: ${ctx?.totalCrossChainBalance ?? '0.00'} USDC` : '- No cross-chain balances'}
+${walletTxs.length > 0 ? `\n## SPENDING THIS MONTH (from server ledger)\n- Sent: ${monthSent.toFixed(2)} USDC  Received: ${monthReceived.toFixed(2)} USDC  Total txs: ${walletTxs.length}\n${recent30.slice(0, 10).join('\n')}` : ''}`
+
+    const activityBlock = ctx?.recentActivity && ctx.recentActivity.length > 0
+      ? `\n## RECENT ACTIVITY (last ${ctx.recentActivity.length})\n${ctx.recentActivity.map((a, i) => `${i+1}. ${a.sign}${Number(a.amount).toFixed(2)} USDC · ${a.type} · ${a.description}${a.counterparty ? ` · ${a.counterparty}` : ''} · ${a.status} · ${new Date(a.timestamp).toLocaleDateString()}`).join('\n')}`
+      : '\n## RECENT ACTIVITY\nNo transactions.'
+
+    const recurringBlock = ctx?.recurringTasks && ctx.recurringTasks.length > 0
+      ? `\n## RECURRING PAYMENTS\n${ctx.recurringTasks.map((t, i) => `${i+1}. "${t.name}" · ${t.amount} USDC ${t.frequency} → ${t.recipient.slice(0,10)}… · ${t.active ? 'active' : 'paused'}${t.nextRunAt ? ` · next: ${new Date(t.nextRunAt).toLocaleDateString()}` : ''}`).join('\n')}`
+      : '\n## RECURRING PAYMENTS\nNone.'
+
+    const prBlock = ctx?.openPaymentRequests && ctx.openPaymentRequests.length > 0
+      ? `\n## OPEN PAYMENT REQUESTS\n${ctx.openPaymentRequests.map((p, i) => `${i+1}. ${p.refNumber} · "${p.title}" · ${p.amount} USDC · ${p.status}${p.dueDate ? ` · due ${p.dueDate}` : ''}`).join('\n')}`
+      : '\n## PAYMENT REQUESTS\nNone open.'
+
+    const invoiceBlock = ctx?.recentInvoices && ctx.recentInvoices.length > 0
+      ? `\n## RECENT INVOICES\n${ctx.recentInvoices.map((inv, i) => `${i+1}. ${inv.number} · ${inv.customerName} · ${inv.total} USDC · ${inv.amountDue.toFixed(2)} due · ${inv.status} · due ${inv.dueDate}`).join('\n')}`
+      : '\n## INVOICES\nNone.'
+
+    const agentActionsBlock = ctx?.recentAgentActions && ctx.recentAgentActions.length > 0
+      ? `\n## RECENT AGENT ACTIONS\n${ctx.recentAgentActions.map((a, i) => `${i+1}. "${a.userRequest}"${a.serviceName ? ` → ${a.serviceName}` : ''} · ${a.status} · ${a.cost} USDC`).join('\n')}`
+      : ''
+
+    const systemPrompt = `You are NAN Agent — the built-in AI assistant for NAN (nanarc.xyz), an autonomous payment and DeFi platform built on Arc (Circle/USDC). Current date and time: **${dateTimeStr}**.
+
+You have COMPLETE awareness of every NAN feature and every piece of data in the user's account. You are NOT a generic chatbot — you are the user's personal financial AI with real-time access to their entire NAN state.
+
+${walletBlock}
+${activityBlock}
+${recurringBlock}
+${prBlock}
+${invoiceBlock}
+${agentActionsBlock}
+
+## CRITICAL: ACTION SYSTEM
+When the user wants something DONE, emit EXACTLY ONE action block at the END of your reply:
+\`\`\`nan-action
+{"action":"<ACTION_TYPE>","params":{...}}
+\`\`\`
+
+Available actions: send_usdc, agent_wallet_send, agent_wallet_balance, bridge_start, swap_start, add_recurring, cancel_recurring, create_payment_request, create_invoice, navigate, check_balance, agent_service_search, agent_service_pay, gateway_start, set_policy, toggle_agent, buy_usdc, claim_faucet, export_activity, list_activity, list_contacts, list_payment_requests, check_name, register_name, get_nan_name, get_referral, update_profile, set_theme, submit_feedback, create_support_ticket, generate_receipt, show_qr, logout.
+
+ROUTING RULES:
+- "from my main wallet" / default → send_usdc (wagmi/Circle/passkey all handled by the app)
+- "from my agent wallet" → agent_wallet_send or agent_wallet_balance
+- Main wallet address: ${ctx?.mainAddress ?? walletAddr}
+- Agent Wallet address: ${ctx?.agentAddress ?? '(not provisioned)'}
+- Never say "I will do X" without the matching action block.
+- Never fabricate addresses, hashes, balances, or prices.
+
+Be concise, warm, and precise. Lead with the answer.`
+
+    type LLMMsg = { role: 'system' | 'user' | 'assistant'; content: string }
+    const llmMessages: LLMMsg[] = [
+      { role: 'system', content: systemPrompt },
+      ...msgHistory.map(m => ({ role: (m.role === 'assistant' ? 'assistant' : 'user') as 'user' | 'assistant', content: m.content })),
+      { role: 'user', content: userMsg },
+    ]
+
+    function extractAction(raw: string): { text: string; action: Record<string, unknown> | null } {
+      const match = raw.match(/```nan-action\s*\n([\s\S]*?)\n```/)
+      if (!match) return { text: raw.trim(), action: null }
+      const text = raw.replace(/```nan-action[\s\S]*?```/, '').trim()
+      try { return { text, action: JSON.parse(match[1].trim()) as Record<string, unknown> } }
+      catch { return { text, action: null } }
+    }
 
     if (openaiKey) {
       try {
-        const reply = await openaiChat(openaiKey, userMsg + spendingContext, usdcBal ?? '0', walletAddr)
-        res.json({ success: true, reply })
-        return
+        const r = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${openaiKey}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model: 'gpt-4o', messages: llmMessages, max_tokens: 800 }),
+          signal: AbortSignal.timeout(25_000),
+        })
+        const d = await r.json() as { choices?: Array<{ message: { content: string } }>; error?: { message: string } }
+        if (d.error) throw new Error(d.error.message)
+        const raw = d.choices?.[0]?.message?.content
+        if (raw) {
+          const { text, action } = extractAction(raw)
+          res.json({ success: true, reply: text, action })
+          return
+        }
       } catch (e) {
         console.error('OpenAI chat failed:', e)
       }
@@ -693,16 +825,27 @@ app.post('/api/chat', _paywall('0.001'), async (req, res) => {
 
     if (groqKey) {
       try {
-        const reply = await groqChat(groqKey, userMsg + spendingContext, usdcBal ?? '0', walletAddr)
-        res.json({ success: true, reply })
-        return
+        const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${groqKey}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model: 'llama-3.3-70b-versatile', messages: llmMessages, max_tokens: 800, temperature: 0.4 }),
+          signal: AbortSignal.timeout(20_000),
+        })
+        const d = await r.json() as { choices?: Array<{ message: { content: string } }>; error?: { message: string } }
+        if (d.error) throw new Error(d.error.message)
+        const raw = d.choices?.[0]?.message?.content
+        if (raw) {
+          const { text, action } = extractAction(raw)
+          res.json({ success: true, reply: text, action })
+          return
+        }
       } catch (e) {
         console.error('Groq chat failed:', e)
       }
     }
 
-    // Fallback smart mock — still use spending context for pattern matching
-    const reply = mockAgentReply(userMsg, usdcBal ?? '100')
+    // Fallback smart mock
+    const reply = mockAgentReply(userMsg, usdcBal ?? ctx?.mainBalance ?? '100')
     res.json({ success: true, reply })
   } catch (e) {
     console.error('/api/chat error:', e)

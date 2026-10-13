@@ -219,7 +219,6 @@ interface ActionConfirmProps {
 
 function ActionConfirmCard({ action, onConfirm, onCancel, executing, result, error }: ActionConfirmProps) {
   const desc = describeAction(action)
-  const needsConfirm = requiresConfirmation(action)
   return (
     <div style={{ background: SURF, border: `1px solid ${BDR}`, borderRadius: 16, padding: 16, marginBottom: 10 }}>
       <div style={{ fontSize: 11, fontWeight: 700, color: TEXT3, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -241,7 +240,7 @@ function ActionConfirmCard({ action, onConfirm, onCancel, executing, result, err
           {error}
         </div>
       )}
-      {!result && needsConfirm && (
+      {!result && (
         <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
           <button onClick={onConfirm} disabled={executing}
             style={{ flex: 1, height: 40, background: executing ? 'rgba(8,102,245,0.35)' : BLUE, color: '#fff', border: 'none', borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: executing ? 'not-allowed' : 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
@@ -1285,6 +1284,9 @@ function AgentChat({ onNavigate }: { onNavigate?: (page: string, query?: string)
             recentInvoices,
             recentAgentActions,
             displayName: storeSnap.profile.displayName || undefined,
+            nanHandle: storeSnap.nanHandle || undefined,
+            contactCount: storeSnap.contacts.length,
+            contacts: storeSnap.contacts.slice(0, 10).map(c => ({ name: c.name, address: c.address })),
             unreadNotifications: storeSnap.unreadCount,
           },
         })
@@ -1344,43 +1346,109 @@ function AgentChat({ onNavigate }: { onNavigate?: (page: string, query?: string)
                 toToken:   parsed.params.toToken   ?? 'USDC',
                 amount:    parsed.params.amount     ?? '',
               })
-            } else if (!requiresConfirmation(parsed)) {
-              // Execute immediately (navigate, toggle, search, balance, receipts, qr, etc.)
-              try {
-                const store = useAppStore.getState()
-                const result = await executeAction(parsed, {
-                  store,
-                  navigate: (page: string, query?: string) => { if (onNavigate) onNavigate(page, query) },
-                  agentWalletUserToken: agentWallet.userToken,
-                  writeContractAsync,
-                  connectedAddress: address,
-                  chainId: chainId ?? 5042,
-                  isCircleUcwUser,
-                  isPasskeyUser,
-                  triggerCircleSend,
-                  runBridge,
-                  runSwap,
-                })
-                // Handle special signal strings
-                if (result === '__AGENT_WALLET_FUND__') {
-                  if (onNavigate) onNavigate('agent-wallet')
-                  addAgentMessage({ role: 'agent', content: 'Opening your Agent Wallet funding screen.', action: 'info' })
-                } else if (result?.startsWith('__SHOW_QR__:')) {
-                  const [, rest] = result.split('__SHOW_QR__:')
-                  const [addr] = rest.split('::')
-                  addAgentMessage({ role: 'agent', content: `Opening your receive QR code${addr ? ` for address ${addr.slice(0,6)}...${addr.slice(-4)}` : ''}.`, action: 'info' })
-                  if (onNavigate) onNavigate('wallet')
-                } else {
-                  addAgentMessage({ role:'agent', content: result, action:'info' })
-                }
-              } catch (e) {
-                addAgentMessage({ role:'agent', content: `Action failed: ${e instanceof Error ? e.message : 'Unknown error'}`, action:'info' })
-              }
-              setTimeout(scrollToBottom, 50)
             } else {
-              // Show confirmation card
-              setPendingAction(parsed)
-              setTimeout(scrollToBottom, 50)
+              // Determine whether this send can be executed autonomously:
+              // - user gave an unambiguous explicit command (no question word, has address+amount)
+              // - action is a financial send (send_usdc / agent_send / ucw_send)
+              // - all client-side policy checks pass
+              const isSendAction = parsed.action === 'send_usdc' || parsed.action === 'agent_send' || parsed.action === 'ucw_send'
+              const lowerText = text.toLowerCase()
+              const isExplicitCommand = !lowerText.startsWith('?') && !/^(how|what|why|where|when|can|could|is|are|does|do|which|would|should)\b/.test(lowerText) && /\b(send|pay|transfer)\b/.test(lowerText)
+              const storeForCheck = useAppStore.getState()
+              const permsForCheck = storeForCheck.agentPermissions
+
+              let autonomousOk = false
+              if (isSendAction && isExplicitCommand) {
+                const txAmt = parseFloat(('params' in parsed && 'amount' in parsed.params ? parsed.params.amount : '') as string) || 0
+                const spendLogForCheck = storeForCheck.agentSpendLog
+                const nowMs = Date.now()
+                const DAY_MS = 86_400_000, WEEK_MS = 7 * DAY_MS, MONTH_MS = 30 * DAY_MS
+                const spentDay   = spendLogForCheck.filter(s => nowMs - new Date(s.timestamp).getTime() < DAY_MS).reduce((t, s) => t + s.amount_usdc, 0)
+                const spentWeek  = spendLogForCheck.filter(s => nowMs - new Date(s.timestamp).getTime() < WEEK_MS).reduce((t, s) => t + s.amount_usdc, 0)
+                const spentMonth = spendLogForCheck.filter(s => nowMs - new Date(s.timestamp).getTime() < MONTH_MS).reduce((t, s) => t + s.amount_usdc, 0)
+                const spentTotal = spendLogForCheck.reduce((t, s) => t + s.amount_usdc, 0)
+                const policyOk = txAmt > 0
+                  && (permsForCheck.perTxLimit   <= 0 || txAmt <= permsForCheck.perTxLimit)
+                  && (permsForCheck.dailyLimit    <= 0 || spentDay   + txAmt <= permsForCheck.dailyLimit)
+                  && (permsForCheck.weeklyLimit   <= 0 || spentWeek  + txAmt <= permsForCheck.weeklyLimit)
+                  && (permsForCheck.monthlyLimit  <= 0 || spentMonth + txAmt <= permsForCheck.monthlyLimit)
+                  && (permsForCheck.overallLimit  <= 0 || spentTotal + txAmt <= permsForCheck.overallLimit)
+                autonomousOk = policyOk
+              }
+
+              const needsCard = requiresConfirmation(parsed, autonomousOk)
+
+              if (!needsCard) {
+                // Execute immediately (non-financial actions OR autonomous sends that pass policy)
+                try {
+                  const store = useAppStore.getState()
+                  const result = await executeAction(parsed, {
+                    store,
+                    navigate: (page: string, query?: string) => { if (onNavigate) onNavigate(page, query) },
+                    agentWalletUserToken: agentWallet.userToken,
+                    writeContractAsync,
+                    connectedAddress: address,
+                    chainId: chainId ?? 5042,
+                    isCircleUcwUser,
+                    isPasskeyUser,
+                    triggerCircleSend,
+                    runBridge,
+                    runSwap,
+                    autonomousExecution: autonomousOk,
+                  })
+                  // Handle special signal strings
+                  if (result === '__AGENT_WALLET_FUND__') {
+                    if (onNavigate) onNavigate('agent-wallet')
+                    addAgentMessage({ role: 'agent', content: 'Opening your Agent Wallet funding screen.', action: 'info' })
+                  } else if (result?.startsWith('__SHOW_QR__:')) {
+                    const [, rest] = result.split('__SHOW_QR__:')
+                    const [addr] = rest.split('::')
+                    addAgentMessage({ role: 'agent', content: `Opening your receive QR code${addr ? ` for address ${addr.slice(0,6)}...${addr.slice(-4)}` : ''}.`, action: 'info' })
+                    if (onNavigate) onNavigate('wallet')
+                  } else if (result?.startsWith('__AGENT_WALLET_CHALLENGE__:')) {
+                    // UCW PIN required — hand off to the challenge flow
+                    const [, rest] = result.split('__AGENT_WALLET_CHALLENGE__:')
+                    const [challengeId, toAddr, amt, note] = rest.split('::')
+                    addAgentMessage({ role: 'agent', content: `Ready to send **${amt} USDC** to ${toAddr.slice(0,6)}...${toAddr.slice(-4)} from your Agent Wallet. A Circle PIN popup will open to sign the transaction.`, action: 'info' })
+                    const aw = useAppStore.getState().agentWallet
+                    const sdk = (window as unknown as Record<string, unknown>)._nanAgentSdk as { setAuthentication: (a: { userToken: string; encryptionKey: string }) => void; execute: (id: string, cb: (err: unknown, res: unknown) => void) => void } | undefined
+                    if (sdk && aw.userToken && aw.encryptionKey) {
+                      sdk.setAuthentication({ userToken: aw.userToken, encryptionKey: aw.encryptionKey })
+                      executeWithGuard(sdk, challengeId, (err, res) => {
+                        if (err) {
+                          addAgentMessage({ role: 'agent', content: `Transaction signing failed: ${(err as { message?: string })?.message ?? 'Unknown error'}`, action: 'info' })
+                        } else {
+                          const tx = (res as { txHash?: string })?.txHash ?? ''
+                          addAgentMessage({ role: 'agent', content: [
+                            '**Transaction confirmed**',
+                            `• Amount: ${amt} USDC`,
+                            `• Asset: USDC on Arc`,
+                            `• Recipient: ${toAddr}`,
+                            `• Source wallet: Agent Wallet`,
+                            `• Network: Arc`,
+                            `• Status: Confirmed`,
+                            tx ? `• Tx hash: ${tx}` : '',
+                            tx ? `• [View on explorer](https://explorer.arc.io/tx/${tx})` : '',
+                          ].filter(Boolean).join('\n'), action: 'info' })
+                          useAppStore.getState().addActivity({ type: 'sent', description: `Agent Send → ${toAddr.slice(0,8)}…${toAddr.slice(-4)}`, amount: parseFloat(amt), sign: '-', status: 'confirmed', counterparty: toAddr, txHash: tx || undefined, agentInitiated: true })
+                          if (note) { /* note recorded in activity description already */ }
+                        }
+                      })
+                    } else {
+                      addAgentMessage({ role: 'agent', content: 'Please open the Agent Wallet tab and re-authenticate to restore signing access, then try again.', action: 'info' })
+                    }
+                  } else {
+                    addAgentMessage({ role:'agent', content: result, action:'info' })
+                  }
+                } catch (e) {
+                  addAgentMessage({ role:'agent', content: `Action failed: ${e instanceof Error ? e.message : 'Unknown error'}`, action:'info' })
+                }
+                setTimeout(scrollToBottom, 50)
+              } else {
+                // Show confirmation card (non-autonomous sends, policy-gated actions, etc.)
+                setPendingAction(parsed)
+                setTimeout(scrollToBottom, 50)
+              }
             }
           }
         }
@@ -1950,10 +2018,13 @@ function MsgBubble({ msg, onApprove, onReject, onUseService, onInspectService }:
 
 function PolicyTab() {
   const { agentPermissions, setAgentPermissions } = useAppStore()
-  const [daily, setDaily] = useState(agentPermissions.dailyLimit.toString())
-  const [perTx, setPerTx] = useState(agentPermissions.perTxLimit.toString())
-  const [perSvc, setPerSvc] = useState((agentPermissions.perServiceLimit ?? 1).toString())
-  const [autoApprove, setAutoApprove] = useState(agentPermissions.autoApproveUnder.toString())
+  const [daily,    setDaily]    = useState(agentPermissions.dailyLimit.toString())
+  const [weekly,   setWeekly]   = useState((agentPermissions.weeklyLimit ?? 100).toString())
+  const [monthly,  setMonthly]  = useState((agentPermissions.monthlyLimit ?? 300).toString())
+  const [overall,  setOverall]  = useState((agentPermissions.overallLimit ?? 0).toString())
+  const [perTx,    setPerTx]    = useState(agentPermissions.perTxLimit.toString())
+  const [perSvc,   setPerSvc]   = useState((agentPermissions.perServiceLimit ?? 1).toString())
+  const [autoApprove,   setAutoApprove]   = useState(agentPermissions.autoApproveUnder.toString())
   const [approvalAbove, setApprovalAbove] = useState((agentPermissions.requireApprovalAbove ?? 5).toString())
   const [saved, setSaved] = useState(false)
   // Use agent service categories, not shopping categories
@@ -1961,10 +2032,13 @@ function PolicyTab() {
 
   const handleSave = () => {
     setAgentPermissions({
-      dailyLimit: Math.max(0, parseFloat(daily) || 0),
-      perTxLimit: Math.max(0, parseFloat(perTx) || 0),
-      perServiceLimit: Math.max(0, parseFloat(perSvc) || 0),
-      autoApproveUnder: Math.max(0, parseFloat(autoApprove) || 0),
+      dailyLimit:         Math.max(0, parseFloat(daily)    || 0),
+      weeklyLimit:        Math.max(0, parseFloat(weekly)   || 0),
+      monthlyLimit:       Math.max(0, parseFloat(monthly)  || 0),
+      overallLimit:       Math.max(0, parseFloat(overall)  || 0),
+      perTxLimit:         Math.max(0, parseFloat(perTx)    || 0),
+      perServiceLimit:    Math.max(0, parseFloat(perSvc)   || 0),
+      autoApproveUnder:   Math.max(0, parseFloat(autoApprove)   || 0),
       requireApprovalAbove: Math.max(0, parseFloat(approvalAbove) || 0),
     })
     setSaved(true); setTimeout(() => setSaved(false), 2000)
@@ -2012,12 +2086,15 @@ function PolicyTab() {
           <Shield size={14} color={BLACK} />
           <span style={{ fontSize:13, fontWeight:700, color:BLACK }}>Spending policy</span>
         </div>
-        {row('Daily limit', 'Total agent spend per day', daily, setDaily, 'USDC/day')}
-        {row('Per transaction', 'Max per purchase', perTx, setPerTx, 'USDC')}
-        {row('Per service call', 'Max per API/service call', perSvc, setPerSvc, 'USDC')}
+        {row('Daily limit', 'Rolling 24-hour cap (0 = disabled)', daily, setDaily, 'USDC/day')}
+        {row('Weekly limit', 'Rolling 7-day cap (0 = disabled)', weekly, setWeekly, 'USDC/week')}
+        {row('Monthly limit', 'Rolling 30-day cap (0 = disabled)', monthly, setMonthly, 'USDC/month')}
+        {row('Lifetime cap', 'Overall cap across all time (0 = off)', overall, setOverall, 'USDC total')}
+        {row('Per transaction', 'Max per single send (0 = disabled)', perTx, setPerTx, 'USDC')}
+        {row('Per service call', 'Max per API/service call (0 = off)', perSvc, setPerSvc, 'USDC')}
         {row('Auto-approve under', 'Skip confirmation below this', autoApprove, setAutoApprove, 'USDC')}
         {row('Always ask above', 'Require approval above this', approvalAbove, setApprovalAbove, 'USDC')}
-        <div style={{ padding:'10px 0', fontSize:11, color:TEXT3 }}>Agent never has unrestricted financial authority. All payments pass through NAN wallet.</div>
+        <div style={{ padding:'10px 0', fontSize:11, color:TEXT3 }}>All five limits are enforced simultaneously. The strictest one wins. Set to 0 to disable a limit.</div>
       </div>
 
       {/* Require approval */}
