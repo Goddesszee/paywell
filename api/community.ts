@@ -533,6 +533,13 @@ async function routeHandler(req: VercelRequest, res: VercelResponse) {
     }
     await kv.lpush('tx:ledger', record)
     await kv.ltrim('tx:ledger', 0, 1999)
+    // Per-wallet index so /api/activity-feed can restore history on any device
+    if (walletAddress) {
+      const walletKey = `activity:${walletAddress.toLowerCase()}`
+      await kv.lpush(walletKey, record)
+      await kv.ltrim(walletKey, 0, 499)          // keep last 500 per wallet
+      await kv.expire(walletKey, 60 * 60 * 24 * 180) // 180 days TTL
+    }
     try {
       if (userKey) await upsertUser(kv, userKey, walletType === 'agent' ? { agentWallet: addr(walletAddress) } : { mainWallet: addr(walletAddress) })
       await countTx(kv, userKey, walletType, type, amount)

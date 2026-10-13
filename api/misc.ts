@@ -35,10 +35,37 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const route = (req.query.route ?? req.body?.route) as string | undefined
 
   // ── GET activity-feed ──────────────────────────────────────────────────────
+  // Returns the last 200 stored activity records for a wallet address.
+  // Records are written by /api/tx-track (community.ts) into per-wallet Redis lists.
   if (route === 'activity-feed') {
-    const { address } = req.query
-    if (!address) return res.status(400).json({ error: 'address required' })
-    return res.status(200).json({ transactions: [] })
+    const rawAddr = (req.query.address ?? req.query.wallet ?? '') as string
+    if (!rawAddr) return res.status(400).json({ success: false, error: 'address or wallet param required' })
+    const walletAddr = rawAddr.toLowerCase()
+    const kv = getRedis()
+    if (!kv) {
+      // No Redis — return empty; client falls back to onchain getLogs
+      return res.status(200).json({ success: true, activities: [] })
+    }
+    type TxRecord = {
+      id: string; type: string; description: string; amount: number
+      sign?: string; status?: string; counterparty?: unknown
+      txHash?: unknown; timestamp: string; agentInitiated?: boolean; chain?: string
+    }
+    const raw = (await kv.lrange<TxRecord>(`activity:${walletAddr}`, 0, 199)) ?? []
+    const activities = raw.map(r => ({
+      id:            r.id,
+      type:          r.type,
+      description:   r.description,
+      amount:        String(r.amount ?? 0),
+      sign:          r.sign ?? (r.type === 'received' ? '+' : '-'),
+      status:        r.status ?? 'confirmed',
+      counterparty:  r.counterparty ? String(r.counterparty) : undefined,
+      txHash:        r.txHash ? String(r.txHash) : undefined,
+      timestamp:     r.timestamp,
+      agentInitiated: r.agentInitiated ?? false,
+      chain:         r.chain ?? 'Arc',
+    }))
+    return res.status(200).json({ success: true, activities })
   }
 
   // ── GET agent-registry ─────────────────────────────────────────────────────
