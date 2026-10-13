@@ -6,7 +6,7 @@ import React, { useState, useEffect } from 'react'
 import {
   CheckCircle2, AlertCircle, Clock, XCircle,
   ArrowUpRight, ExternalLink, Copy, Check,
-  Wallet, Smartphone, CreditCard, Share2,
+  Wallet, Smartphone, CreditCard, Share2, ChevronRight,
 } from 'lucide-react'
 import { useWriteContract, useWaitForTransactionReceipt, useAccount, useChainId, useSwitchChain } from 'wagmi'
 import { erc20Abi, isAddress } from 'viem'
@@ -401,6 +401,102 @@ function CardPanel({ req }: { req: PaymentRequest }) {
   )
 }
 
+// ── NAN name panel ────────────────────────────────────────────────────────────
+function NanPanel({ req }: { req: PaymentRequest }) {
+  const [paid, setPaid] = useState(false)
+  const nanUrl = req.creatorAddress
+    ? `https://nanarc.xyz/?send=1&to=${encodeURIComponent(req.creatorAddress)}&amount=${req.amount}&note=${encodeURIComponent(`Payment Request — ${req.title}`)}&currency=${req.currency ?? 'USDC'}`
+    : ''
+
+  if (paid) return (
+    <div style={{ textAlign: 'center', padding: '24px 0' }}>
+      <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'rgba(16,185,129,0.12)',
+        border: '1px solid rgba(16,185,129,0.25)', display: 'flex', alignItems: 'center',
+        justifyContent: 'center', margin: '0 auto 14px' }}>
+        <CheckCircle2 size={26} color='#10B981' />
+      </div>
+      <div style={{ fontSize: 16, fontWeight: 700, color: '#F2F3F5', marginBottom: 6 }}>Thanks!</div>
+      <div style={{ fontSize: 13, color: '#8A8F9E', lineHeight: 1.5 }}>
+        Your payment is on its way to {req.creatorName || 'the recipient'}.
+      </div>
+    </div>
+  )
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ width: 40, height: 40, borderRadius: 12, background: BLUE, display: 'flex',
+          alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 324 480" width="14" height="21">
+            <path d="M255,0 L84,167 L71,163 L0,97 L0,378 L246,132 L255,110 Z" fill="#fff"/>
+            <path d="M69,480 L240,313 L253,317 L324,383 L324,102 L78,348 L69,370 Z" fill="#fff"/>
+          </svg>
+        </div>
+        <div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: '#F2F3F5', marginBottom: 2 }}>Pay with your NAN wallet</div>
+          <div style={{ fontSize: 12, color: '#8A8F9E' }}>Send directly from your NAN account</div>
+        </div>
+      </div>
+
+      {/* Summary */}
+      <div style={{ background: SURF2, border: `1px solid ${BDR}`, borderRadius: 12, padding: '14px 16px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+          <span style={{ fontSize: 12, color: '#8A8F9E' }}>To</span>
+          <span style={{ fontSize: 13, fontWeight: 600, color: '#F2F3F5', overflow: 'hidden',
+            textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '60%', textAlign: 'right' }}>
+            {req.creatorName || (req.creatorAddress ? `${req.creatorAddress.slice(0,10)}…${req.creatorAddress.slice(-6)}` : 'Recipient')}
+          </span>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 8, borderTop: `1px solid ${BDR}` }}>
+          <span style={{ fontSize: 12, color: '#8A8F9E' }}>Amount</span>
+          <span style={{ fontSize: 16, fontWeight: 800, color: BLUE }}>{fmt(req.amount)} {req.currency}</span>
+        </div>
+      </div>
+
+      {/* Steps */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {[
+          'Tap the button below to open NAN',
+          'Log in or create a free wallet (takes 30 seconds)',
+          'Send the payment — it arrives instantly on Arc',
+          'Come back and tap "I\'ve paid" below',
+        ].map((step, i) => (
+          <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+            <div style={{ width: 20, height: 20, borderRadius: '50%', background: BLUE, color: '#fff',
+              fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center',
+              justifyContent: 'center', flexShrink: 0, marginTop: 1 }}>{i + 1}</div>
+            <div style={{ fontSize: 13, color: '#8A8F9E', lineHeight: 1.4 }}>{step}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* CTA */}
+      {nanUrl ? (
+        <a href={nanUrl} target="_blank" rel="noopener noreferrer"
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            height: 54, borderRadius: 14, background: BLUE, color: '#fff',
+            fontSize: 15, fontWeight: 700, textDecoration: 'none',
+            boxShadow: '0 4px 24px rgba(0,102,255,0.35)' }}>
+          Open NAN to pay <ChevronRight size={17} />
+        </a>
+      ) : (
+        <div style={{ fontSize: 13, color: '#EF4444', textAlign: 'center' }}>No wallet address on this request.</div>
+      )}
+
+      {/* Already paid */}
+      <button onClick={() => setPaid(true)}
+        style={{ width: '100%', height: 44, background: 'rgba(16,185,129,0.08)',
+          border: '1px solid rgba(16,185,129,0.20)', borderRadius: 12,
+          color: '#10B981', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: F,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}>
+        <CheckCircle2 size={15} /> I've paid
+      </button>
+    </div>
+  )
+}
+
 // ── Main page ──────────────────────────────────────────────────────────────────
 export function PaymentRequestPayPage({
   requestId = '',
@@ -492,7 +588,7 @@ export function PaymentRequestPayPage({
       : null
     )
 
-  type Method = 'wallet' | 'qr' | 'copy' | 'card'
+  type Method = 'wallet' | 'qr' | 'copy' | 'card' | 'nan'
   const [method, setMethod] = useState<Method>('card')
   const [successHash, setSuccessHash] = useState<string | null>(null)
 
@@ -668,12 +764,31 @@ export function PaymentRequestPayPage({
               <div style={{ flex: 1, height: 1, background: BDR }} />
             </div>
 
-            {/* Method tabs */}
-            <div style={{ display: 'flex', gap: 6, background: 'rgba(255,255,255,0.05)', borderRadius: 14, padding: 4, marginBottom: 22 }}>
-              <MethodTab icon={<CreditCard size={18} />} label="Card"         active={method === 'card'}   onClick={() => setMethod('card')} />
-              <MethodTab icon={<Wallet size={18} />}     label="Wallet"       active={method === 'wallet'} onClick={() => setMethod('wallet')} />
-              <MethodTab icon={<Smartphone size={18} />} label="Scan QR"      active={method === 'qr'}     onClick={() => setMethod('qr')} />
-              <MethodTab icon={<Copy size={18} />}       label="Copy"         active={method === 'copy'}   onClick={() => setMethod('copy')} />
+            {/* Method tabs — 3 primary */}
+            <div style={{ display: 'flex', gap: 6, background: 'rgba(255,255,255,0.05)', borderRadius: 14, padding: 4, marginBottom: 14 }}>
+              <MethodTab icon={<CreditCard size={18} />} label="Card"       active={method === 'card'}   onClick={() => setMethod('card')} />
+              <MethodTab icon={<Wallet size={18} />}     label="Wallet"     active={method === 'wallet'} onClick={() => setMethod('wallet')} />
+              <MethodTab icon={<span style={{ fontSize: 14, fontWeight: 800, lineHeight: 1 }}>N</span>} label="NAN" active={method === 'nan'} onClick={() => setMethod('nan')} />
+            </div>
+
+            {/* Secondary: QR + Copy */}
+            <div style={{ display: 'flex', gap: 6, marginBottom: 20 }}>
+              <button onClick={() => setMethod('qr')}
+                style={{ flex: 1, height: 36, borderRadius: 10, cursor: 'pointer', fontFamily: F,
+                  background: method === 'qr' ? 'rgba(0,102,255,0.12)' : 'rgba(255,255,255,0.04)',
+                  border: `1px solid ${method === 'qr' ? 'rgba(0,102,255,0.35)' : BDR}`,
+                  color: method === 'qr' ? BLUE : '#8A8F9E', fontSize: 12, fontWeight: 600,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+                <Smartphone size={13} /> Scan QR
+              </button>
+              <button onClick={() => setMethod('copy')}
+                style={{ flex: 1, height: 36, borderRadius: 10, cursor: 'pointer', fontFamily: F,
+                  background: method === 'copy' ? 'rgba(0,102,255,0.12)' : 'rgba(255,255,255,0.04)',
+                  border: `1px solid ${method === 'copy' ? 'rgba(0,102,255,0.35)' : BDR}`,
+                  color: method === 'copy' ? BLUE : '#8A8F9E', fontSize: 12, fontWeight: 600,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+                <Copy size={13} /> Copy address
+              </button>
             </div>
 
             {/* Panel content */}
@@ -681,6 +796,7 @@ export function PaymentRequestPayPage({
             {method === 'qr'     && <QrPanel req={req} />}
             {method === 'copy'   && <CopyPanel req={req} />}
             {method === 'wallet' && <WalletPanel req={req} onSuccess={setSuccessHash} />}
+            {method === 'nan'    && <NanPanel req={req} />}
 
           </div>
         )}
