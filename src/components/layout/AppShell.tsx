@@ -5,10 +5,10 @@ import {
   Layers, Repeat, Bot, Wallet,
   MessageSquare, HelpCircle, Info, User, Users, Search, Bookmark,
   Star, Lightbulb, ArrowRight, Clock, ShoppingBag, FileDown,
-  FileText, AtSign, Sparkles,
+  FileText, AtSign, Sparkles, AlertTriangle,
 } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
-import { useAccount } from 'wagmi'
+import { useAccount, useSwitchChain } from 'wagmi'
 import { useNanTheme } from '../../hooks/useNanTheme'
 import { NotificationBell } from '../ui/NotificationBell'
 import { NanLogo } from '../NanLogo'
@@ -391,6 +391,129 @@ function SideNavBtn({
   )
 }
 
+// ── Network pill ──────────────────────────────────────────────────────────────
+// Shows current chain when a wagmi wallet is connected.
+// Turns into a tappable "Switch to Arc" warning when on the wrong chain.
+// Hidden entirely for Circle/email/passkey users (no wagmi connection).
+const ARC_CHAIN_ID = 5042
+
+const CHAIN_NAMES: Record<number, string> = {
+  5042:    'Arc',
+  1:       'Ethereum',
+  8453:    'Base',
+  42161:   'Arbitrum',
+  137:     'Polygon',
+  43114:   'Avalanche',
+  10:      'Optimism',
+  56:      'BNB Chain',
+  11155111: 'Sepolia',
+  84532:   'Base Sepolia',
+  421614:  'Arb Sepolia',
+  80002:   'Amoy',
+}
+
+function NetworkPill({ compact = false }: { compact?: boolean }) {
+  const { address, chainId, isConnected } = useAccount()
+  const { switchChain, isPending } = useSwitchChain()
+
+  // Only show for browser-wallet users (wagmi connected)
+  if (!isConnected || !address || !chainId) return null
+
+  const isArc    = chainId === ARC_CHAIN_ID
+  const name     = CHAIN_NAMES[chainId] ?? `Chain ${chainId}`
+  const switching = isPending
+
+  if (isArc) {
+    // Green pill — on Arc
+    return (
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 5,
+        padding: compact ? '4px 9px' : '5px 11px',
+        borderRadius: 20,
+        background: 'rgba(16,185,129,0.10)',
+        border: '1px solid rgba(16,185,129,0.25)',
+        flexShrink: 0,
+        userSelect: 'none',
+      }}>
+        <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#10B981', flexShrink: 0 }} />
+        <span style={{ fontSize: compact ? 11 : 12, fontWeight: 600, color: '#10B981', fontFamily: F }}>Arc</span>
+      </div>
+    )
+  }
+
+  // Wrong chain — amber pill, tappable to switch
+  return (
+    <button
+      onClick={() => { if (!switching) switchChain({ chainId: ARC_CHAIN_ID }) }}
+      disabled={switching}
+      title={`You're on ${name}. Tap to switch to Arc.`}
+      style={{
+        display: 'flex', alignItems: 'center', gap: 5,
+        padding: compact ? '4px 9px' : '5px 11px',
+        borderRadius: 20,
+        background: 'rgba(255,149,0,0.10)',
+        border: '1px solid rgba(255,149,0,0.35)',
+        cursor: switching ? 'not-allowed' : 'pointer',
+        flexShrink: 0,
+        fontFamily: F,
+        WebkitTapHighlightColor: 'transparent',
+        transition: 'opacity 0.15s',
+        opacity: switching ? 0.6 : 1,
+      }}
+    >
+      <AlertTriangle size={11} color="#FF9500" strokeWidth={2.5} style={{ flexShrink: 0 }} />
+      <span style={{ fontSize: compact ? 11 : 12, fontWeight: 700, color: '#FF9500' }}>
+        {switching ? 'Switching…' : `Switch to Arc`}
+      </span>
+    </button>
+  )
+}
+
+// ── Wrong-chain banner (mobile) ───────────────────────────────────────────────
+// A slim dismissible strip shown at the top of the mobile content area when a
+// wagmi wallet is connected but not on Arc. Auto-hides once the user switches.
+function WrongChainBanner() {
+  const { address, chainId, isConnected } = useAccount()
+  const { switchChain, isPending } = useSwitchChain()
+  const [dismissed, setDismissed] = useState(false)
+
+  const isArc = chainId === ARC_CHAIN_ID
+  // Reset dismissed state whenever the chain changes
+  // eslint-disable-next-line react/set-state-in-effect
+  useEffect(() => { setDismissed(false) }, [chainId])
+
+  if (!isConnected || !address || !chainId || isArc || dismissed) return null
+
+  return (
+    <div style={{
+      flexShrink: 0, zIndex: 50,
+      display: 'flex', alignItems: 'center', gap: 8,
+      padding: '8px 14px',
+      background: 'rgba(255,149,0,0.12)',
+      borderBottom: '1px solid rgba(255,149,0,0.3)',
+    }}>
+      <AlertTriangle size={13} color="#FF9500" strokeWidth={2.5} style={{ flexShrink: 0 }} />
+      <span style={{ flex: 1, fontSize: 12, fontWeight: 600, color: '#FF9500', fontFamily: F }}>
+        Not on Arc — NAN needs Arc to send USDC.
+      </span>
+      <button
+        onClick={() => switchChain({ chainId: ARC_CHAIN_ID })}
+        disabled={isPending}
+        style={{ fontSize: 12, fontWeight: 700, color: '#FF9500', background: 'rgba(255,149,0,0.18)', border: '1px solid rgba(255,149,0,0.4)', borderRadius: 8, padding: '4px 10px', cursor: isPending ? 'not-allowed' : 'pointer', fontFamily: F, flexShrink: 0 }}
+      >
+        {isPending ? 'Switching…' : 'Switch'}
+      </button>
+      <button
+        onClick={() => setDismissed(true)}
+        aria-label="Dismiss"
+        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, flexShrink: 0, display: 'flex', alignItems: 'center' }}
+      >
+        <X size={13} color="#FF9500" />
+      </button>
+    </div>
+  )
+}
+
 // ── Main shell ─────────────────────────────────────────────────────────────────
 export function AppShell({ children }: { children: React.ReactNode }) {
   const C = useNanTheme()
@@ -509,6 +632,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
             {/* Controls */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+              <NetworkPill />
               <NanNameBadge onClaim={() => go('nan-name')} C={C} />
               <button
                 onClick={() => setPaletteOpen(true)}
@@ -628,6 +752,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <NanLogo height={28} />
           </button>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <NetworkPill compact />
             <NotificationBell color={C.t2} />
             <button onClick={() => setDrawerOpen(false)} aria-label="Close menu" style={{ width: 30, height: 30, borderRadius: 8, background: C.surf2, border: `1px solid ${C.bdr2}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
               <X size={14} color={C.t2} />
@@ -659,6 +784,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </div>
 
       {paletteOpen && <CommandPalette onClose={() => setPaletteOpen(false)} onGo={go} />}
+
+      {/* Wrong-chain banner — only shown on mobile when wagmi wallet is on wrong network */}
+      <WrongChainBanner />
 
       {/* Mobile main content — agent view gets overflow:hidden so it self-manages scroll */}
       <main style={{
