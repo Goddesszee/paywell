@@ -497,12 +497,24 @@ async function handleWallet(req: VercelRequest, res: VercelResponse) {
 
       // Run the bridge — this awaits the full flow (approve + burn + attestation + mint)
       // The onChallenge callback above streams each challengeId as it arrives.
-      const result = await kit.bridge({
+      // A slow public RPC read (viem "Request exceeds defined timeout") before anything is signed is harmless
+      // to retry, and the second try is normally instant — so do it here instead of making the user tap twice.
+      const isTransient = (e: unknown) => /exceeds defined timeout|timed out|timeout|ETIMEDOUT|ECONNRESET|fetch failed|HTTP request failed/i.test(e instanceof Error ? e.message : String(e))
+      let result!: { steps?: { name: string; state: string; txHash?: string; error?: string; message?: string }[]; state?: string }
+      for (let attempt = 0; ; attempt++) {
+        try {
+          result = await kit.bridge({
         from: { adapter, chain: srcChain },
         to:   useFwd ? { chain: dstChain, recipientAddress: String(recipientAddress), useForwarder: true } : { adapter, chain: dstChain },
         amount,
         config: { ...bridgeFeeCfg(String(amount)) },
-      } as never) as { steps?: { name: string; state: string; txHash?: string }[]; state?: string }
+          } as never) as typeof result
+          break
+        } catch (e) {
+          if (stepIndex === 0 && attempt < 2 && isTransient(e)) { console.warn('[ucw-bridge-stream] transient RPC error, retrying', attempt + 1); continue }
+          throw e
+        }
+      }
 
       const burnStep = result.steps?.find(s => s.name === 'burn')
       const mintStep = result.steps?.find(s => s.name === 'mint')
@@ -516,7 +528,8 @@ async function handleWallet(req: VercelRequest, res: VercelResponse) {
         send({ type: 'error', message: String(failed?.error ?? failed?.message ?? `Bridge state: ${result.state ?? 'unknown'}`) })
       }
     } catch (e) {
-      send({ type: 'error', message: e instanceof Error ? e.message : 'Bridge failed' })
+      const raw = e instanceof Error ? e.message : 'Bridge failed'
+      send({ type: 'error', message: /exceeds defined timeout|HTTP request failed|Raw Call Arguments|viem@/i.test(raw) ? 'The network was slow to respond. Nothing was sent — please tap Bridge again.' : raw })
     }
     return res.end()
   }

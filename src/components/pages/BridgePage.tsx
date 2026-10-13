@@ -58,6 +58,13 @@ interface BridgeChain {
 }
 
 // Circle blockchain ids for creating an email/Google (UCW) wallet on another chain.
+/** Hide raw viem/RPC dumps from users: show one plain sentence instead. */
+function cleanBridgeError(msg: string): string {
+  if (/exceeds defined timeout|HTTP request failed|Raw Call Arguments|viem@|Read contract failed/i.test(msg))
+    return 'The network was slow to respond. Nothing was sent — please tap Bridge again.'
+  return msg.length > 220 ? msg.slice(0, 220) + '…' : msg
+}
+
 const UCW_CHAIN_ENUM: Record<number, string> = { 1: 'ETH', 8453: 'BASE', 42161: 'ARB', 10: 'OP', 137: 'MATIC', 43114: 'AVAX', 130: 'UNI' }
 
 // CCTP V2 supported mainnets — identical to original.
@@ -790,7 +797,7 @@ export function BridgePage({ inCard = false }: { inCard?: boolean }) {
         addActivity({ type: 'bridge', description: `Bridge to ${toChain.label}`, amount: gross, sign: '-', status: 'confirmed', counterparty: toChain.label, txHash: lastTxHash })
       } catch (e: unknown) {
         setStatus('error')
-        setErrMsg(e instanceof Error ? e.message : 'Bridge failed.')
+        setErrMsg(cleanBridgeError(e instanceof Error ? e.message : 'Bridge failed.'))
         setSteps(prev => prev.map(s => s.status === 'active' ? { ...s, status: 'error' } : s))
       }
       return
@@ -856,7 +863,7 @@ export function BridgePage({ inCard = false }: { inCard?: boolean }) {
         }
       } catch (e: unknown) {
         setStatus('error')
-        setErrMsg(e instanceof Error ? e.message : 'Bridge failed.')
+        setErrMsg(cleanBridgeError(e instanceof Error ? e.message : 'Bridge failed.'))
         setSteps(prev => prev.map(s => s.status === 'active' ? { ...s, status: 'error' } : s))
       }
       return
@@ -944,7 +951,7 @@ export function BridgePage({ inCard = false }: { inCard?: boolean }) {
       }
     } catch (e: unknown) {
       setStatus('error')
-      setErrMsg(e instanceof Error ? e.message : 'Bridge failed.')
+      setErrMsg(cleanBridgeError(e instanceof Error ? e.message : 'Bridge failed.'))
       setSteps(prev => prev.map(s => s.status === 'active' ? { ...s, status: 'error' } : s))
     }
   }
