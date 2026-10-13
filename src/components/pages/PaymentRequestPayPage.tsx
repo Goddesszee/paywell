@@ -6,7 +6,7 @@ import React, { useState, useEffect } from 'react'
 import {
   CheckCircle2, AlertCircle, Clock, XCircle,
   ArrowUpRight, ExternalLink, Copy, Check,
-  Wallet, Smartphone, CreditCard,
+  Wallet, Smartphone, CreditCard, Share2,
 } from 'lucide-react'
 import { useWriteContract, useWaitForTransactionReceipt, useAccount, useChainId, useSwitchChain } from 'wagmi'
 import { erc20Abi, isAddress } from 'viem'
@@ -19,7 +19,11 @@ import { usePublicPage } from '../../hooks/usePublicPage'
 
 const F    = "'Inter', -apple-system, sans-serif"
 const MONO = "'JetBrains Mono', Menlo, monospace"
-const BLUE = '#0866F5'
+const BLUE = '#0066FF'
+const BG   = '#0A0C10'
+const SURF = '#13151A'
+const SURF2= '#1C1F28'
+const BDR  = 'rgba(255,255,255,0.08)'
 const ARC_ID = 5042
 const USDC_ADDRESS   = '0x3600000000000000000000000000000000000000' as `0x${string}`
 const USDC_DECIMALS  = 6
@@ -156,13 +160,13 @@ function WalletPanel({
   if (!isConnected) {
     return (
       <div style={{ textAlign: 'center', padding: '8px 0 4px' }}>
-        <p style={{ fontSize: 13, color: '#666', marginBottom: 16, lineHeight: 1.5 }}>
+        <p style={{ fontSize: 13, color: '#8A8F9E', marginBottom: 16, lineHeight: 1.5 }}>
           Connect any EVM wallet to pay instantly with USDC on Arc.
         </p>
         <div style={{ display: 'flex', justifyContent: 'center' }}>
           <ConnectKitButton />
         </div>
-        <p style={{ fontSize: 11, color: '#bbb', marginTop: 14 }}>
+        <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.25)', marginTop: 14 }}>
           MetaMask, Coinbase Wallet, WalletConnect, and more
         </p>
       </div>
@@ -261,9 +265,9 @@ function QrPanel({ req }: { req: PaymentRequest }) {
               Tap <strong>Scan</strong> and point at this code.
             </div>
           </div>
-          <div style={{ background: '#f7f8fa', border: '1px solid #eee', borderRadius: 10, padding: '8px 14px', width: '100%', textAlign: 'center' }}>
-            <div style={{ fontSize: 10, color: '#aaa', marginBottom: 2, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Pre-fills amount</div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: '#111', fontFamily: MONO }}>
+          <div style={{ background: SURF2, border: `1px solid ${BDR}`, borderRadius: 10, padding: '8px 14px', width: '100%', textAlign: 'center' }}>
+            <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', marginBottom: 2, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Pre-fills amount</div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: '#F2F3F5', fontFamily: MONO }}>
               {fmt(req.amount)} {req.currency}
             </div>
           </div>
@@ -301,52 +305,54 @@ function CopyPanel({ req }: { req: PaymentRequest }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
 
       {/* Instructions */}
-      <div style={{ background: '#f7f8fa', borderRadius: 12, padding: '14px 16px' }}>
+      <div style={{ background: SURF2, borderRadius: 12, padding: '14px 16px', border: `1px solid ${BDR}` }}>
         {steps.map(s => (
           <div key={s.n} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: s.n !== '3' ? 10 : 0 }}>
             <span style={{ width: 20, height: 20, borderRadius: '50%', background: BLUE, color: '#fff', fontSize: 11, fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 }}>{s.n}</span>
-            <span style={{ fontSize: 13, color: '#444', lineHeight: 1.4 }}>{s.text}</span>
+            <span style={{ fontSize: 13, color: '#8A8F9E', lineHeight: 1.4 }}>{s.text}</span>
           </div>
         ))}
       </div>
 
       {/* Amount row */}
       <div>
-        <div style={{ fontSize: 11, fontWeight: 600, color: '#888', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Amount</div>
+        <div style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Amount</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{ flex: 1, background: '#f7f8fa', border: '1px solid #e8e8e8', borderRadius: 10, padding: '10px 14px', fontFamily: MONO, fontSize: 15, fontWeight: 700, color: '#111' }}>
+          <div style={{ flex: 1, background: SURF2, border: `1px solid ${BDR}`, borderRadius: 10, padding: '10px 14px', fontFamily: MONO, fontSize: 15, fontWeight: 700, color: '#F2F3F5' }}>
             {fmt(req.amount)} {req.currency}
           </div>
-          <button
-            onClick={() => copy(`${req.amount}`, 'amt')}
-            style={{ width: 40, height: 40, borderRadius: 10, background: copiedAmt ? '#e8f8ef' : '#f7f8fa', border: `1px solid ${copiedAmt ? '#b6e8cb' : '#e8e8e8'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.15s', flexShrink: 0 }}
-          >
-            {copiedAmt ? <Check size={15} color='#1a7a42' /> : <Copy size={15} color='#666' />}
+          <button onClick={() => copy(`${req.amount}`, 'amt')}
+            style={{ width: 40, height: 40, borderRadius: 10,
+              background: copiedAmt ? 'rgba(16,185,129,0.12)' : SURF2,
+              border: `1px solid ${copiedAmt ? 'rgba(16,185,129,0.3)' : BDR}`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.15s', flexShrink: 0 }}>
+            {copiedAmt ? <Check size={15} color='#10B981' /> : <Copy size={15} color='#8A8F9E' />}
           </button>
         </div>
       </div>
 
       {/* Address row */}
       <div>
-        <div style={{ fontSize: 11, fontWeight: 600, color: '#888', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Recipient address (USDC · Arc)</div>
+        <div style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Recipient address (USDC · Arc)</div>
         {addr ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <div style={{ flex: 1, background: '#f7f8fa', border: '1px solid #e8e8e8', borderRadius: 10, padding: '10px 14px', fontFamily: MONO, fontSize: 12, color: '#111', wordBreak: 'break-all', lineHeight: 1.5 }}>
+            <div style={{ flex: 1, background: SURF2, border: `1px solid ${BDR}`, borderRadius: 10, padding: '10px 14px', fontFamily: MONO, fontSize: 12, color: '#F2F3F5', wordBreak: 'break-all', lineHeight: 1.5 }}>
               {addr}
             </div>
-            <button
-              onClick={() => copy(addr, 'addr')}
-              style={{ width: 40, height: 40, borderRadius: 10, background: copiedAddr ? '#e8f8ef' : '#f7f8fa', border: `1px solid ${copiedAddr ? '#b6e8cb' : '#e8e8e8'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.15s', flexShrink: 0 }}
-            >
-              {copiedAddr ? <Check size={15} color='#1a7a42' /> : <Copy size={15} color='#666' />}
+            <button onClick={() => copy(addr, 'addr')}
+              style={{ width: 40, height: 40, borderRadius: 10,
+                background: copiedAddr ? 'rgba(16,185,129,0.12)' : SURF2,
+                border: `1px solid ${copiedAddr ? 'rgba(16,185,129,0.3)' : BDR}`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.15s', flexShrink: 0 }}>
+              {copiedAddr ? <Check size={15} color='#10B981' /> : <Copy size={15} color='#8A8F9E' />}
             </button>
           </div>
         ) : (
-          <div style={{ fontSize: 13, color: '#aaa', padding: '10px 0' }}>No address provided on this request.</div>
+          <div style={{ fontSize: 13, color: '#8A8F9E', padding: '10px 0' }}>No address provided on this request.</div>
         )}
       </div>
 
-      <div style={{ fontSize: 11, color: '#bbb', textAlign: 'center', paddingTop: 4 }}>
+      <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.25)', textAlign: 'center', paddingTop: 4 }}>
         After sending, share the transaction hash with the requester to confirm payment.
       </div>
     </div>
@@ -356,45 +362,40 @@ function CopyPanel({ req }: { req: PaymentRequest }) {
 // ── Card / onramp panel ────────────────────────────────────────────────────────
 function CardPanel({ req }: { req: PaymentRequest }) {
   const addr = req.creatorAddress ?? ''
-  // Deep-link to NAN onramp with merchant address as destination so USDC lands directly
   const onrampUrl = addr
     ? `https://nanarc.xyz/?onramp=1&to=${encodeURIComponent(addr)}&amount=${req.amount}&note=${encodeURIComponent(req.title)}&currency=${req.currency ?? 'USDC'}`
     : ''
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <div style={{ background: '#f7f8fa', borderRadius: 12, padding: '14px 16px' }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: '#111', marginBottom: 6 }}>Pay with debit or credit card</div>
-        <div style={{ fontSize: 13, color: '#666', lineHeight: 1.6 }}>
+      <div style={{ background: SURF2, borderRadius: 12, padding: '14px 16px', border: `1px solid ${BDR}` }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: '#F2F3F5', marginBottom: 6 }}>Pay with debit or credit card</div>
+        <div style={{ fontSize: 13, color: '#8A8F9E', lineHeight: 1.6 }}>
           Don't have USDC? Buy it instantly with your card and it will be sent directly to the recipient. No crypto wallet needed.
         </div>
       </div>
 
-      <div style={{ background: '#f7f8fa', borderRadius: 12, padding: '12px 16px' }}>
-        <div style={{ fontSize: 11, color: '#999', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>Amount</div>
-        <div style={{ fontSize: 22, fontWeight: 800, color: '#111' }}>{req.amount.toLocaleString('en', { minimumFractionDigits: 2 })} {req.currency}</div>
+      <div style={{ background: SURF2, borderRadius: 12, padding: '12px 16px', border: `1px solid ${BDR}` }}>
+        <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>Amount</div>
+        <div style={{ fontSize: 22, fontWeight: 800, color: '#F2F3F5' }}>{req.amount.toLocaleString('en', { minimumFractionDigits: 2 })} {req.currency}</div>
       </div>
 
       {addr ? (
-        <a
-          href={onrampUrl}
-          style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-            height: 52, borderRadius: 14, background: BLUE, color: '#fff',
+        <a href={onrampUrl}
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            height: 54, borderRadius: 14, background: BLUE, color: '#fff',
             fontFamily: F, fontSize: 15, fontWeight: 700, textDecoration: 'none',
-            boxShadow: '0 4px 20px rgba(8,102,245,0.30)',
-          }}
-        >
+            boxShadow: '0 4px 24px rgba(0,102,255,0.35)' }}>
           <CreditCard size={18} /> Buy &amp; Pay with Card
         </a>
       ) : (
-        <div style={{ textAlign: 'center', fontSize: 13, color: '#aaa', padding: '10px 0' }}>
+        <div style={{ textAlign: 'center', fontSize: 13, color: '#8A8F9E', padding: '10px 0' }}>
           No recipient address on this request.
         </div>
       )}
 
-      <div style={{ fontSize: 11, color: '#bbb', textAlign: 'center', lineHeight: 1.5 }}>
-        Powered by Circle · Purchases settle instantly as USDC on Arc.
+      <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.25)', textAlign: 'center', lineHeight: 1.5 }}>
+        Powered by Circle · Settles instantly as USDC on Arc.
       </div>
     </div>
   )
@@ -506,11 +507,23 @@ export function PaymentRequestPayPage({
   // For invoice-based quick requests, use inv- id in success handler
   const isQuickInvoice = isInvId
 
+  // Share receipt helper
+  const shareReceipt = (txHash: string) => {
+    const url = `https://explorer.arc.io/tx/${txHash}`
+    const text = `Payment sent for "${req?.title ?? 'request'}" — settled on Arc USDC`
+    if (navigator.share) {
+      void navigator.share({ title: 'NAN Payment Receipt', text, url }).catch(() => {})
+    } else {
+      void navigator.clipboard.writeText(`${text}\n${url}`)
+      toast.success('Receipt link copied!')
+    }
+  }
+
   // Show loading while fetching invoice data
   if (isInvId && !fetchDone && !localInvReq) {
     return (
-      <div style={{ minHeight: '100dvh', background: '#f4f6fa', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: F }}>
-        <div style={{ width: 28, height: 28, border: '3px solid #e0e0e0', borderTopColor: BLUE, borderRadius: '50%', animation: 'nan-spin 0.8s linear infinite' }} />
+      <div style={{ minHeight: '100dvh', background: BG, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: F }}>
+        <div style={{ width: 28, height: 28, border: `3px solid ${BDR}`, borderTopColor: BLUE, borderRadius: '50%', animation: 'nan-spin 0.8s linear infinite' }} />
         <style>{`@keyframes nan-spin { to { transform: rotate(360deg) } }`}</style>
       </div>
     )
@@ -519,14 +532,14 @@ export function PaymentRequestPayPage({
   // ── Not found ────────────────────────────────────────────────────────────────
   if (!req) {
     return (
-      <div style={{ minHeight: '100dvh', background: '#f4f6fa', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '48px 16px', fontFamily: F, overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
-        <div style={{ background: '#fff', borderRadius: 20, border: '1px solid #e4e4e4', padding: '40px 28px', maxWidth: 400, width: '100%', textAlign: 'center', boxShadow: '0 4px 32px rgba(0,0,0,0.08)' }}>
-          <div style={{ width: 56, height: 56, borderRadius: '50%', background: '#fee8e8', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
-            <AlertCircle size={24} color='#c0392b' />
+      <div style={{ minHeight: '100dvh', background: BG, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '48px 16px', fontFamily: F, overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
+        <div style={{ background: SURF, borderRadius: 20, border: `1px solid ${BDR}`, padding: '40px 28px', maxWidth: 400, width: '100%', textAlign: 'center', boxShadow: '0 8px 48px rgba(0,0,0,0.40)' }}>
+          <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'rgba(239,68,68,0.10)', border: '1px solid rgba(239,68,68,0.20)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+            <AlertCircle size={24} color='#EF4444' />
           </div>
           <div style={{ marginBottom: 16 }}><NanLogo height={20} /></div>
-          <h2 style={{ fontSize: 20, fontWeight: 800, color: '#111', marginBottom: 8 }}>Request not found</h2>
-          <p style={{ fontSize: 14, color: '#666', lineHeight: 1.6 }}>
+          <h2 style={{ fontSize: 20, fontWeight: 800, color: '#F2F3F5', marginBottom: 8 }}>Request not found</h2>
+          <p style={{ fontSize: 14, color: '#8A8F9E', lineHeight: 1.6 }}>
             This payment link is invalid or has expired. Contact the person who sent it.
           </p>
         </div>
@@ -539,27 +552,35 @@ export function PaymentRequestPayPage({
   // ── Success ──────────────────────────────────────────────────────────────────
   if (successHash) {
     return (
-      <div style={{ minHeight: '100dvh', background: '#f4f6fa', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '48px 16px', fontFamily: F, overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
-        <div style={{ background: '#fff', borderRadius: 24, border: '1px solid #e4e4e4', padding: '40px 32px', maxWidth: 420, width: '100%', textAlign: 'center', boxShadow: '0 8px 40px rgba(0,0,0,0.10)' }}>
+      <div style={{ minHeight: '100dvh', background: BG, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '48px 16px', fontFamily: F, overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
+        <div style={{ background: SURF, borderRadius: 24, border: `1px solid ${BDR}`, padding: '40px 32px', maxWidth: 420, width: '100%', textAlign: 'center', boxShadow: '0 8px 48px rgba(0,0,0,0.40)' }}>
           <div style={{ marginBottom: 24 }}><NanLogo height={24} /></div>
-          <div style={{ width: 76, height: 76, borderRadius: '50%', background: 'rgba(16,185,129,0.10)', border: '2px solid rgba(16,185,129,0.20)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+          <div style={{ width: 76, height: 76, borderRadius: '50%', background: 'rgba(16,185,129,0.12)', border: '2px solid rgba(16,185,129,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
             <CheckCircle2 size={34} color='#10B981' />
           </div>
-          <h2 style={{ fontSize: 26, fontWeight: 800, color: '#111', letterSpacing: '-0.03em', marginBottom: 8 }}>Payment sent!</h2>
-          <p style={{ fontSize: 14, color: '#555', lineHeight: 1.6, marginBottom: 24 }}>
-            You successfully paid <strong>{fmt(req.amount)} {req.currency}</strong><br />for "{req.title}".
+          <h2 style={{ fontSize: 26, fontWeight: 800, color: '#F2F3F5', letterSpacing: '-0.03em', marginBottom: 8 }}>Payment sent!</h2>
+          <p style={{ fontSize: 14, color: '#8A8F9E', lineHeight: 1.6, marginBottom: 24 }}>
+            You successfully paid <strong style={{ color: '#F2F3F5' }}>{fmt(req.amount)} {req.currency}</strong><br />for "{req.title}".
           </p>
-          <a
-            href={`https://explorer.arc.io/tx/${successHash}`}
-            target="_blank" rel="noreferrer"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, color: BLUE, fontWeight: 600, textDecoration: 'none', background: 'rgba(8,102,245,0.06)', padding: '8px 16px', borderRadius: 10 }}
-          >
-            <ExternalLink size={13} /> View on explorer
-          </a>
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+            <a href={`https://explorer.arc.io/tx/${successHash}`} target="_blank" rel="noreferrer"
+              style={{ flex: 1, height: 46, borderRadius: 12, background: SURF2, border: `1px solid ${BDR}`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                fontSize: 13, color: BLUE, fontWeight: 600, textDecoration: 'none' }}>
+              <ExternalLink size={13} /> View tx
+            </a>
+            <button onClick={() => shareReceipt(successHash)}
+              style={{ flex: 1, height: 46, borderRadius: 12, background: BLUE, border: 'none',
+                color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: F,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                boxShadow: '0 4px 16px rgba(0,102,255,0.30)' }}>
+              <Share2 size={13} /> Share receipt
+            </button>
+          </div>
         </div>
-        <div style={{ marginTop: 20, display: 'flex', alignItems: 'center', gap: 6, opacity: 0.45 }}>
+        <div style={{ marginTop: 20, display: 'flex', alignItems: 'center', gap: 6, opacity: 0.35 }}>
           <NanLogo height={13} />
-          <span style={{ fontSize: 11, color: '#555', fontFamily: F }}>Powered by NAN</span>
+          <span style={{ fontSize: 11, color: '#8A8F9E', fontFamily: F }}>Powered by NAN</span>
         </div>
       </div>
     )
@@ -567,13 +588,13 @@ export function PaymentRequestPayPage({
 
   // ── Main ─────────────────────────────────────────────────────────────────────
   return (
-    <div style={{ minHeight: '100dvh', background: '#f4f6fa', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start', padding: '32px 16px 48px', fontFamily: F, overflowY: 'auto', overflowX: 'hidden', WebkitOverflowScrolling: 'touch' }}>
+    <div style={{ minHeight: '100dvh', background: BG, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start', padding: '32px 16px 48px', fontFamily: F, overflowY: 'auto', overflowX: 'hidden', WebkitOverflowScrolling: 'touch' }}>
 
       {/* Card */}
-      <div style={{ background: '#fff', borderRadius: 24, border: '1px solid #e8e8e8', width: '100%', maxWidth: 460, boxShadow: '0 8px 40px rgba(0,0,0,0.09)' }}>
+      <div style={{ background: SURF, borderRadius: 24, border: `1px solid ${BDR}`, width: '100%', maxWidth: 460, boxShadow: '0 8px 48px rgba(0,0,0,0.40)' }}>
 
         {/* Top header — NAN branding */}
-        <div style={{ background: '#0057FF', padding: '18px 24px', borderRadius: '24px 24px 0 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ background: BLUE, padding: '18px 24px', borderRadius: '24px 24px 0 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <NanLogo height={22} />
             <span style={{ fontSize: 13, fontWeight: 700, color: '#fff', letterSpacing: '-0.01em' }}>
@@ -588,30 +609,30 @@ export function PaymentRequestPayPage({
 
           {/* From */}
           <div style={{ marginBottom: 20 }}>
-            <div style={{ fontSize: 11, color: '#aaa', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>
-              {isQuickInvoice ? 'Payment request from' : 'Payment request from'}
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>
+              Payment request from
             </div>
-            <div style={{ fontSize: 20, fontWeight: 800, color: '#111', letterSpacing: '-0.02em' }}>
+            <div style={{ fontSize: 20, fontWeight: 800, color: '#F2F3F5', letterSpacing: '-0.02em' }}>
               {req.creatorName || req.title || (req.creatorAddress ? `${req.creatorAddress.slice(0, 10)}…${req.creatorAddress.slice(-6)}` : 'NAN User')}
             </div>
             {req.recipientName && req.recipientName !== req.creatorName && (
-              <div style={{ fontSize: 13, color: '#888', marginTop: 3 }}>{req.recipientName}</div>
+              <div style={{ fontSize: 13, color: '#8A8F9E', marginTop: 3 }}>{req.recipientName}</div>
             )}
           </div>
 
           {/* Amount hero */}
-          <div style={{ background: '#f7f8fa', borderRadius: 14, padding: '20px 22px', marginBottom: 20, display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
+          <div style={{ background: SURF2, borderRadius: 14, padding: '20px 22px', marginBottom: 20, display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
             <div>
-              <div style={{ fontSize: 11, color: '#aaa', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.07em' }}>Amount due</div>
-              <div style={{ fontSize: 40, fontWeight: 800, color: '#111', letterSpacing: '-0.04em', fontFamily: MONO, lineHeight: 1 }}>
+              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.07em' }}>Amount due</div>
+              <div style={{ fontSize: 40, fontWeight: 800, color: '#F2F3F5', letterSpacing: '-0.04em', fontFamily: MONO, lineHeight: 1 }}>
                 {fmt(req.amount)}
               </div>
-              <div style={{ fontSize: 15, color: '#888', fontWeight: 600, marginTop: 4 }}>{req.currency} · USDC</div>
+              <div style={{ fontSize: 15, color: BLUE, fontWeight: 700, marginTop: 4 }}>{req.currency} · USDC</div>
             </div>
             {req.dueDate && isActive && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 5, background: '#fff8e1', border: '1px solid #ffe082', borderRadius: 8, padding: '6px 10px' }}>
-                <Clock size={12} color='#b45309' />
-                <span style={{ fontSize: 11, color: '#b45309', fontWeight: 600 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'rgba(245,158,11,0.10)', border: '1px solid rgba(245,158,11,0.25)', borderRadius: 8, padding: '6px 10px' }}>
+                <Clock size={12} color='#F59E0B' />
+                <span style={{ fontSize: 11, color: '#F59E0B', fontWeight: 600 }}>
                   Due {new Date(req.dueDate).toLocaleDateString('en', { month: 'short', day: 'numeric' })}
                 </span>
               </div>
@@ -624,9 +645,9 @@ export function PaymentRequestPayPage({
             ...(req.note       ? [{ label: 'Note',      value: req.note }]      : []),
             ...(req.reference  ? [{ label: 'Reference', value: req.reference }] : []),
           ] as { label: string; value: string }[]).map(({ label, value }, i, arr) => (
-            <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '9px 0', borderBottom: i < arr.length - 1 ? '1px solid #f2f2f2' : 'none', gap: 12 }}>
-              <span style={{ fontSize: 13, color: '#999', whiteSpace: 'nowrap', flexShrink: 0 }}>{label}</span>
-              <span style={{ fontSize: 13, fontWeight: 600, color: '#111', textAlign: 'right' }}>{value}</span>
+            <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '9px 0', borderBottom: i < arr.length - 1 ? `1px solid ${BDR}` : 'none', gap: 12 }}>
+              <span style={{ fontSize: 13, color: '#8A8F9E', whiteSpace: 'nowrap', flexShrink: 0 }}>{label}</span>
+              <span style={{ fontSize: 13, fontWeight: 600, color: '#F2F3F5', textAlign: 'right' }}>{value}</span>
             </div>
           ))}
 
@@ -642,13 +663,13 @@ export function PaymentRequestPayPage({
 
             {/* Divider */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '4px 0 20px' }}>
-              <div style={{ flex: 1, height: 1, background: '#f0f0f0' }} />
-              <span style={{ fontSize: 11, color: '#bbb', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em' }}>No account needed — choose how to pay</span>
-              <div style={{ flex: 1, height: 1, background: '#f0f0f0' }} />
+              <div style={{ flex: 1, height: 1, background: BDR }} />
+              <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.25)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em' }}>No account needed</span>
+              <div style={{ flex: 1, height: 1, background: BDR }} />
             </div>
 
             {/* Method tabs */}
-            <div style={{ display: 'flex', gap: 6, background: '#f4f4f4', borderRadius: 14, padding: 4, marginBottom: 22 }}>
+            <div style={{ display: 'flex', gap: 6, background: 'rgba(255,255,255,0.05)', borderRadius: 14, padding: 4, marginBottom: 22 }}>
               <MethodTab icon={<CreditCard size={18} />} label="Card"         active={method === 'card'}   onClick={() => setMethod('card')} />
               <MethodTab icon={<Wallet size={18} />}     label="Wallet"       active={method === 'wallet'} onClick={() => setMethod('wallet')} />
               <MethodTab icon={<Smartphone size={18} />} label="Scan QR"      active={method === 'qr'}     onClick={() => setMethod('qr')} />
@@ -667,9 +688,9 @@ export function PaymentRequestPayPage({
       </div>
 
       {/* Powered by NAN footer */}
-      <div style={{ marginTop: 24, display: 'flex', alignItems: 'center', gap: 7, opacity: 0.4 }}>
+      <div style={{ marginTop: 24, display: 'flex', alignItems: 'center', gap: 7, opacity: 0.35 }}>
         <NanLogo height={14} />
-        <span style={{ fontSize: 11, color: '#555', fontFamily: F }}>Powered by NAN</span>
+        <span style={{ fontSize: 11, color: '#8A8F9E', fontFamily: F }}>Powered by NAN · Circle · Arc</span>
       </div>
 
       {/* Spinner animation */}

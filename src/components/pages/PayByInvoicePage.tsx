@@ -11,8 +11,8 @@ import React, { useState, useEffect } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
 import {
   FileText, CreditCard, CheckCircle2, ExternalLink,
-  Copy, AlertCircle, Loader, QrCode, AtSign,
-  ChevronRight,
+  Copy, Check, AlertCircle, Loader, QrCode, AtSign,
+  ChevronRight, Share2,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAppStore, type Invoice } from '../../store/appStore'
@@ -96,7 +96,7 @@ export function PayByInvoicePage({ invoiceId, isRequest = false }: Props) {
   const loading = !localInvoice && !fetchDone
   const invoice: Invoice | undefined = remoteInvoice ?? localInvoice ?? undefined
 
-  const [tab, setTab] = useState<Tab>('address')
+  const [tab, setTab] = useState<Tab>('card')
   const [showQr, setShowQr] = useState(false)
   const [nanPaid, setNanPaid] = useState(false)
 
@@ -105,6 +105,20 @@ export function PayByInvoicePage({ invoiceId, isRequest = false }: Props) {
   const [paidTx, setPaidTx] = useState('')
   const [claiming, setClaiming] = useState(false)
   const [claimResult, setClaimResult] = useState<{ matched: boolean; txHash?: string; aiSummary: string } | null>(null)
+  // tx hash confirm (address tab)
+  const [txHashInput, setTxHashInput] = useState('')
+  const [txCopied, setTxCopied] = useState(false)
+
+  const shareReceipt = (txHash: string) => {
+    const url = buildTxExplorerUrl(ARC, txHash)
+    const text = `Payment confirmed for ${invoice?.businessName ?? 'invoice'} — settled on Arc USDC`
+    if (navigator.share) {
+      void navigator.share({ title: 'NAN Payment Receipt', text, url }).catch(() => {})
+    } else {
+      void navigator.clipboard.writeText(`${text}\n${url}`)
+      toast.success('Receipt link copied!')
+    }
+  }
 
   const copyAddress = (addr: string) => {
     navigator.clipboard.writeText(addr)
@@ -187,10 +201,21 @@ export function PayByInvoicePage({ invoiceId, isRequest = false }: Props) {
           )}
 
           {paidTx && (
-            <a href={buildTxExplorerUrl(ARC, paidTx)} target="_blank" rel="noopener noreferrer"
-              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 13, color: BLUE, fontWeight: 600, textDecoration: 'none', marginBottom: 20 }}>
-              View transaction on Arc <ExternalLink size={13} />
-            </a>
+            <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
+              <a href={buildTxExplorerUrl(ARC, paidTx)} target="_blank" rel="noopener noreferrer"
+                style={{ flex: 1, height: 44, borderRadius: 12, background: 'rgba(255,255,255,0.06)',
+                  border: '1px solid rgba(255,255,255,0.10)', display: 'flex', alignItems: 'center',
+                  justifyContent: 'center', gap: 6, fontSize: 13, color: BLUE, fontWeight: 600, textDecoration: 'none' }}>
+                <ExternalLink size={13} /> View tx
+              </a>
+              <button onClick={() => shareReceipt(paidTx)}
+                style={{ flex: 1, height: 44, borderRadius: 12, background: BLUE, border: 'none',
+                  color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: F,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                  boxShadow: '0 4px 16px rgba(8,102,245,0.30)' }}>
+                <Share2 size={13} /> Share receipt
+              </button>
+            </div>
           )}
 
           <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 12, padding: '12px 16px', marginBottom: 20 }}>
@@ -295,12 +320,12 @@ export function PayByInvoicePage({ invoiceId, isRequest = false }: Props) {
       {/* Payment section */}
       <div style={{ width: '100%', maxWidth: 480 }}>
 
-        {/* Tab bar — 3 tabs */}
+        {/* Tab bar — Card first, then crypto, then NAN name */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 4, background: 'rgba(255,255,255,0.05)', borderRadius: 12, padding: 4, marginBottom: 16 }}>
           {([
-            ['address', <QrCode key="q" size={13} />, 'Send crypto'],
-            ['nan',     <AtSign  key="a" size={13} />, 'NAN name'],
             ['card',    <CreditCard key="c" size={13} />, 'Card'],
+            ['address', <QrCode key="q" size={13} />, 'Crypto'],
+            ['nan',     <AtSign  key="a" size={13} />, 'NAN name'],
           ] as const).map(([id, icon, label]) => (
             <button key={id} onClick={() => setTab(id)}
               style={{ height: 38, background: tab === id ? '#fff' : 'transparent', color: tab === id ? '#111' : 'rgba(255,255,255,0.5)', border: 'none', borderRadius: 9, fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, transition: 'all 0.15s' }}>
@@ -366,13 +391,42 @@ export function PayByInvoicePage({ invoiceId, isRequest = false }: Props) {
                   </div>
                 )}
 
-                {/* Already paid button */}
-                <button onClick={() => void markPaid()} disabled={claiming}
-                  style={{ width: '100%', marginTop: 16, height: 46, background: claiming ? 'rgba(34,197,94,0.06)' : 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.3)', borderRadius: 10, color: GREEN, fontSize: 13, fontWeight: 600, cursor: claiming ? 'not-allowed' : 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, opacity: claiming ? 0.7 : 1 }}>
-                  {claiming
-                    ? <><Loader size={15} color={GREEN} style={{ animation: 'spin 1s linear infinite' }} /> Verifying payment…</>
-                    : <><CheckCircle2 size={15} /> I've sent the payment</>}
-                </button>
+                {/* Tx hash confirm input */}
+                <div style={{ marginTop: 16 }}>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,0.35)',
+                    textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
+                    Transaction hash (optional)
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+                    <input
+                      value={txHashInput}
+                      onChange={e => setTxHashInput(e.target.value)}
+                      placeholder="0x… paste to confirm automatically"
+                      style={{ flex: 1, padding: '10px 12px', borderRadius: 10,
+                        border: '1px solid rgba(255,255,255,0.10)', background: 'rgba(255,255,255,0.04)',
+                        color: '#fff', fontSize: 12, fontFamily: 'monospace', outline: 'none' }}
+                    />
+                    <button onClick={() => {
+                      void navigator.clipboard.readText().then(t => setTxHashInput(t)).catch(() => {})
+                      const el = document.querySelector<HTMLInputElement>('input[placeholder*="0x"]')
+                      if (el) { void navigator.clipboard.readText().then(t => { setTxHashInput(t); setTxCopied(true); setTimeout(() => setTxCopied(false), 1500) }).catch(() => {}) }
+                    }}
+                      style={{ width: 40, height: 40, borderRadius: 10, background: txCopied ? 'rgba(34,197,94,0.12)' : 'rgba(255,255,255,0.06)',
+                        border: '1px solid rgba(255,255,255,0.10)', display: 'flex', alignItems: 'center',
+                        justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
+                      {txCopied ? <Check size={14} color={GREEN} /> : <Copy size={14} color="rgba(255,255,255,0.5)" />}
+                    </button>
+                  </div>
+                  <button onClick={() => void markPaid(txHashInput.trim() || undefined)} disabled={claiming}
+                    style={{ width: '100%', height: 46, background: claiming ? 'rgba(34,197,94,0.06)' : 'rgba(34,197,94,0.12)',
+                      border: '1px solid rgba(34,197,94,0.3)', borderRadius: 10, color: GREEN, fontSize: 13,
+                      fontWeight: 600, cursor: claiming ? 'not-allowed' : 'pointer', fontFamily: F,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, opacity: claiming ? 0.7 : 1 }}>
+                    {claiming
+                      ? <><Loader size={15} color={GREEN} style={{ animation: 'spin 1s linear infinite' }} />Verifying payment…</>
+                      : <><CheckCircle2 size={15} />I've sent the payment</>}
+                  </button>
+                </div>
               </>
             ) : (
               <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '12px 0' }}>
