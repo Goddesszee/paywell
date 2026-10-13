@@ -60,7 +60,7 @@
     }
   ],
   "rewrites": [
-    { "source": "/api/otp",                                      "destination": "/api/otp" },
+    { "source": "/api/otp",                                      "destination": "/api/misc?route=otp" },
     { "source": "/api/chat",                                     "destination": "/api/chat" },
     { "source": "/api/misc",                                     "destination": "/api/misc" },
     { "source": "/api/onramp-session",                           "destination": "/api/onramp-session" },

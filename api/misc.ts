@@ -12,8 +12,13 @@
  *   POST ?route=gateway&action=gateway-poll     polls a Gateway transfer
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node'
+import crypto from 'crypto'
+import nodemailer from 'nodemailer'
 import { getAllServices } from '../src/lib/agent-registry.js'
 import { getRedis, REDIS_NOT_CONFIGURED } from './_redis.js'
+
+const OTP_TTL_SECONDS = 10 * 60
+const fallbackOtpStore = new Map<string, { code: string; expires: number }>()
 
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -434,6 +439,46 @@ NAN integrates deeply with the Circle stack: Circle Agent Stack for agent paymen
     const filtered = existing.filter(s => s !== JSON.stringify(subscription))
     await redis.set(key, filtered, { ex: 60 * 60 * 24 * 90 })
     return res.status(200).json({ success: true })
+  }
+
+  // ── OTP (send + verify) — merged from api/otp.ts ─────────────────────────
+  if (route === 'otp') {
+    if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+    const { email, action, code } = (req.body ?? {}) as { email?: string; action?: string; code?: string }
+    if (!email) return res.status(400).json({ error: 'email required' })
+    const kv = getRedis()
+    const otpKey = `otp:${email.toLowerCase()}`
+
+    if (action === 'send' || !action) {
+      const isProd = process.env.VERCEL_ENV === 'production'
+      if (isProd && !process.env.SMTP_HOST) return res.status(503).json({ error: 'Email delivery not configured.' })
+      const otp = crypto.randomInt(100000, 1000000).toString()
+      const expires = Date.now() + OTP_TTL_SECONDS * 1000
+      if (kv) { await kv.set(otpKey, { code: otp, expires }, { ex: OTP_TTL_SECONDS }) }
+      else { fallbackOtpStore.set(email, { code: otp, expires }) }
+      if (process.env.SMTP_HOST) {
+        const t = nodemailer.createTransport({ host: process.env.SMTP_HOST, port: parseInt(process.env.SMTP_PORT ?? '465'), secure: true, auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS } })
+        await t.sendMail({ from: process.env.SMTP_USER, to: email, subject: 'Your NAN code', html: `<div style="font-family:Inter,sans-serif;max-width:400px;margin:0 auto"><h2 style="font-size:24px;font-weight:700;color:#0D0D0D">Your code</h2><div style="font-size:42px;font-weight:800;letter-spacing:8px;color:#0D0D0D;margin:24px 0">${otp}</div><p style="color:#5C5C6B;font-size:14px">Valid for 10 minutes. Never share this code.</p></div>` })
+      } else { console.log(`[NAN OTP] ${email} → ${otp}`) }
+      return res.status(200).json({ ok: true, ...(process.env.SMTP_HOST || isProd ? {} : { code: otp }) })
+    }
+
+    if (action === 'verify') {
+      let entry: { code: string; expires: number } | null = null
+      if (kv) { entry = await kv.get<{ code: string; expires: number }>(otpKey) }
+      else { entry = fallbackOtpStore.get(email) ?? null }
+      if (!entry) return res.status(400).json({ error: 'No code found. Request a new one.' })
+      if (Date.now() > entry.expires) {
+        if (kv) await kv.del(otpKey); else fallbackOtpStore.delete(email)
+        return res.status(400).json({ error: 'Code expired.' })
+      }
+      if (entry.code !== code) return res.status(400).json({ error: 'Incorrect code.' })
+      if (kv) await kv.del(otpKey); else fallbackOtpStore.delete(email)
+      const token = Buffer.from(`${email}:${Date.now()}`).toString('base64')
+      if (kv) await kv.set(`session:${token}`, { email, walletAddress: '', walletId: '', createdAt: Date.now() }, { ex: 60 * 60 * 24 * 7 })
+      return res.status(200).json({ ok: true, token })
+    }
+    return res.status(400).json({ error: 'Invalid action' })
   }
 
   return res.status(400).json({ error: 'Unknown route.' })
