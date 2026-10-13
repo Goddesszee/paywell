@@ -50,6 +50,9 @@ const CIRCLE_API_CONFIGURED = !!import.meta.env.VITE_CIRCLE_APP_ID
 // Naming convention: _agentSdk / _agentLoginCb to make the isolation obvious.
 let _agentSdk: W3SSdk | null = null
 let _agentLoginCb: ((err: unknown, result: unknown) => void) | null = null
+// Full SDK config (including loginConfigs with the OTP tokens) — must be passed
+// to updateConfigs in handleVerify, same pattern as cfgRef in CircleEmailLogin.
+let _agentOtpCfg: Parameters<W3SSdk['updateConfigs']>[0] | null = null
 
 function getOrCreateSdk(onLoginComplete: (err: unknown, result: unknown) => void): W3SSdk {
   // Always update the live callback so re-mounts get the fresh closure
@@ -1808,16 +1811,17 @@ export function AgentWalletExperience({ backView = 'home' }: AgentWalletExperien
     })
     const data = await res.json() as OtpTokens & { error?: string }
     if (data.error) throw new Error(data.error)
-    // Re-register the agent callback alongside the OTP tokens so the singleton
-    // SDK fires _agentLoginCb (not CircleEmailLogin's callback) after verifyOtp().
-    _agentSdk.updateConfigs({
+    // Store the full config (including loginConfigs) so handleVerify can pass it
+    // intact to updateConfigs — same pattern as cfgRef in CircleEmailLogin.
+    _agentOtpCfg = {
       appSettings: { appId: CIRCLE_APP_ID ?? 'pending-configuration' },
       loginConfigs: {
         deviceToken:         data.deviceToken,
         deviceEncryptionKey: data.deviceEncryptionKey,
         otpToken:            data.otpToken,
       },
-    }, _agentLoginCb as never)
+    }
+    _agentSdk.updateConfigs(_agentOtpCfg, _agentLoginCb as never)
     setScreen('otp_sent')
   }, [])
 
@@ -1827,17 +1831,52 @@ export function AgentWalletExperience({ backView = 'home' }: AgentWalletExperien
   // Re-register our callback immediately before opening the popup so the agent OTP
   // result is never hijacked by the main-app CircleEmailLogin callback.
   const handleVerify = useCallback(() => {
+    if (!_agentOtpCfg) {
+      setErrorMsg('Session expired — please request a new code.')
+      setScreen('error')
+      return
+    }
+    if (!_agentSdk) {
+      setErrorMsg('SDK not ready — please refresh the page.')
+      setScreen('error')
+      return
+    }
     setScreen('verifying')
     setStatusMsg('Waiting for verification…')
-    if (_agentSdk && _agentLoginCb) {
-      // Re-claim the singleton's login callback right before opening the agent OTP popup.
-      // This mirrors what CircleEmailLogin.verifyOtp() does on line 304.
-      _agentSdk.updateConfigs(
-        { appSettings: { appId: CIRCLE_APP_ID ?? 'pending-configuration' } },
-        _agentLoginCb,
+
+    // Pass the FULL config including loginConfigs with OTP tokens.
+    // The previous bug passed only appSettings, which wiped deviceToken /
+    // deviceEncryptionKey / otpToken — causing "invalid OTP" errors in the popup.
+    _agentSdk.updateConfigs(_agentOtpCfg, _agentLoginCb as never)
+
+    // Catch popup-level errors — W3SSdk reports them to onComplete, not onLoginComplete.
+    ;(_agentSdk as unknown as Record<string, unknown>).onComplete = (err: unknown) => {
+      if (!err || loginResRef.current) return
+      const e = err as { code?: number; message?: string }
+      setErrorMsg(
+        `Verification failed${e?.code ? ` (code ${e.code})` : ''}${e?.message ? `: ${e.message}` : ''}. Please try again.`
       )
+      setScreen('error')
     }
-    _agentSdk?.verifyOtp()
+
+    _agentSdk.verifyOtp()
+
+    // Watchdog: popup closed without result → return to otp_sent so user can retry
+    const started = Date.now()
+    let seen = false
+    const watchdog = setInterval(() => {
+      const el = document.getElementById('sdkIframe')
+      if (el) seen = true
+      const closed = seen && !el
+      const neverOpened = !seen && Date.now() - started > 15_000
+      if (!closed && !neverOpened) return
+      clearInterval(watchdog)
+      setTimeout(() => {
+        if (loginResRef.current) return
+        setErrorMsg('')
+        setScreen('otp_sent')
+      }, 800)
+    }, 500)
   }, [])
 
   // ── render ────────────────────────────────────────────────────────────────
