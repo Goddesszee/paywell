@@ -317,6 +317,27 @@ export function destinationDomainOf(m: { message?: string; destinationDomain?: n
   return undefined
 }
 
+/**
+ * Decode who receives the USDC, how much, and who is allowed to submit the mint, straight from a
+ * CCTP V2 burn message (header 148 bytes, then BurnMessageV2). Lets the user see where the funds go
+ * BEFORE sending the mint transaction.
+ *   header: version4 | src4 | dst4 | nonce32 | sender32 | recipient32 | destinationCaller32 | minFinality4 | finalityExecuted4
+ *   body:   version4 | burnToken32 | mintRecipient32 | amount32 | messageSender32 | …
+ */
+export function decodeBurnMessage(message: string): { mintRecipient?: string; amountUsdc?: number; destinationCaller?: string } {
+  const hex = message.replace(/^0x/, '')
+  if (hex.length < (148 + 4 + 32 * 3) * 2) return {}
+  const at = (byte: number, len: number) => hex.slice(byte * 2, (byte + len) * 2)
+  try {
+    const caller = '0x' + at(108 + 12, 20)
+    return {
+      destinationCaller: /^0x0{40}$/.test(caller) ? undefined : caller,
+      mintRecipient: '0x' + at(148 + 36 + 12, 20),
+      amountUsdc: Number(BigInt('0x' + at(148 + 68, 32))) / 1e6,
+    }
+  } catch { return {} }
+}
+
 function RecoverBridge({ c }: { c: ReturnType<typeof useNanTheme> }) {
   const { address, isConnected, connector } = useAccount()
   const { switchChainAsync } = useSwitchChain()
@@ -469,6 +490,24 @@ function RecoverBridge({ c }: { c: ReturnType<typeof useNanTheme> }) {
               <span style={{ fontSize: 12, color: '#10B981', fontWeight: 600 }}>Attestation confirmed — ready to mint on {CHAINS.find(ch => ch.cctpDomain === msg.destDomain)?.label ?? 'destination chain'}</span>
             </div>
           )}
+
+          {msg && (status === 'ready' || status === 'minting') && (() => {
+            const d = decodeBurnMessage(msg.message)
+            if (!d.mintRecipient) return null
+            const restricted = d.destinationCaller && address && d.destinationCaller.toLowerCase() !== address.toLowerCase()
+            return (
+              <div style={{ background: c.surf, border: `1px solid ${c.bdr}`, borderRadius: 10, padding: '10px 12px', marginBottom: 12, fontSize: 12, color: c.t2, lineHeight: 1.6 }}>
+                <div>Amount: <b style={{ color: c.text }}>{d.amountUsdc?.toFixed(2)} USDC</b></div>
+                <div style={{ wordBreak: 'break-all' }}>Will be minted to: <b style={{ color: c.text, fontFamily: 'var(--nan-mono)' }}>{d.mintRecipient}</b></div>
+                <div style={{ color: c.t3, marginTop: 4 }}>Whichever wallet sends this transaction only pays the gas — the USDC always goes to the address above.</div>
+                {restricted && (
+                  <div style={{ color: '#EF4444', marginTop: 6, fontWeight: 600 }}>
+                    Only {d.destinationCaller!.slice(0, 8)}…{d.destinationCaller!.slice(-6)} can complete this transfer. Connect that wallet.
+                  </div>
+                )}
+              </div>
+            )
+          })()}
 
           {/* CTA */}
           {(status === 'idle' || status === 'fetching' || status === 'error') && (
