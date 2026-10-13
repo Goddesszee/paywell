@@ -568,6 +568,25 @@ export function BridgePage({ inCard = false }: { inCard?: boolean }) {
   // eslint-disable-next-line react/set-state-in-effect
   useEffect(() => { void fetchLiveFee() }, [fetchLiveFee])
 
+  // Circle's Forwarding Service fee (USDC, covers the destination-chain mint gas). Display-only estimate.
+  const [fwdFee, setFwdFee] = useState(0)
+  useEffect(() => {
+    const src = fromChain.cctpDomain, dst = toChain.cctpDomain
+    if (src < 0 || dst < 0 || src === dst) { setFwdFee(0); return }
+    let alive = true
+    void (async () => {
+      try {
+        const r = await fetch(`${CCTP_FEE_API}/${src}/${dst}?forward=true`)
+        if (!r.ok) throw new Error('fee API error')
+        const data = await r.json() as { finalityThreshold?: number; forwardFee?: { high?: number | string } }[]
+        const tier = Array.isArray(data) ? (data.find(t => t.finalityThreshold === 1000) ?? data[0]) : undefined
+        const minor = Number(tier?.forwardFee?.high)
+        if (alive) setFwdFee(Number.isFinite(minor) && minor > 0 ? minor / 1e6 : 0)
+      } catch { if (alive) setFwdFee(0) }
+    })()
+    return () => { alive = false }
+  }, [fromChain.cctpDomain, toChain.cctpDomain])
+
   const updateStep = (name: StepName, patch: Partial<StepState>) =>
     setSteps(prev => prev.map(s => s.name === name ? { ...s, ...patch } : s))
 
@@ -583,7 +602,7 @@ export function BridgePage({ inCard = false }: { inCard?: boolean }) {
     : 0
   // The platform fee is added ON TOP of the amount (wallet pays amount + fee); only the CCTP protocol
   // fee comes out of the amount being bridged.
-  const netReceived = Math.max(0, gross - cctpProtocolFee)
+  const netReceived = Math.max(0, gross - cctpProtocolFee - (gross > 0 ? fwdFee : 0))
   const totalFromWallet = gross + platformFee
 
   // ── Bridge handler — ALL original logic preserved exactly ─────────────────
@@ -1167,6 +1186,7 @@ export function BridgePage({ inCard = false }: { inCard?: boolean }) {
           { label: 'You send',                                               value: `${amount || '0.00'} USDC`,                                          highlight: false },
           { label: `CCTP fee${feeLoading ? ' …' : ''}`,                     value: cctpProtocolFee > 0 ? `${cctpProtocolFee.toFixed(4)} USDC` : (liveFee.label === '—' ? '0 bps (0.000%)' : liveFee.label), highlight: false },
           { label: `Platform fee (${bpsToPercent(BRIDGE_FEE_BPS)}, added)`, value: platformFee > 0 ? `${platformFee.toFixed(4)} USDC` : '—',            highlight: false },
+          ...(fwdFee > 0 ? [{ label: 'Forwarding fee (pays destination gas)', value: `${fwdFee.toFixed(4)} USDC`, highlight: false }] : []),
           { label: 'You receive (est.)',                                     value: netReceived > 0 ? `${netReceived.toFixed(4)} USDC` : '0.0000 USDC',  highlight: true },
         ].map(({ label, value, highlight }, i, arr) => (
           <div key={label} style={{
