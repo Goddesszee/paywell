@@ -59,7 +59,7 @@ function bridgeFeeCfg(amount: string) {
   const bps = Number(process.env.FEE_BRIDGE_BPS ?? process.env.VITE_FEE_BRIDGE_BPS ?? 50)
   if (!(bps > 0)) return {}
   // Same minimum as the on-screen fee summary (src/lib/fees.ts) so the UI matches what is charged.
-  const minFee = Number(process.env.FEE_BRIDGE_MIN_USDC ?? process.env.VITE_FEE_BRIDGE_MIN_USDC ?? 0.10)
+  const minFee = Number(process.env.FEE_BRIDGE_MIN_USDC ?? process.env.VITE_FEE_BRIDGE_MIN_USDC ?? 0)
   const feeValue = Math.max(a * bps / 10000, minFee).toFixed(6)
   return { customFee: { value: feeValue, recipientAddress: to } }
 }

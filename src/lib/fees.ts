@@ -39,7 +39,7 @@ export const BRIDGE_FEE_BPS: number =
 
 /** Minimum bridge fee in USDC (protects against dust). */
 export const BRIDGE_FEE_MIN_USDC: number =
-  Number(import.meta.env.VITE_FEE_BRIDGE_MIN_USDC ?? 0.10)
+  Number(import.meta.env.VITE_FEE_BRIDGE_MIN_USDC ?? 0)
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
