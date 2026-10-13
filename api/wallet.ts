@@ -473,7 +473,7 @@ async function handleWallet(req: VercelRequest, res: VercelResponse) {
 
       // Source on another chain (EOA or SCA wallet created there): sign with that one wallet and let Circle's
       // forwarder mint to the user's Arc address, so no wallet/gas is needed on the destination.
-      const useFwd = srcChain !== 'Arc' && /^0x[0-9a-fA-F]{40}$/.test(String(recipientAddress ?? ''))
+      const useFwd = srcChain !== dstChain && /^0x[0-9a-fA-F]{40}$/.test(String(recipientAddress ?? ''))
       const isSameChain = srcChain === dstChain
       const adapter = walletAccountType === 'EOA'
         ? await createCircleUserWalletAdapter({

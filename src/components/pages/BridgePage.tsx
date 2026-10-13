@@ -647,6 +647,40 @@ export function BridgePage({ inCard = false }: { inCard?: boolean }) {
         }
       }
 
+      // Bridging TO another chain: Circle's forwarder mints to a wallet the user controls on that chain, so
+      // make sure they have one there (created on demand, PIN once; no funding or gas needed).
+      let recipient = arcAddress
+      if (fromChain.chainId === 5042 && toChain.chainId !== 5042) {
+        const dbc = UCW_CHAIN_ENUM[toChain.chainId]
+        if (!dbc) { setErrMsg(`Bridging to ${toChain.label} with an email wallet isn't supported yet. Connect MetaMask or another browser wallet instead.`); setStatus('error'); return }
+        try {
+          const creds = await ensureCircleCreds()
+          const tok = creds.userToken ?? authState.userToken
+          const listD = async () => {
+            const r = await fetch('/api/wallet', { headers: { 'x-user-token': tok } })
+            const d = await safeJson<{ wallets?: { id: string; address: string; blockchain?: string; accountType?: string }[]; error?: string }>(r)
+            return (d.wallets ?? []).filter(x => x.blockchain === dbc)
+          }
+          let dw = (await listD())[0]
+          if (!dw) {
+            if (!creds.encryptionKey) throw new Error(SESSION_EXPIRED_MSG)
+            const cr = await fetch('/api/wallet', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'ucw-create-wallet', userToken: tok, blockchain: dbc }) })
+            const cd = await safeJson<{ challengeId?: string; error?: string }>(cr)
+            if (!cr.ok || cd.error || !cd.challengeId) throw new Error(cd.error ?? 'Could not start wallet creation')
+            const sdkD = new W3SSdk({ appSettings: { appId: (import.meta.env.VITE_CIRCLE_APP_ID as string | undefined) ?? '' } })
+            sdkD.setAuthentication({ userToken: tok, encryptionKey: creds.encryptionKey })
+            await new Promise<void>((resolve, reject) => {
+              executeWithGuard(sdkD, cd.challengeId!, (err) => { err ? reject(new Error(err instanceof Error ? err.message : 'PIN approval failed')) : resolve() })
+            })
+            for (let i = 0; i < 8 && !dw; i++) { await new Promise(r => setTimeout(r, 1500)); dw = (await listD())[0] }
+            if (!dw) throw new Error(`Your ${toChain.label} wallet is being created — wait a few seconds and tap Bridge again.`)
+          }
+          recipient = dw.address
+        } catch (e) {
+          setErrMsg(e instanceof Error ? e.message : `Could not prepare your ${toChain.label} wallet.`); setStatus('error'); return
+        }
+      }
+
       try {
         // ── Streaming NDJSON bridge ──────────────────────────────────────────
         // The server runs kit.bridge() and streams one JSON line per event:
@@ -676,7 +710,7 @@ export function BridgePage({ inCard = false }: { inCard?: boolean }) {
             fromChain: fromChain.kitName,
             destChain: toChain.kitName,
             amount,
-            recipientAddress: arcAddress,
+            recipientAddress: recipient,
             accountType: srcAccountType,
           }),
         })
