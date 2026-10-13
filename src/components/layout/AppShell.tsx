@@ -738,7 +738,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* Mobile side drawer */}
       <div style={{
-        position: 'fixed', top: 0, right: 0, bottom: 0, width: 272, zIndex: 110,
+        position: 'fixed', top: 0, right: 0, bottom: 0, width: 'min(272px, calc(100vw - 56px))', zIndex: 110,
         background: C.isDark ? '#0D1017' : '#FFFFFF',
         borderLeft: `1px solid ${C.bdr}`,
         boxShadow: C.isDark ? '-16px 0 48px rgba(0,0,0,0.6)' : '-16px 0 48px rgba(0,0,0,0.12)',

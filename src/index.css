@@ -1913,3 +1913,89 @@ html, body {
 .text-nan  { color: var(--nan-text)  !important; }
 .text-nan2 { color: var(--nan-text2) !important; }
 .text-nan3 { color: var(--nan-text3) !important; }
+
+/* ══ NAN MOBILE COMPATIBILITY v2 ══════════════════════════════════════════
+   Scoped to the React app shell only — does NOT affect public pay-link pages.
+   Fixes: safe-area insets, iOS input zoom, dynamic island, tablet centering,
+   very small phones, landscape orientation, foldables.
+══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Global: prevent iOS auto-zoom on ALL inputs (font-size < 16px triggers it) ── */
+input, textarea, select {
+  font-size: max(16px, 1em) !important;
+}
+/* Exception: large amount inputs keep their big size */
+.swap-input,
+input.amt-input,
+input[style*="font-size:1.6"],
+input[style*="font-size:2"],
+input[style*="fontSize:1.6"],
+input[style*="fontSize:2"] {
+  font-size: inherit !important;
+}
+
+/* ── Safe-area: notch, Dynamic Island, home indicator ── */
+/* The React AppShell uses inline styles for padding, so we patch the root shell */
+#root {
+  /* expose safe area as padding on the root so env() vars are available everywhere */
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+/* ── Tablet (481–768px): centre the mobile shell ── */
+@media (min-width: 481px) and (max-width: 768px) {
+  #root {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background: #060608 !important;
+    padding-top: 0 !important;
+  }
+  /* The AppShell fixed div needs to be constrained */
+  #root > div:first-child {
+    max-width: 540px !important;
+    width: 100% !important;
+    box-shadow: 0 0 80px rgba(0,0,0,0.5) !important;
+    border-radius: 0 !important;
+  }
+}
+
+/* ── Landscape on phones: reduce top/bottom padding ── */
+@media (max-height: 500px) and (orientation: landscape) {
+  /* Bottom nav shorter in landscape */
+  nav[style*="flexShrink"] {
+    min-height: 44px !important;
+  }
+  /* Give more vertical space to content */
+  main { padding-top: 4px !important; }
+}
+
+/* ── Very small phones: iPhone SE (375px), Galaxy A series (360px) ── */
+@media (max-width: 380px) {
+  /* Balance number: slightly smaller so it doesn't clip */
+  .home-bal-num, #homeBalAmt { font-size: 2.1rem !important; }
+  /* Action grid: tighter */
+  .home-actions-top { gap: 5px !important; }
+  .home-action { padding: 10px 4px !important; }
+  .home-action-label { font-size: 0.65rem !important; }
+  /* Bottom nav labels */
+  .nav-btn span, .nav-btn .nl { font-size: 0.65rem !important; }
+  /* Cards: slightly less padding */
+  .card { padding: 12px !important; }
+  /* Drawer: ensure it never overflows */
+  /* (already set via inline style min(272px, calc(100vw - 56px))) */
+}
+
+/* ── Foldable / ultra-wide mobile (> 430px but < 481px): e.g. Galaxy Z Fold outer screen ── */
+@media (min-width: 430px) and (max-width: 480px) {
+  .home-bal-num { font-size: 2.8rem !important; }
+  .home-actions-top { gap: 10px !important; }
+  .home-action { padding: 14px 10px !important; border-radius: 16px !important; }
+  .card { padding: 18px !important; }
+}
+
+/* ── High-DPI / Retina: ensure 1px borders render crisply ── */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  .card, .home-bal-card, .bal-card, .home-asset-row {
+    border-width: 0.5px !important;
+  }
+}
