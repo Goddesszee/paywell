@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react'
 import {
   Home, Activity, Menu, X, LayoutDashboard,
   ArrowLeftRight, Settings, ChevronRight,
-  Layers, Repeat, Bot, Wallet,
+  Layers, Bot, Wallet,
   MessageSquare, HelpCircle, Info, User, Users, Search, Bookmark,
   Star, Lightbulb, ArrowRight, Clock, ShoppingBag, FileDown,
   FileText, AtSign, Sparkles, AlertTriangle,
@@ -33,7 +33,6 @@ const ALL_RESULTS: SearchResult[] = [
   { id:'buy',         title:'Buy USDC',             subtitle:'Purchase with card or bank',         category:'Finance',     Icon:ShoppingBag,    iconColor:BLUE,      action:'onramp' },
   { id:'gateway',     title:'Gateway',              subtitle:'Unified cross-chain balance',        category:'Finance',     Icon:Layers,         iconColor:BLUE,      action:'gateway' },
 
-  { id:'recurring',   title:'Recurring Payments',   subtitle:'Schedule automatic transfers',       category:'Finance',     Icon:Repeat,         iconColor:'#8B5CF6', action:'recurring' },
   { id:'invoices',    title:'Invoices & Requests',  subtitle:'Quick requests and full invoices',    category:'Business',    Icon:FileText,       iconColor:BLUE,      action:'invoices' },
   { id:'payroll',     title:'Batch Payroll',        subtitle:'Send USDC to multiple recipients',   category:'Business',    Icon:Users,          iconColor:BLUE,      action:'payroll' },
 
@@ -314,7 +313,6 @@ const SIDEBAR_SECTIONS = [
   { title: 'Automation', items: [
     { id: 'agent',        label: 'AI Agents',     Icon: Bot,    desc: 'Create and manage agents' },
     { id: 'agent-wallet', label: 'Agent Wallet',  Icon: Wallet, desc: 'Swap, bridge & recurring via agent' },
-    { id: 'recurring',    label: 'Recurring',     Icon: Repeat, desc: 'Scheduled payments' },
   ]},
   { title: 'Business', items: [
     { id: 'payroll',  label: 'Batch Payroll', Icon: Users,    desc: 'Send USDC to multiple recipients' },
