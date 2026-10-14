@@ -300,7 +300,7 @@ export function PayByInvoicePage({ invoiceId, isRequest = false }: Props) {
               </div>
               <div style={{ textAlign: 'right' }}>
                 <div style={{ fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>Invoice</div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: '#fff' }}>{invoice.number}</div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: '#fff', whiteSpace: 'nowrap' }}>{invoice.number}</div>
               </div>
             </div>
             {invoice.items.map(item => (

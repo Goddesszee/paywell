@@ -729,7 +729,7 @@ export function PaymentRequestPayPage({
               <div style={{ fontSize: 40, fontWeight: 800, color: '#F2F3F5', letterSpacing: '-0.04em', fontFamily: MONO, lineHeight: 1 }}>
                 {fmt(req.amount)}
               </div>
-              <div style={{ fontSize: 15, color: BLUE, fontWeight: 700, marginTop: 4 }}>{req.currency} · USDC</div>
+              <div style={{ fontSize: 15, color: BLUE, fontWeight: 700, marginTop: 4 }}>{req.currency}</div>
             </div>
             {req.dueDate && isActive && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'rgba(245,158,11,0.10)', border: '1px solid rgba(245,158,11,0.25)', borderRadius: 8, padding: '6px 10px' }}>
@@ -780,7 +780,7 @@ export function PaymentRequestPayPage({
             {/* Secondary: QR + Copy */}
             <div style={{ display: 'flex', gap: 6, marginBottom: 20 }}>
               <button onClick={() => setMethod('qr')}
-                style={{ flex: 1, height: 36, borderRadius: 10, cursor: 'pointer', fontFamily: F,
+                style={{ flex: '1 1 auto', minWidth: 0, padding: '0 8px', whiteSpace: 'nowrap', height: 36, borderRadius: 10, cursor: 'pointer', fontFamily: F,
                   background: method === 'qr' ? 'rgba(0,102,255,0.12)' : 'rgba(255,255,255,0.04)',
                   border: `1px solid ${method === 'qr' ? 'rgba(0,102,255,0.35)' : BDR}`,
                   color: method === 'qr' ? BLUE : '#8A8F9E', fontSize: 12, fontWeight: 600,
@@ -788,7 +788,7 @@ export function PaymentRequestPayPage({
                 <Smartphone size={13} /> Scan QR
               </button>
               <button onClick={() => setMethod('copy')}
-                style={{ flex: 1, height: 36, borderRadius: 10, cursor: 'pointer', fontFamily: F,
+                style={{ flex: '1 1 auto', minWidth: 0, padding: '0 8px', whiteSpace: 'nowrap', height: 36, borderRadius: 10, cursor: 'pointer', fontFamily: F,
                   background: method === 'copy' ? 'rgba(0,102,255,0.12)' : 'rgba(255,255,255,0.04)',
                   border: `1px solid ${method === 'copy' ? 'rgba(0,102,255,0.35)' : BDR}`,
                   color: method === 'copy' ? BLUE : '#8A8F9E', fontSize: 12, fontWeight: 600,

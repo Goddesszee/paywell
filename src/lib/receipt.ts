@@ -81,7 +81,7 @@ export function buildReceiptHtml(r: ReceiptData): string {
 <html lang="en">
 <head>
   <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>NAN Receipt · ${dateStr}</title>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
@@ -111,7 +111,7 @@ export function buildReceiptHtml(r: ReceiptData): string {
     <!-- ② Receipt label + amount -->
     <div style="margin-bottom:6px;">
       <div style="font-size:13px;color:#888;margin-bottom:8px;">NAN receipt</div>
-      <div style="font-size:52px;font-weight:800;color:#111;letter-spacing:-0.04em;line-height:1;display:flex;align-items:baseline;gap:10px;">
+      <div style="font-size:clamp(34px,12vw,52px);font-weight:800;color:#111;letter-spacing:-0.04em;line-height:1;display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;word-break:break-all;">
         <span>${r.amount}</span>
         <span style="font-size:22px;font-weight:600;color:#888;">${token}</span>
       </div>
