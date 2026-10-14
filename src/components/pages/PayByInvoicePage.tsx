@@ -35,6 +35,17 @@ function fmtDate(iso?: string) {
   catch { return iso }
 }
 
+function shortAddr(a: string) {
+  return a && a.length > 14 ? `${a.slice(0, 6)}…${a.slice(-4)}` : a
+}
+/** Two pleasant, deterministic gradient colours from any string (for the sender avatar). */
+function avatarColors(seed: string): [string, string] {
+  let h = 0
+  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0
+  const hue = h % 360
+  return [`hsl(${hue} 78% 56%)`, `hsl(${(hue + 48) % 360} 80% 46%)`]
+}
+
 interface Props { invoiceId: string; isRequest?: boolean }
 
 function NotFound() {
@@ -234,22 +245,11 @@ export function PayByInvoicePage({ invoiceId, isRequest = false }: Props) {
   }
 
   // ── Render ─────────────────────────────────────────────────────────────────
-  // Who is being paid. Raw wallet addresses are shortened instead of shown as a giant headline.
-  const isHexAddr = (v?: string) => !!v && /^0x[a-fA-F0-9]{40}$/.test(v.trim())
-  const shortAddr = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`
-  const nameIsAddr = isHexAddr(invoice.businessName)
-  const recipientName = nameIsAddr ? shortAddr(invoice.businessName.trim()) : invoice.businessName
-  const recipientAddr = nameIsAddr ? invoice.businessName.trim() : (invoice.payToAddress ?? '')
-  const recipientSub = invoice.payToNanHandle ? `@${invoice.payToNanHandle}` : (invoice.businessEmail || (recipientAddr && !nameIsAddr ? shortAddr(recipientAddr) : ''))
-  const initial = ((invoice.payToNanHandle || (nameIsAddr ? '' : invoice.businessName) || 'N').replace(/^0x/, '').charAt(0) || 'N').toUpperCase()
-  const amountText = invoice.amountDue.toLocaleString('en', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-  const pill: React.CSSProperties = { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 11px', borderRadius: 999, background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.08)', fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,0.75)' }
-
   return (
-    <div style={{ minHeight: '100dvh', background: 'radial-gradient(120% 55% at 50% -8%, rgba(8,102,245,0.24), transparent 62%), #0A0E1A', fontFamily: F, padding: '20px 16px 56px', display: 'flex', flexDirection: 'column', alignItems: 'center', overflowY: 'auto', overflowX: 'hidden', WebkitOverflowScrolling: 'touch' }}>
+    <div style={{ minHeight: '100dvh', background: '#0A0E1A', fontFamily: F, padding: '24px 16px 56px', display: 'flex', flexDirection: 'column', alignItems: 'center', overflowY: 'auto', overflowX: 'hidden', WebkitOverflowScrolling: 'touch' }}>
 
       {/* NAN brand header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18, width: '100%', maxWidth: 480 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 24, width: '100%', maxWidth: 480 }}>
         <div style={{ width: 32, height: 32, borderRadius: 9, background: BLUE, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 324 480" width="12" height="18">
             <path d="M255,0 L84,167 L71,163 L0,97 L0,378 L246,132 L255,110 Z" fill="#fff"/>
@@ -257,110 +257,114 @@ export function PayByInvoicePage({ invoiceId, isRequest = false }: Props) {
           </svg>
         </div>
         <span style={{ fontSize: 16, fontWeight: 800, color: '#fff', letterSpacing: '-0.01em' }}>NAN</span>
-        <span style={{ marginLeft: 'auto', ...pill, padding: '4px 10px', fontSize: 10 }}>
-          <span style={{ width: 6, height: 6, borderRadius: '50%', background: GREEN }} /> Secure payment
-        </span>
+        <span style={{ marginLeft: 'auto', fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>Secure payment</span>
       </div>
 
-      {/* Summary card — Payment Request or Invoice */}
-      <div style={{ width: '100%', maxWidth: 480, background: 'linear-gradient(180deg, rgba(255,255,255,0.07), rgba(255,255,255,0.03))', border: '1px solid rgba(255,255,255,0.10)', borderRadius: 26, overflow: 'hidden', marginBottom: 16, boxShadow: '0 18px 50px rgba(0,0,0,0.35)' }}>
-        <div style={{ padding: '20px 20px 18px' }}>
-          {/* kind + number */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 16 }}>
-            <span style={{ fontSize: 11, fontWeight: 700, color: BLUE, textTransform: 'uppercase', letterSpacing: '0.09em' }}>{isRequest ? 'Payment request' : 'Invoice'}</span>
-            <span style={{ ...pill, fontFamily: "'JetBrains Mono', Menlo, monospace" }}>{invoice.number}</span>
-          </div>
+      {/* Hero — payment request / invoice, styled as a tear-off ticket */}
+      {(() => {
+        const looksLikeAddr = /^0x[0-9a-fA-F]{20,}$/.test(invoice.businessName ?? '')
+        const senderName = looksLikeAddr ? shortAddr(invoice.businessName) : (invoice.businessName || 'NAN user')
+        const initial = looksLikeAddr ? '0x' : (senderName.trim()[0] ?? 'N').toUpperCase()
+        const [c1, c2] = avatarColors(invoice.businessName || invoice.number || 'nan')
+        const note = invoice.notes || invoice.items[0]?.name
+        const amountStr = invoice.amountDue.toLocaleString('en', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+        const rowStyle: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 16, padding: '9px 0' }
+        const labelStyle: React.CSSProperties = { fontSize: 13, color: 'rgba(255,255,255,0.45)', flexShrink: 0 }
+        const valueStyle: React.CSSProperties = { fontSize: 14, fontWeight: 600, color: '#fff', textAlign: 'right', overflowWrap: 'anywhere', minWidth: 0 }
+        return (
+          <div style={{ width: '100%', maxWidth: 480, marginBottom: 22 }}>
+            <div style={{ position: 'relative', borderRadius: 28, overflow: 'hidden', background: 'linear-gradient(180deg,#111c38 0%,#0c1327 100%)', border: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 28px 60px -24px rgba(8,102,245,0.45), 0 2px 0 rgba(255,255,255,0.04) inset' }}>
+              {/* soft blue glow behind the sender */}
+              <div aria-hidden style={{ position: 'absolute', top: -110, left: '50%', transform: 'translateX(-50%)', width: 380, height: 240, background: 'radial-gradient(closest-side, rgba(8,102,245,0.5), rgba(8,102,245,0))', pointerEvents: 'none' }} />
 
-          {/* who you're paying */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-            <div style={{ width: 46, height: 46, borderRadius: '50%', flexShrink: 0, background: 'linear-gradient(135deg, #0866F5, #7B61FF)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 19, fontWeight: 800, color: '#fff' }}>{initial}</div>
-            <div style={{ minWidth: 0, flex: 1 }}>
-              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', marginBottom: 1 }}>{isRequest ? 'Requested by' : 'From'}</div>
-              <div style={{ fontSize: 17, fontWeight: 700, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontFamily: nameIsAddr ? "'JetBrains Mono', Menlo, monospace" : F }}>{recipientName}</div>
-              {recipientSub && <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{recipientSub}</div>}
-            </div>
-            {recipientAddr && (
-              <button onClick={() => copyAddress(recipientAddr)} aria-label="Copy address"
-                style={{ width: 36, height: 36, borderRadius: 10, flexShrink: 0, background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-                <Copy size={15} color="rgba(255,255,255,0.7)" />
-              </button>
-            )}
-          </div>
-
-          {/* amount */}
-          <div style={{ textAlign: 'center', padding: '4px 0 2px' }}>
-            <div style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,0.45)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>{isRequest ? 'Amount requested' : 'Amount due'}</div>
-            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 8, flexWrap: 'wrap' }}>
-              <span style={{ fontSize: 46, fontWeight: 800, color: '#fff', letterSpacing: '-0.04em', lineHeight: 1 }}>{amountText}</span>
-              <span style={{ fontSize: 17, fontWeight: 700, color: BLUE }}>{invoice.currency || 'USDC'}</span>
-            </div>
-            {invoice.dueDate && (
-              <div style={{ marginTop: 12 }}><span style={pill}>Due {fmtDate(invoice.dueDate)}</span></div>
-            )}
-          </div>
-        </div>
-
-        {/* Request: show note. Invoice: show bill-to + line items */}
-        {isRequest ? (
-          <>
-            {invoice.customerName && (
-              <div style={{ padding: '13px 20px', borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
-                <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)' }}>Requested from</div>
-                <div style={{ fontSize: 14, fontWeight: 600, color: '#fff', textAlign: 'right', overflowWrap: 'anywhere' }}>{invoice.customerName}</div>
-              </div>
-            )}
-            {(invoice.notes || invoice.items[0]?.name) && (
-              <div style={{ padding: '13px 20px', borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
-                <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)' }}>For</div>
-                <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.88)', textAlign: 'right', maxWidth: '70%', overflowWrap: 'anywhere' }}>
-                  {invoice.notes || invoice.items[0]?.name}
+              {/* Sender + amount */}
+              <div style={{ position: 'relative', padding: '30px 24px 26px', textAlign: 'center' }}>
+                <div style={{ width: 60, height: 60, borderRadius: '50%', margin: '0 auto 14px', background: `linear-gradient(135deg, ${c1}, ${c2})`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: looksLikeAddr ? 17 : 24, fontWeight: 800, color: '#fff', letterSpacing: '-0.02em', boxShadow: `0 8px 24px -6px ${c1}`, border: '2px solid rgba(255,255,255,0.18)' }}>
+                  {initial}
                 </div>
+                <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.6)', marginBottom: 3 }}>
+                  {isRequest ? 'Payment request from' : 'Invoice from'}
+                </div>
+                <div style={{ fontSize: 21, fontWeight: 700, color: '#fff', letterSpacing: '-0.02em', overflowWrap: 'anywhere', lineHeight: 1.25 }}>{senderName}</div>
+                {invoice.payToNanHandle && (
+                  <div style={{ fontSize: 14, color: '#6FA8FF', fontWeight: 600, marginTop: 3 }}>@{invoice.payToNanHandle}</div>
+                )}
+                {!looksLikeAddr && invoice.businessEmail && (
+                  <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)', marginTop: 3, overflowWrap: 'anywhere' }}>{invoice.businessEmail}</div>
+                )}
+
+                <div style={{ marginTop: 26, display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: 'clamp(38px, 12vw, 52px)', fontWeight: 800, color: '#fff', letterSpacing: '-0.045em', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{amountStr}</span>
+                  <span style={{ fontSize: 17, fontWeight: 700, color: 'rgba(255,255,255,0.55)' }}>{invoice.currency}</span>
+                </div>
+                {invoice.dueDate && (
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 7, marginTop: 16, padding: '6px 13px', borderRadius: 999, background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.28)', color: '#F6B94D', fontSize: 13, fontWeight: 600 }}>
+                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: AMBER }} />
+                    Due {fmtDate(invoice.dueDate)}
+                  </div>
+                )}
               </div>
-            )}
-          </>
-        ) : (
-          <>
-            <div style={{ padding: '13px 20px', borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'space-between', gap: 12 }}>
-              <div>
-                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', marginBottom: 3 }}>Bill to</div>
-                <div style={{ fontSize: 14, fontWeight: 600, color: '#fff', overflowWrap: 'anywhere' }}>{invoice.customerName}</div>
+
+              {/* Tear line */}
+              <div aria-hidden style={{ position: 'relative', height: 22 }}>
+                <div style={{ position: 'absolute', left: 22, right: 22, top: 10, borderTop: '2px dashed rgba(255,255,255,0.13)' }} />
+                <div style={{ position: 'absolute', left: -11, top: 0, width: 22, height: 22, borderRadius: '50%', background: '#0A0E1A', boxShadow: 'inset -1px 0 0 rgba(255,255,255,0.08)' }} />
+                <div style={{ position: 'absolute', right: -11, top: 0, width: 22, height: 22, borderRadius: '50%', background: '#0A0E1A', boxShadow: 'inset 1px 0 0 rgba(255,255,255,0.08)' }} />
               </div>
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', marginBottom: 3 }}>Invoice</div>
-                <div style={{ fontSize: 14, fontWeight: 600, color: '#fff', whiteSpace: 'nowrap' }}>{invoice.number}</div>
+
+              {/* Details */}
+              <div style={{ position: 'relative', padding: '8px 24px 22px' }}>
+                {isRequest ? (
+                  <>
+                    {invoice.customerName && <div style={rowStyle}><span style={labelStyle}>For</span><span style={valueStyle}>{invoice.customerName}</span></div>}
+                    {note && <div style={rowStyle}><span style={labelStyle}>Note</span><span style={{ ...valueStyle, fontWeight: 500, color: 'rgba(255,255,255,0.85)' }}>{note}</span></div>}
+                    <div style={rowStyle}><span style={labelStyle}>Reference</span><span style={{ ...valueStyle, fontWeight: 500, color: 'rgba(255,255,255,0.7)', whiteSpace: 'nowrap' }}>{invoice.number}</span></div>
+                  </>
+                ) : (
+                  <>
+                    <div style={rowStyle}><span style={labelStyle}>Bill to</span><span style={valueStyle}>{invoice.customerName}</span></div>
+                    <div style={rowStyle}><span style={labelStyle}>Invoice</span><span style={{ ...valueStyle, whiteSpace: 'nowrap' }}>{invoice.number}</span></div>
+                    <div style={{ height: 1, background: 'rgba(255,255,255,0.08)', margin: '8px 0' }} />
+                    {invoice.items.map(item => (
+                      <div key={item.id} style={{ ...rowStyle, alignItems: 'flex-start' }}>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontSize: 14, fontWeight: 600, color: '#fff', overflowWrap: 'anywhere' }}>{item.name}</div>
+                          <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.42)', marginTop: 2 }}>{item.quantity} × {fmtAmt(item.unitPrice, invoice.currency)}</div>
+                        </div>
+                        <span style={{ ...valueStyle, fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>{(item.quantity * item.unitPrice).toLocaleString('en', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      </div>
+                    ))}
+                    {(invoice.discountTotal > 0 || invoice.taxTotal > 0) && (
+                      <>
+                        <div style={{ height: 1, background: 'rgba(255,255,255,0.08)', margin: '8px 0' }} />
+                        <div style={rowStyle}><span style={labelStyle}>Subtotal</span><span style={valueStyle}>{fmtAmt(invoice.subtotal, invoice.currency)}</span></div>
+                        {invoice.discountTotal > 0 && <div style={rowStyle}><span style={labelStyle}>Discount</span><span style={valueStyle}>−{fmtAmt(invoice.discountTotal, invoice.currency)}</span></div>}
+                        {invoice.taxTotal > 0 && <div style={rowStyle}><span style={labelStyle}>Tax</span><span style={valueStyle}>{fmtAmt(invoice.taxTotal, invoice.currency)}</span></div>}
+                      </>
+                    )}
+                    {invoice.notes && (
+                      <div style={{ marginTop: 10, padding: '11px 13px', borderRadius: 12, background: 'rgba(255,255,255,0.04)', fontSize: 13, lineHeight: 1.55, color: 'rgba(255,255,255,0.6)' }}>{invoice.notes}</div>
+                    )}
+                  </>
+                )}
               </div>
             </div>
-            {invoice.items.map(item => (
-              <div key={item.id} style={{ padding: '10px 20px', borderTop: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: '#fff' }}>{item.name}</div>
-                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>{item.quantity} × {fmtAmt(item.unitPrice, invoice.currency)}</div>
-                </div>
-              </div>
-            ))}
-            {invoice.notes && (
-              <div style={{ padding: '12px 20px', background: 'rgba(255,255,255,0.03)', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-                <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', lineHeight: 1.5 }}>{invoice.notes}</div>
-              </div>
-            )}
-          </>
-        )}
-      </div>
+          </div>
+        )
+      })()}
 
       {/* Payment section */}
       <div style={{ width: '100%', maxWidth: 480 }}>
 
-        <div style={{ fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.45)', margin: '2px 4px 8px' }}>Choose how to pay</div>
-
         {/* Tab bar — Card first, then crypto, then NAN name */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 4, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 16, padding: 4, marginBottom: 14 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 4, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, padding: 4, marginBottom: 16 }}>
           {([
-            ['card',    <CreditCard key="c" size={15} />, 'Card'],
-            ['address', <QrCode key="q" size={15} />, 'Crypto'],
-            ['nan',     <AtSign  key="a" size={15} />, 'NAN name'],
+            ['card',    <CreditCard key="c" size={13} />, 'Card'],
+            ['address', <QrCode key="q" size={13} />, 'Crypto'],
+            ['nan',     <AtSign  key="a" size={13} />, 'NAN name'],
           ] as const).map(([id, icon, label]) => (
             <button key={id} onClick={() => setTab(id)}
-              style={{ height: 44, background: tab === id ? BLUE : 'transparent', color: tab === id ? '#fff' : 'rgba(255,255,255,0.55)', border: 'none', borderRadius: 12, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, transition: 'all 0.15s', boxShadow: tab === id ? '0 6px 18px rgba(8,102,245,0.35)' : 'none', WebkitTapHighlightColor: 'transparent' }}>
+              style={{ height: 42, background: tab === id ? BLUE : 'transparent', color: tab === id ? '#fff' : 'rgba(255,255,255,0.55)', boxShadow: tab === id ? '0 6px 16px -6px rgba(8,102,245,0.7)' : 'none', border: 'none', borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, transition: 'all 0.15s' }}>
               {icon}{label}
             </button>
           ))}
