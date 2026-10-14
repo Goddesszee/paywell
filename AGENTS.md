@@ -67,3 +67,4 @@ VAPID_PRIVATE_KEY=...
 - Recurring payments: stored in Redis `rt:<wallet>`, executed hourly by Vercel Cron
 - OTP rate limit: 5 per email per 10 minutes (Redis-backed)
 - ErrorBoundary wraps all app pages (keyed by activeView — resets on navigation)
+
