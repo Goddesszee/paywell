@@ -195,14 +195,14 @@ export function InvoicePage() {
   const [form,        setForm]        = useState<DraftForm>(() => emptyForm(walletAddress))
   const [errors,      setErrors]      = useState<Partial<Record<keyof DraftForm | 'items', string>>>({})
   const [delConfirm,  setDelConfirm]  = useState<string | null>(null)
-  const [filterStatus, setFilterStatus] = useState<InvoiceStatus | 'all'>('all')
-  const [showFilters, setShowFilters] = useState(false)
+  const [filterStatus, setFilterStatus] = useState<InvoiceStatus | 'all' | 'unpaid'>('all')
 
   const selected = useMemo(() => invoices.find(i => i.id === selectedId) ?? null, [invoices, selectedId])
   const totals   = useMemo(() => computeTotals(form.items), [form.items])
   const filtered = useMemo(() => {
     const list = [...invoices].sort((a, b) => b.createdAt.localeCompare(a.createdAt))
     if (filterStatus === 'all') return list
+    if (filterStatus === 'unpaid') return list.filter(i => ['sent', 'viewed', 'partially_paid', 'overdue'].includes(i.status))
     return list.filter(i => i.status === filterStatus)
   }, [invoices, filterStatus])
 
@@ -385,36 +385,49 @@ export function InvoicePage() {
     <div style={{ fontFamily: F, width: '100%', paddingBottom: 96 }}>
       {renderHeader('Invoices & Requests')}
 
-      {invoices.length > 0 && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 8, marginBottom: 18 }}>
-          {[
-            { label: 'Total',   value: stats.total },
-            { label: 'Unpaid',  value: stats.unpaid,  highlight: stats.unpaid > 0 ? AMBER : undefined },
-            { label: 'Overdue', value: stats.overdue, highlight: stats.overdue > 0 ? RED : undefined },
-            { label: 'Earned',  value: `$${stats.revenue.toFixed(0)}` },
-          ].map(s => (
-            <div key={s.label} style={{ background: SURF, border: `1px solid ${BDR}`, borderRadius: 12, padding: '10px 10px 8px' }}>
-              <div style={{ fontSize: 18, fontWeight: 700, color: s.highlight ?? TEXT, letterSpacing: '-0.03em' }}>{s.value}</div>
-              <div style={{ fontSize: 10, color: T3, marginTop: 2 }}>{s.label}</div>
+      {invoices.length > 0 && (() => {
+        const openStatuses = ['sent', 'viewed', 'partially_paid', 'overdue']
+        const outstanding = invoices.filter(i => openStatuses.includes(i.status)).reduce((s, i) => s + i.amountDue, 0)
+        const fmt0 = (n: number) => n.toLocaleString('en', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+        const chips: { id: InvoiceStatus | 'all' | 'unpaid'; label: string; n: number }[] = [
+          { id: 'all',     label: 'All',     n: stats.total },
+          { id: 'unpaid',  label: 'Unpaid',  n: stats.unpaid },
+          { id: 'paid',    label: 'Paid',    n: invoices.filter(i => i.status === 'paid').length },
+          { id: 'overdue', label: 'Overdue', n: stats.overdue },
+          { id: 'draft',   label: 'Drafts',  n: invoices.filter(i => i.status === 'draft').length },
+        ]
+        return (
+          <>
+            <div style={{ position: 'relative', overflow: 'hidden', borderRadius: 22, padding: '20px 20px 18px', marginBottom: 16, background: 'linear-gradient(135deg,#0B5BE0 0%,#0866F5 55%,#3B8BFF 100%)', boxShadow: '0 20px 40px -22px rgba(8,102,245,0.8)' }}>
+              <div aria-hidden style={{ position: 'absolute', right: -40, top: -50, width: 190, height: 190, borderRadius: '50%', background: 'radial-gradient(closest-side, rgba(255,255,255,0.25), rgba(255,255,255,0))' }} />
+              <div style={{ position: 'relative', fontSize: 13, color: 'rgba(255,255,255,0.8)' }}>Waiting to be paid</div>
+              <div style={{ position: 'relative', marginTop: 4, display: 'flex', alignItems: 'baseline', gap: 7, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 'clamp(30px, 9vw, 38px)', fontWeight: 800, color: '#fff', letterSpacing: '-0.04em', lineHeight: 1.1, fontVariantNumeric: 'tabular-nums' }}>{fmt0(outstanding)}</span>
+                <span style={{ fontSize: 14, fontWeight: 700, color: 'rgba(255,255,255,0.75)' }}>USDC</span>
+              </div>
+              <div style={{ position: 'relative', marginTop: 12, display: 'flex', gap: 18, flexWrap: 'wrap', fontSize: 13, color: 'rgba(255,255,255,0.85)' }}>
+                <span><b style={{ color: '#fff' }}>{stats.unpaid}</b> unpaid</span>
+                <span style={{ color: stats.overdue > 0 ? '#FFD2D2' : undefined }}><b style={{ color: stats.overdue > 0 ? '#FFD2D2' : '#fff' }}>{stats.overdue}</b> overdue</span>
+                <span><b style={{ color: '#fff' }}>{fmt0(stats.revenue)}</b> collected</span>
+              </div>
             </div>
-          ))}
-        </div>
-      )}
 
-      {invoices.length > 0 && (
-        <button onClick={() => setShowFilters(f => !f)} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: T2, background: 'none', border: 'none', cursor: 'pointer', fontFamily: F, marginBottom: 10, padding: 0 }}>
-          Filter by status <ChevronDown size={13} style={{ transform: showFilters ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
-        </button>
-      )}
-      {showFilters && (
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 14 }}>
-          {(['all', 'draft', 'sent', 'viewed', 'paid', 'overdue', 'cancelled'] as const).map(s => (
-            <button key={s} onClick={() => setFilterStatus(s)} style={{ padding: '5px 12px', borderRadius: 20, border: `1px solid ${filterStatus === s ? BLUE : BDR}`, background: filterStatus === s ? 'rgba(8,102,245,0.10)' : SURF2, color: filterStatus === s ? BLUE : T2, fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: F }}>
-              {s === 'all' ? 'All' : STATUS_META[s]?.label ?? s}
-            </button>
-          ))}
-        </div>
-      )}
+            <div role="tablist" aria-label="Filter" style={{ display: 'flex', gap: 8, overflowX: 'auto', margin: '0 -16px 14px', padding: '0 16px', scrollbarWidth: 'none' }}>
+              {chips.map(c => {
+                const on = filterStatus === c.id
+                return (
+                  <button key={c.id} role="tab" aria-selected={on} onClick={() => setFilterStatus(c.id)}
+                    style={{ flexShrink: 0, height: 36, padding: '0 14px', borderRadius: 999, border: `1px solid ${on ? BLUE : BDR}`, background: on ? BLUE : SURF2, color: on ? '#fff' : T2, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: F, display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+                    {c.label}
+                    <span style={{ fontSize: 11, fontWeight: 700, opacity: on ? 0.85 : 0.6 }}>{c.n}</span>
+                  </button>
+                )
+              })}
+            </div>
+          </>
+        )
+      })()}
+
 
       {invoices.length === 0 && (
         <div style={{ textAlign: 'center', padding: '48px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
@@ -434,51 +447,60 @@ export function InvoicePage() {
         </div>
       )}
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         {filtered.map(inv => {
           const isQuick = (inv as Invoice & { mode?: string }).mode === 'quick'
+          const meta = STATUS_META[inv.status] ?? STATUS_META.draft
+          const who = (inv.customerName || 'Customer').trim()
+          const hue = [...who].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) >>> 0, 7) % 360
+          const amountStr = inv.total.toLocaleString('en', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+          const actionBtn: React.CSSProperties = { height: 34, padding: '0 12px', borderRadius: 10, border: `1px solid ${BDR}`, background: SURF2, color: T2, fontSize: 12, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontFamily: F, whiteSpace: 'nowrap', flexShrink: 0 }
           return (
-            <div key={inv.id} style={{ background: SURF, border: `1px solid ${BDR}`, borderRadius: 14, overflow: 'hidden' }}>
-              <button onClick={() => { setSelectedId(inv.id); setView('detail') }} style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer', padding: '14px 14px 12px', textAlign: 'left', fontFamily: F }}>
-                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 4, flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: 13, fontWeight: 700, color: TEXT }}>{inv.number}</span>
-                      <StatusBadge status={inv.status} isQuick={isQuick} />
-                      {isQuick && <span style={{ fontSize: 10, fontWeight: 600, color: T3 }}>Request</span>}
+            <div key={inv.id} style={{ background: SURF, border: `1px solid ${BDR}`, borderRadius: 18, padding: 14 }}>
+              <button onClick={() => { setSelectedId(inv.id); setView('detail') }} style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textAlign: 'left', fontFamily: F, display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ position: 'relative', width: 44, height: 44, borderRadius: '50%', flexShrink: 0, background: `linear-gradient(135deg, hsl(${hue} 70% 55%), hsl(${(hue + 45) % 360} 72% 44%))`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 17, fontWeight: 800 }}>
+                  {who[0]?.toUpperCase() ?? '?'}
+                  {isQuick && (
+                    <span style={{ position: 'absolute', right: -3, bottom: -3, width: 19, height: 19, borderRadius: '50%', background: BLUE, border: `2px solid ${SURF}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Zap size={10} color="#fff" />
+                    </span>
+                  )}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: 15, fontWeight: 700, color: TEXT, overflowWrap: 'anywhere', lineHeight: 1.25 }}>{inv.customerName}</div>
+                      <div style={{ fontSize: 12, color: T3, marginTop: 2 }}>{isQuick ? 'Request' : 'Invoice'} {inv.number}</div>
                     </div>
-                    <div style={{ fontSize: 14, fontWeight: 600, color: TEXT, marginBottom: 2 }}>{inv.customerName}</div>
-                    <div style={{ fontSize: 11, color: T3 }}>Due {fmtDate(inv.dueDate)}</div>
-                  </div>
-                  <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                    <div style={{ fontSize: 16, fontWeight: 800, color: inv.status === 'paid' ? GREEN : TEXT, letterSpacing: '-0.02em' }}>{fmtAmt(inv.total, inv.currency)}</div>
-                    {inv.amountDue > 0 && inv.amountDue < inv.total && (
-                      <div style={{ fontSize: 11, color: AMBER, marginTop: 2 }}>{fmtAmt(inv.amountDue, inv.currency)} due</div>
-                    )}
-                    <ChevronRight size={14} color={T3} style={{ marginTop: 4 }} />
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, flexShrink: 0, marginTop: 2, fontSize: 12, fontWeight: 700, color: meta.color }}>
+                      <span style={{ width: 7, height: 7, borderRadius: '50%', background: meta.color }} />
+                      {meta.label}
+                    </span>
                   </div>
                 </div>
               </button>
-              <div style={{ display: 'flex', borderTop: `1px solid ${BDR}` }}>
-                {[
-                  { icon: <Copy size={13} />, label: 'Copy link', action: () => copyLink(inv) },
-                  { icon: <Download size={13} />, label: 'Download', action: () => downloadInvoicePdf(inv) },
-                  { icon: <Share2 size={13} />, label: 'Share', action: () => shareInvoice(inv) },
-                ].map((btn, i) => (
-                  <button key={btn.label} onClick={btn.action} style={{ flex: 1, height: 36, background: 'none', border: 'none', borderLeft: i > 0 ? `1px solid ${BDR}` : 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, fontSize: 11, fontWeight: 600, color: T2, cursor: 'pointer', fontFamily: F }}>
-                    {btn.icon} {btn.label}
-                  </button>
-                ))}
-                {delConfirm === inv.id ? (
-                  <div style={{ display: 'flex', borderLeft: `1px solid ${BDR}` }}>
-                    <button onClick={() => setDelConfirm(null)} style={{ flex: 1, height: 36, background: 'none', border: 'none', fontSize: 11, fontWeight: 600, color: T2, cursor: 'pointer', fontFamily: F, padding: '0 10px' }}>Cancel</button>
-                    <button onClick={() => { removeInvoice(inv.id); setDelConfirm(null); toast.success('Deleted') }} style={{ height: 36, background: RED, border: 'none', fontSize: 11, fontWeight: 600, color: '#fff', cursor: 'pointer', fontFamily: F, padding: '0 10px' }}>Delete</button>
-                  </div>
-                ) : (
-                  <button onClick={() => setDelConfirm(inv.id)} style={{ width: 36, height: 36, background: 'none', border: 'none', borderLeft: `1px solid ${BDR}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: T3 }}>
-                    <Trash2 size={13} />
-                  </button>
-                )}
+              <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10, marginTop: 12, flexWrap: 'wrap' }}>
+                <div style={{ fontSize: 22, fontWeight: 800, color: inv.status === 'paid' ? GREEN : TEXT, letterSpacing: '-0.03em', fontVariantNumeric: 'tabular-nums' }}>
+                  {amountStr} <span style={{ fontSize: 12, fontWeight: 600, color: T3 }}>{inv.currency}</span>
+                </div>
+                <div style={{ fontSize: 12, color: inv.status === 'overdue' ? RED : T3 }}>
+                  {inv.amountDue > 0 && inv.amountDue < inv.total ? `${fmtAmt(inv.amountDue, inv.currency)} left · ` : ''}Due {fmtDate(inv.dueDate)}
+                </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12, paddingTop: 12, borderTop: `1px solid ${BDR}` }}>
+                <button onClick={() => copyLink(inv)} style={{ ...actionBtn, background: 'rgba(8,102,245,0.10)', borderColor: 'rgba(8,102,245,0.28)', color: BLUE }}><Copy size={14} /> Copy link</button>
+                <button onClick={() => shareInvoice(inv)} style={actionBtn}><Share2 size={14} /> Share</button>
+                <button onClick={() => downloadInvoicePdf(inv)} aria-label="Download PDF" style={{ ...actionBtn, padding: 0, width: 34, justifyContent: 'center' }}><Download size={14} /></button>
+                <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
+                  {delConfirm === inv.id ? (
+                    <>
+                      <button onClick={() => setDelConfirm(null)} style={actionBtn}>Cancel</button>
+                      <button onClick={() => { removeInvoice(inv.id); setDelConfirm(null); toast.success('Deleted') }} style={{ ...actionBtn, background: RED, borderColor: RED, color: '#fff' }}>Delete</button>
+                    </>
+                  ) : (
+                    <button onClick={() => setDelConfirm(inv.id)} aria-label="Delete" style={{ ...actionBtn, padding: 0, width: 34, justifyContent: 'center', color: T3 }}><Trash2 size={14} /></button>
+                  )}
+                </div>
               </div>
             </div>
           )
