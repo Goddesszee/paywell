@@ -38,10 +38,6 @@
     "api/payments-data.ts": {
       "memory": 512,
       "maxDuration": 30
-    },
-    "api/cron-recurring.ts": {
-      "memory": 512,
-      "maxDuration": 60
     }
   },
   "headers": [
@@ -115,15 +111,8 @@
     { "source": "/api/invoices",                                  "destination": "/api/payments-data?type=invoices" },
     { "source": "/api/invoices/:id",                              "destination": "/api/payments-data?type=invoices&id=:id" },
     { "source": "/api/invoice-claim",                             "destination": "/api/payments-data?type=invoice-claim" },
-    { "source": "/api/cron-recurring",                            "destination": "/api/cron-recurring" },
     { "source": "/api/about",                                     "destination": "/api/misc?route=about" },
     { "source": "/api/faqs",                                     "destination": "/api/misc?route=faqs" },
     { "source": "/(.*)",                                         "destination": "/index.html" }
-  ],
-  "crons": [
-    {
-      "path": "/api/cron-recurring",
-      "schedule": "0 * * * *"
-    }
   ]
 }
