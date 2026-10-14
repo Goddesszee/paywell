@@ -423,7 +423,7 @@ export function InvoicePage() {
           </div>
           <div style={{ fontSize: 15, fontWeight: 700, color: TEXT }}>No invoices or requests yet</div>
           <div style={{ fontSize: 13, color: T2, maxWidth: 260, lineHeight: 1.5 }}>Create a quick payment request or a full invoice. Share a pay link — anyone can pay by card or crypto.</div>
-          <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+          <div style={{ display: 'flex', gap: 10, marginTop: 4, flexWrap: 'wrap', justifyContent: 'center' }}>
             <button onClick={openNew} style={{ ...btnPrimary, flex: 'none', padding: '0 20px', width: 'auto' }}>
               <Zap size={14} /> Quick request
             </button>

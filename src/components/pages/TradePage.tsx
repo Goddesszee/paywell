@@ -53,7 +53,7 @@ function TradeHeader({ tab, setTab, c, bridgeAvailable }: {
       {/* Left: title + tab pills */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         {/* Compact title text — changes with tab */}
-        <div>
+        <div className="trade-sub">
           <div style={{ fontSize: 15, fontWeight: 800, color: c.text, letterSpacing: '-0.03em', lineHeight: 1 }}>
             {tab === 'swap' ? 'Swap' : 'Bridge'}
           </div>

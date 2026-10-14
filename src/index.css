@@ -1999,3 +1999,8 @@ input[style*="fontSize:2"] {
     border-width: 0.5px !important;
   }
 }
+
+/* Narrow phones: drop the Trade header title so tabs and icon buttons fit */
+@media (max-width: 400px) {
+  .trade-sub { display: none; }
+}
