@@ -15,22 +15,28 @@ import { useEffect } from 'react'
 const STYLE_ID = 'nan-public-page-overrides'
 
 const CSS = `
-  /* NAN public pay-page: undo app-shell overflow lock */
+  /* NAN public pay-page: the page scrolls inside #root itself, not the document.
+     Android in-app browsers (WhatsApp / Telegram / Custom Tabs) and some WebViews
+     do not reliably scroll the document when html/body overflow is customised,
+     but a fixed full-screen element with overflow-y:auto scrolls everywhere. */
   html, body {
-    height: auto !important;
-    min-height: 100% !important;
-    overflow: auto !important;
-    overflow-x: hidden !important;
+    height: 100% !important;
+    overflow: hidden !important;
     position: static !important;
+    overscroll-behavior: none;
   }
   #root {
-    position: static !important;
+    position: fixed !important;
+    top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important;
+    width: 100% !important;
     height: auto !important;
-    min-height: 100dvh !important;
-    overflow: visible !important;
     max-width: 100% !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+    touch-action: pan-y pinch-zoom;
   }
-  /* Also target the inner app-root wrapper if present */
   #app-root {
     position: static !important;
     height: auto !important;

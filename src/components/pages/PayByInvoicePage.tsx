@@ -181,7 +181,7 @@ export function PayByInvoicePage({ invoiceId, isRequest = false }: Props) {
             <div style={{ fontSize: 20, fontWeight: 800, color: '#fff', marginBottom: 8 }}>
               {isConfirmed ? 'Payment confirmed!' : 'Payment claimed!'}
             </div>
-            <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.6)', lineHeight: 1.5 }}>
+            <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.6)', lineHeight: 1.5, overflowWrap: 'anywhere' }}>
               {fmtAmt(invoice.total, invoice.currency)} to {invoice.businessName}
             </div>
           </div>
@@ -255,13 +255,13 @@ export function PayByInvoicePage({ invoiceId, isRequest = false }: Props) {
           <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>
             {isRequest ? `Payment Request · ${invoice.number}` : `Invoice ${invoice.number}`}
           </div>
-          <div style={{ fontSize: 18, fontWeight: 700, color: '#fff', marginBottom: 2 }}>
+          <div style={{ fontSize: 18, fontWeight: 700, color: '#fff', marginBottom: 2, overflowWrap: 'anywhere' }}>
             {isRequest ? `From ${invoice.businessName}` : invoice.businessName}
           </div>
           {invoice.payToNanHandle && (
             <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.85)', fontWeight: 700, marginBottom: 2 }}>@{invoice.payToNanHandle}</div>
           )}
-          {invoice.businessEmail && <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>{invoice.businessEmail}</div>}
+          {invoice.businessEmail && <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', overflowWrap: 'anywhere' }}>{invoice.businessEmail}</div>}
         </div>
         <div style={{ padding: '20px 22px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>
@@ -466,7 +466,7 @@ export function PayByInvoicePage({ invoiceId, isRequest = false }: Props) {
                 <div style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '14px 16px', marginBottom: 18 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
                     <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)' }}>To</div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: '#fff' }}>{invoice.businessName}</div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: '#fff', overflowWrap: 'anywhere', textAlign: 'right', minWidth: 0, marginLeft: 12 }}>{invoice.businessName}</div>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 8, borderTop: '1px solid rgba(255,255,255,0.07)' }}>
                     <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)' }}>Amount</div>
