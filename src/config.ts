@@ -7,7 +7,7 @@ import { http, createConfig } from 'wagmi'
 import { mainnet, base, arbitrum, optimism, polygon, avalanche, zkSync } from 'wagmi/chains'
 import { arc as arcBase } from 'viem/chains'
 import { defineChain } from 'viem'
-import { injected } from 'wagmi/connectors'
+import { injected, walletConnect } from 'wagmi/connectors'
 import { registerChain } from './tracing'
 
 // Arc Mainnet — override nativeCurrency to reflect USDC-as-gas correctly.
@@ -57,6 +57,11 @@ const worldChain = {
 // Pre-register Arc Mainnet RPC URL so trace events show correct chain names immediately
 registerChain(arc.id, 'https://rpc.mainnet.arc.io')
 
+// WalletConnect lets phones connect a wallet app (MetaMask, Trust, Rainbow, …) from any browser.
+// Free project ID: cloud.reown.com → create project → add nanarc.xyz as an allowed domain.
+// Without VITE_WALLETCONNECT_PROJECT_ID only injected wallets (extensions / in-wallet browsers) work.
+const WC_PROJECT_ID = ((import.meta.env.VITE_WALLETCONNECT_PROJECT_ID as string | undefined) ?? '').trim()
+
 export const config = createConfig({
   chains: [
     arc,
@@ -72,7 +77,14 @@ export const config = createConfig({
     worldChain,
     zkSync,
   ],
-  connectors: [injected()],
+  connectors: [
+    injected(),
+    ...(WC_PROJECT_ID ? [walletConnect({
+      projectId: WC_PROJECT_ID,
+      showQrModal: false, // ConnectKit draws its own QR / wallet list
+      metadata: { name: 'NAN', description: 'The Intelligent Payment Network', url: 'https://nanarc.xyz', icons: ['https://nanarc.xyz/favicon.ico'] },
+    })] : []),
+  ],
   transports: {
     [arc.id]:         http('https://rpc.mainnet.arc.io'),
     [mainnet.id]:     http(),

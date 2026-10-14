@@ -93,3 +93,7 @@ Circle App Kit swap needs a key in its config. Set in Vercel:
 ## Collecting platform fees (swap + bridge)
 Set `VITE_FEE_WALLET=0xYourWallet` in Vercel (a wallet you control) and redeploy. Swap (0.3%) and bridge (0.5%, min $0.10) fees are then taken via Circle App Kit `customFee` in the same transaction; Circle keeps 10% of each fee, 90% goes to your wallet. Nothing is charged if the variable is unset/invalid. The bridge fee is added on top of the amount, so the user needs `amount + fee`.
 NAN name payments are held by the NANNameRegistry contract; withdraw with `withdraw(to, amount)` from the deployer (owner) wallet.
+
+## Wallet connect on phones (admin treasury, pay pages)
+Set `VITE_WALLETCONNECT_PROJECT_ID` in Vercel (free project ID from https://cloud.reown.com; add `nanarc.xyz` as an allowed domain), then redeploy.
+Without it only injected wallets work (desktop extensions, or opening nanarc.xyz inside the MetaMask / Trust Wallet in-app browser).

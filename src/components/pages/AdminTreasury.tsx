@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { useAccount, useConnect, useSwitchChain, useReadContract, useWriteContract, usePublicClient } from 'wagmi'
-import { injected } from 'wagmi/connectors'
+import { useAccount, useSwitchChain, useReadContract, useWriteContract, usePublicClient } from 'wagmi'
+import { ConnectKitButton } from 'connectkit'
 import { parseUnits, formatUnits, isAddress, erc20Abi } from 'viem'
 import { NAME_REGISTRY } from '../../hooks/useNanName'
 
@@ -24,7 +24,6 @@ const btn = (primary = false, disabled = false): React.CSSProperties => ({ paddi
  */
 export function AdminTreasury() {
   const { address, isConnected, chainId } = useAccount()
-  const { connect, isPending: connecting } = useConnect()
   const { switchChainAsync } = useSwitchChain()
   const { writeContractAsync } = useWriteContract()
   const client = usePublicClient({ chainId: ARC_ID })
@@ -80,7 +79,7 @@ export function AdminTreasury() {
         In contract {registry.slice(0, 8)}…{registry.slice(-6)} · owner {owner ? `${owner.slice(0, 6)}…${owner.slice(-4)}` : '…'}
       </div>
       {!isConnected ? (
-        <button style={btn(true, connecting)} disabled={connecting} onClick={() => connect({ connector: injected() })}>{connecting ? 'Connecting…' : 'Connect owner wallet'}</button>
+        <ConnectKitButton />
       ) : (
         <div style={{ display: 'grid', gap: 8 }}>
           <div style={{ fontSize: 12, color: isOwner ? '#10B981' : '#F59E0B' }}>
