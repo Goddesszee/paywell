@@ -118,6 +118,8 @@ async function handleWallet(req: VercelRequest, res: VercelResponse) {
       // Always list the Arc wallet first: much of the app (swap, send, login) takes wallets[0] as the user's
       // main wallet, and wallets created on other chains (for bridging) must never become the main one.
       const wallets = [...(response.data?.wallets ?? [])].sort((a, b) =>
+        // the dedicated agent wallet (refId='agent') must never become the main wallet
+        (Number(a.refId === 'agent') - Number(b.refId === 'agent')) ||
         Number(/^ARC(-|$)/.test(String(b.blockchain))) - Number(/^ARC(-|$)/.test(String(a.blockchain))))
 
       // Write a session record to Redis so community endpoints (suggestions,

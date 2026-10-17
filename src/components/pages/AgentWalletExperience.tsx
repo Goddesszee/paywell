@@ -1681,67 +1681,89 @@ export function AgentWalletExperience({ backView = 'home' }: AgentWalletExperien
     setScreen('creating')
     setStatusMsg('Creating your Agent Wallet…')
 
-    // Ensure the dedicated agent wallet (refId='agent') exists before polling status.
-    // This is what makes the agent wallet a DIFFERENT address from the main NAN wallet —
-    // same Circle user, but a second wallet explicitly tagged 'agent'.
+    // Poll until the dedicated agent wallet (refId='agent') shows up in the wallet list.
+    const pollForWallet = async () => {
+      const MAX_ATTEMPTS = 10
+      const DELAY_MS     = 2000
+      for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+        const dots = '.'.repeat(attempt % 4)
+        setStatusMsg(`Setting up your wallet${dots}`)
+        try {
+          const r = await fetch('/api/agent-wallet', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-user-token': loginRes.userToken },
+            body: JSON.stringify({ action: 'status', userToken: loginRes.userToken }),
+          })
+          const d = await r.json() as { provisioned?: boolean; address?: string; walletId?: string; error?: string }
+          if (d.provisioned && d.address) {
+            setAgentWallet({
+              provisioned: true,
+              address: d.address,
+              walletId: d.walletId,
+              balance_usdc: '0',
+              lastRefreshed: new Date().toISOString(),
+              userToken: loginRes.userToken,
+              encryptionKey: loginRes.encryptionKey,
+            })
+            setNewAddress(d.address)
+            setNewWalletId(d.walletId ?? '')
+            try { sessionStorage.removeItem('aw_login_res') } catch { /* ignore */ }
+            setScreen('success')
+            return
+          }
+          // Hard error from the server — no point retrying
+          if (d.error && !d.error.toLowerCase().includes('not found')) {
+            setErrorMsg(d.error)
+            setScreen('error')
+            return
+          }
+        } catch {
+          // Network error — keep retrying
+        }
+        if (attempt < MAX_ATTEMPTS) await new Promise(resolve => setTimeout(resolve, DELAY_MS))
+      }
+      setErrorMsg('Your wallet is taking longer than expected. Please go back and try again — it may already be ready.')
+      setScreen('error')
+    }
+
+    // Ask the server for the dedicated agent wallet. Circle's user-controlled wallets create it
+    // through a PIN challenge, and a second wallet on the same chain gets its OWN address
+    // (different from the main NAN wallet). If it already exists we go straight to polling.
     try {
-      await fetch('/api/agent-wallet', {
+      const r = await fetch('/api/agent-wallet', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'provision-agent-wallet', userToken: loginRes.userToken }),
       })
-    } catch { /* non-fatal — status polling will still find an existing agent wallet */ }
-
-    const MAX_ATTEMPTS = 10
-    const DELAY_MS     = 2000
-
-    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-      const dots = '.'.repeat(attempt % 4)
-      setStatusMsg(`Setting up your wallet${dots}`)
-
-      try {
-        const r = await fetch('/api/agent-wallet', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'x-user-token': loginRes.userToken },
-          body: JSON.stringify({ action: 'status', userToken: loginRes.userToken }),
+      const d = await r.json() as { ok?: boolean; challengeId?: string; alreadyExisted?: boolean; error?: string }
+      if (d.challengeId) {
+        if (!_agentSdk) throw new Error('SDK not initialised')
+        setStatusMsg('Approve with your PIN to create the Agent Wallet…')
+        _agentSdk.setAuthentication({ userToken: loginRes.userToken, encryptionKey: loginRes.encryptionKey })
+        const sdk = _agentSdk
+        // brief pause so a PIN popup that just closed is fully gone before the next one opens
+        await new Promise(resolve => setTimeout(resolve, 800))
+        executeWithGuard(sdk, d.challengeId, async (execErr) => {
+          if (execErr) {
+            const msg = execErr instanceof Error ? execErr.message : String(execErr)
+            setErrorMsg(msg.toLowerCase().includes('cancel')
+              ? 'Agent Wallet creation was cancelled. Your main NAN balance has not been affected.'
+              : 'Could not create your Agent Wallet — please try again.')
+            setScreen('error')
+            return
+          }
+          await pollForWallet()
         })
-        const d = await r.json() as { provisioned?: boolean; address?: string; walletId?: string; error?: string }
-
-        if (d.provisioned && d.address) {
-          setAgentWallet({
-            provisioned: true,
-            address: d.address,
-            walletId: d.walletId,
-            balance_usdc: '0',
-            lastRefreshed: new Date().toISOString(),
-            userToken: loginRes.userToken,
-            encryptionKey: loginRes.encryptionKey,
-          })
-          setNewAddress(d.address)
-          setNewWalletId(d.walletId ?? '')
-          try { sessionStorage.removeItem('aw_login_res') } catch { /* ignore */ }
-          setScreen('success')
-          return
-        }
-
-        // Hard error from the server — no point retrying
-        if (d.error && !d.error.toLowerCase().includes('not found')) {
-          setErrorMsg(d.error)
-          setScreen('error')
-          return
-        }
-      } catch {
-        // Network error — keep retrying
+        return
       }
-
-      if (attempt < MAX_ATTEMPTS) {
-        await new Promise(resolve => setTimeout(resolve, DELAY_MS))
-      }
+      if (!d.ok && d.error) { setErrorMsg(d.error); setScreen('error'); return }
+    } catch (e) {
+      setErrorMsg(e instanceof Error ? e.message : 'Could not create your Agent Wallet — please try again.')
+      setScreen('error')
+      return
     }
 
-    // All retries exhausted
-    setErrorMsg('Your wallet is taking longer than expected. Please go back and try again — it may already be ready.')
-    setScreen('error')
+    await pollForWallet()
   }, [setAgentWallet])
 
   // ── provision: same pattern as CircleEmailLogin.initializeUser ────────────

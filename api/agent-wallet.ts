@@ -5,7 +5,8 @@
  * custody via 2-of-2 MPC. This is the correct model per Circle's Agent Stack docs.
  *
  * Actions (all POST):
- *   provision          Create user PIN + agent wallet (first-time setup)
+ *   provision          Create user PIN + first wallet (first-time setup)
+ *   provision-agent-wallet  Create the separate refId='agent' wallet (returns a PIN challengeId)
  *   status             Get agent wallet address + balance for a userToken
  *   marketplace        Fetch live services from Circle Agent Marketplace
  *   marketplace-search Search Circle Agent Marketplace via Circle CLI
@@ -368,8 +369,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   //      If the user is already initialised (code 155106) skip straight to step 2.
   //   2. After the PIN challenge is accepted (frontend calls back on onComplete),
   //      the frontend calls action=provision-agent-wallet with the userToken.
-  //   3. createWallets with refId='agent' creates wallet #2 — the agent wallet.
-  //      If that wallet already exists Circle returns a 409 / no-op, which we treat as success.
+  //   3. createWallet with refId='agent' returns a PIN challenge; once approved it creates
+  //      wallet #2 — the agent wallet. If it already exists we return it directly.
   if (action === 'provision') {
     const { userToken } = body
     if (!userToken) return err(res, 400, 'userToken required')
@@ -391,9 +392,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   // ── provision-agent-wallet — create the dedicated agent wallet ────────────
-  // Called by the frontend after the PIN challenge completes (step 3 above).
-  // Creates a second Arc SCA wallet tagged refId='agent' so it is always
-  // distinguishable from the user's main NAN wallet (wallets[0]).
+  // Called by the frontend after the user is initialised (PIN set). Circle's
+  // user-controlled SDK has createWallet (singular): it does NOT create the wallet
+  // immediately, it returns a challengeId the user approves with their PIN. A second
+  // wallet on the same chain is derived at the next index, so it gets its OWN address.
+  // The wallet is tagged refId='agent' so it is never confused with the main wallet.
   if (action === 'provision-agent-wallet') {
     const { userToken } = body
     if (!userToken) return err(res, 400, 'userToken required')
@@ -401,20 +404,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const existing = await client.listWallets({ userToken })
       const agentWallet = (existing.data?.wallets ?? []).find(w => w.refId === 'agent')
       if (agentWallet) {
-        // Already exists — return it directly
         return res.status(200).json({ ok: true, walletId: agentWallet.id, address: agentWallet.address, alreadyExisted: true })
       }
-      // Create the agent wallet as a second wallet in the user's wallet set
-      const response = await client.createWallets({
+      const response = await client.createWallet({
         userToken,
         blockchains: [Blockchain.Arc],
         accountType: 'SCA',
-        count: 1,
         metadata: [{ name: 'NAN Agent Wallet', refId: 'agent' }],
+        idempotencyKey: randomUUID(),
       })
-      const wallet = (response.data?.wallets ?? [])[0]
-      if (!wallet) throw new Error('Agent wallet creation returned no wallet')
-      return res.status(200).json({ ok: true, walletId: wallet.id, address: wallet.address })
+      const challengeId = response.data?.challengeId
+      if (!challengeId) throw new Error('Agent wallet creation returned no challenge')
+      return res.status(200).json({ ok: true, challengeId })
     } catch (e) {
       return err(res, 500, e instanceof Error ? e.message : 'Agent wallet creation failed')
     }
@@ -427,12 +428,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     try {
       const response = await client.listWallets({ userToken })
       const wallets = response.data?.wallets ?? []
-      // Always prefer the wallet explicitly tagged as the agent wallet (refId='agent').
-      // Fall back to the first Arc wallet only when no agent wallet exists yet.
+      // ONLY the wallet tagged refId='agent' counts. Never fall back to the main
+      // wallet: that is what made the agent wallet show the main wallet's address.
       const wallet = wallets.find(w => w.refId === 'agent')
-        ?? wallets.find(w => w.blockchain?.toLowerCase().includes('arc'))
-        ?? wallets[0]
-      if (!wallet) return res.status(200).json({ provisioned: false })
+      if (!wallet) return res.status(200).json({ provisioned: false, needsAgentWallet: true })
 
       let balance_usdc = '0'
       try {
@@ -481,8 +480,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       try {
         const walletList = await client.listWallets({ userToken })
         const aw = (walletList.data?.wallets ?? []).find(w => w.refId === 'agent')
-          ?? (walletList.data?.wallets ?? []).find(w => w.blockchain?.toLowerCase().includes('arc'))
-          ?? walletList.data?.wallets?.[0]
         if (aw) {
           const balRes = await client.getWalletTokenBalance({ walletId: aw.id, userToken })
           const usdcBal = (balRes.data?.tokenBalances ?? []).find(b => b.token?.symbol === 'USDC')
@@ -652,8 +649,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     try {
       const wallets = await client.listWallets({ userToken })
       const aw = wallets.data?.wallets?.find(w => w.id === walletId)
-        ?? wallets.data?.wallets?.find(w => w.blockchain?.toLowerCase().includes('arc'))
-        ?? wallets.data?.wallets?.[0]
       agentAddress = aw?.address
       if (aw) resolvedWalletId = aw.id
     } catch { /* leave undefined */ }
@@ -732,8 +727,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       let resolvedWalletId = sendWalletId
       if (!resolvedWalletId) {
         const walletList = await client.listWallets({ userToken })
-        const aw = walletList.data?.wallets?.find(w => w.blockchain?.toLowerCase().includes('arc'))
-          ?? walletList.data?.wallets?.[0]
+        const aw = walletList.data?.wallets?.find(w => w.refId === 'agent')
         if (!aw) return err(res, 404, 'Agent wallet not found for userToken')
         resolvedWalletId = aw.id
       }
