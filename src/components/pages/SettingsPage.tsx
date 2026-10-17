@@ -1,11 +1,12 @@
 import React, { useState } from 'react'
-import { Wallet, Bot, Shield, HelpCircle, ExternalLink, ChevronRight, LogOut, Save } from 'lucide-react'
+import { Wallet, Bot, Shield, HelpCircle, ExternalLink, ChevronRight, LogOut, Save, Mail } from 'lucide-react'
 import { useAccount } from 'wagmi'
 import { ConnectKitButton } from 'connectkit'
 import { useAppStore } from '../../store/appStore'
 import { formatAddress } from '../../utils/format'
 import { requireChain } from '@/onchain-facts'
 import { Badge } from '../ui/Badge'
+import { CONTACT_EMAIL, CONTACT_MAILTO, X_HANDLE, X_URL } from '../../lib/contact'
 
 const ARC  = 5042
 const MONO = "'JetBrains Mono', Menlo, monospace"
@@ -166,7 +167,9 @@ export function SettingsPage() {
       <SectionLabel>Resources</SectionLabel>
       <CardBlock>
         <RowItem icon={<HelpCircle />} label="Arc documentation" sub="docs.arc.io" onClick={() => window.open('https://docs.arc.io','_blank')} />
-        <RowItem icon={<ExternalLink />} label="Arc explorer" sub={chain.explorerBase} onClick={() => window.open(chain.explorerBase,'_blank')} noBorder />
+        <RowItem icon={<ExternalLink />} label="Arc explorer" sub={chain.explorerBase} onClick={() => window.open(chain.explorerBase,'_blank')} />
+        <RowItem icon={<Mail />} label="Email NAN" sub={CONTACT_EMAIL} onClick={() => { window.location.href = CONTACT_MAILTO }} />
+        <RowItem icon={<ExternalLink />} label="Follow NAN on X" sub={X_HANDLE} onClick={() => window.open(X_URL,'_blank','noopener')} noBorder />
       </CardBlock>
 
       <SectionLabel>Account</SectionLabel>

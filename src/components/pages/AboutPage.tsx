@@ -1,9 +1,16 @@
-import { Info, MessageSquare, HelpCircle } from 'lucide-react'
+import { Info, MessageSquare, HelpCircle, Mail } from 'lucide-react'
+import type React from 'react'
 import { BackButton } from '../ui/BackButton'
 import { useAppStore } from '../../store/appStore'
 import { ABOUT as about, ABOUT_FEATURES } from '../../lib/about-faq-content'
+import { CONTACT_EMAIL, CONTACT_MAILTO, X_HANDLE, X_URL } from '../../lib/contact'
 
 const SANS = "var(--nan-font, 'Inter', sans-serif)"
+
+const contactRow: React.CSSProperties = {
+  display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 12,
+  background: 'var(--nan-surface2)', border: '1px solid var(--nan-bdr)', color: 'var(--nan-text)', textDecoration: 'none',
+}
 
 export function AboutPage() {
   const { setActiveView } = useAppStore()
@@ -69,7 +76,25 @@ export function AboutPage() {
       {/* Contact */}
       <div style={{ background: 'var(--nan-surface)', border: '1px solid var(--nan-bdr)', borderRadius: 16, padding: '20px 22px', marginBottom: 20 }}>
         <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--nan-text3)', textTransform: 'uppercase', letterSpacing: '0.09em', marginBottom: 10 }}>Contact</div>
-        <div style={{ fontSize: 13, color: 'var(--nan-text2)', lineHeight: 1.7 }}>{about.contact}</div>
+        <div style={{ fontSize: 13, color: 'var(--nan-text2)', lineHeight: 1.7, marginBottom: 14 }}>{about.contact}</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <a href={CONTACT_MAILTO} style={contactRow}>
+            <Mail size={16} color="var(--nan-blue)" style={{ flexShrink: 0 }} />
+            <span style={{ minWidth: 0 }}>
+              <span style={{ display: 'block', fontSize: 11, color: 'var(--nan-text3)', fontWeight: 600 }}>Email</span>
+              <span style={{ display: 'block', fontSize: 14, fontWeight: 600, overflowWrap: 'anywhere' }}>{CONTACT_EMAIL}</span>
+            </span>
+          </a>
+          <a href={X_URL} target="_blank" rel="noopener noreferrer" style={contactRow}>
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="var(--nan-text)" style={{ flexShrink: 0 }} aria-hidden="true">
+              <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+            </svg>
+            <span style={{ minWidth: 0 }}>
+              <span style={{ display: 'block', fontSize: 11, color: 'var(--nan-text3)', fontWeight: 600 }}>Follow us on X</span>
+              <span style={{ display: 'block', fontSize: 14, fontWeight: 600 }}>{X_HANDLE}</span>
+            </span>
+          </a>
+        </div>
       </div>
 
       {/* CTAs */}
