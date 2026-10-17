@@ -11,15 +11,15 @@ const SWAP_TOKENS: Record<string, string> = { usdc: 'USDC', eurc: 'EURC', cirbtc
 function normalizeChain(raw: string): string | null {
   const c = raw.toLowerCase().replace(/[^a-z ]/g, ' ').replace(/\s+/g, ' ').trim()
   if (!c) return null
-  if (/\bbase\b/.test(c)) return 'Base Sepolia'
-  if (/\barb/.test(c)) return 'Arbitrum Sepolia'
-  if (/\boptimism\b|\bop\b/.test(c)) return 'OP Sepolia'
-  if (/\bpolygon\b|\bamoy\b|\bpol\b/.test(c)) return 'Polygon Amoy'
-  if (/\bavalanche\b|\bfuji\b|\bavax\b/.test(c)) return 'Avalanche Fuji'
-  if (/\bunichain\b/.test(c)) return 'Unichain Sepolia'
-  if (/\blinea\b/.test(c)) return 'Linea Sepolia'
-  if (/\bsei\b/.test(c)) return 'Sei Testnet'
-  if (/\bworld\b/.test(c)) return 'World Chain Sepolia'
+  if (/\bbase\b/.test(c)) return 'Base'
+  if (/\barb/.test(c)) return 'Arbitrum One'
+  if (/\boptimism\b|\bop\b/.test(c)) return 'OP Mainnet'
+  if (/\bpolygon\b|\bamoy\b|\bpol\b/.test(c)) return 'Polygon'
+  if (/\bavalanche\b|\bfuji\b|\bavax\b/.test(c)) return 'Avalanche'
+  if (/\bunichain\b/.test(c)) return 'Unichain'
+  if (/\blinea\b/.test(c)) return 'Linea'
+  if (/\bsei\b/.test(c)) return 'Sei'
+  if (/\bworld\b/.test(c)) return 'World Chain'
   if (/\barc\b/.test(c)) return 'Arc'
   if (/\bethereum\b|\beth\b|\bsepolia\b/.test(c)) return 'Ethereum'
   return null
@@ -161,9 +161,9 @@ export function detectDirectAction(message: string): { reply: string; action: Re
     }
   }
 
-  // Testnet faucet
+  // Faucet / free test USDC requests (not available on mainnet) → point to Buy USDC
   if (!/^(how|what|why|where|when|can|could|is|are|does|do|which)\b/.test(lower) && /\bfaucet\b|\bfree (?:test(?:net)? )?usdc\b|\b(?:get|claim|request)\b.*\btest(?:net)?\b.*\b(usdc|funds|tokens?)\b/.test(lower)) {
-    return { reply: 'Requesting testnet USDC for your wallet…', action: { action: 'claim_faucet', params: {} } }
+    return { reply: 'NAN runs on Arc mainnet, so there is no free test USDC. Opening Buy USDC so you can add funds with a card or bank transfer.', action: { action: 'navigate', params: { page: 'onramp' } } }
   }
 
   // Export activity as CSV

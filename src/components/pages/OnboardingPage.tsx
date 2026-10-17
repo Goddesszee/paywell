@@ -239,7 +239,7 @@ export function OnboardingPage() {
       </div>
 
       <p style={{ marginTop: 24, fontSize: 12, color: T3 }}>
-        {isConnected ? `✓ ${fmt(address)}` : 'Powered by Arc · Circle USDC · Testnet'}
+        {isConnected ? `✓ ${fmt(address)}` : 'Powered by Arc · Circle USDC'}
       </p>
     </div>
   )

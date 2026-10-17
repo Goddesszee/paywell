@@ -1509,7 +1509,7 @@ function AgentChat({ onNavigate }: { onNavigate?: (page: string, query?: string)
           addAgentMessage({ role: 'agent', content: "I couldn't reach the AI service just now, so I can only handle exact commands. Try: \"Send 10 USDC to @name\" or \"Send 10 USDC to 0x…\" (a 0x address or a @name), or try again in a moment.", action: 'info' })
         }
       } else if (/bridge/.test(lower)) {
-        addAgentMessage({ role: 'agent', content: "You can bridge USDC to other chains from the **Bridge** page. Tell me the chain and amount — for example: \"Bridge 20 USDC to Base Sepolia\"", action: 'info' })
+        addAgentMessage({ role: 'agent', content: "You can bridge USDC to other chains from the **Bridge** page. Tell me the chain and amount — for example: \"Bridge 20 USDC to Base\"", action: 'info' })
       } else if (/swap/.test(lower)) {
         addAgentMessage({ role: 'agent', content: "You can swap tokens from the **Swap** page. Tell me what you want to swap — for example: \"Swap 10 USDC to ETH\"", action: 'info' })
       } else if (/payment request|invoice/.test(lower)) {
@@ -1529,7 +1529,7 @@ function AgentChat({ onNavigate }: { onNavigate?: (page: string, query?: string)
     "What's my balance?",
     'Show my recent transactions',
     'Show my recurring payments',
-    'Bridge 10 USDC to Base Sepolia',
+    'Bridge 10 USDC to Base',
     'Set my daily spending limit to 50 USDC',
     'Create a payment request for 25 USDC',
     'Enable the NAN Agent',

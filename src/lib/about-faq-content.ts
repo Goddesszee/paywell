@@ -38,7 +38,7 @@ You choose how to sign in: an email or Google account with a Circle wallet prote
 
 NAN is built on Circle's developer stack: Circle wallets for secure key management, CCTP V2 for cross-chain USDC transfers, Circle Gateway for a single balance across chains, Circle's onramp for buying USDC, and Circle's agent tools so your AI agent can pay for services.
 
-NAN currently runs on Arc. Testnet USDC has no real-world value, so it is a safe place to try everything.`,
+NAN runs on Arc mainnet, so every balance is real USDC. Check the address and amount carefully before you confirm, because blockchain transfers cannot be reversed.`,
   mission: 'To make money simple and programmable, so anyone, and any AI agent acting for them, can send, receive and automate payments anywhere in the world, quickly and at low cost.',
   contact: 'Need help? Open Support from the menu and submit a ticket. To report a bug, use Feedback. Have an idea? Share it on Suggestions. We read all of them.',
 }
@@ -91,10 +91,10 @@ export const FAQS: FaqItem[] = [
   { id: 'bs4', category: 'Bridge, Swap & Gateway', order: 4, question: 'My swap says there is no route. Why?', answer: 'Swap liquidity can be temporarily unavailable. Wait a few seconds and try again, or try a smaller amount.' },
   { id: 'bs5', category: 'Bridge, Swap & Gateway', order: 5, question: 'What is Gateway?', answer: 'Circle Gateway gives you one unified USDC balance across supported chains. Deposit USDC once, then transfer it to another chain in about a second without waiting for a full bridge.' },
 
-  // ── Buy & Faucet ──
-  { id: 'of1', category: 'Buy USDC & Faucet', order: 1, question: 'How do I buy USDC?', answer: 'Open Buy USDC (Onramp), choose an amount and continue. The Circle onramp opens so you can pay by card or bank transfer. Circle handles identity checks and compliance.' },
-  { id: 'of2', category: 'Buy USDC & Faucet', order: 2, question: 'How do I get USDC?', answer: 'Use the Buy USDC (Onramp) to purchase USDC with a card or bank transfer.' },
-  { id: 'of3', category: 'Buy USDC & Faucet', order: 3, question: 'Are there any purchase limits?', answer: 'Purchase limits are set by Circle\'s compliance requirements and may vary by region. Contact support if you need higher limits.' },
+  // ── Buy USDC ──
+  { id: 'of1', category: 'Buy USDC', order: 1, question: 'How do I buy USDC?', answer: 'Open Buy USDC (Onramp), choose an amount and continue. The Circle onramp opens so you can pay by card or bank transfer. Circle handles identity checks and compliance.' },
+  { id: 'of2', category: 'Buy USDC', order: 2, question: 'How do I get USDC?', answer: 'Use the Buy USDC (Onramp) to purchase USDC with a card or bank transfer.' },
+  { id: 'of3', category: 'Buy USDC', order: 3, question: 'Are there any purchase limits?', answer: 'Purchase limits are set by Circle\'s compliance requirements and may vary by region. Contact support if you need higher limits.' },
 
   // ── Security & Privacy ──
   { id: 'sp1', category: 'Security & Privacy', order: 1, question: 'Who controls my keys?', answer: 'Email and Google wallets are Circle wallets protected by your PIN, and Circle\'s infrastructure secures the keys. Passkey wallets are secured by your device biometrics. If you connect MetaMask or another wallet, you keep your own keys.' },
